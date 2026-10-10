@@ -427,6 +427,16 @@ export function preserveText(d: CardDef): string | undefined {
   return `Preserve ${cost}.`;
 }
 
+/** A modal spell (2.0): "Choose up to two —", then one bulleted line per mode. */
+export function modalText(d: CardDef): string | undefined {
+  if (!d.modal) return undefined;
+  const { upTo, modes } = d.modal;
+  const head = upTo === 1 ? 'Choose one —'
+    : upTo === modes.length ? modes.length === 2 ? 'Choose one or both —' : 'Choose one or more —'
+    : `Choose up to ${countWord(upTo)} —`;
+  return [head, ...modes.map((mode) => `• ${abilityText({ when: 'spell', ops: mode.ops, targets: mode.targets }, d)}`)].join('\n');
+}
+
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
   return `Skim ${manaCostText(d.skim.cost)}`;
@@ -748,6 +758,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push(sentence + limit);
     hasDawnAbility ||= ab.when === 'dawn';
   }
+  const modal = modalText(d);
+  if (modal) lines.push(modal);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   const preserve = preserveText(d);

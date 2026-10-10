@@ -15,7 +15,7 @@ import { canPay, combineManaCosts, manaSources, maxPayableX, solveMana } from '.
 import { arrivalHuntIndex, conditionSatisfied } from './effects/EffectInterpreter';
 import { castTargetSpecs } from './resolve';
 import { getEffectiveStats } from './statics';
-import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaActivatedDef, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
+import type { ActivatedDef, CardDb, CardDef, EffectOp, GameState, ManaActivatedDef, ManaCost, ModalDef, Permanent, PlayerId, TargetRef, TargetSpec } from './types';
 import {
   cardIdOf,
   def,
@@ -26,6 +26,7 @@ import {
   validateEmpowerDef,
   validateHauntlinkDef,
   validateManaActivatedDef,
+  validateModalDef,
   validatePreserveDef,
   validateTitheDef,
   validateWhispersDef,
@@ -120,6 +121,8 @@ export type Action =
       tithe?: true;
       /** Cast this card for hauntlink.cost and attach it to targets[0]. */
       hauntlinked?: boolean;
+      /** A modal spell's chosen modes, ascending (2.0); `targets` lists each targeted mode's target in that order. */
+      modes?: number[];
       manaPlan?: number[]; // explicit source iids; omitted = auto-solve
     }
   /** Revision-3 Charm-speed action: pay Hauntlink to link or move a permanent. */
@@ -224,6 +227,10 @@ function pushCastActions(
   hauntlinked = false,
   mode: { whispers?: true; tithe?: true } = {},
 ): void {
+  if (d.modal) {
+    if (!retell && !hauntlinked && !mode.whispers && !mode.tithe) pushModalCastActions(out, state, db, player, sourceIndex, d);
+    return;
+  }
   const xs: (number | undefined)[] = d.x
       ? retell || hauntlinked || mode.whispers || mode.tithe
       ? []
@@ -281,6 +288,46 @@ function pushCastActions(
           ...(empowered ? { empowered: true } : {}),
         });
       }
+    }
+  }
+}
+
+/** Every choice of 1 to `upTo` different modes, each as an ascending index list. */
+export function modeChoices(modal: ModalDef): number[][] {
+  const out: number[][] = [];
+  const visit = (from: number, chosen: number[]): void => {
+    if (chosen.length > 0) out.push(chosen);
+    if (chosen.length === modal.upTo) return;
+    for (let i = from; i < modal.modes.length; i++) visit(i + 1, [...chosen, i]);
+  };
+  visit(0, []);
+  return out;
+}
+
+/** The chosen modes' target specs, in mode order: one slot per targeted mode. */
+export function modalTargetSpecs(modal: ModalDef, modes: readonly number[]): TargetSpec[] {
+  return modes.flatMap((index) => modal.modes[index]?.targets ?? []);
+}
+
+/** A reason string for a bad mode choice, or null. */
+function modeChoiceError(d: CardDef, modes: readonly number[] | undefined): string | null {
+  if (!d.modal) return modes === undefined ? null : 'card is not modal';
+  if (validateModalDef(d).length > 0) return 'invalid modal card';
+  if (!modes || modes.length === 0) return 'choose at least one mode';
+  if (modes.length > d.modal.upTo) return 'too many modes';
+  for (let i = 0; i < modes.length; i++) {
+    if (!Number.isInteger(modes[i]) || modes[i] < 0 || modes[i] >= d.modal.modes.length) return 'bad mode';
+    if (i > 0 && modes[i] <= modes[i - 1]) return 'modes must be different and in printed order';
+  }
+  return null;
+}
+
+/** A modal spell is offered once per mode choice and target list. */
+function pushModalCastActions(out: Action[], state: GameState, db: CardDb, player: PlayerId, handIndex: number, d: CardDef): void {
+  if (!d.modal || validateModalDef(d).length > 0) return;
+  for (const modes of modeChoices(d.modal)) {
+    for (const targets of targetListsForCast(state, db, player, d, modalTargetSpecs(d.modal, modes), false)) {
+      out.push({ type: 'castSpell', handIndex, modes, ...(targets ? { targets } : {}) });
     }
   }
 }
@@ -1407,7 +1454,10 @@ export function validateAction(
           return 'cannot pay cost';
         }
       }
-      const specs = castTargetSpecsNow(state, db, player, d, isRetell, isHauntlinked, action.empowered === true);
+      const modeError = modeChoiceError(d, action.modes);
+      if (modeError) return modeError;
+      const specs = d.modal ? modalTargetSpecs(d.modal, action.modes!)
+        : castTargetSpecsNow(state, db, player, d, isRetell, isHauntlinked, action.empowered === true);
       const targets = action.targets ?? [];
       const targetError = validateTargetList(state, db, player, d, specs, targets, action.empowered === true);
       if (targetError) return targetError;

@@ -12,7 +12,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 4. The Mandate's card wording: "while you hold the Mandate", "if you don't hold the Mandate", "whenever you claim the Mandate". **As built (B2.3).**
 5. Small constructs the overplan names: an arrival trigger filtered by subtype (Yutu, Jiuwei, Lanlan); "if you gained life this turn" (Hebe); a token created for a target's controller (Circe's Pig). **As built (B2.4).**
 6. Nüwa's pieces: removing marks as an activation cost, without a tap; a Tithe that grants marks; Tithe on a Darling cast (ruled 2026-10-08: it reduces the base cost, never the Darling tax). **As built (B2.5).**
-7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets).
+7. The modal "choose up to N" (ruled into the engine 2026-10-08 for later sets). **As built (B2.6), for Rituals and Charms.**
 8. The AI reads (B3), the duel UI (B4), the lab rates (B5).
 
 ## Part 1. The Mandate
@@ -38,7 +38,7 @@ Build order (the 2.0 plan's shared-file order: the Mandate first in `types.ts` a
 
 ## Part 2. The starting-life field (D3a)
 
-**As built.** D2 ruled 25 life. D3 is split so the field lands with the Mandate's replay bump, while the total itself waits on the owner's call (Q1):
+**As built.** D2 ruled 25 life. D3 is split so the field lands with the Mandate's replay bump, while the default stays 20 until the floor reset (Q1, ruled):
 
 - `GameConfig.startingLife?: number` (`src/engine/Game.ts`), default `RULES.startingLife`, rejected unless a positive whole number. `Game.startingLife` exposes the game's own total; the duel's music mood reads it instead of the global.
 - `ReplayLog.startingLife?: number` (`src/meta/Replay.ts`). Every new draft records it. A log without it was recorded before v17, at 20, and replays at 20 whatever `RULES.startingLife` says (`replayStartingLife`). The replay viewer in `DuelScene` passes it to its `Game`.
@@ -114,9 +114,31 @@ The overplan's latest Nüwa (owner's design, 2026-10-08) is a 4/4 Tithe Darling 
 - **Not yet.** The Forge's builder and validator still accept only tap costs, and the duel UI shows a stone like a Duty; both land with B4.
 - **Tests.** `tests/engine/markCostAndDarlingTithe.test.ts`: marks spent with no tap on an arriving creature, repeated use while tapped until the marks run out, a Duty beside stones still taps and waits, the card wording, Tithe marks capped and absent on a full-price cast, the tax paid in full (including when the fodder could cover more than the printed generic), the canonical Darling Tithe offer, and refused sacrifices.
 
+## Part 7. Modal spells
+
+Ruled into the engine 2026-10-08 so later sets can print "some of these effects" cards. No card in Core Set II's current cut uses it (Nüwa moved to stones), so it is built for Rituals and Charms, where Magic's Commands and Charms live, and stops there until a card needs more.
+
+### Rules (for the owner)
+
+- A modal spell says "Choose one —", "Choose up to two —", "Choose one or both —" or "Choose one or more —", then lists its modes. You pick as you cast it: at least one mode, never the same mode twice, and each chosen mode's target if it has one. You can't pick a mode that has no legal target.
+- The chosen modes happen in the order they are printed. If a mode's target is gone by then, that mode does nothing and the rest still happen. The spell does nothing at all only when every mode you chose had a target and all of them are gone.
+- Unlike Magic's "choose up to", you can't choose zero modes.
+
+### As built (B2.6)
+
+- **Data.** `CardDef.modal: { upTo, modes: [{ ops, targets? }] }` (`src/engine/types.ts`), refused by `validateModalDef` outside a plain Ritual or Charm, beside any other cast option, or with a mode that targets twice, Hunts, moves a mark, uses X or targets after Foresee. The catalog test runs it on every card.
+- **Casting.** `castSpell` takes `modes` (ascending indexes); `targets` holds each targeted mode's target in mode order. `legalActions` offers one cast per mode choice and target list (`modeChoices`, `modalTargetSpecs` in `src/engine/actions.ts`). The stack item records the modes.
+- **Resolving.** `resolveModalSpell` (`src/engine/resolve.ts`) runs each chosen mode with its own target slot, as the rules above say.
+- **Words.** `modalText` in `src/ui/rulesText.ts`.
+- **AI reads.** `modalCastValue` (`src/ai/value.ts`) adds each chosen mode's value: its target-free ops at printed rates and its targeted ops on the target the cast names. `cardValue` folds it in for Medium and Hard; Easy adds it to its cast score. Medium still holds every Charm for a response window, as it does today.
+- **Scorer.** A modal card scores 0 for its modes and reports `modal` until the lab (B5) measures a rate.
+- **Not yet.** Modal triggers and Duties, the Forge's builder, and a mode picker in the duel UI (B4).
+- **Tests.** `tests/engine/modal.test.ts`: the offered choices (and a mode with no target left out), printed-order resolution on separate targets, a gone target skipping its mode and fizzling only when every mode lost its target, refused choices, the wording, the validator, and all three brains picking a removal mode over a life point.
+
 ## Questions for the owner
 
-- **Q1. When does the default become 25?** Every win-rate floor in CI was measured at 20. Recommended: the field lands now at 20, the labs and the rescore run at 25 through it, and the default flips together with the one-time floor reset (P8).
+- **Q1. When does the default become 25?** **Ruled by the owner 2026-10-09: flip at the reset.** The field lands at 20, the labs and the rescore run at 25 through it, and the default flips together with the one-time floor reset (P8), since every win-rate floor in CI was measured at 20.
 - **Q2. Dawn order** (taken as recommended by the set plan): the Mandate's draw comes before the holder's other dawn abilities.
 - **Q3. Claim point** (taken as recommended): once per damage batch, after the damage and before combat-damage triggers.
 - **Q4. Stone timing** (taken as the default): stones are used at Duty speed, in your own Morning or Afternoon. The alternative is Charm speed (any time you could cast a Charm), which would let Nüwa answer an attack with 3 damage.
+- **Q5. Zero modes** (taken as the default): a modal spell needs at least one mode, so "Choose up to two" never casts for nothing. Magic allows zero; nothing here gains from it.

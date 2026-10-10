@@ -2137,6 +2137,14 @@ export function scoreCard(card: ScorableCardDef): Score {
     }
   }
 
+  if (card.modal) {
+    // 2.0: a modal spell ("Choose up to N —"). Magic prices its Commands at
+    // more than one effect and less than the sum; there is no rate here yet,
+    // so it scores 0 and waits on the lab (NEEDS MATH).
+    unknowns.add('modal');
+    parts.push({ label: `modal (choose up to ${card.modal.upTo} of ${card.modal.modes.length}, NEEDS MATH)`, v: 0 });
+  }
+
   if (card.tithe) {
     // Tithe (≈ the Kamigawa Offering cycle, n=5; Emerge creep-flagged, n=10;
     // Devour, n=12) — §4s. The Patrons price the offering option at 0.4 /

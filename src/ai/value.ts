@@ -1475,7 +1475,29 @@ export type RemovalKind =
 
 /** Explicit cast context opts the stronger brains into spell-body decisions. */
 export type SpellMode = Pick<Extract<Action, { type: 'castSpell' }>,
-  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked'>;
+  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked' | 'modes'>;
+
+/**
+ * A modal spell's chosen modes (2.0): each mode's target-free ops at their
+ * printed rates, plus its targeted ops on the target the cast names for it.
+ * 0 for a card that is not modal or a cast that names no modes.
+ */
+export function modalCastValue(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode): number {
+  const modal = def(db, cardId).modal;
+  if (!modal || !mode.modes) return 0;
+  let slot = 0;
+  let value = 0;
+  for (const index of mode.modes) {
+    const chosen = modal.modes[index];
+    if (!chosen) continue;
+    const width = chosen.targets?.length ?? 0;
+    const targets = (mode.targets ?? []).slice(slot, slot + width);
+    slot += width;
+    value += spellAbilityImpact(view, db, cardId, { ops: chosen.ops }, {}, (op) => !effectOpUsesTarget(op)) +
+      spellTargetsValue(view, db, chosen.ops, targets);
+  }
+  return value;
+}
 
 function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['condition']): boolean {
   if (condition === undefined) return true;
@@ -1866,6 +1888,7 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
   v += conditionalAbilityValue(db, cardId, view);
   // Explicit public context keeps Easy and the shared discard/fodder policies
   // byte-identical. Medium/Hard can price a spell's actual body and target.
+  if (view && d.modal) v += modalCastValue(view, db, cardId, mode);
   if (view && !isType(d, 'creature') && (isType(d, 'charm') || isType(d, 'ritual'))) {
     const abilities = mode.retell && d.retell?.ops
       ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];

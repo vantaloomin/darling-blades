@@ -1106,6 +1106,7 @@ export class Game {
           ...(isWhispers ? { whispered: true } : {}),
           ...(isHauntlinked ? { hauntlinked: true } : {}),
           ...(titheMarks > 0 ? { titheMarks } : {}),
+          ...(action.modes ? { modes: [...action.modes] } : {}),
         };
         st.stack.push(item);
         emit({

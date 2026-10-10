@@ -250,6 +250,23 @@ export interface WhispersDef {
   cost: ManaCost;
 }
 
+/** One option of a modal spell: its own ops and at most one target of its own. */
+export interface ModeDef {
+  ops: EffectOp[];
+  targets?: TargetSpec[];
+}
+
+/**
+ * A modal Ritual or Charm (2.0, ruled into the engine 2026-10-08): "Choose up
+ * to N —". The caster picks at least one and at most `upTo` different modes
+ * as it is cast, with each chosen mode's target, and they resolve in printed
+ * order. The modes are the card's whole text.
+ */
+export interface ModalDef {
+  upTo: number;
+  modes: ModeDef[];
+}
+
 /** Optional creature sacrifices discount one generic per two combined Defense. */
 export interface TitheDef {
   per: 2;
@@ -677,6 +694,8 @@ export interface CardDef {
   whispers?: WhispersDef;
   /** Optional any-number creature sacrifice discount paid while casting. */
   tithe?: TitheDef;
+  /** A modal Ritual or Charm: "Choose up to N —" (2.0). */
+  modal?: ModalDef;
   /** Optional additional cast cost that sacrifices controlled creatures. */
   rite?: RiteDef;
   /** Returns once after dying without a +1/+1 mark. */
@@ -777,6 +796,48 @@ export function validateHauntlinkDef(d: CardDef): string[] {
 }
 
 /** Catalog-facing Rite validation; targeted effects choose before the sacrifice cost. */
+/**
+ * Modal spells (2.0). The modes are the whole text of a Ritual or Charm with
+ * no other cast option; each mode has ops and at most one plain target, and
+ * no op that needs a second target, X, a Hunt, or a target after Foresee.
+ */
+export function validateModalDef(d: CardDef): string[] {
+  if (!d.modal) return [];
+  const errors: string[] = [];
+  const { upTo, modes } = d.modal;
+  if (!isType(d, 'ritual') && !isType(d, 'charm')) errors.push('Modal carrier must be a Ritual or Charm');
+  if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) errors.push('Modal carrier cannot be a permanent');
+  if ((d.abilities ?? []).some((ab) => ab.when === 'spell')) errors.push('Modal card cannot also have spell abilities');
+  if (d.x || d.empower || d.retell || d.whispers || d.tithe || d.rite || d.hauntlink) {
+    errors.push('Modal card cannot combine with X, Empower, Retell, Whispers, Tithe, Rite or Hauntlink');
+  }
+  if (!Array.isArray(modes) || modes.length < 2 || modes.length > 5) errors.push('Modal card needs 2 to 5 modes');
+  if (!Number.isInteger(upTo) || upTo < 1 || upTo > (modes?.length ?? 0)) errors.push('Modal upTo must be from 1 to the number of modes');
+  for (const mode of modes ?? []) {
+    const targets = mode.targets ?? [];
+    if (mode.ops.length === 0) errors.push('Each mode needs ops');
+    if (targets.length > 1) errors.push('A mode has at most one target');
+    for (const spec of targets) {
+      if (spec.upTo !== undefined || spec.exactly !== undefined) errors.push('A mode target is a single target');
+    }
+    let afterForesee = false;
+    const inspect = (list: readonly EffectOp[]): void => {
+      for (const op of list) {
+        if ('n' in op && op.n === 'X') errors.push('Modes cannot use X');
+        if (op.op === 'hunt' || op.op === 'moveMark') errors.push('Modes cannot Hunt or move marks');
+        if ('targetIndex' in op && op.targetIndex !== undefined && op.targetIndex !== 0) errors.push('A mode has only target 0');
+        if (effectOpUsesTarget(op)) {
+          if (targets.length === 0) errors.push('A mode op that targets needs a target spec');
+          if (afterForesee) errors.push('A mode cannot target after Foresee');
+        }
+        if (isTargetBranchOp(op)) { inspect(op.then); inspect(op.else ?? []); } else if (op.op === 'foresee') afterForesee = true;
+      }
+    };
+    inspect(mode.ops);
+  }
+  return errors;
+}
+
 export function validateRiteDef(d: CardDef): string[] {
   if (!d.rite) return [];
   const errors: string[] = [];
@@ -1055,6 +1116,8 @@ export interface StackItem {
   hauntlinked?: boolean;
   /** Marks the creature arrives with: one per {1} its Tithe saved, capped by `TitheDef.marks` (2.0). */
   titheMarks?: number;
+  /** A modal spell's chosen modes, ascending; `targets` holds each targeted mode's target in that order (2.0). */
+  modes?: number[];
 }
 
 export type TargetRef =
