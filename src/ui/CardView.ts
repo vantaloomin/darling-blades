@@ -25,6 +25,7 @@ import { IridescencePostFX } from './fx/IridescencePostFX';
 import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
+import { showsLegendaryCrown } from './legendaryCrown';
 
 export const CARD_W = CARD_FACE_W;
 export const CARD_H = CARD_FACE_H;
@@ -569,7 +570,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // treatment (plain look) unless a non-white variant frame claims it
     // for Axis B.
     this.gem.setTexture(`seticon-${card.set ?? 'base'}-${card.rarity}`);
-    this.crown.setVisible(!!card.supertypes?.includes('legendary'));
+    this.crown.setVisible(showsLegendaryCrown(card));
 
     const variant = opts.variant;
     if (variant && variant.frame !== 'white') {

@@ -67,6 +67,7 @@ export const TRIGGERS = [
   'allyAttacks',
   'youGainLife',
   'youCastCharm',
+  'youClaimMandate',
   'sunset',
   'provoked',
   'static',
@@ -97,6 +98,7 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   allyAttacks: 'Whenever a creature you control attacks',
   youGainLife: 'Whenever you gain life',
   youCastCharm: 'Whenever you cast a Charm',
+  youClaimMandate: 'Whenever you claim the Mandate',
   sunset: 'At Sunset',
   provoked: MECHANIC_NAMES.provoked,
 };

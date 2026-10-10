@@ -1,5 +1,5 @@
 import type { Emit } from './battlefield';
-import { firePlayerObservers } from './effects/EffectInterpreter';
+import { firePlayerObservers, noteLifeGained } from './effects/EffectInterpreter';
 import { getEffectiveStats } from './statics';
 import type { CardDb, CardDef, GameState, Keyword, Permanent, PlayerId, TargetRef } from './types';
 import { def } from './types';
@@ -60,7 +60,7 @@ export function applyCreatureDamage(
   for (const hit of hits) {
     if (keywordsOf.has(hit.source)) continue;
     const onBoard = state.battlefield.some((perm) => perm.iid === hit.source);
-    keywordsOf.set(hit.source, onBoard ? getEffectiveStats(state.battlefield, db, hit.source).keywords : new Set());
+    keywordsOf.set(hit.source, onBoard ? getEffectiveStats(state, db, hit.source).keywords : new Set());
   }
   const deathblade = (hit: CreatureDamageHit): boolean => keywordsOf.get(hit.source)!.has('deathblade');
   const bloodOath = (hit: CreatureDamageHit): boolean => keywordsOf.get(hit.source)!.has('bloodoath');
@@ -81,6 +81,7 @@ export function applyCreatureDamage(
       emit({ e: 'lifeChanged', player: hit.target.player, delta: -hit.amount, now: p.life });
     }
     if (bloodOath(hit) && hit.amount > 0) {
+      noteLifeGained(state, hit.sourceController);
       const healed = state.players[hit.sourceController];
       healed.life += hit.amount;
       emit({ e: 'lifeChanged', player: hit.sourceController, delta: hit.amount, now: healed.life });

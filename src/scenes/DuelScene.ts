@@ -1370,11 +1370,11 @@ export class DuelScene extends Phaser.Scene {
     ).length;
     const eligibleAttackerCount =
       isHumanTurn && a.kind === 'declareAttackers'
-        ? eligibleAttackers(st.battlefield, CARD_DB, HUMAN).length
+        ? eligibleAttackers(st, CARD_DB, HUMAN).length
         : 0;
     const hasLegalBlocker =
       isHumanTurn && a.kind === 'declareBlockers' && st.combat
-        ? blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat).length > 0
+        ? blockOptions(st, CARD_DB, HUMAN, st.combat).length > 0
         : false;
     return {
       isHumanTurn,
@@ -1428,12 +1428,12 @@ export class DuelScene extends Phaser.Scene {
       case 'confirmBlock':
         return this.passArc;
       case 'selectAttacker': {
-        const iid = eligibleAttackers(st.battlefield, CARD_DB, HUMAN)[0];
+        const iid = eligibleAttackers(st, CARD_DB, HUMAN)[0];
         return iid != null ? (this.views.get(iid) ?? null) : null;
       }
       case 'selectBlocker': {
         if (!st.combat) return null;
-        const iid = blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat)[0]?.blocker;
+        const iid = blockOptions(st, CARD_DB, HUMAN, st.combat)[0]?.blocker;
         return iid != null ? (this.views.get(iid) ?? null) : null;
       }
       case 'selectAttackerToBlock': {
@@ -2368,7 +2368,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** Your able attackers that Rage compels right now; empty without Rage. */
   private rageAttackers(): number[] {
-    return compelledAttackers(this.duel.state.battlefield, CARD_DB, HUMAN);
+    return compelledAttackers(this.duel.state, CARD_DB, HUMAN);
   }
 
   private isHumanTurnDecision(): boolean {
@@ -3160,7 +3160,7 @@ export class DuelScene extends Phaser.Scene {
         this.selectedAttackers.clear();
         return {
           type: 'declareAttackers',
-          attackers: compelledAttackers(this.duel.state.battlefield, CARD_DB, HUMAN),
+          attackers: compelledAttackers(this.duel.state, CARD_DB, HUMAN),
         };
       }
       case 'respond':
@@ -4529,7 +4529,7 @@ export class DuelScene extends Phaser.Scene {
         });
         view.setTapped(perm.tapped);
       }
-      const stats = getEffectiveStats(this.duel.state.battlefield, CARD_DB, perm.iid);
+      const stats = getEffectiveStats(this.duel.state, CARD_DB, perm.iid);
       if (isType(d, 'creature')) {
         view.setStats(stats.attack, stats.defense - perm.damage, {
           damage: perm.damage,
@@ -4547,7 +4547,7 @@ export class DuelScene extends Phaser.Scene {
       // this turn + no haste). Only creatures can be sick; the call resets
       // itself when sickness wears off at the controller's untap.
       view.setSummoningSick(
-        isType(d, 'creature') && isSummoningSick(this.duel.state.battlefield, CARD_DB, perm),
+        isType(d, 'creature') && isSummoningSick(this.duel.state, CARD_DB, perm),
       );
       // Quest chapter badge + Champion Awakening ring (1.2). The engine's
       // Permanent fields are the source of truth; non-Quests hide the badge.
@@ -4668,7 +4668,7 @@ export class DuelScene extends Phaser.Scene {
       pendingBlocker: this.pendingBlocker === perm.iid,
       assignedBlocker: this.blockAssignments.some(b => b.blocker === perm.iid),
       canAttack: context === 'declareAttackers' && this.isHumanTurnDecision() &&
-        eligibleAttackers(this.duel.state.battlefield, CARD_DB, HUMAN).includes(perm.iid),
+        eligibleAttackers(this.duel.state, CARD_DB, HUMAN).includes(perm.iid),
       link, dutyUsable: this.activateActionsFor(perm.iid).length > 0,
       boostUsable: this.boostActionsFor(perm.iid).length > 0, actionFlash: this.dutyHighlights.has(perm.iid),
     });
@@ -5845,7 +5845,7 @@ export class DuelScene extends Phaser.Scene {
     const a = this.duel.awaiting;
     const st = this.duel.state;
     if (a.kind !== 'declareBlockers' || !st.combat || this.blockAssignments.length > 0) return null;
-    if (blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat).length === 0) return null;
+    if (blockOptions(st, CARD_DB, HUMAN, st.combat).length === 0) return null;
     const preview = previewCombat(st, CARD_DB, []);
     return { damage: -preview.lifeDelta[HUMAN], lethal: preview.defenderLethal };
   }
@@ -6711,7 +6711,7 @@ export class DuelScene extends Phaser.Scene {
     if (dutyReason) this.showTransientNotice(dutyReason);
 
     if (a.kind === 'declareAttackers') {
-      if (!eligibleAttackers(st.battlefield, CARD_DB, HUMAN).includes(iid)) return;
+      if (!eligibleAttackers(st, CARD_DB, HUMAN).includes(iid)) return;
       const toggle = toggleAttacker(this.selectedAttackers, iid, this.rageAttackers());
       this.selectedAttackers = toggle.selected;
       if (toggle.refused) this.showTransientNotice(rageMustAttackNotice(def(CARD_DB, perm.cardId).name));
@@ -6720,7 +6720,7 @@ export class DuelScene extends Phaser.Scene {
     }
 
     if (a.kind === 'declareBlockers' && st.combat) {
-      const opts = blockOptions(st.battlefield, CARD_DB, HUMAN, st.combat);
+      const opts = blockOptions(st, CARD_DB, HUMAN, st.combat);
       if (perm.controller === HUMAN) {
         // toggle/select a blocker
         const existing = this.blockAssignments.findIndex((b) => b.blocker === iid);
@@ -6747,7 +6747,7 @@ export class DuelScene extends Phaser.Scene {
           this.blockAssignments.push({ blocker: this.pendingBlocker, attacker: iid });
           this.pendingBlocker = null;
           const assigned = this.blockAssignments.filter((b) => b.attacker === iid).length;
-          if (assigned === 1 && minimumBlockersForAttacker(st.battlefield, CARD_DB, iid) === 2) {
+          if (assigned === 1 && minimumBlockersForAttacker(st, CARD_DB, iid) === 2) {
             // First blocker onto a Dreaded attacker: nudge for the second.
             this.showSkipNotice(`${def(CARD_DB, perm.cardId).name} is Dreaded. Add a second blocker.`);
           } else if (assigned >= 2) {
@@ -6770,7 +6770,7 @@ export class DuelScene extends Phaser.Scene {
     for (const [attacker, n] of counts) {
       const perm = st.battlefield.find((p) => p.iid === attacker);
       if (!perm) continue;
-      if (n < minimumBlockersForAttacker(st.battlefield, CARD_DB, attacker)) {
+      if (n < minimumBlockersForAttacker(st, CARD_DB, attacker)) {
         return def(CARD_DB, perm.cardId).name;
       }
     }

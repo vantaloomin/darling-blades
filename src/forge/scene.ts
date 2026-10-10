@@ -24,6 +24,7 @@ import type { ForgeImageLibrary } from './imageLibrary';
 import { appearanceVariant, cloneBuilderState, toCardDef, type BuilderState } from './logic';
 import { activeCustomArt, artFrameOf as frameOf } from './setModel';
 import type { BuilderStore } from './store';
+import { showsLegendaryCrown } from '../ui/legendaryCrown';
 
 /** The texture the player's own image is composed into, in art-file space (640 x 800). */
 export const CUSTOM_ART_TEXTURE = 'forge-custom-art';
@@ -446,7 +447,7 @@ export class CardBuilderScene extends Phaser.Scene {
     // Even sizes put the card's edges on whole pixels.
     const width = 2 * Math.ceil((base.width * factor) / 2);
     const height = 2 * Math.ceil((base.height * factor) / 2);
-    const overhang = view.card?.supertypes?.includes('legendary') ? CROWN_OVERHANG * CARD_IMAGE_SCALE : 0;
+    const overhang = view.card && showsLegendaryCrown(view.card) ? CROWN_OVERHANG * CARD_IMAGE_SCALE : 0;
     const rect: PixelRect = {
       x: width / 2 - (CARD_W * CARD_IMAGE_SCALE) / 2,
       y: height / 2 - (CARD_H * CARD_IMAGE_SCALE) / 2 - overhang,

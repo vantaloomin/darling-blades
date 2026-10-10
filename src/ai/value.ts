@@ -4,7 +4,7 @@ import { cardHasProvoked } from '../engine/creatureDamage';
 import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
 import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
-import { getEffectiveStats, isQuestActive } from '../engine/statics';
+import { getEffectiveStats, isQuestActive, isSwornActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
 import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
@@ -31,7 +31,7 @@ export function actionManaCost(view: PlayerView, db: CardDb, action: ManaSpendAc
   const cost = castCost(d, !!action.empowered, !!action.retell, !!action.hauntlinked, { whispers: action.whispers });
   if (!cost) return undefined;
   const discount = action.tithe ? Math.floor((action.sacrifices ?? []).reduce((sum, iid) =>
-    sum + getEffectiveStats(view.battlefield, db, iid).defense, 0) / 2) : 0;
+    sum + getEffectiveStats(view, db, iid).defense, 0) / 2) : 0;
   return { generic: Math.max(0, cost.generic - discount) + (action.x ?? 0), pips: cost.pips };
 }
 
@@ -269,6 +269,11 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition'], q
   // No public context preserves the legacy shared-policy estimate (Easy).
   if (condition === 'questActive' && questActive !== undefined) return questActive ? 1 : 0.55;
   if (condition === 'creatureDiedThisTurn') return 0.6;
+  // NEEDS MATH: Sworn's active rate comes from the Core Set II lab (2.0 B5).
+  if (condition === 'swornActive') return 0.6;
+  // NEEDS MATH: the Mandate's hold rate comes from its lab (2.0 B5).
+  if (condition === 'youHoldMandate' || condition === 'youDontHoldMandate') return 0.5;
+  if (condition === 'youGainedLifeThisTurn') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
   if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
@@ -328,7 +333,7 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
   if (!perm) return op.n * 0.9 * harmSign(ctx, ref);
   const d = def(ctx.db, perm.cardId);
   if (!isType(d, 'creature')) return 0;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const lethal = op.n >= stats.defense - perm.damage;
   // Damage a survivor keeps wears off at cleanup. In an end step nothing is
   // left before then for it to add to, so its residual is worth nothing there
@@ -705,7 +710,7 @@ function boostTargetValue(
   if (op.scope !== 'target') return 0;
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const printedDelta = (op.p + op.t) / 2 + boostKeywordValue(op, [stats]);
   // A positive boost helps our body and hurts theirs; a negative boost has the
   // opposite sign. The 0.75 factor keeps a one-turn trick below removal.
@@ -724,7 +729,7 @@ function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCo
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
   if (perm.controller !== ctx.view.myId) return -op.n * 1.2;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const toughnessAfter = stats.defense + op.n - perm.damage;
   let value = op.n * 1.2;
   if (toughnessAfter >= 4) value += 0.4;
@@ -916,7 +921,7 @@ export function expectsTargetSurvives(
   const mods = new Map<number, { p: number; t: number; keywords: Keyword[] }>();
   const dealt = new Map<number, { damage: number; deathblade: boolean }>();
   const statsOf = (id: number) => {
-    const stats = getEffectiveStats(view.battlefield, db, id);
+    const stats = getEffectiveStats(view, db, id);
     const mod = mods.get(id);
     return {
       attack: Math.max(0, stats.attack + (mod?.p ?? 0)), defense: stats.defense + (mod?.t ?? 0),
@@ -1061,7 +1066,8 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
     case 'discardRandom':
       return op.n * 1;
     case 'createToken':
-      return op.count * (1.5 + (op.marks ?? 0) * 1.2);
+      // A token made for the target's controller is theirs, a cost to us.
+      return (op.for === 'targetController' ? -1 : 1) * op.count * (1.5 + (op.marks ?? 0) * 1.2);
     case 'addCounters':
       return op.n * (op.to === 'self' ? 1.5 : 1.2);
     case 'propagate':
@@ -1145,7 +1151,7 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
     return removalTargetValue(view.battlefield, db, target, false) * factor * (target.controller === view.myId ? -1 : 1);
   }
   if (target && op.op === 'boost' && isType(def(db, target.cardId), 'creature') &&
-    getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
+    getEffectiveStats(view, db, target.iid).defense + op.t <= target.damage) {
     return removalTargetValue(view.battlefield, db, target, false) * (target.controller === view.myId ? -1 : 1);
   }
   if (op.op === 'tap' && ctx.live && (target?.tapped ||
@@ -1213,7 +1219,7 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
       const card = def(db, perm.cardId);
       const affected = op.filter === 'allEnchantments' ? isType(card, 'enchantment') :
         isType(card, 'creature') && (op.filter !== 'allFliers' ||
-          getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('skyborne'));
+          getEffectiveStats(view, db, perm.iid).keywords.has('skyborne'));
       return sum + (affected ? material(perm) * (perm.controller === view.myId ? -1 : 1) : 0);
     }, 0);
   }
@@ -1341,10 +1347,10 @@ function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permane
     const creature = isType(card, 'creature');
     if (spec.marked && (!creature || perm.plusOneCounters <= 0)) continue;
     if (spec.maxCost !== undefined && manaValue(card.cost) > spec.maxCost) continue;
-    if (spec.minAttack !== undefined && (!creature || getEffectiveStats(view.battlefield, db, perm.iid).attack < spec.minAttack)) continue;
+    if (spec.minAttack !== undefined && (!creature || getEffectiveStats(view, db, perm.iid).attack < spec.minAttack)) continue;
     const mine = perm.controller === source.controller;
     const creatureTarget = spec.what === 'creature' || spec.what === 'any' || spec.what === 'opponentCreature';
-    if (creatureTarget && !mine && getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('untouchable')) continue;
+    if (creatureTarget && !mine && getEffectiveStats(view, db, perm.iid).keywords.has('untouchable')) continue;
     const matches = spec.what === 'opponentCreature' ? creature && !mine : creatureTarget ? creature : spec.what === 'yourCreature' ? mine && creature :
       spec.what === 'yourPermanent' ? mine : spec.what === 'artifactOrEnchantment' ?
         isType(card, 'artifact') || isType(card, 'enchantment') :
@@ -1469,6 +1475,10 @@ function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['co
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(view.battlefield, db, view.myId);
   if (condition === 'creatureDiedThisTurn') return view.creatureDiedThisTurn === true;
+  if (condition === 'swornActive') return isSwornActive(view.battlefield, db, view.myId);
+  if (condition === 'youHoldMandate') return view.mandateHolder === view.myId;
+  if (condition === 'youDontHoldMandate') return view.mandateHolder !== view.myId;
+  if (condition === 'youGainedLifeThisTurn') return view.gainedLifeThisTurn?.includes(view.myId) ?? false;
   const mine = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'creature'));
   if (condition === 'controlMarked') return mine.some((p) => p.plusOneCounters > 0);
   if (condition.kind === 'controlsOther') return mine.some((p) => def(db, p.cardId).subtypes.includes(condition.subtype));
@@ -1773,8 +1783,9 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
     const markedCondition =
       ab.condition === 'controlMarked' ||
       (typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold');
-    const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'allyAttacks', 'sunset'].includes(ab.when);
-    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' ||
+    const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'youClaimMandate', 'allyAttacks', 'sunset'].includes(ab.when);
+    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' || ab.condition === 'swornActive' ||
+      ab.condition === 'youHoldMandate' || ab.condition === 'youDontHoldMandate' || ab.condition === 'youGainedLifeThisTurn' ||
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
     if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
       !(view && ab.condition === 'questActive')) continue;
@@ -1914,7 +1925,7 @@ export function empowerValue(
         // pricing here is limited to the granted-keyword change (U2).
         return 1.5;
       case 'createToken':
-        return op.count * 2;
+        return (op.for === 'targetController' ? -1 : 1) * op.count * 2;
       case 'raise':
         return op.to === 'target' ? 0 : 3;
       case 'foresee':

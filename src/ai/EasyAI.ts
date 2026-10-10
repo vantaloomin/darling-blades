@@ -62,8 +62,8 @@ export class EasyAI implements AIPlayer {
     legal = applyTithePolicy(view, this.db, legal, this.pers, () => {
       if (view.step !== 'main1' || view.activePlayer !== view.myId) return [];
       const planned = this.attack(view, [
-        { type: 'declareAttackers', attackers: eligibleAttackers(view.battlefield, this.db, view.myId) },
-        { type: 'declareAttackers', attackers: compelledAttackers(view.battlefield, this.db, view.myId) },
+        { type: 'declareAttackers', attackers: eligibleAttackers(view, this.db, view.myId) },
+        { type: 'declareAttackers', attackers: compelledAttackers(view, this.db, view.myId) },
       ]);
       return planned.type === 'declareAttackers' ? planned.attackers : [];
     });
@@ -286,7 +286,7 @@ export class EasyAI implements AIPlayer {
     // All-in or nothing — the signature Easy weakness. `easyAllIn` slack lets
     // an aggressive Easy swing into slightly more blockers (default 0).
     const blockerDemand = allIn.attackers.reduce((n, iid) => {
-      return n + minimumBlockersForAttacker(view.battlefield, this.db, iid);
+      return n + minimumBlockersForAttacker(view, this.db, iid);
     }, 0);
     // Attack when the swing demands at least as many blockers as they have
     // untapped (dreaded attackers demand two): the pre-dreaded gate
@@ -296,7 +296,7 @@ export class EasyAI implements AIPlayer {
 
   private block(view: PlayerView): Action {
     if (!view.combat) return { type: 'declareBlockers', blocks: [] };
-    const options = blockOptions(view.battlefield, this.db, view.myId, view.combat);
+    const options = blockOptions(view, this.db, view.myId, view.combat);
     const blocks: { blocker: number; attacker: number }[] = [];
     const usedBlockers = new Set<number>();
     const blockedAttackers = new Set<number>();
@@ -335,7 +335,7 @@ export class EasyAI implements AIPlayer {
     };
 
     const attackerPower = (iid: number): number =>
-      getEffectiveStats(view.battlefield, this.db, iid).attack;
+      getEffectiveStats(view, this.db, iid).attack;
     const attackers = [...view.combat.attackers]
       .filter((iid) => view.battlefield.some((p) => p.iid === iid))
       .sort((a, b) => attackerPower(b) - attackerPower(a));
@@ -343,16 +343,16 @@ export class EasyAI implements AIPlayer {
     const desperate = view.you.life <= 5;
     for (const attacker of attackers) {
       if (blockedAttackers.has(attacker)) continue;
-      const atk = getEffectiveStats(view.battlefield, this.db, attacker);
+      const atk = getEffectiveStats(view, this.db, attacker);
       const candidates = options.filter(
         (o) => !usedBlockers.has(o.blocker) && o.canBlock.includes(attacker),
       );
       let choices: number[] = [];
-      if (minimumBlockersForAttacker(view.battlefield, this.db, attacker) === 2) {
+      if (minimumBlockersForAttacker(view, this.db, attacker) === 2) {
         for (let i = 0; i < candidates.length && choices.length === 0; i++) {
-          const first = getEffectiveStats(view.battlefield, this.db, candidates[i].blocker);
+          const first = getEffectiveStats(view, this.db, candidates[i].blocker);
           for (let j = i + 1; j < candidates.length; j++) {
-            const second = getEffectiveStats(view.battlefield, this.db, candidates[j].blocker);
+            const second = getEffectiveStats(view, this.db, candidates[j].blocker);
             const kills = blockersKill(atk, [first, second]);
             // Commit the pair only when it kills; otherwise chump only when
             // desperate (the single-block philosophy, pair-sized).
@@ -364,7 +364,7 @@ export class EasyAI implements AIPlayer {
         }
       } else {
         for (const c of candidates) {
-          const blk = getEffectiveStats(view.battlefield, this.db, c.blocker);
+          const blk = getEffectiveStats(view, this.db, c.blocker);
           const kills = blockersKill(atk, [blk]);
           const damage = atk.attack * (atk.keywords.has('twinBlades') ? 2 : 1);
           const survives = blk.defense > damage && !atk.keywords.has('deathblade');

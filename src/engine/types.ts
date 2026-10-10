@@ -52,6 +52,8 @@ export type TriggerWhen =
   | 'allyDies'
   | 'youGainLife'
   | 'youCastCharm'
+  /** Whenever you claim the Mandate (2.0), by an effect or by combat damage. */
+  | 'youClaimMandate'
   | 'allyAttacks'
   | 'sunset'
   /**
@@ -157,7 +159,7 @@ export type EffectOp =
   | { op: 'severSelf' }
   | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
-  | { op: 'createToken'; token: string; count: number; marks?: number }
+  | { op: 'createToken'; token: string; count: number; marks?: number; for?: 'targetController' } // `for`: the first target's controller makes them (2.0)
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
@@ -171,8 +173,8 @@ export type EffectOp =
   | { op: 'claimMandate' }; // the effect's controller claims the Mandate; trigger-safe, no target
 
 export interface StaticDef {
-  /** `questActive` reads the source controller's public battlefield. */
-  condition?: 'questActive';
+  /** Read from the source controller's public board. */
+  condition?: 'questActive' | 'swornActive' | 'youHoldMandate';
   scope: 'self' | 'attached' | 'filter';
   /** filter scope: your creatures matching; `other` excludes the source. */
   filter?: {
@@ -194,6 +196,13 @@ export interface AbilityDef {
   /** The source controller must control a CardDef with `chapters` present. */
   condition?:
     | 'questActive'
+    /** Sworn (2.0, P6): the source's controller controls a legendary creature. */
+    | 'swornActive'
+    /** The source's controller holds the Mandate (2.0), or does not. */
+    | 'youHoldMandate'
+    | 'youDontHoldMandate'
+    /** The source's controller gained life this turn (2.0, Hebe). */
+    | 'youGainedLifeThisTurn'
     | 'controlMarked'
     | 'creatureDiedThisTurn'
     | { kind: 'controlsOther'; subtype: string }
@@ -634,6 +643,12 @@ export interface CardDef {
   displayTypeLine?: string;
   subtypes: string[];
   supertypes?: ('legendary' | 'basic')[];
+  /**
+   * Presentation only (2.0, Core Set II's Sworn Champions): a legendary card
+   * whose frame shows no legendary crown. The rules, the AI, filters and the
+   * type line still treat it as legendary; nothing below the UI reads this.
+   */
+  crownless?: true;
   cost?: ManaCost; // absent on lands
   colors: Color[];
   attack?: number;
@@ -1216,6 +1231,8 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean;
   creatureDiedThisTurn?: true;
+  /** Players who gained life this turn (2.0); cleared at each turn's dawn. */
+  gainedLifeThisTurn?: PlayerId[];
   /** Who holds the Mandate (2.0). Absent means unclaimed, as every game begins. */
   mandateHolder?: PlayerId;
   sunsetPendingWindow?: true;

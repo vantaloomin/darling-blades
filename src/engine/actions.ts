@@ -78,7 +78,7 @@ function abilityHuntsWithSource(ability: ActivatedDef): boolean {
 
 function hasBulwark(state: GameState, db: CardDb, ref: TargetRef | undefined): boolean {
   return ref?.kind === 'permanent' && state.battlefield.some((perm) => perm.iid === ref.iid) &&
-    getEffectiveStats(state.battlefield, db, ref.iid).keywords.has('bulwark');
+    getEffectiveStats(state, db, ref.iid).keywords.has('bulwark');
 }
 
 function moveMarkTargetIndexes(specs: readonly TargetSpec[]): number[] {
@@ -324,7 +324,7 @@ export function castCost(
 function titheDiscounted(cost: ManaCost, options: CastCostOptions): ManaCost | undefined {
   const { state, db, sacrifices = [] } = options;
   if (!state || !db) return undefined;
-  const defense = sacrifices.reduce((sum, iid) => sum + getEffectiveStats(state.battlefield, db, iid).defense, 0);
+  const defense = sacrifices.reduce((sum, iid) => sum + getEffectiveStats(state, db, iid).defense, 0);
   return { generic: Math.max(0, cost.generic - Math.floor(defense / 2)), pips: { ...cost.pips } };
 }
 
@@ -335,7 +335,7 @@ function canonicalTitheSacrifices(
   const generic = castCost(d, empowered, false, false, { whispers })?.generic ?? 0;
   const bodies = state.battlefield
     .filter((perm) => perm.controller === player && isType(def(db, perm.cardId), 'creature'))
-    .map((perm) => ({ iid: perm.iid, defense: getEffectiveStats(state.battlefield, db, perm.iid).defense }))
+    .map((perm) => ({ iid: perm.iid, defense: getEffectiveStats(state, db, perm.iid).defense }))
     .sort((a, b) => a.defense - b.defense);
   const sacrifices: number[] = [];
   let defense = 0;
@@ -645,7 +645,7 @@ export function activatedBlockers(
     return 'Activated source is not on the battlefield';
   }
   const d = def(db, perm.cardId);
-  if (!canActivate(state.battlefield, db, perm, player)) {
+  if (!canActivate(state, db, perm, player)) {
     if (perm.controller !== player) return 'Activated source is not under your control';
     if (!d.activated) return 'permanent has no activated ability';
     if (perm.tapped) return 'Activated source is tapped';
@@ -653,7 +653,7 @@ export function activatedBlockers(
   }
   const ability = activatedAbilitiesOf(d)[abilityIndex];
   if (!Number.isInteger(abilityIndex) || !ability) return 'invalid activated ability index';
-  if (abilityHuntsWithSource(ability) && getEffectiveStats(state.battlefield, db, perm.iid).keywords.has('bulwark')) {
+  if (abilityHuntsWithSource(ability) && getEffectiveStats(state, db, perm.iid).keywords.has('bulwark')) {
     return 'a creature with Bulwark cannot hunt';
   }
   if (ability.cost.mana && !canPay(state, db, player, ability.cost.mana)) {
@@ -763,7 +763,7 @@ export function hasCombatManaActivation(state: GameState, db: CardDb, player: Pl
     if (abilities.length === 0) continue;
     const fighting = combat.attackers.includes(perm.iid) || combat.blocks.some((b) => b.blocker === perm.iid) ||
       (combat.phase === 'attackersDeclared' && player !== state.activePlayer &&
-        (blockers ??= blockOptions(state.battlefield, db, player, combat)
+        (blockers ??= blockOptions(state, db, player, combat)
           .filter((option) => option.canBlock.length > 0).map((option) => option.blocker)).includes(perm.iid));
     if (fighting && abilities.some((ability) => canPay(state, db, player, ability.cost))) return true;
   }
@@ -1038,8 +1038,8 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       // we enumerate subsets of the FREE attackers and union the compelled set
       // into each. When something has Rage, [] is not among the results, which
       // is what makes "skip combat" illegal rather than merely discouraged.
-      const eligible = eligibleAttackers(state.battlefield, db, player);
-      const compelled = compelledAttackers(state.battlefield, db, player);
+      const eligible = eligibleAttackers(state, db, player);
+      const compelled = compelledAttackers(state, db, player);
       const free = eligible.filter((iid) => !compelled.includes(iid));
       const subsets = 1 << free.length;
       for (let mask = 0; mask < subsets; mask++) {
@@ -1058,12 +1058,12 @@ export function legalActions(state: GameState, db: CardDb, player: PlayerId): Ac
       // construction, with validateBlocks as the final arbiter.
       out.push({ type: 'declareBlockers', blocks: [] });
       if (state.combat) {
-        const opts = blockOptions(state.battlefield, db, player, state.combat);
+        const opts = blockOptions(state, db, player, state.combat);
         const liveAttackers = state.combat.attackers.filter((a) =>
           state.battlefield.some((perm) => perm.iid === a),
         );
         const minBlockers = new Map(
-          liveAttackers.map((a) => [a, minimumBlockersForAttacker(state.battlefield, db, a)]),
+          liveAttackers.map((a) => [a, minimumBlockersForAttacker(state, db, a)]),
         );
         for (const opt of opts) {
           for (const attacker of opt.canBlock) {
@@ -1454,12 +1454,12 @@ export function validateAction(
 
     case 'declareAttackers':
       if (a.kind !== 'declareAttackers') return 'not declaring attackers';
-      return validateAttackers(state.battlefield, db, player, action.attackers);
+      return validateAttackers(state, db, player, action.attackers);
 
     case 'declareBlockers': {
       if (a.kind !== 'declareBlockers') return 'not declaring blockers';
       if (!state.combat) return 'no combat in progress';
-      return validateBlocks(state.battlefield, db, player, state.combat, action.blocks);
+      return validateBlocks(state, db, player, state.combat, action.blocks);
     }
 
     case 'passResponse':
@@ -1726,10 +1726,10 @@ export function forcedAction(
     }
     case 'declareAttackers': {
       // Query legality directly — legalActions enumerates 2^n attack subsets.
-      const eligible = eligibleAttackers(state.battlefield, db, player);
+      const eligible = eligibleAttackers(state, db, player);
       if (eligible.length === 0) return { type: 'declareAttackers', attackers: [] };
       // Every eligible attacker has Rage: one legal declaration, no decision.
-      const compelled = compelledAttackers(state.battlefield, db, player);
+      const compelled = compelledAttackers(state, db, player);
       return compelled.length === eligible.length
         ? { type: 'declareAttackers', attackers: eligible }
         : null;
@@ -1739,10 +1739,10 @@ export function forcedAction(
       // legal blocker is not proof a usable assignment exists. Answer the
       // existence question directly instead of materializing every combo.
       if (!state.combat) return null;
-      const opts = blockOptions(state.battlefield, db, player, state.combat);
+      const opts = blockOptions(state, db, player, state.combat);
       const hasCompleteAssignment = state.combat.attackers.some((attacker) => {
         if (!state.battlefield.some((perm) => perm.iid === attacker)) return false;
-        const minimum = minimumBlockersForAttacker(state.battlefield, db, attacker);
+        const minimum = minimumBlockersForAttacker(state, db, attacker);
         return opts.filter((o) => o.canBlock.includes(attacker)).length >= minimum;
       });
       return hasCompleteAssignment ? null : { type: 'declareBlockers', blocks: [] };

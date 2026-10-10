@@ -125,7 +125,7 @@ function reachesFight(
   const targets = action.targets ?? [];
   return targets.length === 0 || targets.some((ref) => ref.kind === 'player' || ref.kind === 'permanent' &&
     (eligible.includes(ref.iid) || eligible.some((attacker) =>
-      canBlock(view.battlefield, sdb, opponentOf(view.myId), ref.iid, attacker))));
+      canBlock(view, sdb, opponentOf(view.myId), ref.iid, attacker))));
 }
 
 /**
@@ -158,7 +158,7 @@ export function precombatDutyEdge(
   // One database for every caller, so a brain and its search share results
   // (the stand-in superset reads real cards exactly as the raw one does).
   const sdb = simDb(db);
-  if (!reachesFight(view, sdb, action, ability, eligibleAttackers(view.battlefield, sdb, me))) return null;
+  if (!reachesFight(view, sdb, action, ability, eligibleAttackers(view, sdb, me))) return null;
   const cache = edgeCacheFor(view, sdb, context);
   const key = dutyKey(view, sdb, action);
   if (cache.edges.has(key)) return cache.edges.get(key)!;
@@ -394,20 +394,20 @@ export function scoredActivationCandidates(
     // body could attack instead.
     let paidMorning = view.step === 'main1' && manaValue(ability.cost.mana) > 0;
     if (view.step === 'main1' && isType(d, 'creature')) {
-      const stats = getEffectiveStats(view.battlefield, db, source.iid);
+      const stats = getEffectiveStats(view, db, source.iid);
       // Even a zero-power or Bulwark Rage body never uses the Morning trick.
       if (stats.keywords.has('rage')) return;
       // A body that could attack spends itself on its Duty only when the
       // forecast, which plans the attack with that body tapped, says the Duty
       // buys more (wave 4: since U3 zeroed a main-two tap, Ice-Speaker's had
       // no live turn). Without a forecast it attacks first, as before.
-      if (stats.attack > 0 && canAttack(view.battlefield, db, view.myId, source.iid)) {
+      if (stats.attack > 0 && canAttack(view, db, view.myId, source.iid)) {
         if (!precombat) return;
         paidMorning = true;
       }
     }
     if (paidMorning && (!precombat || !reachesFight(view, simDb(db), action, ability,
-      eligible ??= eligibleAttackers(view.battlefield, simDb(db), view.myId)))) return;
+      eligible ??= eligibleAttackers(view, simDb(db), view.myId)))) return;
     // Never a self-harming ability, whatever the attack would gain.
     let value = activateActionValue(view, db, action);
     if (!(value > 0)) return;

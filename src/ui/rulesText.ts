@@ -283,12 +283,13 @@ function opText(
       const marks = op.marks !== undefined && op.marks > 0
         ? ` and put ${op.marks === 1 ? 'a Mark' : `${countWord(op.marks)} Marks`} on ${op.count === 1 ? 'it' : 'each of them'}`
         : '';
-      if (!tok) return `create ${countWord(op.count)} ${plural}${marks}`;
+      const creates = op.for === 'targetController' ? 'its controller creates' : 'create';
+      if (!tok) return `${creates} ${countWord(op.count)} ${plural}${marks}`;
       const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
       const kw = tok.keywords?.length
         ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      return `create ${countWord(op.count)} ${stats}${tok.name} ${plural}${kw}${marks}`;
+      return `${creates} ${countWord(op.count)} ${stats}${tok.name} ${plural}${kw}${marks}`;
     }
     case 'massDestroy':
       if (op.filter === 'allEnchantments') return 'destroy all enchantments';
@@ -490,6 +491,10 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
   const condition = ab.condition ?? ab.static?.condition;
   if (condition === undefined) return undefined;
   if (condition === 'questActive') return 'While a Quest is active';
+  if (condition === 'swornActive') return 'Sworn';
+  if (condition === 'youHoldMandate') return ab.when === 'static' ? 'While you hold the Mandate' : 'If you hold the Mandate';
+  if (condition === 'youDontHoldMandate') return "If you don't hold the Mandate";
+  if (condition === 'youGainedLifeThisTurn') return 'If you gained life this turn';
   if (condition === 'creatureDiedThisTurn') return 'If a creature died this turn';
   const also = additionalDawn ? 'also ' : '';
   if (condition === 'controlMarked') {
@@ -500,6 +505,15 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
+  // Sworn is a condition word, not a clause: "Sworn: this gets +1/+1."
+  if ((ab.condition ?? ab.static?.condition) === 'swornActive') {
+    const bare = abilityText({
+      ...ab,
+      condition: undefined,
+      ...(ab.static ? { static: { ...ab.static, condition: undefined } } : {}),
+    }, d, additionalDawn);
+    return bare ? `Sworn: ${lowerFirst(bare)}` : '';
+  }
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
   const condition = conditionalArrival ? undefined : conditionPhrase(ab, additionalDawn);
@@ -591,6 +605,9 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     case 'youCastCharm':
       sentence = `Whenever you cast a Charm, ${body}.`;
       break;
+    case 'youClaimMandate':
+      sentence = `Whenever you claim the Mandate, ${body}.`;
+      break;
     case 'entersGraveyard':
       sentence = `When this enters your graveyard, ${body}.`;
       break;
@@ -608,7 +625,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever this attacks, ${body}.`;
       break;
     case 'allyCreatureArrives':
-      sentence = `Whenever another creature arrives under your control, ${body}.`;
+      sentence = `Whenever another ${ab.filter?.subtype ?? 'creature'} arrives under your control, ${body}.`;
       break;
     case 'allyAttacks':
       sentence = `Whenever a creature you control attacks, ${body}.`;

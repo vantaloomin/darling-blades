@@ -1,5 +1,6 @@
 import type { Emit } from './battlefield';
-import type { GameState, PlayerId } from './types';
+import { firePlayerObservers } from './effects/EffectInterpreter';
+import type { CardDb, GameState, PlayerId } from './types';
 
 /**
  * The Mandate (2.0, Core Set II): one public, contested marker. It begins
@@ -14,9 +15,13 @@ export function mandateHolderOf(state: Pick<GameState, 'mandateHolder'>): Player
   return state.mandateHolder ?? null;
 }
 
-/** Give the Mandate to `player`. Returns whether the holder changed. */
+/**
+ * Give the Mandate to `player`, then fire their "whenever you claim the
+ * Mandate" abilities in battlefield order. Returns whether the holder changed.
+ */
 export function claimMandate(
   state: GameState,
+  db: CardDb,
   emit: Emit,
   player: PlayerId,
   reason: 'effect' | 'combat',
@@ -25,5 +30,6 @@ export function claimMandate(
   if (from === player) return false;
   state.mandateHolder = player;
   emit({ e: 'mandateChanged', from, to: player, reason });
+  firePlayerObservers(state, db, emit, 'youClaimMandate', player);
   return true;
 }

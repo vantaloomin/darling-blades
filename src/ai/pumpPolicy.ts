@@ -234,12 +234,12 @@ export function chooseHardPump(view: PlayerView, db: CardDb, legal: readonly Act
 
   if (!mine && combat.phase === 'attackersDeclared') {
     let best: { pump: Pump; times: number; worth: number } | undefined;
-    const options = blockOptions(view.battlefield, db, view.myId, combat);
+    const options = blockOptions(view, db, view.myId, combat);
     for (const pump of pumps) {
       const canBlock = options.find((option) => option.blocker === pump.perm.iid)?.canBlock ?? [];
       const limit = spareTimes(view, db, pump, held);
       for (const attacker of canBlock) {
-        if (minimumBlockersForAttacker(view.battlefield, db, attacker) !== 1) continue;
+        if (minimumBlockersForAttacker(view, db, attacker) !== 1) continue;
         const lone: CombatState = { ...combat, blocks: [{ blocker: pump.perm.iid, attacker }], phase: 'blockersDeclared' };
         const kills = (times: number): boolean =>
           combatForecast(pumped(view.battlefield, pump, times), db, lone).dying.includes(attacker);

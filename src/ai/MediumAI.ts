@@ -355,7 +355,7 @@ export class MediumAI implements AIPlayer {
     const foes = combat.blocks.flatMap((block) => block.blocker === hunter.iid ? [block.attacker]
       : block.attacker === hunter.iid ? [block.blocker] : [])
       .filter((iid) => !(prey?.kind === 'permanent' && prey.iid === iid) && view.battlefield.some((p) => p.iid === iid));
-    const damage = foes.reduce((sum, iid) => sum + Math.max(0, getEffectiveStats(view.battlefield, this.db, iid).attack), 0);
+    const damage = foes.reduce((sum, iid) => sum + Math.max(0, getEffectiveStats(view, this.db, iid).attack), 0);
     if (damage === 0) return view;
     return { ...view, battlefield: view.battlefield.map((p) => p.iid === hunter.iid ? { ...p, damage: p.damage + damage } : p) };
   }
@@ -429,7 +429,7 @@ export class MediumAI implements AIPlayer {
         op.op === 'destroyArtifactOrSeverEnchantment')) return this.removalCastValue(view, cast, perm) > 0;
       if (ops.some((op) => op.op === 'removeMarks') && perm.plusOneCounters > 0) return true;
       if (!isType(def(this.db, perm.cardId), 'creature')) return false;
-      const remaining = getEffectiveStats(view.battlefield, this.db, perm.iid).defense - perm.damage;
+      const remaining = getEffectiveStats(view, this.db, perm.iid).defense - perm.damage;
       const damage = ops.reduce((sum, op) => sum + (op.op === 'damage' && op.to === 'target'
         ? op.n === 'X' ? cast.x ?? 0 : op.n : op.op === 'boost' && op.scope === 'target' ? -op.t : 0), 0);
       return damage > 0 && damage >= remaining;
@@ -472,7 +472,7 @@ export class MediumAI implements AIPlayer {
           const n = op.n === 'X' ? cast.x ?? 0 : op.n;
           const added = effects.reduce((sum, { op: mark, targets: refs }) => sum + (mark.op === 'addCounters' &&
             mark.to === 'target' && refs.some((r) => r.kind === 'permanent' && r.iid === p.iid) ? mark.n : 0), 0);
-          if (n >= getEffectiveStats(view.battlefield, this.db, p.iid).defense + added - p.damage) return -Infinity;
+          if (n >= getEffectiveStats(view, this.db, p.iid).defense + added - p.damage) return -Infinity;
           const marked = added === 0 ? view : { ...view, battlefield: view.battlefield.map((q) => q.iid === p.iid
             ? { ...q, plusOneCounters: q.plusOneCounters + added } : q) };
           value += targetValueForAbility(marked, this.db, undefined, { ops: [{ ...op, n }] }, ref);
@@ -481,7 +481,7 @@ export class MediumAI implements AIPlayer {
         for (const ref of targets) {
           const p = this.targetPerm(view, ref);
           if (!p || p.controller !== view.myId || op.n <= 0 ||
-            getEffectiveStats(view.battlefield, this.db, p.iid).defense + op.n <= p.damage) return -Infinity;
+            getEffectiveStats(view, this.db, p.iid).defense + op.n <= p.damage) return -Infinity;
           value += targetValueForAbility(view, this.db, undefined, { ops: [op] }, ref);
         }
       } else if (op.op === 'moveMark') {
@@ -576,10 +576,10 @@ export class MediumAI implements AIPlayer {
     });
     const beforePlan = plan(view.battlefield);
     const before = forecast(view.battlefield, beforePlan);
-    const eligible = eligibleAttackers(view.battlefield, this.db, attacker);
+    const eligible = eligibleAttackers(view, this.db, attacker);
     const opponents = view.battlefield.filter((p) => p.controller !== view.myId && !p.tapped &&
       isType(def(this.db, p.cardId), 'creature') && (ownTurn
-        ? eligible.some((iid) => canBlock(view.battlefield, this.db, defender, p.iid, iid)) : beforePlan.includes(p.iid)));
+        ? eligible.some((iid) => canBlock(view, this.db, defender, p.iid, iid)) : beforePlan.includes(p.iid)));
     if (opponents.length === 0) return undefined;
     const legalTapIds = new Set(casts.flatMap((cast) => this.castEffects(view, cast).flatMap(({ op, targets }) =>
       op.op === 'tap' ? targets.flatMap((ref) => ref.kind === 'permanent' ? [ref.iid] : []) : [])));
@@ -643,7 +643,7 @@ export class MediumAI implements AIPlayer {
           const p = this.targetPerm(view, ref);
           if (!p || p.controller !== view.myId || p.owner !== view.myId || !isType(def(this.db, p.cardId), 'creature') ||
             def(this.db, p.cardId).token) continue;
-          const stats = getEffectiveStats(view.battlefield, this.db, p.iid);
+          const stats = getEffectiveStats(view, this.db, p.iid);
           const threatened = this.pendingSpells(view).some((item) => {
             if (item.controller === view.myId) return false;
             const ops = boundCastEffects({ ...view, myId: item.controller }, this.db, item.cardId, item)
@@ -798,7 +798,7 @@ export class MediumAI implements AIPlayer {
           // are its first two slots (the op's fixed convention).
           const canHunt = !effects.some(({ op }) => op.op === 'hunt' && op.hunter === 'target') ||
             targets.length >= 2 && targets[0].some((a) => a.kind === 'permanent' &&
-              !getEffectiveStats(view.battlefield, this.db, a.iid).keywords.has('bulwark') &&
+              !getEffectiveStats(view, this.db, a.iid).keywords.has('bulwark') &&
               targets[1].some((b) => b.kind === 'permanent' && b.iid !== a.iid));
           const minimum = { generic: d.cost.generic + (d.x?.min ?? 0), pips: d.cost.pips };
           if (hasTargets && canMove && canHunt && solveMana(view, this.db, view.myId, minimum) !== null) {
@@ -1086,7 +1086,7 @@ export class MediumAI implements AIPlayer {
         const hurt = this.castEffects(view, c).reduce((sum, { op, targets }) => sum +
           (op.op === 'damage' && op.to === 'target' && targets.some((ref) => ref.kind === 'permanent' && ref.iid === perm.iid)
             ? op.n === 'X' ? c.x ?? 0 : op.n : 0), 0);
-        if (hurt > 0 && hurt >= getEffectiveStats(view.battlefield, this.db, perm.iid).defense - perm.damage + pump.t) continue;
+        if (hurt > 0 && hurt >= getEffectiveStats(view, this.db, perm.iid).defense - perm.damage + pump.t) continue;
         const isAttacker = view.combat.attackers.includes(perm.iid);
         const inBlocks = view.combat.blocks.some(
           (b) => b.blocker === perm.iid || b.attacker === perm.iid,
@@ -1110,8 +1110,8 @@ export class MediumAI implements AIPlayer {
           .map((b) => (b.blocker === perm.iid ? b.attacker : b.blocker))
           .filter((iid) => view.battlefield.some((p) => p.iid === iid));
         for (const foe of foes) {
-          const mine = getEffectiveStats(view.battlefield, this.db, perm.iid);
-          const theirs = getEffectiveStats(view.battlefield, this.db, foe);
+          const mine = getEffectiveStats(view, this.db, perm.iid);
+          const theirs = getEffectiveStats(view, this.db, foe);
           const dieNow = theirs.attack >= mine.defense - perm.damage;
           const surviveAfter = theirs.attack < mine.defense - perm.damage - hurt + pump.t;
           const killNow = mine.attack >= theirs.defense;
