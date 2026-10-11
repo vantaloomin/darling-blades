@@ -1492,3 +1492,36 @@ describe('SaveData v37 migration (Hooves and Fire 1.9.1 back-grant)', () => {
     }
   });
 });
+
+/**
+ * v38 adds the optional open-duel mark (unfinished Tower/Limited duels count
+ * as a loss on the next launch). A save from before v38 cannot hold a real
+ * mark, so the update never charges a loss for a duel it could not see.
+ */
+describe('SaveData v38 migration (open-duel mark)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+
+  it('brings a v37 save mid-climb forward with its run and no mark', () => {
+    const save = freshSave(1);
+    save.gauntlet.run = { rung: 12, startedAt: 1, seed: 77, rosterDay: 0, rosterSeed: 0 };
+    const blob = { ...JSON.parse(JSON.stringify(save)), version: 37, openDuel: { mode: 'gauntlet', rung: 12, difficulty: 'hard' } };
+
+    const migrated = load(blob);
+
+    expect(migrated.version).toBe(38);
+    expect(migrated.gauntlet.run?.rung).toBe(12);
+    expect(migrated).not.toHaveProperty('openDuel');
+  });
+
+  it('keeps a well-formed v38 mark and drops a malformed one', () => {
+    const save = freshSave(1);
+    const good = { mode: 'limited', runId: 'run-1', matchIndex: 2, difficulty: 'hard', deckStyle: 'mono' };
+    expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: good }).openDuel).toEqual(good);
+    expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: { mode: 'gauntlet', rung: 0, difficulty: 'hard' } }))
+      .not.toHaveProperty('openDuel');
+  });
+});

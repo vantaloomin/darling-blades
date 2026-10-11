@@ -6,7 +6,7 @@ import type { CardDb } from '../engine/types';
 import { def } from '../engine/types';
 import { addCard } from './Collection';
 import { generateDeckId } from './DeckStorage';
-import type { SaveData, SavedDeck } from './SaveManager';
+import type { OpenDuel, SaveData, SavedDeck } from './SaveManager';
 import type { LimitedDeckStyle } from './Limited';
 import { PLAIN_VARIANT } from './variants';
 
@@ -88,6 +88,7 @@ export function applyGauntletResult(
   clearStyle?: GauntletClearStyle,
 ): GauntletReward {
   const g = save.gauntlet;
+  delete save.openDuel;
   let gold: number;
   let firstWinBonus = false;
   let completed = false;
@@ -142,6 +143,7 @@ export function applyLimitedMatchResult(
 ): LimitedMatchReward {
   const run = save.limited.activeRun;
   if (!run || run.status !== 'matches') throw new Error('No active Limited match to resolve');
+  delete save.openDuel;
 
   let gold = 0;
   let firstWinBonus = false;
@@ -188,6 +190,37 @@ export function applyLimitedMatchResult(
 
   save.gold += gold;
   return { gold, firstWinBonus, runOver, wins: run.wins, losses: run.losses, nextMatch };
+}
+
+/**
+ * Mark a Tower rung or Limited match as begun. Call once the deal exists: the
+ * record stays until the result is applied (both apply functions clear it),
+ * so a duel left by closing the app is still marked on the next launch.
+ */
+export function markDuelOpen(save: SaveData, duel: OpenDuel): void {
+  save.openDuel = duel;
+}
+
+/**
+ * On launch, record a marked duel that never reached its result as a loss,
+ * exactly as a concede would. Both modes deal a fixed seed per rung or match,
+ * so without this a player could close a losing duel and replay the same deal
+ * with the opponent's cards known. A record that no longer matches the active
+ * run is dropped without effect. Returns the mode that took the loss, or null.
+ */
+export function settleAbandonedDuel(save: SaveData, today: string): OpenDuel['mode'] | null {
+  const open = save.openDuel;
+  if (!open) return null;
+  delete save.openDuel;
+  if (open.mode === 'gauntlet') {
+    if (save.gauntlet.run?.rung !== open.rung) return null;
+    applyGauntletResult(save, open.rung, open.difficulty, false, today);
+    return 'gauntlet';
+  }
+  const run = save.limited.activeRun;
+  if (!run || run.id !== open.runId || run.status !== 'matches' || run.matchIndex !== open.matchIndex) return null;
+  applyLimitedMatchResult(save, open.difficulty, false, today, open.deckStyle);
+  return 'limited';
 }
 
 /** Spend gold if affordable. */

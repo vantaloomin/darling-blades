@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
+import { Services } from '../meta/services';
+import { abandonedDuelNotice } from '../ui/duelCopy';
 import { IRIDESCENCE_KEY, IridescencePostFX } from '../ui/fx/IridescencePostFX';
 import { sceneTextureKey } from '../ui/SceneBackdrop';
+import { queueToast } from '../ui/Toast';
 
 /** Scene art keys from the build-time manifest (empty until scene WebPs exist). */
 const SCENE_KEYS: string[] = (manifest as { scenes?: string[] }).scenes ?? [];
@@ -27,6 +30,8 @@ export class BootScene extends Phaser.Scene {
       const renderer = this.game.renderer as Phaser.Renderer.WebGL.WebGLRenderer;
       renderer.pipelines.addPostPipeline(IRIDESCENCE_KEY, IridescencePostFX);
     }
+    // Held until the first scene that mounts a toast rail (the main menu).
+    if (Services.abandonedDuel) queueToast(abandonedDuelNotice(Services.abandonedDuel));
     this.scene.start('Preload');
   }
 }
