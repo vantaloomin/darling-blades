@@ -1785,12 +1785,18 @@ function spellHuntPump(ab: ScorableAbilityDef): { defense: number; folded: Set<S
 }
 
 /** One Duty at the §4q rate (see the `activated` block in scoreCard). */
+/** Nüwa's marks and stones over her chassis (nuwa-lab 2026-10-10-38078530028). */
+const MARK_STONES_LAB = 0.58;
+
 function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: UnknownCollector): Part {
   // 2.0 (Nüwa): an ability paid by removing marks spends a +1/+1 for good and
-  // never taps; it has no rate until the lab (B5) measures one (NEEDS MATH).
+  // never taps. Core Set II's final costing (2026-10-10, nuwa-lab after the
+  // AI's Tithe fix) read Nüwa's marks and stones together at +0.58 mana over
+  // her chassis, the marks alone at zero within noise, so the stones carry
+  // the 0.58, shared evenly. NEEDS MATH: one carrier, one reading.
   if ('removeMarks' in ability.cost) {
-    unknowns.add('activated:removeMarks');
-    return { label: 'mark-cost ability (NEEDS MATH)', v: 0 };
+    const stones = dutiesOf(card).filter((a) => 'removeMarks' in a.cost).length;
+    return { label: 'mark-cost ability (Nüwa lab, shared)', v: MARK_STONES_LAB / Math.max(1, stones) };
   }
   const face = (ability.targets ?? []).some((t) => t.what === 'any');
   const fan = targetFan(ability.targets);
@@ -1882,9 +1888,10 @@ export function scoreCard(card: ScorableCardDef): Score {
       else if (cond === 'youHoldMandate') condMult = COND_HOLD_MANDATE;
       else if (cond === 'youDontHoldMandate') condMult = COND_DONT_HOLD_MANDATE;
       // The same kind of turn-history gate as "a creature died this turn";
-      // a life-gain deck meets it most turns. NEEDS MATH: lab-measured with
-      // Core Set II's life-gain shells; reported meanwhile.
-      else if (cond === 'youGainedLifeThisTurn') { condMult = COND_CREATURE_DIED; unknowns.add('condition:youGainedLifeThisTurn'); }
+      // a life-gain deck meets it most turns. Core Set II's final costing
+      // (2026-10-10) rates it at the morbid multiplier. NEEDS MATH: re-measure
+      // once a life-gain shell is labbed.
+      else if (cond === 'youGainedLifeThisTurn') condMult = COND_CREATURE_DIED;
       else if (typeof cond === 'object' && cond.kind === 'controlsOther') condMult = COND_CONTROLS_OTHER;
       else if (typeof cond === 'object' && cond.kind === 'markedThreshold') {
         condMult = cond.n >= 4 ? 0.55 : cond.n === 3 ? 0.65 : 0.75;
@@ -2214,8 +2221,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // the builder warns; the scorer does not police it.
     mechanics.push('tithe');
     parts.push({ label: 'tithe option (any-number sacrifice, 1 per 2 Defense)', v: 0.5 });
-    // 2.0 (Nüwa): marks for the mana saved is the Devour rate on top (NEEDS MATH).
-    if (card.tithe.marks !== undefined) unknowns.add('tithe:marks');
+    // 2.0 (Nüwa): marks for the mana saved. The final costing's lab read them
+    // at -0.07 ± 0.12 mana, zero within noise (field decks rarely spare
+    // bodies for a ten-drop), so they add nothing on top.
+    if (card.tithe.marks !== undefined) parts.push({ label: 'tithe marks (lab: zero within noise)', v: 0 });
   }
 
   if (card.chapters) {

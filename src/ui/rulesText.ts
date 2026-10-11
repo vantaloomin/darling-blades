@@ -420,7 +420,7 @@ export function riteText(d: CardDef): string | undefined {
 export function titheText(d: CardDef): string | undefined {
   if (!d.tithe) return undefined;
   if (d.tithe.marks === undefined) return 'Tithe.';
-  return `Tithe. This arrives with a mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
+  return `Tithe. This arrives with a Mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
 }
 
 export function nineLivesText(d: CardDef): string | undefined {
@@ -457,7 +457,7 @@ export function activatedText(d: CardDef): string | undefined {
     const mana = ability.cost.mana ? manaCostText(ability.cost.mana) : undefined;
     const marks = markCostOf(ability);
     // Mana first, then the tap or the marks: `{2}, {T}:`, the order card players already read.
-    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a mark from this' : `remove ${marks} marks from this`;
+    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a Mark from this' : `remove ${marks} Marks from this`;
     const cost = mana && mana !== '{0}' ? `${mana}, ${spend}` : marks === 0 ? spend : capitalizeFirst(spend);
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;

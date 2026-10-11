@@ -77,9 +77,9 @@ describe('abilities paid by removing marks', () => {
   });
 
   it('read as a cost on the card', () => {
-    expect(rulesText(DB.goddess)).toContain('{G}, remove a mark from this: You gain 5 life.');
-    expect(rulesText(DB.goddess)).toContain('Remove a mark from this: Deal 3 damage to any target.');
-    expect(rulesText(DB.goddess)).toContain('Tithe. This arrives with a mark for each {1} Tithe saved (at most 3).');
+    expect(rulesText(DB.goddess)).toContain('{G}, remove a Mark from this: You gain 5 life.');
+    expect(rulesText(DB.goddess)).toContain('Remove a Mark from this: Deal 3 damage to any target.');
+    expect(rulesText(DB.goddess)).toContain('Tithe. This arrives with a Mark for each {1} Tithe saved (at most 3).');
   });
 });
 

@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm';
 import * as ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { BOOSTER_SKUS, packPriceForSku } from '../../src/meta/boosterSkus';
+import { isLiveSet } from '../../src/data/liveness';
 import { SET_BLURBS, SET_TITLES } from '../../src/data/setTitles';
 import manifest from '../../src/data/art-manifest.json';
 import { CARD_DB } from '../../src/data/catalog';
@@ -83,7 +84,7 @@ function retail(duatLive = false): RetailDeclarations {
   return isolatedDeclarations<RetailDeclarations>(shopSource, [
     'FIRST_DAWN_PACK_TINT', 'FIRST_DAWN_PACK_ART', 'NEWEST_SKU',
     'packTextureForSku', 'packSetForSku', 'visibleBoosterSkus',
-  ], { BOOSTER_SKUS, SET_TITLES, isLiveSet: (sku: string) => sku !== 'sands-of-the-duat' || duatLive });
+  ], { BOOSTER_SKUS, SET_TITLES, isLiveSet: (sku: string) => (sku === 'sands-of-the-duat' ? duatLive : isLiveSet(sku)) });
 }
 
 /** Execute scene methods with a small display adapter, never importing Phaser. */

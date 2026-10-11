@@ -43,7 +43,6 @@ import {
   KEYWORDS,
   RARITIES,
   SETS,
-  TOKEN_OPTIONS,
   TRIGGERS,
   type OpKind,
 } from './vocab';
@@ -64,7 +63,8 @@ export const FORGE_LIMITS = {
   abilities: 12,
   opsPerList: 12,
   chapters: 9,
-  duties: 4,
+  /** Nüwa (Core Set II) prints five stones. */
+  duties: 5,
   /** Marks an ability may remove from its creature as its cost (2.0). */
   markCost: 5,
   /** The most marks a Tithe may give the creature for the mana it saved (2.0). */
@@ -169,7 +169,9 @@ function distinct<T extends string>(value: unknown, options: readonly T[], reaso
   return list;
 }
 
-const TOKEN_IDS = TOKEN_OPTIONS.map((token) => token.id);
+// Every token, not only the pickers' live ones, so a file naming a token from
+// a set still behind its liveness flag round-trips.
+const TOKEN_IDS = ALL_CARDS.filter((card) => card.token).map((card) => card.id);
 const DONOR_IDS = new Set(ALL_CARDS.map((card) => card.id));
 const TARGET_WHATS = [
   'creature', 'player', 'any', 'spell', 'yourCreature', 'opponentCreature', 'yourPermanent',
