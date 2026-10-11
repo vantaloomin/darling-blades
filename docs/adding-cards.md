@@ -34,6 +34,7 @@ Card definitions live in per-set files under `src/data/cards/`:
 | `gothic-monsters.ts` | Gothic Monsters expansion            | `gm-`       |
 | `dark-tales.ts`   | Dark Tales expansion                    | `dt-`       |
 | `yokai-nights.ts` | Yokai Nights expansion                  | `yn-`       |
+| `core-set-2.ts`   | Core Set II (2.0, dev-only until the cut) | `cs2-`     |
 
 Each file exports a `const` array typed
 `... as const satisfies readonly CardDef[]` and imports the `cost()` shorthand

@@ -415,4 +415,18 @@ export const TOKENS = [
     rarity: 'c',
     set: 'first-dawn',
   },
+  // Core Set II: Circe gives one to the controller of the creature she severs.
+  {
+    id: 'tok-pig',
+    name: 'Pig',
+    types: ['creature'],
+    subtypes: ['Pig'],
+    cost: cost(0),
+    colors: ['G'],
+    attack: 1,
+    defense: 1,
+    token: true,
+    rarity: 'c',
+    set: 'core-set-2',
+  },
 ] as const satisfies readonly CardDef[];

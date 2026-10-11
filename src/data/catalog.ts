@@ -17,6 +17,7 @@ import { SANDS_OF_THE_DUAT } from './cards/sands-of-the-duat';
 import { STARBORNE } from './cards/starborne';
 import { DROWNED_DEEP } from './cards/drowned-deep';
 import { FIRST_DAWN } from './cards/first-dawn';
+import { CORE_SET_2 } from './cards/core-set-2';
 import { SORCERIES } from './cards/sorceries';
 import { TK_JIN } from './cards/tk-jin';
 import { TK_OTHER } from './cards/tk-other';
@@ -24,7 +25,7 @@ import { TK_SHU } from './cards/tk-shu';
 import { TK_WEI } from './cards/tk-wei';
 import { TK_WU } from './cards/tk-wu';
 import { TOKENS } from './cards/tokens';
-import { DUAT_SET, STARBORNE_SET, DROWNED_DEEP_SET, FIRST_DAWN_SET } from './liveness';
+import { DUAT_SET, STARBORNE_SET, DROWNED_DEEP_SET, FIRST_DAWN_SET, CORE_SET_2_SET } from './liveness';
 
 /**
  * Source arrays grouped by their expansion `set`. buildDb stamps every card
@@ -57,6 +58,7 @@ const SET_GROUPS: readonly { set: NonNullable<CardDef['set']>; cards: readonly C
   { set: STARBORNE_SET, cards: STARBORNE },
   { set: DROWNED_DEEP_SET, cards: DROWNED_DEEP },
   { set: FIRST_DAWN_SET, cards: FIRST_DAWN },
+  { set: CORE_SET_2_SET, cards: CORE_SET_2 },
 ];
 
 function buildDb(): CardDb {

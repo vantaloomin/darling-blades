@@ -94,7 +94,7 @@ describe('target-aware damage and land rules text', () => {
 describe('2026-08-30 rules text templates', () => {
   it('puts Skim first as a keyword-cost line, then keywords, body, Empower, and Retell', () => {
     expect(rulesText(CARD_DB['sb-redshift-corsair'])).toBe('Skim {1}\nWarcry');
-    expect(rulesText(CARD_DB['sb-bloomdrive-surge'])).toBe('Mark target creature.\nEmpower {2}{G}: Propagate.');
+    expect(rulesText(CARD_DB['sb-bloomdrive-surge'])).toBe('Mark up to two target creatures.\nEmpower {2}{G}: Propagate.');
     expect(rulesText(CARD_DB['sb-lumen-refit'])).toBe('Bulwark, First Blade\nEmpower {2}{W}: Arrives with one +1/+1 Mark.');
     expect(rulesText(CARD_DB['sb-relay-bloom'])).toBe(
       'Mark target creature.\nRetell {2}{G}: You may cast this from your graveyard, then sever it.',

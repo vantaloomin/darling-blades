@@ -38,6 +38,7 @@ const PACK_ODDS_META: Record<BoosterSku, PackOddsMeta> = {
   starborne: { packName: SET_TITLES.starborne, setName: SET_TITLES.starborne },
   'drowned-deep': { packName: SET_TITLES['drowned-deep'], setName: SET_TITLES['drowned-deep'] },
   'first-dawn': { packName: SET_TITLES['first-dawn'], setName: SET_TITLES['first-dawn'] },
+  'core-set-2': { packName: SET_TITLES['core-set-2'], setName: SET_TITLES['core-set-2'] },
 };
 
 const FRAME_LABELS: Record<string, string> = {

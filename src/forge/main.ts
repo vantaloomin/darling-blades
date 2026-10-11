@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
-import { ALL_CARDS } from '../data/catalog';
 import { MECHANIC_DEFINITIONS, MECHANIC_NAMES, type MechanicId } from '../data/glossary';
 import { artKeyFor, artTextureKey } from '../art/artLoader';
 import { ICON_PATHS } from '../art/iconPaths';
@@ -92,7 +91,8 @@ import {
   OP_OPTIONS,
   RARITIES,
   RARITY_LABELS,
-  SETS,
+  LIVE_CARDS,
+  LIVE_SETS,
   SET_LABELS,
   TARGETS,
   TARGET_LABELS,
@@ -202,7 +202,7 @@ const appliedKeywords = byId<HTMLDivElement>('applied-keywords');
 
 cardType.innerHTML = optionMarkup(CARD_TYPES, 'creature');
 cardRarity.innerHTML = optionMarkup(RARITIES, 'c', RARITY_LABELS);
-cardSet.innerHTML = optionMarkup(SETS, 'base', SET_LABELS);
+cardSet.innerHTML = optionMarkup(LIVE_SETS, 'base', SET_LABELS);
 frameStyle.innerHTML = optionMarkup(FRAME_CHOICES, 'default');
 holoFinish.innerHTML = optionMarkup(HOLO_CHOICES, 'default');
 
@@ -722,7 +722,7 @@ function renderMechanicMarkup(): void {
     panels.push(`<details open><summary>${marksPaid ? 'Mark-Paid Ability' : names.duty}</summary>${payRow}${costEditor('activated', duty.cost, costNote)}<label>Target<select data-mechanic-target="activated">${optionMarkup(TARGETS.filter((target) => target !== 'spell'), duty.target, TARGET_LABELS)}</select></label>${renderOpList(duty.ops, 'activated')}${extraNote}</details>`);
   }
   if (mechanics.whispers.enabled) panels.push(`<details open><summary>${names.whispers}</summary>${costEditor('whispers', mechanics.whispers.cost, `On a Charm, ${names.whispers} is worth 0.5 for each mana it saves. On a creature or a sorcery-speed card it adds nothing at its printed cost. Real cards keep the ${names.whispers} cost 1 below the fair cost of the effect.`)}</details>`);
-  if (mechanics.tithe.enabled) panels.push(`<details open><summary>${names.tithe}</summary>${note(`Counts a flat +0.50. As you cast it, sacrifice any number of creatures: it costs 1 less for every 2 points of their combined Defense, rounded down; colored mana is still paid. Not with X, ${names.retell}, ${names.hauntlink}, ${names.whispers} or ${names.rite}.`)}<label>Arrives With Marks (at most)<input type="number" min="0" max="${FORGE_LIMITS.titheMarks}" step="1" value="${mechanics.tithe.marks}" data-mechanic-number="tithe-marks" /></label>${note(`Above 0, it arrives with a mark for each {1} the ${names.tithe} saved, up to that many. Those marks have no measured rate yet, so they count as 0.`)}</details>`);
+  if (mechanics.tithe.enabled) panels.push(`<details open><summary>${names.tithe}</summary>${note(`Counts a flat +0.50. As you cast it, sacrifice any number of creatures: it costs 1 less for every 2 points of their combined Defense, rounded down; colored mana is still paid. Not with X, ${names.retell}, ${names.hauntlink}, ${names.whispers} or ${names.rite}.`)}<label>Arrives With Marks (at most)<input type="number" min="0" max="${FORGE_LIMITS.titheMarks}" step="1" value="${mechanics.tithe.marks}" data-mechanic-number="tithe-marks" /></label>${note(`Above 0, it arrives with a mark for each {1} the ${names.tithe} saved, up to that many. Those marks measured at zero in the lab, so they count as 0.`)}</details>`);
   if (modal) {
     const modes = modal.modes.length;
     panels.push(`<details open><summary>Modes</summary>${note(`Choose up to ${modal.upTo} of ${modes} modes, as the card you loaded prints them. The Forge can't edit modes yet, so it keeps them as printed; they show on the card. A modal spell has no measured rate yet, so its modes count as 0.`)}</details>`);
@@ -1545,7 +1545,7 @@ saveImageButton.addEventListener('click', () => {
 
 // ── Start From a Card ───────────────────────────────────────────────────────
 
-const loadCards = [...ALL_CARDS].sort((left, right) => (
+const loadCards = [...LIVE_CARDS].sort((left, right) => (
   left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
 ));
 const loadCardById = new Map(loadCards.map((card) => [card.id, card]));
@@ -1665,7 +1665,7 @@ resetLoaded.addEventListener('click', () => {
 /** 32 pictures a page, 12 on a phone-width screen, where each page is a long scroll. */
 const narrowArtPages = window.matchMedia('(max-width: 760px)');
 const artPageSize = (): number => (narrowArtPages.matches ? 12 : 32);
-const artCards = ALL_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
+const artCards = LIVE_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
 let artSearchValue = '';
 let artSetValue = 'all';
 let artColorValue = 'all';
@@ -1677,7 +1677,7 @@ const artGrid = byId<HTMLDivElement>('art-grid');
 const artPageLabel = byId<HTMLSpanElement>('art-page-label');
 const artPrev = byId<HTMLButtonElement>('art-prev');
 const artNext = byId<HTMLButtonElement>('art-next');
-artSetFilter.innerHTML = `<option value="all">All sets</option>${optionMarkup(SETS, '', SET_LABELS)}`;
+artSetFilter.innerHTML = `<option value="all">All sets</option>${optionMarkup(LIVE_SETS, '', SET_LABELS)}`;
 artColorFilter.innerHTML = '<option value="all">All colors</option>' + COLOR_ORDER.map((color) => `<option value="${color}">${PIP_VISUALS[color].label}</option>`).join('') + '<option value="C">Colorless</option>';
 
 function filteredArtCards(): CardDef[] {

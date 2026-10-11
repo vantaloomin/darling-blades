@@ -113,6 +113,7 @@ function targetChoiceNoun(spec: TargetSpec): string {
   const restrictions = [
     spec.maxCost === undefined ? '' : `cost ${spec.maxCost} or less`,
     spec.minAttack === undefined ? '' : `attack ${spec.minAttack} or more`,
+    spec.maxAttack === undefined ? '' : `attack ${spec.maxAttack} or less`,
   ].filter(Boolean);
   const noun = [...adjectives, nouns[spec.what]].join(' ');
   const article = spec.other ? 'another' : /^[aeiou]/i.test(noun) ? 'an' : 'a';

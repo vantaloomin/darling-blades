@@ -192,7 +192,9 @@ function fireMarkTriggers(
           controller: source.controller,
           sourceCardId: source.cardId,
           sourceIid: source.iid,
-          targets: [],
+          // The marked creature is the observer subject, as the arriving one
+          // is for allyCreatureArrives: "it gets +1/+0" (Peach Garden Oath).
+          targets: marked !== undefined && event !== 'propagated' ? [{ kind: 'permanent', iid: marked.iid }] : [],
           markTriggerDepth: depth + 1,
         },
         ab.ops,
@@ -670,6 +672,17 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'fetchLand': {
+      // A reserve format (Warchest) keeps its lands out of the deck: take the
+      // first land of the reserve (2.0, Core Set II's ramp). No card printed
+      // fetchLand before 2.0, so the deck path below is unchanged for replays.
+      const reserve = state.players[ctx.controller].landReserve;
+      if (reserve !== undefined) {
+        if (reserve.length === 0) return;
+        const [card] = reserve.splice(0, 1);
+        const perm = enterBattlefield(state, db, card, ctx.controller, emit, { tapped: true });
+        fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
+        return;
+      }
       const deck = state.players[ctx.controller].deck;
       let index = -1;
       for (let i = deck.length - 1; i >= 0; i--) {

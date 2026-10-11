@@ -68,7 +68,7 @@ import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { Toast } from '../ui/Toast';
 import { backButton, modalShell, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
-import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, DARK_TALES_PACK_ART, DROWNED_DEEP_PACK_ART, FIRST_DAWN_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
+import { ARTHURIAN_COURT_PACK_ART, bakePackArt, CELTIC_FAE_PACK_ART, CORE_SET_2_PACK_ART, DARK_TALES_PACK_ART, DROWNED_DEEP_PACK_ART, FIRST_DAWN_PACK_ART, GOTHIC_MONSTERS_PACK_ART, SANDS_OF_THE_DUAT_PACK_ART,
   STARBORNE_PACK_ART, YOKAI_NIGHTS_PACK_ART, packSetForSku, packTextureForSku, type ShopSceneData } from './ShopScene';
 
 /**
@@ -293,6 +293,8 @@ export class PackOpeningScene extends Phaser.Scene {
       bakePackArt(this, DROWNED_DEEP_PACK_ART);
     } else if (this.sku === 'first-dawn') {
       bakePackArt(this, FIRST_DAWN_PACK_ART);
+    } else if (this.sku === 'core-set-2') {
+      bakePackArt(this, CORE_SET_2_PACK_ART);
     }
     this.input.on('gameobjectup', () => Sfx.play('click'));
     if (!contextMenuDisabled) {

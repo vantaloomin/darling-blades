@@ -116,6 +116,8 @@ follow the priority order where they can.
 
 ### Lane A: Core Set II (priority 1)
 
+**Status (2026-10-11): transcribed and live on the dev server.** All 250 cards are in `src/data/cards/core-set-2.ts` (`cs2-` ids, the final costing with the owner's nine fixes), with their art and the creature art-bible entries ([core-set-2.md](art-bible/core-set-2.md)). The set sits behind `FEATURES.coreSet2Live`, which `src/main.ts` turns on only under the Vite dev server (`npm run dev`, `npm run app:dev`), so there you can open a procedural-pack Core Set II booster while production, tests and the Forge never see it. Flipping the flag is part of the 2.0 cut. Still open from the checklist below: pack art, precons and rivals, the Forge rescore, glossary and tutorial text.
+
 **What the spine and rulings fix:** a Large set (250+) returning to the Three
 Kingdoms, Greek and Beastkin rosters (on the spine since 2026-08-24), the
 anniversary set. A Large set carries every keyword and every named mechanic

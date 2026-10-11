@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn' | 'core-set-2';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -89,4 +89,12 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'C42 88 35 76 35 62 Z M25 23 C26 34 34 44 42 50 L45 46 C36 37 31 29 30 23 ' +
     'Z M75 23 C74 34 66 44 58 50 L55 46 C64 37 69 29 70 23 Z M36.5 60 A4.5 4.5 0 1 1 45.5 60 A4.5 4.5 0 1 1 ' +
     '36.5 60 Z M54.5 60 A4.5 4.5 0 1 1 63.5 60 A4.5 4.5 0 1 1 54.5 60 Z',
+  // Placeholder (Core Set II, 2026-10-11, until the owner picks the set
+  // icon): the Mandate's sign, a pierced jade bi disc, hanging from its cord
+  // knot. Disc with a punched centre, a knot above, two cord tails below.
+  'core-set-2':
+    'M50 12 L56 6 L62 12 L56 18 Z M38 12 L44 6 L50 12 L44 18 Z ' +
+    'M14 54 A36 36 0 1 1 86 54 A36 36 0 1 1 14 54 Z ' +
+    'M38 54 A12 12 0 1 0 62 54 A12 12 0 1 0 38 54 Z ' +
+    'M41 92 L47 92 L45 100 L39 100 Z M53 92 L59 92 L61 100 L55 100 Z',
 };

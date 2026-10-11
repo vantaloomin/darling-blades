@@ -69,6 +69,7 @@ function targetNoun(spec: TargetSpec | undefined): string {
   const restrictions = [
     spec?.maxCost !== undefined ? `cost ${spec.maxCost} or less` : undefined,
     spec?.minAttack !== undefined ? `attack ${spec.minAttack} or more` : undefined,
+    spec?.maxAttack !== undefined ? `attack ${spec.maxAttack} or less` : undefined,
   ].filter((restriction): restriction is string => restriction !== undefined);
   return `${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${noun}${restrictions.length > 0 ? ` with ${restrictions.join(' and ')}` : ''}`;
 }
@@ -92,14 +93,17 @@ function markCountText(n: number): string {
 }
 
 function targetPhrase(spec: TargetSpec | undefined): string {
-  if (spec?.exactly === 2) {
+  if (spec?.exactly === 2 || spec?.upTo === 2) {
     const noun = spec.what === 'yourGraveCreature'
       ? targetNoun(spec).replace('creature card', 'creature cards')
       : targetNoun(spec).replace(/\b(creature|artifact|enchantment|permanent|spell)\b/g, '$1s');
-    return `two ${spec.other ? 'other ' : ''}target ${noun}`;
+    return `${spec.upTo === 2 ? 'up to two' : 'two'} ${spec.other ? 'other ' : ''}target ${noun}`;
   }
   return `${spec?.other ? 'another target' : 'target'} ${targetNoun(spec)}`;
 }
+
+/** Mark observers whose marked creature is bound as "it" (EffectInterpreter). */
+const MARK_SUBJECT_WHENS: ReadonlySet<string> = new Set(['gainsMark', 'yourCreatureMarked', 'yourPermanentMarked', 'youAddMark', 'otherCreatureMarked']);
 
 function opTargetIndex(op: EffectOp): number {
   return ('targetIndex' in op ? op.targetIndex : undefined) ?? 0;
@@ -164,7 +168,7 @@ function opText(
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' || target?.what === 'opponentCreature' ||
-        (target?.what === 'any' && (target.marked === true || target.tapped === true || target.maxCost !== undefined || target.minAttack !== undefined));
+        (target?.what === 'any' && (target.marked === true || target.tapped === true || target.maxCost !== undefined || target.minAttack !== undefined || target.maxAttack !== undefined));
       const recipient = isCreatureTarget
         ? targetAlreadyNamed ? target?.exactly === 2 ? 'those creatures' : 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target)
         : 'any target';
@@ -204,10 +208,13 @@ function opText(
       const kw = op.keywords?.length
         ? ` and gain${(op.scope === 'target' && !pluralTarget) || op.scope === 'self' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      if (op.scope === 'self') return `this gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+      // A keyword-only boost (p and t both 0) reads "gain(s) X", never "+0/+0".
+      const keywordOnly = op.p === 0 && op.t === 0 && op.keywords?.length;
+      const gain = (plural: boolean): string => `gain${plural ? '' : 's'} ${op.keywords!.map((k) => KEYWORD_NAMES[k]).join(', ')} until Sunset`;
+      if (op.scope === 'self') return keywordOnly ? `this ${gain(false)}` : `this gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
       if (op.scope === 'target') {
         const subject = targetAlreadyNamed ? pluralTarget ? 'those creatures' : 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target);
-        return `${subject} get${pluralTarget ? '' : 's'} ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+        return keywordOnly ? `${subject} ${gain(!!pluralTarget)}` : `${subject} get${pluralTarget ? '' : 's'} ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
       }
       const subject = op.scope === 'all'
         ? 'all creatures'
@@ -216,7 +223,7 @@ function opText(
           : op.scope === 'theirMarked'
             ? 'Marked creatures your opponent controls'
             : 'creatures you control';
-      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+      return keywordOnly ? `${subject} ${gain(true)}` : `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
     }
     case 'addCounters': {
       if (op.to === 'self') return markVerbText('this', op.n);
@@ -234,7 +241,7 @@ function opText(
     case 'loseLifePerTheirMarked':
       return 'your opponent loses 1 life for each Marked creature they control';
     case 'fetchLand':
-      return 'put the first land from the top of your deck onto the battlefield tapped';
+      return 'put the first land of your Warchest onto the battlefield tapped (with no Warchest, the first land from the top of your deck)';
     case 'severSelf':
       return 'sever this';
     case 'ifTargetMarked':
@@ -413,7 +420,7 @@ export function riteText(d: CardDef): string | undefined {
 export function titheText(d: CardDef): string | undefined {
   if (!d.tithe) return undefined;
   if (d.tithe.marks === undefined) return 'Tithe.';
-  return `Tithe. This arrives with a mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
+  return `Tithe. This arrives with a Mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
 }
 
 export function nineLivesText(d: CardDef): string | undefined {
@@ -450,7 +457,7 @@ export function activatedText(d: CardDef): string | undefined {
     const mana = ability.cost.mana ? manaCostText(ability.cost.mana) : undefined;
     const marks = markCostOf(ability);
     // Mana first, then the tap or the marks: `{2}, {T}:`, the order card players already read.
-    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a mark from this' : `remove ${marks} marks from this`;
+    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a Mark from this' : `remove ${marks} Marks from this`;
     const cost = mana && mana !== '{0}' ? `${mana}, ${spend}` : marks === 0 ? spend : capitalizeFirst(spend);
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;
@@ -540,7 +547,8 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     // to 0 below, so twelve cards printed a literal "+0/+0" clause that Magic
     // never prints (Galahad, Silver Oath among them, live at deck_count 2).
     // Omit the stat clause instead of rendering a no-op modifier.
-    const hasStats = st.p !== undefined || st.t !== undefined;
+    // A keyword-only grant may carry explicit zero stats: it reads "gains", never "+0/+0".
+    const hasStats = (st.p ?? 0) !== 0 || (st.t ?? 0) !== 0;
     const keywordNames = st.grantKeywords?.length
       ? st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')
       : '';
@@ -584,7 +592,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       ab.targets?.[targetIndex],
       namedTargets.has(targetIndex),
       ab.when === 'dies',
-      ab.when === 'allyCreatureArrives',
+      ab.when === 'allyCreatureArrives' || (MARK_SUBJECT_WHENS.has(ab.when) && !ab.targets?.length),
       ab.targets,
     );
     if (referencesAbilityTarget(op)) namedTargets.add(targetIndex);

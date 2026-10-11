@@ -6,6 +6,13 @@ export const FEATURES = {
   /** Dark Tales companion wave; flips with its balance pass. */
   dtCompanionLive: true,
   /**
+   * Core Set II (2.0). Off in the public build until the 2.0 cut; the game's
+   * boot turns it on for dev builds (`IS_DEV`: the Vite dev server, or the
+   * `darlingblades.devtools` toggle), so the set is collectible, buildable
+   * and on sale there. Tests see it off unless they flip it.
+   */
+  coreSet2Live: false,
+  /**
    * 1.6 classic retirement (2026-08-10). Warchest is now THE constructed
    * format: the Tower fields each avatar's `reserveDeck` + `landReserve`,
    * granted decks the player never edited auto-convert to their shipped

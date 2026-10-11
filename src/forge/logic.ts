@@ -656,8 +656,6 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
   // 2.0 parts the scorer knows but has no measured rate for yet: provisional,
   // so they read as estimates in plain words rather than as unknown vocabulary.
   const provisional: Record<string, [id: string, text: string]> = {
-    'activated:removeMarks': ['duty-mark-cost', 'An ability paid by removing marks has no measured rate yet, so it counts as 0.'],
-    'tithe:marks': ['tithe-marks', `The marks ${tithe} gives for the mana it saved have no measured rate yet, so they count as 0.`],
     modal: ['modal-rate', 'A modal spell has no measured rate yet, so its modes count as 0.'],
   };
   for (const unknown of score.unknowns) {
@@ -710,6 +708,7 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
       if (part && part.label.includes('NEEDS MATH')) add('duty-creature-band', 'estimate', `Strong ${pluralDuty(duty)} on creatures use a provisional rate.`);
       add('duty-creature-attack', 'note', `A ${duty} on a creature is priced against the attack it gives up. Bigger attackers lose more by tapping, and the Forge doesn't count that yet.`);
     }
+    if (marksPaid) add('duty-mark-cost', 'estimate', `An ability paid by removing marks shares one lab reading (Nüwa's stones, +0.58 in all), so its rate is provisional.`);
     if (activatedManaValue(state) > 0 && !marksPaid) add('duty-mana-discount', 'estimate', `The discount for mana spent on a ${duty} uses a provisional rate.`);
   }
   if (m.whispers.enabled) {
@@ -746,6 +745,7 @@ export function warningsFor(state: BuilderState, score: Score): ForgeWarning[] {
     if (state.abilities.some((ability) => ability.ops.some((op) => op.op === 'addCounters'))) {
       add('tithe-mark-gain', 'note', `${tithe} with a mark gain would need an extra rate the Forge doesn't apply yet.`);
     }
+    if (m.tithe.marks > 0) add('tithe-marks', 'estimate', `The marks ${tithe} gives for the mana it saved measured at zero in one lab reading (Nüwa's), so they count as 0.`);
     add('tithe-flat', 'estimate', `${tithe} counts a flat +0.50. The value of the discount itself isn't measured yet.`);
   }
   if (state.modal && validateModalDef(toCardDef(state) as unknown as CardDef).length > 0) {

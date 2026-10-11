@@ -142,7 +142,7 @@ export function isLegalTarget(
       break;
   }
   if (!legal) return false;
-  if (spec.maxCost !== undefined || spec.minAttack !== undefined) {
+  if (spec.maxCost !== undefined || spec.minAttack !== undefined || spec.maxAttack !== undefined) {
     const card = ref.kind === 'permanent' ? state.battlefield.find(p => p.iid === ref.iid)?.cardId
       : ref.kind === 'stackItem' ? state.stack.find(p => p.sid === ref.sid)?.cardId
       : ref.kind === 'grave' ? graveRefCard(state, ref) : undefined;
@@ -154,6 +154,8 @@ export function isLegalTarget(
     if (spec.maxCost !== undefined && manaValue(d.cost) + stackX > spec.maxCost) return false;
     if (spec.minAttack !== undefined && (!isType(d, 'creature') ||
       (ref.kind === 'permanent' ? getEffectiveStats(state, db, ref.iid).attack : d.attack ?? 0) < spec.minAttack)) return false;
+    if (spec.maxAttack !== undefined && (!isType(d, 'creature') ||
+      (ref.kind === 'permanent' ? getEffectiveStats(state, db, ref.iid).attack : d.attack ?? 0) > spec.maxAttack)) return false;
   }
   if (!spec.marked && !spec.tapped && !spec.attacking && !spec.other) return true;
   if (!satisfiesPermanentQualifiers(state, db, spec, ref)) return false;
@@ -212,6 +214,6 @@ export function enumerateTargets(
       break;
     }
   }
-  return spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly !== undefined
+  return spec.maxCost !== undefined || spec.minAttack !== undefined || spec.maxAttack !== undefined || spec.exactly !== undefined
     ? out.filter(ref => isLegalTarget(state, db, caster, spec, ref, sourceIid)) : out;
 }

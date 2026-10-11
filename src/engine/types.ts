@@ -91,6 +91,8 @@ export interface TargetSpec {
   exactly?: 2;
   maxCost?: number;
   minAttack?: number;
+  /** "with Attack N or less" (2.0, Jia Nanfeng): creatures only, read live. */
+  maxAttack?: number;
   /** Restricts legal targets to creatures carrying at least one mark. */
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
@@ -394,7 +396,8 @@ export function validateEmpowerDef(d: CardDef): string[] {
   const targets = d.empower.targets;
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
   const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
-  const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy');
+  // A one-target damage rider (2.0, Core Set II's Wu Marine) reads like destroy.
+  const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy' || (op.op === 'damage' && op.to === 'target'));
   const hunts = d.empower.ops.filter((op) => op.op === 'hunt');
   if (hasMoveMark && hasReclaim) {
     errors.push('Empower may not combine moveMark and reclaim');
@@ -410,11 +413,11 @@ export function validateEmpowerDef(d: CardDef): string[] {
       errors.push('Empower reclaim needs exactly one yourGraveCreature target spec');
     }
   } else if (hasDestroy) {
-    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy needs one single-target spec');
+    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy or damage needs one single-target spec');
   } else if (hunts.length > 0) {
     if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower hunt needs one single-target spec');
   } else if (targets) {
-    errors.push('Empower targets require a moveMark, reclaim, destroy or hunt op');
+    errors.push('Empower targets require a moveMark, reclaim, destroy, damage or hunt op');
   }
   if (hunts.length > 0 && (hasMoveMark || hasReclaim || hasDestroy)) {
     errors.push('Empower hunt cannot combine with another targeted op');
@@ -422,8 +425,9 @@ export function validateEmpowerDef(d: CardDef): string[] {
   if (hunts.some((op) => op.op === 'hunt' && op.hunter !== 'self') || (hunts.length > 0 && !isType(d, 'creature'))) {
     errors.push('Empower hunt is the creature itself hunting (hunter self, on a creature)');
   }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt')) {
-    errors.push('Only moveMark, reclaim, destroy and hunt may target from Empower');
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt' &&
+    !(op.op === 'damage' && op.to === 'target'))) {
+    errors.push('Only moveMark, reclaim, destroy, damage and hunt may target from Empower');
   }
   return errors;
 }
@@ -595,7 +599,12 @@ export function validateHuntDef(d: CardDef): string[] {
     }
     check(ability.ops, ability.targets, ability.when === 'spell' ? 'spell' : 'bound');
   }
-  for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
+  // A noncreature Duty may make one of your creatures hunt (2.0, Grove of
+  // Artemis): the spell form's two targets, hunter then prey.
+  for (const activation of activatedAbilitiesOf(d)) {
+    const spellForm = !isType(d, 'creature') && flatOps(activation.ops).some((op) => op.op === 'hunt' && op.hunter === 'target');
+    check(activation.ops, activation.targets, spellForm ? 'spell' : 'bound');
+  }
   if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
   // A Retell body replaces the printed one with its own ops and targets, and
   // none of the carriers above covers it, so a Hunt there is refused rather
@@ -713,7 +722,7 @@ export interface CardDef {
   rarity: Rarity;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn' | 'core-set-2'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;

@@ -36,6 +36,7 @@ import { SANDS_OF_THE_DUAT } from '../../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../../src/data/cards/starborne';
 import { DROWNED_DEEP } from '../../src/data/cards/drowned-deep';
 import { FIRST_DAWN } from '../../src/data/cards/first-dawn';
+import { CORE_SET_2 } from '../../src/data/cards/core-set-2';
 import { SORCERIES } from '../../src/data/cards/sorceries';
 import { TK_JIN } from '../../src/data/cards/tk-jin';
 import { TK_OTHER } from '../../src/data/cards/tk-other';
@@ -194,6 +195,7 @@ describe('catalog integrity', () => {
       [STARBORNE, 'sb-'],
       [DROWNED_DEEP, 'dd-'],
       [FIRST_DAWN, 'fd'],
+      [CORE_SET_2, 'cs2-'],
       [INSTANTS, 'in-'],
       [SORCERIES, 'so-'],
       [ENCHANTMENTS, 'en-'],
@@ -340,6 +342,8 @@ describe('catalog integrity', () => {
         expect(card.set, card.id + ' should be set:drowned-deep').toBe('drowned-deep');
       } else if (card.id.startsWith('fd')) {
         expect(card.set, card.id + ' should be set:first-dawn').toBe('first-dawn');
+      } else if (card.id.startsWith('cs2-')) {
+        expect(card.set, card.id + ' should be set:core-set-2').toBe('core-set-2');
       } else {
         expect(card.set ?? 'base', `${card.id} should be set:base`).toBe('base');
       }
@@ -420,6 +424,9 @@ describe('catalog integrity', () => {
       'fd-fern-and-fire', 'fd-tusk-rage', 'fd-herd-guardian',
       'fd-tar-fossil-seeker', 'fd-sky-herder', 'fdc-scar-proud-initiate',
       'fd-stampede-long-grass', 'fd-blaze-horn-charge',
+      // Core Set II's cut, 2026-10-10: the colour pairs carry non-legendary
+      // creatures and spells (the overplan's pair signposts).
+      ...CORE_SET_2.filter((card) => card.colors.length > 1 && !(card.supertypes ?? []).includes('legendary')).map((card) => card.id),
     ]);
     for (const card of ALL_CARDS) {
       if (card.types.includes('land') || card.colors.length < 2) continue;

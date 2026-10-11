@@ -185,6 +185,17 @@ const FIRST_DAWN_PACK_TINT: PackTint = {
   mist: '#ffc7a0',
 };
 
+// Core Set II (dev only until the 2.0 cut): jade, lacquer red and river-gold,
+// the Mandate's colours. Procedural until the set's pack art lands.
+const CORE_SET_2_PACK_TINT: PackTint = {
+  start: '#8fd3b0',
+  middle: '#b3202a',
+  end: '#2b1a17',
+  trim: '#d4a83a',
+  foil: '#fff1b0',
+  mist: '#3f9a78',
+};
+
 const packRR = (
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -373,6 +384,13 @@ export const FIRST_DAWN_PACK_ART: PackArtOpts = {
   realArtTrim: FIRST_DAWN_PACK_TINT.trim,
 };
 
+export const CORE_SET_2_PACK_ART: PackArtOpts = {
+  key: 'packart-core-set-2',
+  sceneArtKey: 'scene-pack-art-core-set-2',
+  tint: CORE_SET_2_PACK_TINT,
+  trimY: 63,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -384,6 +402,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'starborne') return 'packart-starborne';
   if (sku === 'drowned-deep') return 'packart-drowned-deep';
   if (sku === 'first-dawn') return 'packart-first-dawn';
+  if (sku === 'core-set-2') return 'packart-core-set-2';
   return 'packart';
 }
 
@@ -783,6 +802,7 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, STARBORNE_PACK_ART);
     bakePackArt(this, DROWNED_DEEP_PACK_ART);
     bakePackArt(this, FIRST_DAWN_PACK_ART);
+    bakePackArt(this, CORE_SET_2_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
 
