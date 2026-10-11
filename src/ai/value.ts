@@ -1376,6 +1376,7 @@ function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permane
     if (spec.marked && (!creature || perm.plusOneCounters <= 0)) continue;
     if (spec.maxCost !== undefined && manaValue(card.cost) > spec.maxCost) continue;
     if (spec.minAttack !== undefined && (!creature || getEffectiveStats(view, db, perm.iid).attack < spec.minAttack)) continue;
+    if (spec.maxAttack !== undefined && (!creature || getEffectiveStats(view, db, perm.iid).attack > spec.maxAttack)) continue;
     const mine = perm.controller === source.controller;
     const creatureTarget = spec.what === 'creature' || spec.what === 'any' || spec.what === 'opponentCreature';
     if (creatureTarget && !mine && getEffectiveStats(view, db, perm.iid).keywords.has('untouchable')) continue;
@@ -1385,7 +1386,7 @@ function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permane
         (spec.what === 'artifact' || spec.what === 'enchantment') && isType(card, spec.what);
     if (matches) refs.push({ kind: 'permanent', iid: perm.iid });
   }
-  if ((spec.what === 'any' || spec.what === 'player') && !spec.marked && !spec.tapped && spec.maxCost === undefined && spec.minAttack === undefined) {
+  if ((spec.what === 'any' || spec.what === 'player') && !spec.marked && !spec.tapped && spec.maxCost === undefined && spec.minAttack === undefined && spec.maxAttack === undefined) {
     refs.push({ kind: 'player', player: source.controller }, { kind: 'player', player: opponentOf(source.controller) });
   }
   return refs;

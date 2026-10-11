@@ -17,6 +17,7 @@ export const SET_IDS = [
   'starborne',
   'drowned-deep',
   'first-dawn',
+  'core-set-2',
 ] as const;
 
 /** Set ids as they appear on CardDef.set ('base' when absent). Kept in the
@@ -42,6 +43,7 @@ export const SET_TITLES: Readonly<Record<SetId, string>> = Object.freeze({
   starborne: 'Starborne',
   'drowned-deep': 'Drowned Deep',
   'first-dawn': 'First Dawn',
+  'core-set-2': 'Core Set II',
 });
 
 /** One short identity line per shop tile. Keep these concrete and editable. */
@@ -57,4 +59,5 @@ export const SET_BLURBS: Readonly<Record<SetId, string>> = Object.freeze({
   starborne: 'Living hulls, and the light that spreads',
   'drowned-deep': 'The lamps are lit, and the Deep is owed',
   'first-dawn': 'Clans, great beasts, and the first sunrise',
+  'core-set-2': 'The Mandate falls, and every oath is tested',
 });

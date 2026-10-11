@@ -24,6 +24,7 @@ import { SANDS_OF_THE_DUAT } from '../src/data/cards/sands-of-the-duat';
 import { STARBORNE } from '../src/data/cards/starborne';
 import { DROWNED_DEEP } from '../src/data/cards/drowned-deep';
 import { FIRST_DAWN } from '../src/data/cards/first-dawn';
+import { CORE_SET_2 } from '../src/data/cards/core-set-2';
 import { TK_JIN } from '../src/data/cards/tk-jin';
 import { TK_OTHER } from '../src/data/cards/tk-other';
 import { TK_SHU } from '../src/data/cards/tk-shu';
@@ -43,7 +44,11 @@ const DARK_TALES_TOKEN_IDS = new Set(['tok-shadow-miner', 'tok-firefly', 'tok-ma
 const DARK_TALES_TOKENS = TOKENS.filter((card) => DARK_TALES_TOKEN_IDS.has(card.id));
 const FIRST_DAWN_TOKEN_IDS = new Set(['tok-hatchling', 'tok-pack-raptor', 'tok-tar-bones', 'tok-glider']);
 const FIRST_DAWN_TOKENS = TOKENS.filter((card) => FIRST_DAWN_TOKEN_IDS.has(card.id));
-const BASE_TOKENS = TOKENS.filter((card) => !DARK_TALES_TOKEN_IDS.has(card.id) && !FIRST_DAWN_TOKEN_IDS.has(card.id));
+const CORE_SET_2_TOKEN_IDS = new Set(['tok-pig']);
+const CORE_SET_2_TOKENS = TOKENS.filter((card) => CORE_SET_2_TOKEN_IDS.has(card.id));
+const BASE_TOKENS = TOKENS.filter(
+  (card) => !DARK_TALES_TOKEN_IDS.has(card.id) && !FIRST_DAWN_TOKEN_IDS.has(card.id) && !CORE_SET_2_TOKEN_IDS.has(card.id),
+);
 
 /** Which faction file covers which set file(s), in entry order. */
 const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
@@ -65,6 +70,7 @@ const FILE_MAP: { file: string; sets: readonly (readonly CardDef[])[] }[] = [
   { file: 'starborne.md', sets: [STARBORNE] },
   { file: 'drowned-deep.md', sets: [DROWNED_DEEP] },
   { file: 'first-dawn.md', sets: [FIRST_DAWN, FIRST_DAWN_TOKENS] },
+  { file: 'core-set-2.md', sets: [CORE_SET_2, CORE_SET_2_TOKENS] },
 ];
 
 /** The 13 template fields from index.md §8, exact labels, exact order. */

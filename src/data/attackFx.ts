@@ -3,6 +3,7 @@ import { isType } from '../engine/types';
 import { STARBORNE } from './cards/starborne';
 import { DROWNED_DEEP } from './cards/drowned-deep';
 import { FIRST_DAWN } from './cards/first-dawn';
+import { CORE_SET_2 } from './cards/core-set-2';
 import { TOKENS } from './cards/tokens';
 
 // ---------------------------------------------------------------------------
@@ -851,6 +852,38 @@ for (const card of [...FIRST_DAWN, ...TOKENS.filter((token) => FIRST_DAWN_TOKEN_
   if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
     const rule = FIRST_DAWN_FX_RULES.find((candidate) => candidate.matches(card));
     ATTACK_FX_MAP[card.id] = FIRST_DAWN_TOKEN_FX[card.id] ?? (rule
+      ? { archetype: rule.archetype, heavy: rule.heavy(card) }
+      : { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) });
+  }
+}
+
+const CORE_SET_2_TOKEN_FX: Record<string, AttackFxSpec> = {
+  'tok-pig': { archetype: 'impact', heavy: false },
+};
+
+const CORE_SET_2_FX_RULES: readonly {
+  matches: (card: CardDef) => boolean;
+  archetype: AttackArchetype;
+  heavy: (card: CardDef) => boolean;
+}[] = [
+  { matches: (card) => card.keywords?.includes('skyborne') === true, archetype: 'aerial', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => ['Shade', 'Spirit'].includes(subtype)), archetype: 'shadow', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => ['Witch', 'Oracle', 'Diviner', 'Taoist', 'Goddess', 'Siren', 'Strategist', 'Scholar'].includes(subtype)),
+    archetype: 'arcane', heavy: () => false },
+  { matches: (card) => card.subtypes.includes('Construct'), archetype: 'impact', heavy: (card) => (card.attack ?? 0) >= 4 },
+  { matches: (card) => card.subtypes.some((subtype) => ['Huntress', 'Hunter'].includes(subtype)), archetype: 'pierce', heavy: () => false },
+  { matches: (card) => card.subtypes.some((subtype) => ['Beastkin', 'Beast', 'Gorgon', 'Lamia'].includes(subtype)),
+    archetype: 'claw', heavy: (card) => (card.attack ?? 0) >= 5 },
+  { matches: (card) => card.subtypes.some((subtype) => ['Human', 'God', 'Titan'].includes(subtype)), archetype: 'slash', heavy: (card) => (card.attack ?? 0) >= 5 },
+];
+
+// Core Set II (2026-10-11): fliers strike aerially, shades as shadow, seers
+// and witches with magic, huntresses with arrows, beasts as claws and the rest
+// with blades. First match wins; the Pig token is a plain impact.
+for (const card of [...CORE_SET_2, ...TOKENS.filter((token) => CORE_SET_2_TOKEN_FX[token.id])]) {
+  if (isType(card, 'creature') && !ATTACK_FX_MAP[card.id]) {
+    const rule = CORE_SET_2_FX_RULES.find((candidate) => candidate.matches(card));
+    ATTACK_FX_MAP[card.id] = CORE_SET_2_TOKEN_FX[card.id] ?? (rule
       ? { archetype: rule.archetype, heavy: rule.heavy(card) }
       : { archetype: fallbackArchetype(card), heavy: fallbackHeavy(card) });
   }

@@ -17,6 +17,7 @@ export const BOOSTER_SKUS: ReadonlyArray<{ label: string; textureKey: string; sk
   { label: SET_TITLES.starborne, textureKey: 'packart-starborne', sku: 'starborne' },
   { label: SET_TITLES['drowned-deep'], textureKey: 'packart-drowned-deep', sku: 'drowned-deep' },
   { label: SET_TITLES['first-dawn'], textureKey: 'packart-first-dawn', sku: 'first-dawn' },
+  { label: SET_TITLES['core-set-2'], textureKey: 'packart-core-set-2', sku: 'core-set-2' },
 ];
 
 /**

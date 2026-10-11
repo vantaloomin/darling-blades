@@ -306,9 +306,10 @@ describe('Hunt and Provoked detection', () => {
   });
 
   /** Ten shipped names contain the letters "hunt", four as the whole word;
-   *  none of those cards hunts, so none may teach Hunt. */
+   *  none of those cards hunts, so none may teach Hunt. (Core Set II's
+   *  Huntresses that do print a Hunt are left out: they may teach it.) */
   it('never reads Hunt off a card name', () => {
-    const named = collectible.filter((d) => /hunt/i.test(d.name));
+    const named = collectible.filter((d) => /hunt/i.test(d.name) && !JSON.stringify(d).includes('"op":"hunt"'));
     const names = named.map((d) => d.name);
     expect(names).toEqual(expect.arrayContaining([
       'Alpha of the Wild Hunt', 'Rune of the Hunt', 'Wild Hunt Matriarch', 'Hunt the Boar',

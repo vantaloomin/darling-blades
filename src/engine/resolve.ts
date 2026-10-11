@@ -189,7 +189,7 @@ export function resolveStackItem(
               controller: item.controller,
               sourceCardId: item.cardId,
               targets: item.targets,
-              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.exactly || s.attacking) ? { targetSpecs: specs } : {}),
+              ...(usesExplicitTargetSlot(ab.ops) || usesHunt(ab.ops) || specs.some(s => s.maxCost !== undefined || s.minAttack !== undefined || s.maxAttack !== undefined || s.exactly || s.attacking) ? { targetSpecs: specs } : {}),
               ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
               x: item.x,
             },
@@ -235,7 +235,7 @@ function resolveModalSpell(
       controller: item.controller,
       sourceCardId: item.cardId,
       targets,
-      ...(specs.some((spec) => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.attacking) ? { targetSpecs: specs } : {}),
+      ...(specs.some((spec) => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.maxAttack !== undefined || spec.attacking) ? { targetSpecs: specs } : {}),
     }, mode.ops);
   }
   moveSpellOnExit(state, db, item, emit);
@@ -264,7 +264,7 @@ function runEmpowerRider(
       // instance id, and real games are instance-bearing. Only test fixtures
       // use string graveyards, where it falls back to the chosen index.
       targets: item.targets,
-      ...(usesExplicitTargetSlot(d.empower.ops) || usesHunt(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
+      ...(usesExplicitTargetSlot(d.empower.ops) || usesHunt(d.empower.ops) || specs.some(spec => spec.maxCost !== undefined || spec.minAttack !== undefined || spec.maxAttack !== undefined || spec.exactly) ? { targetSpecs: specs } : {}),
       ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
     },
     d.empower.ops,

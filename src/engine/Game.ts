@@ -895,7 +895,7 @@ export class Game {
         // link - otherwise the path below is byte-identical to revision 3.
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
           const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
-            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature' ||
+            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.maxAttack !== undefined || pending.spec.what === 'opponentCreature' ||
             usesHunt(pending.ops);
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
@@ -1022,7 +1022,7 @@ export class Game {
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
-          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
+          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined || s.maxAttack !== undefined) ? { targetSpecs: specs } : {}),
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.

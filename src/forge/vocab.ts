@@ -16,6 +16,7 @@ import {
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
+import { isLiveSet } from '../data/liveness';
 import { SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
 
 export const CARD_TYPES = [
@@ -46,6 +47,14 @@ export const HOLO_CHOICES = ['default', 'none', 'shiny', 'rainbow', 'pearlescent
  */
 export const SETS = SET_IDS;
 export const SET_LABELS: Readonly<Record<SetId, string>> = SET_TITLES;
+
+/**
+ * What the Forge shows: sets and cards behind a liveness flag (Core Set II
+ * until the 2.0 cut) stay out of its pickers, card list and art library.
+ * SETS stays whole so validation still accepts every set id.
+ */
+export const LIVE_SETS = SET_IDS.filter(isLiveSet);
+export const LIVE_CARDS = ALL_CARDS.filter((card) => isLiveSet(card.set ?? 'base'));
 
 export const TRIGGERS = [
   'spell',
@@ -265,7 +274,7 @@ export const OP_OPTIONS: readonly OpOption[] = [
   { kind: 'raise', label: 'Raise', description: 'Return a creature from graveyard to play.' },
 ];
 
-export const TOKEN_OPTIONS = ALL_CARDS.filter((card) => card.token)
+export const TOKEN_OPTIONS = LIVE_CARDS.filter((card) => card.token)
   .map((card) => ({ id: card.id, name: card.name, attack: card.attack ?? 0, defense: card.defense ?? 0 }))
   .sort((a, b) => a.name.localeCompare(b.name));
 

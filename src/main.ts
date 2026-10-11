@@ -1,3 +1,4 @@
+import { FEATURES } from './config/features';
 import {
   claimBrowserTabSession,
   removeTabGuard,
@@ -21,6 +22,9 @@ function startGame(session: TabSession): void {
   // Release synchronously on navigation so a reload can reacquire instead of
   // briefly seeing its previous document's session lock.
   window.addEventListener('pagehide', () => session.release(), { once: true });
+  // Core Set II is live on the dev server only until the 2.0 cut. Set before
+  // the game modules load, so nothing builds a card pool without it.
+  if (import.meta.env.DEV) FEATURES.coreSet2Live = true;
   void import('./gameBoot').then(({ bootGame }) => bootGame());
 }
 

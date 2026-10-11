@@ -117,6 +117,8 @@ built: after any `Cargo.lock` change, rerun the command at the top of
 `src-tauri/about.toml`. The build refuses to run while that file covers a crate
 version the lockfile no longer pins, so a stale copy cannot ship.
 
+**Card art carries no third-party licence.** Every card image is generated for this project by its own art pipeline (`docs/art-pipeline.md`), so the card images need no notice; its rights position is owner decision 2 below. The Core Set II images (`public/assets/art/cards/cs2-*.webp`, 250 files, added 2026-10-11) were made the same way, on the owner's PC, and ship with the 2.0 cut.
+
 ## Telemetry review, 2026-09-10
 
 A review of the locked design against current regulator guidance and the

@@ -314,7 +314,7 @@ function readCost(value: unknown): ManaCost {
 
 function readTargets(value: unknown): TargetSpec[] {
   return array(value, FORGE_LIMITS.targets).map((item) => {
-    const raw = object(item, ['what', 'other', 'upTo', 'exactly', 'marked', 'tapped', 'attacking', 'maxCost', 'minAttack']);
+    const raw = object(item, ['what', 'other', 'upTo', 'exactly', 'marked', 'tapped', 'attacking', 'maxCost', 'minAttack', 'maxAttack']);
     // The game refuses a spec that is both "up to two" and "exactly two".
     if (raw.upTo !== undefined && raw.exactly !== undefined) fail('target');
     return {
@@ -327,6 +327,7 @@ function readTargets(value: unknown): TargetSpec[] {
       ...(raw.attacking !== undefined ? { attacking: oneOf(raw.attacking, [true] as const) } : {}),
       ...(raw.maxCost !== undefined ? { maxCost: int(raw.maxCost, 0, FORGE_LIMITS.generic) } : {}),
       ...(raw.minAttack !== undefined ? { minAttack: int(raw.minAttack, 0, FORGE_LIMITS.stat) } : {}),
+      ...(raw.maxAttack !== undefined ? { maxAttack: int(raw.maxAttack, 0, FORGE_LIMITS.stat) } : {}),
     };
   });
 }
