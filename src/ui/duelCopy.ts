@@ -1,4 +1,5 @@
 /** Pure player-facing copy shared by DuelScene and headless UI tests. */
+import type { ToastNotice } from './toastQueue';
 
 export interface CombatForecastCopyInput {
   attackers: number;
@@ -60,4 +61,26 @@ export function defeatReasonCopy(reason: string): string | null {
 export function resultReasonCopy(won: boolean, reason: string): string {
   if (!won) return defeatReasonCopy(reason) ?? 'The match ended.';
   return isEngineEndReason(reason) ? VICTORY_REASON_COPY[reason] : 'The match ended.';
+}
+
+/**
+ * The launch notice after a Tower or Limited duel was left unfinished and
+ * counted as a loss (settleAbandonedDuel). Its action opens the mode's hub.
+ */
+export function abandonedDuelNotice(mode: 'gauntlet' | 'limited'): ToastNotice {
+  return mode === 'gauntlet'
+    ? {
+        title: 'Tower duel forfeited',
+        body: 'Your last Tower duel was left unfinished, so it counted as a loss.',
+        action: { scene: 'Gauntlet' },
+        fitBody: true,
+        neverCollapse: true,
+      }
+    : {
+        title: 'Draft match forfeited',
+        body: 'Your last draft match was left unfinished, so it counted as a loss.',
+        action: { scene: 'Limited' },
+        fitBody: true,
+        neverCollapse: true,
+      };
 }

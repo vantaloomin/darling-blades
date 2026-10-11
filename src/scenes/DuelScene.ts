@@ -33,6 +33,7 @@ import {
   applyGauntletResult,
   applyLimitedMatchResult,
   applyMatchResult,
+  markDuelOpen,
   todayString,
   type Difficulty,
 } from '../meta/Economy';
@@ -1076,6 +1077,26 @@ export class DuelScene extends Phaser.Scene {
     // Anonymous duel digest (src/net/signals.ts): the launched human list, kept
     // because the results path can no longer reconstruct it. Read only to
     // derive colours, curve and precon-ness; no card id from it is ever sent.
+    // Tower rungs and Limited matches deal a fixed seed, so from here the
+    // player has seen a deal they could replay. Mark the duel open so leaving
+    // it by closing the app counts as a loss on the next launch rather than a
+    // free retry of the same deal (settleAbandonedDuel). The result clears it.
+    if (!this.replayMode && !this.a11yFixture && !data.a11yOverlay) {
+      const save = Services.save.data;
+      if (this.opponent && this.gauntletRung !== null) {
+        markDuelOpen(save, { mode: 'gauntlet', rung: this.gauntletRung, difficulty: this.difficulty });
+        Services.save.flush();
+      } else if (this.limited) {
+        markDuelOpen(save, {
+          mode: 'limited',
+          runId: this.limited.runId,
+          matchIndex: this.limited.matchIndex,
+          difficulty: this.difficulty,
+          deckStyle: this.myDeckColorStyle,
+        });
+        Services.save.flush();
+      }
+    }
     this.signalDeck = {
       cards: myDeck.slice(),
       landReserve: landReserves?.[0] ?? null,

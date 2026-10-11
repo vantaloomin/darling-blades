@@ -5,7 +5,7 @@ import { convertUnmodifiedStarter } from './deckRepair';
 import { grantDeckCards } from './Economy';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
-import { freshLimitedState, type LimitedState } from './Limited';
+import { freshLimitedState, type LimitedDeckStyle, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
@@ -13,7 +13,7 @@ import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmeti
 import { normalizeStatsNoticeVersion } from './statsNotice';
 import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
 
-export const CURRENT_SAVE_VERSION = 37 as const;
+export const CURRENT_SAVE_VERSION = 38 as const;
 
 /** The theme deck whose 1.9.1 list upgrade the v36 -> v37 step back-grants. */
 export const HOOVES_AND_FIRE_DECK_ID = 'theme-first-dawn';
@@ -39,6 +39,53 @@ const GRANTED_DECKS = [...STARTER_DECKS, ...THEME_DECKS];
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
+
+/**
+ * A Tower rung or Limited match whose deal the player has already seen but
+ * whose result is not yet recorded. Both modes deal a fixed seed per rung or
+ * match, so a duel left by closing the app would otherwise replay the same
+ * deal with the opponent's cards known. The next launch counts it as a loss
+ * (settleAbandonedDuel). v38 addition.
+ */
+export type OpenDuel =
+  | { mode: 'gauntlet'; rung: number; difficulty: 'easy' | 'medium' | 'hard' }
+  | {
+      mode: 'limited';
+      runId: string;
+      matchIndex: number;
+      difficulty: 'easy' | 'medium' | 'hard';
+      deckStyle: LimitedDeckStyle;
+    };
+
+const DIFFICULTIES: readonly unknown[] = ['easy', 'medium', 'hard'];
+const DECK_STYLES: readonly unknown[] = ['mono', 'dual', 'other'];
+
+/** Keep a stored open-duel record only when every field is well formed. */
+export function normalizeOpenDuel(raw: unknown): OpenDuel | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  if (!DIFFICULTIES.includes(o.difficulty)) return undefined;
+  const difficulty = o.difficulty as OpenDuel['difficulty'];
+  if (o.mode === 'gauntlet' && Number.isInteger(o.rung) && (o.rung as number) >= 1) {
+    return { mode: 'gauntlet', rung: o.rung as number, difficulty };
+  }
+  if (
+    o.mode === 'limited'
+    && typeof o.runId === 'string'
+    && Number.isInteger(o.matchIndex)
+    && (o.matchIndex as number) >= 0
+    && DECK_STYLES.includes(o.deckStyle)
+  ) {
+    return {
+      mode: 'limited',
+      runId: o.runId,
+      matchIndex: o.matchIndex as number,
+      difficulty,
+      deckStyle: o.deckStyle as LimitedDeckStyle,
+    };
+  }
+  return undefined;
+}
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -275,6 +322,8 @@ export interface SaveData {
     lastWinDay: string | null; // YYYY-MM-DD of last first-win-of-day bonus
   };
   gauntlet: GauntletState;
+  /** The Tower or Limited duel in progress, if any (see `OpenDuel`). v38 addition. */
+  openDuel?: OpenDuel;
   settings: {
     volume: number;
     sfxOn: boolean;
@@ -513,7 +562,8 @@ export class SaveManager {
    * off) and `limited.premiumGrant` (the stored Premium draft note, absent
    * unless the active Premium run has one); v36 -> v37 adds no field: a save
    * that owns Hooves and Fire (`theme-first-dawn`) from before v37 is granted
-   * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`).
+   * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`);
+   * v37 -> v38 adds the optional `openDuel` record (absent for older saves).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -805,7 +855,7 @@ export class SaveManager {
     // Every version from 22 upward is enumerated BY HAND, including the
     // outgoing current one. A bump that forgets to add the version it is
     // replacing makes every save sitting at it skip this whole block.
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === 36 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === 36 || cur.version === 37 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -1076,6 +1126,13 @@ export class SaveManager {
       } else {
         cur = { ...cur, version: 37 };
       }
+    }
+    if (cur.version === 37) {
+      // v38 adds the optional `openDuel` record. An older save cannot hold
+      // one, so only a save that arrived at v38 keeps it, normalized.
+      const { openDuel: rawOpenDuel, ...rest } = cur as Record<string, unknown>;
+      const openDuel = arrivedAtVersion >= 38 ? normalizeOpenDuel(rawOpenDuel) : undefined;
+      cur = { ...rest, version: 38, ...(openDuel ? { openDuel } : {}) };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
