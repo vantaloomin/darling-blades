@@ -18,6 +18,7 @@
 
 import { OPPONENT_RESERVE_PILE_LAYOUT } from './duelPresentation';
 import type { Rect } from './layout';
+import { packRow } from './rowPacking';
 import { theme } from './theme';
 import type { TypeRole } from './accessibility';
 
@@ -77,7 +78,11 @@ export const DUEL_LAYOUT = {
   gap: { cy: 298, stackX: 400, stackY: 283 },
   /** Player zone now matches the opponent plate's right edge for the sidebar. */
   myZone: { x0: 108, x1: 1046, y0: 312, y1: 532 },
-  myCreatures: { cy: 404, x: 577, usable: 860 },
+  /**
+   * Sits 8px above the opponent row's mirror (cy 404) so a full-size tile and
+   * its state ring end above your mana counters (2026-10-11, owner report).
+   */
+  myCreatures: { cy: 396, x: 577, usable: 860 },
   /** Your mana strip takes the old land-stack anchor and steps rightward. */
   myManaStrip: { cy: 500, x0: 210, step: 54, pipSize: 22 },
   /** Reserve piles sit immediately outside their mirrored mana strips. */
@@ -148,6 +153,36 @@ export const DUEL_LAYOUT = {
    */
   menu: { x: 1206, y: 688 },
 } as const;
+
+/** Your Warchest pile's drawn extent around its anchor (36px icon over its count badge). */
+export const MY_RESERVE_PILE_VISUAL = { halfWidth: 20, top: -28, bottom: 28 } as const;
+
+/**
+ * The furthest left your creature row may reach: one space(4) right of your
+ * Warchest pile, room for a tapped tile's extra width and its state ring.
+ */
+export const MY_CREATURE_ROW_MIN_LEFT =
+  DUEL_LAYOUT.reservePiles.human.x + MY_RESERVE_PILE_VISUAL.halfWidth + theme.space(4);
+
+/**
+ * The band your creature row packs into. It stays centred over the foe's row
+ * until a long row would spread onto your Warchest pile in the lower-left
+ * corner; then its left edge stops at MY_CREATURE_ROW_MIN_LEFT and the row
+ * packs into what is left (the cards may still overlap your artifacts).
+ */
+export function myCreatureBand(
+  count: number,
+  tileWidth: number,
+  maxSpacing: number,
+  gutter: number,
+): { x: number; usable: number } {
+  const full = DUEL_LAYOUT.myCreatures;
+  const packed = packRow(count, full.usable, tileWidth, maxSpacing, gutter);
+  const left = full.x + (packed.offsets[0] ?? 0) - (tileWidth * packed.scale) / 2;
+  if (left >= MY_CREATURE_ROW_MIN_LEFT) return { x: full.x, usable: full.usable };
+  const right = full.x + full.usable / 2;
+  return { x: (MY_CREATURE_ROW_MIN_LEFT + right) / 2, usable: right - MY_CREATURE_ROW_MIN_LEFT };
+}
 
 /**
  * Pip-to-pip pitch for a mana strip: the tuned `step`, widened when the
