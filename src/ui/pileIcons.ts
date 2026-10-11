@@ -3,6 +3,12 @@ import { theme } from './theme';
 
 export const PILE_ICON_SIZE = 32;
 
+/**
+ * Icons are drawn in 32px units but baked at twice that, so they stay crisp
+ * when the canvas renders above 1× or a pile shows them at 36px.
+ */
+const ICON_BAKE_SCALE = 2;
+
 export const PILE_ICON_KEYS = {
   hand: 'pile-icon-hand',
   grave: 'pile-icon-tombstone',
@@ -140,28 +146,44 @@ function drawReserve(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.stroke();
 }
 
+/**
+ * A card cut in two: its halves pulled apart along a gold diagonal slash.
+ * Replaces the 2026-08 nested-diamond squiggle, which read as a smudge at
+ * pile size (owner note 2026-10-11).
+ */
 function drawSevered(ctx: CanvasRenderingContext2D, s: number): void {
-  ctx.strokeStyle = theme.colors.body;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(s / 2, s / 2, 9, 0, Math.PI * 2);
-  ctx.stroke();
-
+  const cardW = 14;
+  const cardH = 22;
+  const x = s / 2 - cardW / 2;
+  const y = s / 2 - cardH / 2;
+  // The cut runs from the card's left edge low to its right edge high.
+  const cutL = { x: x - 4, y: y + 15 };
+  const cutR = { x: x + cardW + 4, y: y + 7 };
+  const gap = 2.4;
+  for (const side of [-1, 1] as const) {
+    ctx.save();
+    ctx.translate(side * gap, side * gap);
+    ctx.beginPath();
+    ctx.moveTo(cutL.x, cutL.y);
+    ctx.lineTo(cutR.x, cutR.y);
+    if (side < 0) {
+      ctx.lineTo(cutR.x, 0);
+      ctx.lineTo(cutL.x, 0);
+    } else {
+      ctx.lineTo(cutR.x, s);
+      ctx.lineTo(cutL.x, s);
+    }
+    ctx.closePath();
+    ctx.clip();
+    strokeCard(ctx, x, y, cardW, cardH, 2.5);
+    ctx.restore();
+  }
   ctx.strokeStyle = theme.colors.gold;
-  ctx.lineWidth = 2.4;
-  ctx.lineJoin = 'round';
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(16, 7);
-  ctx.lineTo(23, 16);
-  ctx.lineTo(16, 25);
-  ctx.lineTo(9, 16);
-  ctx.lineTo(16, 10);
-  ctx.lineTo(21, 16);
-  ctx.lineTo(16, 22);
-  ctx.lineTo(11, 16);
-  ctx.lineTo(16, 13);
-  ctx.lineTo(18, 16);
-  ctx.lineTo(16, 19);
+  ctx.moveTo(cutL.x + 1, cutL.y - 0.4);
+  ctx.lineTo(cutR.x - 1, cutR.y + 0.4);
   ctx.stroke();
 }
 
@@ -174,8 +196,9 @@ export const RETELL_ICON_KEY = 'retell-icon-tombstone';
  */
 export function bakeRetellTombstone(scene: Phaser.Scene): void {
   if (scene.textures.exists(RETELL_ICON_KEY)) return;
-  const tex = scene.textures.createCanvas(RETELL_ICON_KEY, PILE_ICON_SIZE, PILE_ICON_SIZE)!;
+  const tex = scene.textures.createCanvas(RETELL_ICON_KEY, PILE_ICON_SIZE * ICON_BAKE_SCALE, PILE_ICON_SIZE * ICON_BAKE_SCALE)!;
   const ctx = tex.getContext();
+  ctx.scale(ICON_BAKE_SCALE, ICON_BAKE_SCALE);
   drawTombstone(ctx, PILE_ICON_SIZE);
   tex.refresh();
 }
@@ -193,8 +216,9 @@ export function bakePileIcons(scene: Phaser.Scene): void {
     const key = PILE_ICON_KEYS[kind];
     if (scene.textures.exists(key)) continue;
 
-    const tex = scene.textures.createCanvas(key, PILE_ICON_SIZE, PILE_ICON_SIZE)!;
+    const tex = scene.textures.createCanvas(key, PILE_ICON_SIZE * ICON_BAKE_SCALE, PILE_ICON_SIZE * ICON_BAKE_SCALE)!;
     const ctx = tex.getContext();
+    ctx.scale(ICON_BAKE_SCALE, ICON_BAKE_SCALE);
     drawIconBase(ctx, PILE_ICON_SIZE);
     DRAW_ICON[kind](ctx, PILE_ICON_SIZE);
     tex.refresh();
