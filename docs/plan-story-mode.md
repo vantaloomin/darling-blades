@@ -1,10 +1,10 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-09-29 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-10-11 · design/plan doc - re-verify when the referenced code changes -->
 
 # Story Mode plan (2.0)
 
-**Status: direction ruled 2026-09-29, no code.** Story Mode is a roguelite run with a story spine, shipping in 2.0 with Core Set II. This rewrite replaces the 2026-07-26 plan, which targeted 1.7 and "Expansion 8". Its engineering skeleton is kept: the node graph and validator, StoryProgress, exactly-once rewards, story duels on the ordinary `Game`, check-story tooling and one save field. None of it exists in code: there is no `src/meta/story/`, `src/data/story/`, `StoryScene` or `scripts/check-story.ts`. Everything below is planned.
+**Status: direction ruled 2026-09-29, premise ruled 2026-10-11, no code.** Story Mode is a roguelite run with a story spine, shipping in 2.0 with Core Set II. This rewrite replaces the 2026-07-26 plan, which targeted 1.7 and "Expansion 8". Its engineering skeleton is kept: the node graph and validator, StoryProgress, exactly-once rewards, story duels on the ordinary `Game`, check-story tooling and one save field. None of it exists in code: there is no `src/meta/story/`, `src/data/story/`, `StoryScene` or `scripts/check-story.ts`. Everything below is planned.
 
-How to read this doc: the **Owner rulings** section is the only ruled part. Items marked **Recommended (the planning session's proposal)** came from the 2026-09-29 Story Mode planning session and wait on the owner. The engineering sections are this plan's own and may change until the waves start.
+How to read this doc: the two **Owner rulings** sections are the only ruled parts. Items marked **Recommended (the planning session's proposal)** came from the 2026-09-29 Story Mode planning session and wait on the owner. The engineering sections are this plan's own and may change until the waves start.
 
 ## Goal
 
@@ -64,17 +64,36 @@ All ten were given in the Story Mode planning conversation on 2026-09-29 and are
 
   Each unlock counts only runs with the character just before it in the chain: Persephone needs 3 counted Guan Yu runs, and the Beastkin legend 3 counted Persephone runs.
 
+## Owner rulings, 2026-10-11 (premise)
+
+Asked as one group in the "Story Mode draft" project thread, with the three premises written up in the project's `plans/2.0/story-mode/01-premise-options.md`. The answers are quoted verbatim.
+
+- **S1. Premise.** Question: A, The Fallen Mandate; B, The Contest of Heaven (every realm sends a champion); or C, The Tower Where It Fell (the 2026-09-29 idea)?
+  > "Option A approved."
+
+  The premise is **the Fallen Mandate**, Core Set II's own world (ruled for the set 2026-10-08). The Mandate of Heaven has fallen out of the sky where the three realms meet, and whoever holds it rules every realm under heaven. Each heroine goes after it for her own reason: Guan Yu to keep her Peach Garden oath and carry it home to the rightful house, Persephone because its fall cracked the gates between the living world and the underworld and she must close them, and Yutu to steal it for the Moon Palace. The Act 1 boss is **Sima Yi, the Patient Serpent** (the existing `simayi` avatar, U/B Jin control), who reached it first and holds it. Endless follows from it: the Mandate will not stay held, so each endless loop ends at a new claimant.
+- **S2. Tone.** Question: A, sincere myth-adventure with warmth and some humour; B, grim; C, mostly comic?
+  > "A, as recommended."
+
+  Guan Yu is earnest, Persephone is wry, Yutu is playful.
+- **S3. Act 1 length.** Question: A, 9 floors and about 6 duels (about 45 to 60 minutes); B, about 4 duels; C, about 8 duels?
+  > "A, approved."
+- **S4. What counts as a win while only Act 1 exists.** Question: A, clearing Act 1 for now and the final act once Acts 2 and 3 ship, earned wins kept; B, always Act 1; C, no win route until all three acts ship?
+  > "Clearing Act 1 counts as a win for now."
+
+  For 2.0, an Act 1 clear is a win for R4's unlock chain. "For now" leaves open what a win means once Acts 2 and 3 ship; that is decided with those acts, and wins already recorded are never taken away.
+
 ## Player-facing spec
 
 **Character select (R2, R3, R4, R8, R9, R10).** Three characters: Guan Yu, Saint of War (Three Kingdoms), Persephone, Queen of Two Courts (Olympian), and a new Core Set II Beastkin legend. Guan Yu is open at the start. Persephone unlocks on a Guan Yu win or 3 counted Guan Yu runs; the Beastkin legend unlocks on a Persephone win or 3 counted Persephone runs (R10). A run counts once it has had at least three fights, however it then ends: win, loss or abandon (R9). For scale, today's cards: Guan Yu is {W}{R}{R}, a 5/4 with First Blade and Sentinel (UR); Persephone is {2}{B}{G}, a 3/3 with Deathblade that leaves two Bloom tokens when she dies (SSR).
 
 **Opening boon (R5).** After picking a character the player chooses one of three small boons. Player copy calls it an opening boon; Slay the Spire's "Neow" is a design reference only and never appears in the game.
 
-**The run.** The shape is Recommended (the planning session's proposal), listed below: three acts of mapped nodes, each ending on an avatar boss. Duels use the ordinary battlefield and vocabulary, and any special setup is shown before the duel starts.
+**The run.** Three acts of mapped nodes, each ending on a boss; 2.0 ships Act 1 and endless (P9). Act 1 is 9 floors with about 6 duels: 4 fights, 1 elite and Sima Yi as the boss, plus events, a shop and a rest (S3). Endless loops are shorter generated maps, each ending at a stronger claimant who holds the Mandate. Duels use the ordinary battlefield and vocabulary, and any special setup is shown before the duel starts.
 
 **Keeping cards (R6, R8b).** Clearing an act keeps one card to the collection. Shops can also sell a card as a permanent collection card for a large amount of run gold; the limits and price are open. A run card that is not kept never reaches the collection.
 
-**The story spine.** Scenes show a speaker name, a portrait or background, and short text blocks with Continue, Backlog and Skip. A choice that affects a duel or a reward states its effect. Where scenes go is Recommended (the planning session's proposal), below. No scene text is written: every line is a placeholder until the owner approves the premise and the copy.
+**The story spine.** Scenes show a speaker name, a portrait or background, and short text blocks with Continue, Backlog and Skip. A choice that affects a duel or a reward states its effect. Act 1's scenes: an opening per heroine, Sima Yi's intro and defeat lines per heroine, 8 to 10 event vignettes, an Act 1 ending per heroine and one line into endless, about 1,500 to 2,500 words in all, in the S2 tone. No scene text is approved yet: the Act 1 script goes to the owner before wave 3.
 
 ## Recommended (the planning session's proposals)
 
@@ -89,7 +108,6 @@ None of these is a ruling. Each waits on the owner.
 - **Per-character tuning.** Recommended (the planning session's proposal): each starter deck tuned so act-1 win rates land in a band, measured per character with the balance harness (Guan Yu is a 3-mana 5/4; Yohime costs 6).
 - **Scope lever.** Recommended (the planning session's proposal): if 2.0 is overloaded, ship 1 act plus an endless or daily-seed run, and add acts in 2.0.x.
 - **Voice.** Recommended (the planning session's proposal; the owner has not ruled): no AI voice at launch; trailer-only, or optional in 2.x. Reasons given: subreddit hostility to AI voice and art, itch's AI-content disclosure, itch's 1,000-file cap (voice would need packing like art), and ElevenLabs' commercial licensing. ElevenLabs is only the owner's example of TTS; no vendor decision exists.
-- **Premise.** Recommended (the planning session's proposal): Core Set II's world is implied by R2 and R3; the premise itself (why the three fight through the acts) is open. One idea floated: the Tower as the place, the avatars as its floors.
 
 ## System touchpoints
 
@@ -135,9 +153,13 @@ story: {
   activeRun: StoryRun | null;           // seed, character, boon, act, node, run deck, run gold, fights played
   unlockedCharacterIds: string[];       // starts with Guan Yu's story character
   countedRuns: Record<string, number>;  // per character: runs that reached 3 fights, counted once each (R9); an unlock reads only its predecessor's count (R10)
-  wins: Record<string, number>;         // per character
+  wins: Record<string, number>;         // per character; in 2.0 a win is an Act 1 clear (S4)
   claimedRewardKeys: string[];          // exactly-once keeps and buys
   seenSceneIds: string[];
+  endless: {
+    bestLoop: Record<string, number>;   // per character, deepest endless loop reached
+    daily: { dateKey: string; bestLoop: number } | null;  // today's shared daily seed
+  };
 };
 ```
 
@@ -185,12 +207,11 @@ Editorial, accessibility, spoiler and full playthrough passes on every character
 From the planning session's handoff:
 
 - **Voice (R7, TBD).** The planning session recommends no AI voice at launch (see Recommended).
-- **The new Beastkin legend:** colour pair, tribe (continue Kitsune or a new one), name. Also the fallback if Core Set II slips, which the owner has not addressed (the planning session recommends Yohime as-is).
-- **Story premise.** Open; one idea floated is the Tower as the place and the avatars as its floors.
+- **The new Beastkin legend:** settled by [plan-2.0.md](plan-2.0.md) P13 as Yutu, Jade Rabbit of the Moon Palace (W/U), with Yohime as the fallback if Core Set II slips. Before that ruling this item read: colour pair, tribe, name, and the fallback (the planning session recommends Yohime as-is).
 - **Permanent-buy price and limits.** See Recommended for the planning session's proposal.
 - **Other unlock routes.** Whether characters 2 and 3 can be unlocked any other way. Not discussed.
 
-Closed 2026-09-29: the run-count threshold (R9) and whose runs count (R10).
+Closed 2026-09-29: the run-count threshold (R9) and whose runs count (R10). Closed 2026-10-11: the premise, tone, Act 1 length and what counts as a win (S1 to S4).
 
 ## Risks and dependencies
 

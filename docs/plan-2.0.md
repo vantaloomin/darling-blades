@@ -296,7 +296,7 @@ the three starter pools once Core Set II's roster locks; the story matrix
 and progression runs; release QA.
 
 **Copy is approved text, not placeholders.** The README promises nothing is
-placeholder. The premise (open) and Act 1's scenes go to the owner as a
+placeholder. The premise is ruled (the Fallen Mandate, 2026-10-11, Story plan S1 to S4); Act 1's scenes go to the owner as a
 script before wave 3.
 
 ### Lane F: itch.io (priority 6)
@@ -439,7 +439,7 @@ differs from the recommendation, the row says so.
 | **P18** | Does itch wait for full Story Mode? | **RULED 2026-10-08: as recommended.** No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
 
 Still open from earlier plans and carried here: the permanent-buy price and
-limits (Story), Story's premise, Core Set II's product scope, Darlings
+limits (Story), Core Set II's product scope, Darlings
 packaging, roster emphasis (Three Kingdoms leading the Mandate, or an equal
 return), and whether Core Set II reprints or revises Guan Yu and Persephone,
 which Story's first two characters depend on (the set plan's open decisions).
