@@ -4,6 +4,8 @@ import {
   clusterControlX,
   DUEL_LAYOUT,
   manaStripPitch,
+  MY_RESERVE_PILE_VISUAL,
+  myCreatureBand,
   lifeBadgeBounds,
   passButtonBounds,
   pileBounds,
@@ -11,6 +13,7 @@ import {
   severedPileHitBounds,
 } from '../../src/ui/duelLayout';
 import { isInsideTitleSafe, type Rect } from '../../src/ui/layout';
+import { packRow } from '../../src/ui/rowPacking';
 
 const L = DUEL_LAYOUT;
 
@@ -98,5 +101,62 @@ describe('Duel HUD: controls that grow with text', () => {
     }
     // A narrow control stays on the cluster's own column.
     expect(clusterControlX(90)).toBe(L.cluster.x);
+  });
+});
+
+/**
+ * Your creature row sits just above your mana counters and Warchest pile.
+ * Tile sizes are BoardCardView's (156×170, a tapped tile turns sideways); the
+ * state ring reaches 3px out plus half its stroke (5px in high contrast).
+ */
+describe('Duel board: your creature row', () => {
+  const TILE = { w: 156, h: 170, ringReach: 3 + 5 / 2, maxSpacing: 174, gutter: 6 };
+
+  function rowRects(count: number, tapped: boolean): Rect[] {
+    const band = myCreatureBand(count, TILE.w, TILE.maxSpacing, TILE.gutter);
+    const packed = packRow(count, band.usable, TILE.w, TILE.maxSpacing, TILE.gutter);
+    const w = (tapped ? TILE.h : TILE.w) * packed.scale + TILE.ringReach * 2;
+    const h = (tapped ? TILE.w : TILE.h) * packed.scale + TILE.ringReach * 2;
+    return packed.offsets.map((offset) => ({
+      x: band.x + offset - w / 2,
+      y: L.myCreatures.cy - h / 2,
+      width: w,
+      height: h,
+    }));
+  }
+
+  const strip = L.myManaStrip;
+  const mana: Rect = {
+    x: strip.x0 - strip.pipSize / 2,
+    y: strip.cy - strip.pipSize / 2,
+    width: L.myZone.x1 - (strip.x0 - strip.pipSize / 2),
+    height: strip.pipSize,
+  };
+  const pile = L.reservePiles.human;
+  const warchest: Rect = {
+    x: pile.x - MY_RESERVE_PILE_VISUAL.halfWidth,
+    y: pile.y + MY_RESERVE_PILE_VISUAL.top,
+    width: MY_RESERVE_PILE_VISUAL.halfWidth * 2,
+    height: MY_RESERVE_PILE_VISUAL.bottom - MY_RESERVE_PILE_VISUAL.top,
+  };
+
+  it('never covers your mana counters or Warchest, at any row length', () => {
+    for (let count = 1; count <= 12; count++) {
+      for (const tapped of [false, true]) {
+        for (const tile of rowRects(count, tapped)) {
+          const label = `${count} creatures${tapped ? ', tapped' : ''}`;
+          expect(gapBetween(tile, mana), label).toBeGreaterThan(0);
+          expect(gapBetween(tile, warchest), label).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('stays over the foe row until a long row would reach the Warchest', () => {
+    expect(myCreatureBand(1, TILE.w, TILE.maxSpacing, TILE.gutter).x).toBe(L.oppCreatures.x);
+    expect(myCreatureBand(4, TILE.w, TILE.maxSpacing, TILE.gutter).x).toBe(L.oppCreatures.x);
+    // A narrowed band keeps the shared right edge.
+    const long = myCreatureBand(8, TILE.w, TILE.maxSpacing, TILE.gutter);
+    expect(long.x + long.usable / 2).toBe(L.myCreatures.x + L.myCreatures.usable / 2);
   });
 });

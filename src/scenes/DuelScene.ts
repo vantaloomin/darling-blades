@@ -191,7 +191,7 @@ import { duelButtonPairCenters, duelModalLayout } from '../ui/duelModalPresentat
 import type { Rect } from '../ui/layout';
 import { duelRecapLayout } from '../ui/duelRecapPresentation';
 import { currentAccessibility } from '../ui/accessibility';
-import { CLUSTER_BUTTON, clusterControlX, DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, manaStripPitch, SEVERED_PILE_HIT } from '../ui/duelLayout';
+import { CLUSTER_BUTTON, clusterControlX, DUEL_LAYOUT, duelHudType, LIFE_BADGE_SIZE, LIFE_TARGET_RING, manaStripPitch, myCreatureBand, SEVERED_PILE_HIT } from '../ui/duelLayout';
 import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumperPresentation';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
@@ -4429,17 +4429,19 @@ export class DuelScene extends Phaser.Scene {
         (p) => !isType(def(CARD_DB, p.cardId), 'creature'),
       );
 
-      this.syncPermanentRow(creatures, seen, {
-        align: 'center',
-        x: player === AI ? LAYOUT.oppCreatures.x : LAYOUT.myCreatures.x,
-        cy: player === AI ? LAYOUT.oppCreatures.cy : LAYOUT.myCreatures.cy,
-        usable: player === AI ? LAYOUT.oppCreatures.usable : LAYOUT.myCreatures.usable,
-        tileWidth: TILE_W,
-        maxSpacing: TILE_H + 4,
-        baseScale: 1,
-        depth: 5,
-        liftSelected: true,
-      });
+      this.syncPermanentRow(creatures, seen, player === AI
+        ? {
+          align: 'center',
+          x: LAYOUT.oppCreatures.x,
+          cy: LAYOUT.oppCreatures.cy,
+          usable: LAYOUT.oppCreatures.usable,
+          tileWidth: TILE_W,
+          maxSpacing: TILE_H + 4,
+          baseScale: 1,
+          depth: 5,
+          liftSelected: true,
+        }
+        : this.myCreatureRowLayout(creatures.length));
 
       const permanentBandLayout: PermanentRowLayout = player === AI
         ? {
@@ -4509,6 +4511,22 @@ export class DuelScene extends Phaser.Scene {
     this.syncOverlay();
     if (this.isHumanChooseTarget() && !this.gravePicker && this.targetsNeedPicker()) this.showGravePicker([]);
     if (this.tutorial) this.tutorialTick();
+  }
+
+  /** Your creature row for `count` tiles: centred, or kept off your Warchest when long. */
+  private myCreatureRowLayout(count: number): PermanentRowLayout {
+    const band = myCreatureBand(count, TILE_W, TILE_H + 4, ROW_GUTTER);
+    return {
+      align: 'center',
+      x: band.x,
+      cy: LAYOUT.myCreatures.cy,
+      usable: band.usable,
+      tileWidth: TILE_W,
+      maxSpacing: TILE_H + 4,
+      baseScale: 1,
+      depth: 5,
+      liftSelected: true,
+    };
   }
 
   private syncPermanentRow(
@@ -6493,17 +6511,7 @@ export class DuelScene extends Phaser.Scene {
         isType(def(CARD_DB, perm.cardId), 'creature') === creature,
     );
     const layout: PermanentRowLayout = creature
-      ? {
-        align: 'center',
-        x: LAYOUT.myCreatures.x,
-        cy: LAYOUT.myCreatures.cy,
-        usable: LAYOUT.myCreatures.usable,
-        tileWidth: TILE_W,
-        maxSpacing: TILE_H + 4,
-        baseScale: 1,
-        depth: 5,
-        liftSelected: true,
-      }
+      ? this.myCreatureRowLayout(row.length + 1)
       : {
         align: 'right',
         x1: LAYOUT.myPermanentBand.x1,
