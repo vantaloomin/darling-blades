@@ -117,7 +117,7 @@ built: after any `Cargo.lock` change, rerun the command at the top of
 `src-tauri/about.toml`. The build refuses to run while that file covers a crate
 version the lockfile no longer pins, so a stale copy cannot ship.
 
-**Card art carries no third-party licence.** Every card image is generated for this project by its own art pipeline (`docs/art-pipeline.md`), so the card images need no notice; its rights position is owner decision 2 below. The Core Set II images (`public/assets/art/cards/cs2-*.webp`, 250 files, added 2026-10-11) were made the same way, on the owner's PC, and ship with the 2.0 cut.
+**Card art carries no third-party licence.** Every card image is generated for this project by its own art pipeline (`docs/art-pipeline.md`), so the card images need no notice; its rights position is owner decision 2 below. The Core Set II images (`public/assets/art/cards/cs2-*.webp`, 250 files, added 2026-10-11) were made the same way, on the owner's PC, and ship with the 2.0 cut. So were the Story Mode Act 1 stills (`public/assets/art/story/` and `story-half/`, 42 images each, added 2026-10-12; [art-bible/story-act-1.md](../art-bible/story-act-1.md)).
 
 ## Telemetry review, 2026-09-10
 
