@@ -1,8 +1,8 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts · last-verified: 2026-10-11 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts, src/data/story/act1.ts, src/data/story/characters.ts, src/meta/story/storyMap.ts, src/meta/story/storyState.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyContent.ts, src/meta/story/headlessRun.ts, src/meta/SaveCode.ts · last-verified: 2026-10-12 · design/plan doc - re-verify when the referenced code changes -->
 
 # Story Mode plan (2.0)
 
-**Status: direction ruled 2026-09-29, premise ruled 2026-10-11, no code.** Story Mode is a roguelite run with a story spine, shipping in 2.0 with Core Set II. This rewrite replaces the 2026-07-26 plan, which targeted 1.7 and "Expansion 8". Its engineering skeleton is kept: the node graph and validator, StoryProgress, exactly-once rewards, story duels on the ordinary `Game`, check-story tooling and one save field. None of it exists in code: there is no `src/meta/story/`, `src/data/story/`, `StoryScene` or `scripts/check-story.ts`. Everything below is planned.
+**Status: direction ruled 2026-09-29, premise ruled 2026-10-11, wave 1 built 2026-10-12 (headless only).** Story Mode is a roguelite run with a story spine, shipping in 2.0 with Core Set II. This rewrite replaces the 2026-07-26 plan, which targeted 1.7 and "Expansion 8". Its engineering skeleton is kept: the node graph and validator, StoryProgress, exactly-once rewards, story duels on the ordinary `Game`, check-story tooling and one save field. Wave 1 is in code: the data under `src/data/story/`, the map generator, validator, save record, StoryProgress and a headless Act 1 runner under `src/meta/story/`, and the `story` save field. There is no `StoryScene`, no player-facing entry and no `scripts/check-story.ts` yet; everything not marked built below is still planned.
 
 How to read this doc: the two **Owner rulings** sections are the only ruled parts. Items marked **Recommended (the planning session's proposal)** came from the 2026-09-29 Story Mode planning session and wait on the owner. The engineering sections are this plan's own and may change until the waves start.
 
@@ -122,7 +122,7 @@ No engine change is planned. A story duel compiles to an ordinary `GameConfig` (
 
 ### Meta, save, and economy
 
-Pure definitions under `src/data/story/` (planned):
+Pure definitions under `src/data/story/` (built in wave 1: `types.ts`, `characters.ts`, `act1.ts`; the shapes below are the plan's sketch, and the built ones add names, colours, act economy numbers and boons):
 
 ```ts
 interface StoryCharacter { id: string; darlingId: string; starterDeck: string[]; landReserve: string[]; rewardPool: string[]; unlock: UnlockRule | null }
@@ -130,7 +130,7 @@ interface StoryAct { id: string; mapTemplate: MapTemplate; bossAvatarId: string;
 interface StoryNode { id: string; kind: 'fight' | 'elite' | 'event' | 'shop' | 'rest' | 'boss'; nextNodeIds: string[] }
 ```
 
-`src/meta/story/StoryProgress.ts` (planned) keeps the old plan's role: it validates graphs, computes what is available, and applies completions and rewards atomically through the existing economy and collection services behind the `Services` singleton (`src/meta/services.ts`). The validator now runs on every generated act map (every node reachable, every path ends at the boss) as well as on authored scene graphs. A run's maps derive from one run seed, the way `src/meta/gauntletSeed.ts` derives each Tower rung's seed today, so the same seed gives the same run.
+`src/meta/story/StoryProgress.ts` (built in wave 1) keeps the old plan's role: it validates graphs, computes what is available, and applies completions and rewards atomically through the existing economy and collection services behind the `Services` singleton (`src/meta/services.ts`). The validator now runs on every generated act map (every node reachable, every path ends at the boss) as well as on authored scene graphs. A run's maps derive from one run seed, the way `src/meta/gauntletSeed.ts` derives each Tower rung's seed today, so the same seed gives the same run.
 
 **Exactly-once rewards.** Each keep (one per act) and each permanent buy has a stable reward key (run id plus act or shop node), recorded in the same save transaction that grants the card. Reload, retry, crash and import never grant it twice. The run deck is run-scoped and never touches the collection.
 
@@ -149,6 +149,8 @@ Story duels pick an existing avatar or difficulty. Brains read only the redacted
 `scripts/check-story.ts` (planned) rejects duplicate IDs, missing links, unreachable nodes, unknown card, avatar or reward IDs, invalid starter decks and empty strings. Tests cover graph validation over many seeds, deterministic run generation, exactly-once rewards across reload and retry, run counting, unlocks, replay, and scene text overflow. Engine, meta and data stay Phaser-free, tests do not import Phaser, and gates only ratchet up.
 
 ## Save-schema impact
+
+**Built in wave 1 (2026-10-12):** `SaveData.story` rides the v37 -> v38 step with `openDuel`, with no bump to 39. The shape is below; `src/meta/story/storyState.ts` holds the real types. Besides the fields listed in the comment, an active run also saves `nodeResolved` (whether the current node's encounter is over) and `pendingCardRewards` (card rewards waiting for a pick), so a reload between a won duel and its reward can neither lose the reward nor take it twice. A v38 save without the field (dev saves from before wave 1) or with a malformed one loads with the fresh record, and an active run that fails validation is dropped. Save codes carry the field, and the import preview gains a story summary (characters unlocked, act clears, run in progress).
 
 One top-level field, added in the next free `SaveData` version when wave 1 lands (`CURRENT_SAVE_VERSION` is 37 as of 1.9.1; v36 was 1.9's one bump and v37 the 1.9.1 Hooves and Fire grant, so Story takes v38; the tower reload fix opened v38 on release/2.0 with the optional `openDuel` mark, so Story adds its field to that same v37 -> v38 step rather than bumping again):
 
@@ -170,7 +172,7 @@ story: {
 
 The bump needs a real `migrate()` and a migration test. Migration starts every save with only the first character unlocked, empty counts and no active run. Normalization deduplicates strings and never infers a claim from a completion. `activeRun` records fights played so the open run-count threshold can apply without another bump.
 
-`ReplayContext.mode` is `'practice' | 'gauntlet' | 'limited'` today (`src/meta/Replay.ts`); story duels add `'story'` with run and node metadata, which may bump `REPLAY_LOG_VERSION` (16 today) but not `SaveData.version` beyond the story bump. Save codes and save cards must carry the new field ([plan-save-portability.md](plan-save-portability.md)).
+`ReplayContext.mode` gained `'story'` in wave 1 (`src/meta/Replay.ts`), with a `story` record (run id, character, act, node id and kind, endless loop) present exactly on story logs. It rides `REPLAY_LOG_VERSION` 17, the train's one replay bump (plan-2.0 P16), because the replayer never reads the context; `SaveData.version` does not move beyond the story bump. Save codes and save cards must carry the new field ([plan-save-portability.md](plan-save-portability.md)).
 
 ## AI and balance impact
 
@@ -193,7 +195,18 @@ Story Mode needs from [plan-core-set-2.md](plan-core-set-2.md): the three charac
 
 ### Wave 1: schema, run state, and one headless run
 
-Data schema, graph validator, StoryProgress, seeded map generation, the save field and migration, and one headless fixture run with Guan Yu on existing cards. Verification: graph and seed property tests, exactly-once and reload tests, run-count and unlock tests, the migration test, a deterministic duel and replay test, build, lint, docs.
+**Built 2026-10-12.** Data schema, graph validator, StoryProgress, seeded map generation, the save field and migration, and one headless fixture run with Guan Yu on existing cards. Verification: graph and seed property tests, exactly-once and reload tests, run-count and unlock tests, the migration test, a deterministic duel and replay test, build, lint, docs.
+
+What landed:
+
+- **Data** (`src/data/story/`): the three characters in unlock order. Guan Yu (`guan-yu`, Darling `tk-shu-guanyu`) has a 20-card W/R starter deck of shipped Shu and Three Kingdoms cards, a ten-land reserve and a reward pool about three quarters Three Kingdoms. Persephone (`persephone`, `gk-persephone`) and Yutu (`yutu`, `cs2-yutu`) have stand-in decks of shipped cards so every entry validates; wave 3 replaces all three from Core Set II. Act 1 follows the S3 floor table, with fights drawn from Tower rungs 1 to 3, elites from rungs 4 and 5, and Sima Yi as the boss. The four opening boons are extra run gold, a seeded SR card from the pool, removing two starter cards, and one extra card reward after the first fight; a run is offered three of them by its seed.
+- **Maps** (`src/meta/story/storyMap.ts`): 2 or 3 nodes a floor, edges only to the next floor, every node reachable from floor 1 and every path ending at the boss. A map is never saved; it regenerates from the run seed, derived the way `gauntletSeed.ts` derives rung seeds. Floors with two options always show both.
+- **StoryProgress** (`src/meta/story/StoryProgress.ts`): start a run (a locked character is refused), the boon, legal next nodes, entering a node, recording a duel, card rewards, events, shops (run gold only) and rests, abandon, and the keep. A run counts once, when its third fight is recorded (R9), whether it then wins, loses or is abandoned; a loss ends the run. Beating Sima Yi is a win (S4). Unlocks read only the predecessor's wins and counted runs (R4, R10). The keep records `<runId>:act1:keep` in the same mutation that grants the card through `Collection.addCards`, so a second claim, before or after a reload, changes nothing.
+- **Duels**: each duel node compiles to an ordinary Darlings-format `GameConfig` (the run deck, the character's Darling and reserve, against the avatar's own Darlings deck and reserve), with no engine change.
+- **Headless run** (`src/meta/story/headlessRun.ts`): plays a whole Act 1 on a seed with MediumAI for the heroine and each avatar's own brain, by fixed choice rules, and returns a summary and, on request, each duel's replay log.
+- **Content check** (`src/meta/story/storyContent.ts`): the core of the planned `check-story` script, run by the tests; the CLI wrapper is still to do.
+
+First measurement, not a gate (200 seeds, the headless run's fixed choices, 2026-10-12): 16 Act 1 clears, and Guan Yu won 281 of 465 duels. The 20-card run deck faces 79-card avatar decks and runs out first: over the first fight on seeds 1 to 100, Guan Yu lost 54, and 33 of those losses were an empty deck with life left. A deck of "about 15 to 20 cards" (the Recommended character shape) and the ordinary empty-deck loss do not fit together; how to reconcile them (a bigger starter deck, or a story-duel rule) is an owner question for wave 3, alongside the per-character bands.
 
 ### Wave 2: the run shell
 

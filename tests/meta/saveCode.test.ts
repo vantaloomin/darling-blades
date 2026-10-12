@@ -6,6 +6,8 @@ import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../
 import { STATS_NOTICE_VERSION } from '../../src/meta/statsNotice';
 import { parseVariantKey, variantKey } from '../../src/meta/variants';
 import { GOLDEN_FRESH_SAVE_CODE } from './saveCode.fixtures';
+import { CARD_DB } from '../../src/data/catalog';
+import { chooseBoon, enterNode, legalNextNodes, startRun, storyBoonOffers } from '../../src/meta/story/StoryProgress';
 
 const NOW = 1_700_000_000_000;
 
@@ -172,9 +174,26 @@ describe('SaveCode', () => {
       gold: 777,
       deckCount: 1,
       progressSummary: { wins: 8, losses: 3, bestGauntletRung: 6, gauntletCompletions: 1 },
+      storySummary: { charactersUnlocked: 1, actClears: 0, runInProgress: false },
       sourceSchemaVersion: CURRENT_SAVE_VERSION,
       replaysPresent: true,
     });
+  });
+
+  it('round-trips a Story Mode run in progress, so a save card carries the whole story record', () => {
+    const save = currentFixture();
+    const started = startRun(save.story, 'guan-yu', 4242, NOW);
+    if (!started.ok) throw new Error(started.reason);
+    expect(chooseBoon(save.story, CARD_DB, storyBoonOffers(4242).find((id) => id !== 'trim-two')!).ok).toBe(true);
+    expect(enterNode(save.story, legalNextNodes(save.story)[0].id).ok).toBe(true);
+    save.story.wins = { 'guan-yu': 1 };
+    save.story.unlockedCharacterIds = ['guan-yu', 'persephone'];
+
+    const decoded = expectOk(decode(encode(save)));
+
+    expect(decoded.save.story).toEqual(save.story);
+    expect(decoded.save.story.activeRun?.nodeId).toBe(save.story.activeRun?.nodeId);
+    expect(decoded.preview.storySummary).toEqual({ charactersUnlocked: 2, actClears: 1, runInProgress: true });
   });
 
   it('round-trips a rule-invalid deck without pruning its cards or reserve', () => {
