@@ -1,0 +1,311 @@
+<title>Core Set II Art Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a production ledger. Summary strip on top, lanes, then a filterable wall of 4:5 card slots. */
+:root{
+  --bg:#f6f4ef; --panel:#ffffff; --ink:#221a17; --muted:#6f655d; --line:#e2dcd2;
+  --jade:#2f8a69; --jade-soft:#d7eee3; --gold:#b98a1f; --gold-soft:#f6ebc9;
+  --red:#b3202a; --red-soft:#f6dcdc; --queued:#cfc7bb; --gen:#2f6fa8; --gen-soft:#dbe8f5;
+  --head:#e0473c;
+  --f-display:"Shippori Mincho","Noto Serif",Georgia,serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1412; --panel:#231b18; --ink:#f1ebe3; --muted:#a89c91; --line:#3a2f2a;
+  --jade:#6cc7a0; --jade-soft:#1f3a2f; --gold:#e3bd5a; --gold-soft:#3d3218;
+  --red:#ef6b62; --red-soft:#43211f; --queued:#4a3f39; --gen:#7fb3de; --gen-soft:#1f3044; --head:#ff7a6e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1412; --panel:#231b18; --ink:#f1ebe3; --muted:#a89c91; --line:#3a2f2a;
+  --jade:#6cc7a0; --jade-soft:#1f3a2f; --gold:#e3bd5a; --gold-soft:#3d3218;
+  --red:#ef6b62; --red-soft:#43211f; --queued:#4a3f39; --gen:#7fb3de; --gen-soft:#1f3044; --head:#ff7a6e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:22px}
+header{display:grid;gap:6px}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font:800 clamp(26px,5vw,38px)/1.1 var(--f-display);margin:0;text-wrap:balance}
+.phase{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:500 13px var(--f-body);background:var(--gold-soft);color:var(--ink)}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.pill.live::before{background:var(--gen);animation:pulse 1.6s infinite}
+.pill.halt{background:var(--red-soft)} .pill.halt::before{background:var(--red)}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion: reduce){.pill.live::before{animation:none}}
+.upd{font:13px var(--f-mono);color:var(--muted)}
+.note{color:var(--muted);max-width:68ch;margin:0}
+.summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px}
+.bigrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
+.big{font:800 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.big small{font:500 15px var(--f-body);color:var(--muted)}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--queued)}
+.bar span{display:block;height:100%}
+.counts{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.counts b{color:var(--ink);font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+.d-done{background:var(--jade)} .d-flag{background:var(--gold)} .d-gen{background:var(--gen)} .d-fail{background:var(--red)} .d-queued{background:var(--queued)}
+.sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 18px}
+.sec{display:grid;gap:4px;font-size:13px;min-width:0}
+.sec .top{display:flex;justify-content:space-between;gap:8px}
+.sec .top span:last-child{font:12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.sec .bar{height:6px}
+h2{font:600 18px var(--f-display);margin:0}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.lane{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px;background:var(--panel);min-width:0}
+.lane .lt{font:500 12px var(--f-mono);letter-spacing:.06em;color:var(--muted)}
+.lane .cur{font-weight:500;overflow-wrap:anywhere}
+.lane .cur.idle{color:var(--muted);font-weight:400}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:5px 12px;font:500 13px var(--f-body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{display:grid;gap:6px;min-width:0}
+.slot{position:relative;aspect-ratio:4/5;max-width:100%;border-radius:6px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+.slot img{width:100%;height:100%;object-fit:cover;display:block}
+.slot .hl{position:absolute;left:0;right:0;top:22.375%;border-top:1px dashed var(--head);opacity:.85}
+.slot .ph{position:absolute;inset:0;display:grid;place-items:center;font:12px var(--f-mono);color:var(--muted);text-align:center;padding:8px}
+.slot.s-gen{border-color:var(--gen);background:var(--gen-soft)}
+.slot.s-fail{border-color:var(--red);background:var(--red-soft)}
+.tag{position:absolute;top:6px;left:6px;font:500 11px var(--f-mono);padding:2px 6px;border-radius:4px;background:var(--panel);color:var(--ink)}
+.tag.t-done{background:var(--jade-soft)} .tag.t-flag{background:var(--gold-soft)} .tag.t-gen{background:var(--gen-soft)} .tag.t-fail{background:var(--red-soft)}
+.cn{font-weight:500;font-size:13.5px;line-height:1.3;overflow-wrap:anywhere}
+.meta{font:11.5px var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.cnote{font-size:12.5px;color:var(--muted);line-height:1.35}
+.empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+footer{font-size:12.5px;color:var(--muted)}
+.slot{cursor:zoom-in} .slot:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+/* Modal: full card left, simulated in-game frame right (cardFaceGeometry.ts, 300x420 card, 264x216 window). */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(15,10,8,.82);display:grid;place-items:center;padding:calc(12px + env(safe-area-inset-top,0px)) 12px calc(12px + env(safe-area-inset-bottom,0px))}
+.mbox{width:min(980px,100%);max-height:100%;overflow:auto;background:var(--panel);color:var(--ink);border-radius:12px;padding:14px;display:grid;gap:12px}
+.mhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.mhead h3{font:700 20px/1.2 var(--f-display);margin:0;text-wrap:balance}
+.mhead .meta{margin-top:2px}
+.mbtns{display:flex;gap:6px;flex-shrink:0}
+.ib{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;min-width:36px;height:36px;font:500 16px var(--f-body);cursor:pointer}
+.ib:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+.pane{display:grid;gap:6px;min-width:0}
+.pane .lt{font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.full{position:relative;aspect-ratio:4/5;max-width:100%;border-radius:6px;overflow:hidden;background:var(--bg)}
+.full img{width:100%;height:100%;object-fit:cover;display:block}
+.full .win{position:absolute;left:0;right:0;top:17.25%;bottom:17.25%;border-top:1px solid rgba(127,179,222,.9);border-bottom:1px solid rgba(127,179,222,.9);pointer-events:none}
+.full .hl{position:absolute;left:0;right:0;top:22.375%;border-top:1px dashed var(--head)}
+.cardsim{container-type:inline-size;position:relative;aspect-ratio:300/420;max-width:100%;width:100%;border-radius:4.5cqw;background:linear-gradient(160deg,var(--fr1),var(--fr2));box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.cardsim>*{position:absolute}
+.cs-face{left:3%;top:2.14%;right:3%;bottom:2.14%;border-radius:3cqw;background:var(--fr3)}
+.cs-name{left:5.33%;right:5.33%;top:3.6%;height:6.4%;border-radius:1.5cqw;background:var(--plate);display:flex;align-items:center;justify-content:space-between;padding:0 2.5cqw;gap:2cqw;color:#221a17}
+.cs-name b{font:700 4.6cqw/1 var(--f-display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cs-cost{display:flex;gap:.8cqw;flex-shrink:0}
+.pip{width:4.4cqw;height:4.4cqw;border-radius:50%;display:grid;place-items:center;font:600 3cqw/1 var(--f-mono);color:#221a17;box-shadow:inset 0 0 0 .3cqw rgba(0,0,0,.25)}
+.cs-art{left:6%;top:10.95%;width:88%;height:51.43%;background-color:#2b1a17;background-size:100% auto;background-position:center;background-repeat:no-repeat;box-shadow:0 0 0 .6cqw rgba(0,0,0,.35)}
+.cs-type{left:5.33%;width:89.33%;top:63.81%;height:5.24%;border-radius:1.2cqw;background:var(--plate);color:#221a17;font:600 3.6cqw/1 var(--f-body);display:flex;align-items:center;padding:0 2.5cqw;white-space:nowrap;overflow:hidden}
+.cs-text{left:5.33%;width:89.33%;top:70.48%;height:25.24%;border-radius:1.2cqw;background:var(--textbox);color:#4a3f39;font:3.3cqw/1.35 var(--f-body);padding:2.2cqw 2.8cqw;overflow:hidden}
+.cs-badge{top:90.48%;height:7.38%;border-radius:1.6cqw;background:var(--plate);color:#221a17;display:grid;place-items:center;font:700 4.4cqw/1 var(--f-mono);padding:0 2.4cqw;box-shadow:0 0 0 .5cqw rgba(0,0,0,.3)}
+.cs-pt{right:3%} .cs-set{left:3%;font-size:3cqw}
+.simnote{font-size:12px;color:var(--muted)}
+@media (max-width:520px){.mbox{padding:10px}.split{gap:8px}.mhead h3{font-size:17px}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Darling Blades · Core Set II · Codex image run</div>
+    <h1>Core Set II Art Run</h1>
+    <div class="phase"><span class="pill" id="phase">Connecting…</span><span class="upd" id="upd"></span></div>
+    <p class="note" id="note">Live status appears here once the run's ledger loads.</p>
+  </header>
+
+  <section class="summary" aria-label="Progress">
+    <div class="bigrow">
+      <div class="big" id="bigDone">–<small> of 250 delivered</small></div>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="Progress by status"></div>
+    <div class="sections" id="sections"></div>
+  </section>
+
+  <section style="display:grid;gap:10px" aria-label="Lanes">
+    <h2>Lanes</h2>
+    <div class="lanes" id="lanes"></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-label="Cards">
+    <h2>Cards</h2>
+    <div class="filters" id="fStatus"></div>
+    <div class="filters" id="fSection"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <footer>Delivered = 640×800 WebP made from the raw. The dashed red line on each thumbnail is the y 179 head line; "Flagged" means it needs a look or a re-roll. Tap a thumbnail to compare the full card with the in-game frame. Draft ids only; nothing here ships to the game.</footer>
+</div>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+  <div class="mbox">
+    <div class="mhead">
+      <div><h3 id="mTitle"></h3><div class="meta" id="mMeta"></div></div>
+      <div class="mbtns">
+        <button class="ib" type="button" id="mPrev" aria-label="Previous card">‹</button>
+        <button class="ib" type="button" id="mNext" aria-label="Next card">›</button>
+        <button class="ib" type="button" id="mClose" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="split">
+      <div class="pane"><div class="lt">Full art · 640×800</div>
+        <div class="full"><img id="mImg" alt=""><div class="win"></div><div class="hl"></div></div>
+      </div>
+      <div class="pane"><div class="lt">In the card frame</div>
+        <div class="cardsim" id="mSim">
+          <div class="cs-face"></div>
+          <div class="cs-name"><b id="sName"></b><span class="cs-cost" id="sCost"></span></div>
+          <div class="cs-art" id="sArt"></div>
+          <div class="cs-type" id="sType"></div>
+          <div class="cs-text" id="sText"></div>
+          <div class="cs-badge cs-set">CS2</div>
+          <div class="cs-badge cs-pt" id="sPt"></div>
+        </div>
+      </div>
+    </div>
+    <div class="simnote" id="mNote"></div>
+  </div>
+</div>
+
+<script>
+const STATUS = [
+  ["all","All"],["done","Delivered"],["flag","Flagged"],["gen","Generating"],["fail","Failed"],["queued","Queued"]
+];
+const SECTIONS = ["Legends","Beastkin","Three Kingdoms","Greek","Charms & rituals","Enchantments & artifacts"];
+const LABEL = {done:"Delivered",flag:"Flagged",gen:"Generating",fail:"Failed",queued:"Queued"};
+let state = null, fs = "all", fsec = "all";
+try { fs = localStorage.getItem("fs") || "all"; fsec = localStorage.getItem("fsec") || "all"; } catch(e) {}
+
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function chips(host, items, cur, onPick){
+  host.replaceChildren();
+  for (const [v,l] of items){
+    const b=el("button","chip",l); b.type="button"; b.id="chip-"+host.id+"-"+v.replace(/\W+/g,"-");
+    b.setAttribute("aria-pressed", String(v===cur));
+    b.onclick=()=>onPick(v); host.appendChild(b);
+  }
+}
+function ago(iso){
+  if(!iso) return ""; const s=(Date.now()-Date.parse(iso))/1000;
+  if (isNaN(s)) return ""; if (s<90) return "updated just now";
+  if (s<3600) return "updated "+Math.round(s/60)+" min ago";
+  return "updated "+Math.round(s/3600)+" h ago";
+}
+function render(){
+  if(!state) return;
+  const cards = Object.entries(state.cards||{}).map(([id,c])=>({id,...c})).sort((a,b)=>(a.o||0)-(b.o||0));
+  const total = cards.length || 250;
+  const cnt = {done:0,flag:0,gen:0,fail:0,queued:0};
+  for (const c of cards) cnt[c.st in cnt ? c.st : "queued"]++;
+  const delivered = cnt.done + cnt.flag;
+
+  const ph = document.getElementById("phase");
+  ph.textContent = state.phase || "Idle";
+  ph.className = "pill" + (state.running ? " live" : "") + (state.halted ? " halt" : "");
+  document.getElementById("upd").textContent = ago(state.updatedAt);
+  document.getElementById("note").textContent = state.note || "";
+  const big = document.getElementById("bigDone");
+  big.replaceChildren(document.createTextNode(String(delivered)), el("small",null," of "+total+" delivered"));
+
+  const counts = document.getElementById("counts"); counts.replaceChildren();
+  for (const k of ["done","flag","gen","fail","queued"]){
+    const s=el("span"); s.append(el("span","dot d-"+k), el("b",null,String(cnt[k])), document.createTextNode(" "+LABEL[k].toLowerCase()));
+    counts.appendChild(s);
+  }
+  const bar = document.getElementById("bar"); bar.replaceChildren();
+  const colors = {done:"var(--jade)",flag:"var(--gold)",gen:"var(--gen)",fail:"var(--red)"};
+  for (const k of ["done","flag","gen","fail"]) if (cnt[k]) { const s=el("span"); s.style.width=(cnt[k]/total*100)+"%"; s.style.background=colors[k]; bar.appendChild(s); }
+
+  const secHost = document.getElementById("sections"); secHost.replaceChildren();
+  for (const s of SECTIONS){
+    const list = cards.filter(c=>c.s===s); if(!list.length) continue;
+    const d = list.filter(c=>c.st==="done"||c.st==="flag").length;
+    const box=el("div","sec"); const top=el("div","top"); top.append(el("span",null,s), el("span",null,d+"/"+list.length));
+    const b=el("div","bar"); const f=el("span"); f.style.width=(d/list.length*100)+"%"; f.style.background="var(--jade)"; b.appendChild(f);
+    box.append(top,b); secHost.appendChild(box);
+  }
+
+  const lanes = document.getElementById("lanes"); lanes.replaceChildren();
+  const L = state.lanes || {};
+  for (const k of Object.keys(L).sort()){
+    const ln=L[k]||{}; const box=el("div","lane");
+    const cur = ln.current ? (state.cards?.[ln.current]?.n || ln.current) : "";
+    box.append(el("div","lt",k+" · "+(ln.done||0)+" done"+(ln.total?(" of "+ln.total):"")), el("div","cur"+(cur?"":" idle"), cur?("Now: "+cur):"Idle"));
+    if (ln.group) box.append(el("div","meta",ln.group));
+    lanes.appendChild(box);
+  }
+
+  chips(document.getElementById("fStatus"), STATUS.map(([v,l])=>[v, v==="all"?l+" "+total:l+" "+(cnt[v]||0)]), fs, v=>{fs=v; try{localStorage.setItem("fs",v)}catch(e){} render();});
+  chips(document.getElementById("fSection"), [["all","Every section"],...SECTIONS.map(s=>[s,s])], fsec, v=>{fsec=v; try{localStorage.setItem("fsec",v)}catch(e){} render();});
+
+  const grid = document.getElementById("grid"); grid.replaceChildren();
+  const shown = cards.filter(c=>(fs==="all"||c.st===fs)&&(fsec==="all"||c.s===fsec));
+  if(!shown.length){ grid.appendChild(el("div","empty","No cards match this filter yet.")); return; }
+  for (const c of shown){
+    const card=el("div","card"); const slot=el("div","slot s-"+c.st);
+    if (c.t) { slot.tabIndex=0; slot.setAttribute("role","button"); slot.setAttribute("aria-label","Open "+c.n);
+      slot.onclick=()=>openModal(c.id, shown.filter(x=>x.t).map(x=>x.id));
+      slot.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); slot.click(); } }; }
+    if (c.t) { const img=el("img"); img.src=c.t; img.alt=c.n; img.loading="lazy"; slot.append(img, el("div","hl")); }
+    else slot.append(el("div","ph", c.st==="gen"?"Generating…":c.st==="fail"?"Failed":"Queued"));
+    slot.append(el("span","tag t-"+c.st, LABEL[c.st]||c.st));
+    card.append(slot, el("div","cn",c.n));
+    const meta=[c.id.replace(/^cs2-/,""), c.s]; if (c.h!=null) meta.push("head y "+c.h); if (c.lane) meta.push(c.lane);
+    card.append(el("div","meta",meta.join(" · ")));
+    if (c.note) card.append(el("div","cnote",c.note));
+    grid.appendChild(card);
+  }
+}
+// --- modal -------------------------------------------------------------------
+const FRAME = { // frame metal, frame dark, face, name/type plate, text box
+  W:["#efe6cf","#b9a77a","#e9dfc6","#f7f1e1","#fbf7ec"], U:["#7fb3de","#2f6fa8","#cfe1f2","#e3eef8","#f2f7fc"],
+  B:["#6b5a78","#2b2233","#4a3f52","#d9d2df","#ece8ef"], R:["#e0473c","#8e1a22","#e8b1a6","#f6dcd6","#fbf0ed"],
+  G:["#6b8f3e","#2f4a22","#b9cf9a","#e2ecd3","#f2f7ea"], C:["#d29a55","#7a5124","#cdb79a","#efe4d3","#f8f2ea"],
+  M:["#f5d77a","#a0692e","#e8d39a","#f7eccb","#fbf6e6"]
+};
+const PIP = {W:"#f7f1e1",U:"#7fb3de",B:"#9d8ca8",R:"#e0473c",G:"#8fbf6a",C:"#cdb79a"};
+let mList=[], mIdx=0, lastFocus=null;
+function frameKey(fx){ const col=(fx&&fx.col)||""; const cs=col.split("/").filter(x=>"WUBRG".includes(x)); return cs.length>1?"M":cs.length===1?cs[0]:"C"; }
+function fillModal(){
+  const c = state && state.cards[mList[mIdx]]; if(!c) return; const id=mList[mIdx]; const fx=c.fx||{};
+  document.getElementById("mTitle").textContent=c.n;
+  const meta=[id.replace(/^cs2-/,""), c.s, LABEL[c.st]||c.st]; if(c.h!=null) meta.push("head y "+c.h);
+  document.getElementById("mMeta").textContent=meta.join(" · ");
+  const src=c.f||c.t; const img=document.getElementById("mImg"); img.src=src; img.alt=c.n+", full art";
+  const k=frameKey(fx), F=FRAME[k], sim=document.getElementById("mSim");
+  sim.style.setProperty("--fr1",F[0]); sim.style.setProperty("--fr2",F[1]); sim.style.setProperty("--fr3",F[2]);
+  sim.style.setProperty("--plate",F[3]); sim.style.setProperty("--textbox",F[4]);
+  document.getElementById("sName").textContent=c.n.replace(/,.*$/,"");
+  const cost=document.getElementById("sCost"); cost.replaceChildren();
+  for (const m of (fx.c||"").matchAll(/\{([^}]+)\}/g)){ const p=el("span","pip",/^\d+$/.test(m[1])?m[1]:""); p.style.background=PIP[m[1]]||PIP.C; cost.appendChild(p); }
+  document.getElementById("sArt").style.backgroundImage = src ? 'url("'+src+'")' : "none";
+  document.getElementById("sType").textContent = fx.ty || "Card";
+  document.getElementById("sText").textContent = (fx.kw ? fx.kw.replace(/(^|,\s*)(\w)/g,(a,b,ch)=>b+ch.toUpperCase())+". " : "") + "Rules text is written at transcription.";
+  const pt=document.getElementById("sPt"); pt.textContent=fx.pt||""; pt.hidden=!fx.pt;
+  document.getElementById("mNote").textContent = "The frame shows rows 138 to 662 of the 800, the same cover-fit as the game's 264×216 window (blue lines on the left). Dashed red is the y 179 head line." + (fx.c ? "" : " Spells and permanents have no card facts yet, so the frame is neutral bronze.");
+  document.getElementById("mPrev").disabled = mIdx<=0; document.getElementById("mNext").disabled = mIdx>=mList.length-1;
+}
+function openModal(id, list){ lastFocus=document.activeElement; mList=list; mIdx=Math.max(0,list.indexOf(id)); fillModal(); document.getElementById("modal").hidden=false; document.getElementById("mClose").focus(); }
+function closeModal(){ document.getElementById("modal").hidden=true; if(lastFocus) lastFocus.focus(); }
+document.getElementById("mClose").onclick=closeModal;
+document.getElementById("mPrev").onclick=()=>{ if(mIdx>0){mIdx--; fillModal();} };
+document.getElementById("mNext").onclick=()=>{ if(mIdx<mList.length-1){mIdx++; fillModal();} };
+document.getElementById("modal").addEventListener("click",e=>{ if(e.target.id==="modal") closeModal(); });
+document.addEventListener("keydown",e=>{ if(document.getElementById("modal").hidden) return;
+  if(e.key==="Escape") closeModal(); else if(e.key==="ArrowLeft") document.getElementById("mPrev").click(); else if(e.key==="ArrowRight") document.getElementById("mNext").click(); });
+
+setInterval(()=>{ if(state) document.getElementById("upd").textContent = ago(state.updatedAt); }, 30000);
+
+(async()=>{
+  for (let i=0; i<50 && !(window.claude && window.claude.use); i++) await new Promise(r=>setTimeout(r,100));
+  const db = (window.claude && window.claude.use) ? await window.claude.use("db") : null;
+  if(!db){ document.getElementById("phase").textContent="Offline"; document.getElementById("note").textContent="The live ledger isn't available in this view. Open the artifact on claude.ai while signed in."; return; }
+  db.doc("run/state").onSnapshot(s=>{
+    if(!s.exists){ document.getElementById("phase").textContent="Waiting for the run"; document.getElementById("note").textContent="No run data yet. Claude writes progress here as images are delivered."; return; }
+    state = s.data(); render();
+  }, e=>{ document.getElementById("phase").textContent="Disconnected"; document.getElementById("note").textContent="Live updates stopped ("+e.code+"). Reload the page to reconnect."; });
+})();
+</script>
