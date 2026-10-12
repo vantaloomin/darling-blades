@@ -12,6 +12,7 @@ import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 import { normalizeStatsNoticeVersion } from './statsNotice';
 import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
+import { freshStoryState, normalizeStoryState, type StoryState } from './story/storyState';
 
 export const CURRENT_SAVE_VERSION = 38 as const;
 
@@ -324,6 +325,12 @@ export interface SaveData {
   gauntlet: GauntletState;
   /** The Tower or Limited duel in progress, if any (see `OpenDuel`). v38 addition. */
   openDuel?: OpenDuel;
+  /**
+   * Story Mode: unlocks, run counts, wins, exactly-once reward keys and the
+   * run in progress (src/meta/story/storyState.ts). v38 addition, in the same
+   * v37 -> v38 step as `openDuel` (the 2.0 train's one save bump, plan-2.0 P10).
+   */
+  story: StoryState;
   settings: {
     volume: number;
     sfxOn: boolean;
@@ -452,6 +459,7 @@ export function freshSave(now: number): SaveData {
       lastWinDay: null,
     },
     gauntlet: freshGauntlet(),
+    story: freshStoryState(),
     settings: {
       volume: 0.8,
       sfxOn: true,
@@ -563,7 +571,10 @@ export class SaveManager {
    * unless the active Premium run has one); v36 -> v37 adds no field: a save
    * that owns Hooves and Fire (`theme-first-dawn`) from before v37 is granted
    * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`);
-   * v37 -> v38 adds the optional `openDuel` record (absent for older saves).
+   * v37 -> v38 adds the optional `openDuel` record (absent for older saves)
+   * and the Story Mode `story` record (fresh for older saves: only the first
+   * character unlocked, no counts, no run; a v38 save without one, or with a
+   * malformed one, normalizes to the same default).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -1132,7 +1143,11 @@ export class SaveManager {
       // one, so only a save that arrived at v38 keeps it, normalized.
       const { openDuel: rawOpenDuel, ...rest } = cur as Record<string, unknown>;
       const openDuel = arrivedAtVersion >= 38 ? normalizeOpenDuel(rawOpenDuel) : undefined;
-      cur = { ...rest, version: 38, ...(openDuel ? { openDuel } : {}) };
+      // Story Mode shares the step. An older save starts with the fresh record;
+      // a v38 save keeps its own, normalized. Dev saves at v38 from before the
+      // field existed have none, and normalization gives them the fresh one.
+      const story = arrivedAtVersion >= 38 ? normalizeStoryState(rest.story) : freshStoryState();
+      cur = { ...rest, version: 38, story, ...(openDuel ? { openDuel } : {}) };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;

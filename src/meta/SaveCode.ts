@@ -34,6 +34,15 @@ export interface SaveCodeProgressSummary {
   gauntletCompletions: number;
 }
 
+/** Story Mode at a glance, so an import shows what it would bring (v38). */
+export interface SaveCodeStorySummary {
+  /** Story characters unlocked (1 on a save that has never cleared or counted a run). */
+  charactersUnlocked: number;
+  /** Act 1 clears across every character (S4: each is a story win). */
+  actClears: number;
+  runInProgress: boolean;
+}
+
 export interface SaveCodePreview {
   creationDate: number;
   /** Total owned copies, including duplicate copies of one card. */
@@ -43,6 +52,7 @@ export interface SaveCodePreview {
   gold: number;
   deckCount: number;
   progressSummary: SaveCodeProgressSummary;
+  storySummary: SaveCodeStorySummary;
   sourceSchemaVersion: number;
   replaysPresent: boolean;
 }
@@ -272,7 +282,22 @@ function hasCompleteSaveShape(save: SaveData): boolean {
   for (const key of Object.keys(expected)) {
     if (!Object.prototype.hasOwnProperty.call(candidate, key) || !matchesSaveField(candidate[key], expected[key])) return false;
   }
-  return true;
+  return hasCompleteStoryShape(save.story);
+}
+
+/** The story record one level down: migrate normalizes it, so anything else is a bug. */
+function hasCompleteStoryShape(story: unknown): boolean {
+  if (!isPlainObject(story)) return false;
+  const expected = freshSave(0).story as unknown as Record<string, unknown>;
+  for (const key of Object.keys(expected)) {
+    if (!Object.prototype.hasOwnProperty.call(story, key)) return false;
+    // The fresh run is null, but a run in progress is an object, not a string.
+    const matches = key === 'activeRun'
+      ? story.activeRun === null || isPlainObject(story.activeRun)
+      : matchesSaveField(story[key], expected[key]);
+    if (!matches) return false;
+  }
+  return Array.isArray(story.unlockedCharacterIds) && story.unlockedCharacterIds.length > 0;
 }
 
 function matchesSaveField(value: unknown, expected: unknown): boolean {
@@ -297,6 +322,11 @@ function previewFor(save: SaveData, sourceSchemaVersion: number): SaveCodePrevie
       losses: save.stats.losses,
       bestGauntletRung: save.gauntlet.bestRung,
       gauntletCompletions: save.gauntlet.completions,
+    },
+    storySummary: {
+      charactersUnlocked: save.story.unlockedCharacterIds.length,
+      actClears: Object.values(save.story.wins).reduce((total, wins) => total + wins, 0),
+      runInProgress: save.story.activeRun !== null,
     },
     sourceSchemaVersion,
     replaysPresent: save.replays.length > 0,
