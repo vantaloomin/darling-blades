@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts, src/data/story/act1.ts, src/data/story/characters.ts, src/meta/story/storyMap.ts, src/meta/story/storyState.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyContent.ts, src/meta/story/headlessRun.ts, src/meta/SaveCode.ts · last-verified: 2026-10-12 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts, src/data/story/act1.ts, src/data/story/characters.ts, src/meta/story/storyMap.ts, src/meta/story/storyState.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyContent.ts, src/meta/story/headlessRun.ts, src/meta/SaveCode.ts, public/assets/art/story/ · last-verified: 2026-10-12 · design/plan doc - re-verify when the referenced code changes -->
 
 # Story Mode plan (2.0)
 
@@ -87,6 +87,8 @@ Asked as one group in the "Story Mode draft" project thread, with the three prem
   > "Let's plan for Stills and dialogue inserts for launch for Act 1, and then we'll do full animations for "Full Story" launch."
 
   Act 1 ships with still scene backgrounds and still speaker portraits inserted beside the dialogue, with no motion. Full scene animation comes with the Full Story launch (Acts 2 and 3, [plan-2.0.md](plan-2.0.md) lane G), and it covers Act 1's scenes too then.
+
+  The Act 1 stills are made and approved (owner, 2026-10-12): 18 backgrounds and 24 portraits, two expressions per speaker (V2 A, V3), full size in `public/assets/art/story/` and half size in `public/assets/art/story-half/`. Their rules and prompts are in [art-bible/story-act-1.md](art-bible/story-act-1.md). Nothing loads them until the scene screen is built.
 
 ## Player-facing spec
 
