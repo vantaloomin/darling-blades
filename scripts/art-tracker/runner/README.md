@@ -23,7 +23,7 @@ The Codex CLI must already be signed in (`codex login status`). No credentials a
 - `config.py`: shared paths for the Python tools.
 - `post.ts`: WebP encode through `scripts/convert-art-webp.ts`.
 - `frame-bake/harness.ts`: bakes the game's real card textures (CardFrameFactory, ManaSymbols) in headless Chromium for the tracker's frame view.
-- `tracker.html`: the review tracker page (published as a claude.ai artifact with a shared database).
+- The review tracker page itself is `../page.html`; build and publish it as `../README.md` describes.
 
 ## Lessons
 
