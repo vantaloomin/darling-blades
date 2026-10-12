@@ -257,6 +257,21 @@ export function compactCanvasSize(m: ScreenMetrics): { width: number; height: nu
   };
 }
 
+/** Everything the game sizes from a compact screen: the canvas, the fitted zoom, and the upright-tablet letterbox (M11). */
+export interface CompactFit {
+  canvas: { width: number; height: number };
+  zoom: number;
+  widthShare: number;
+  letterbox: boolean;
+}
+
+export function compactFit(m: ScreenMetrics): CompactFit {
+  const canvas = compactCanvasSize(m);
+  const letterbox = m.presentation === 'letterbox';
+  const widthShare = letterbox ? UPRIGHT_TABLET_WIDTH_SHARE : 1;
+  return { canvas, zoom: designWindowZoom(canvas.width, canvas.height, widthShare), widthShare, letterbox };
+}
+
 /**
  * The camera zoom that fits the 1280x720 design window inside a canvas (C2):
  * how a scene not yet migrated to the compact layout keeps drawing as it does

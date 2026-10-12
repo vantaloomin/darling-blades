@@ -454,7 +454,10 @@ word.
   no room for another row at 130% text). Both show only on a touch
   device whose browser allows full screen and that did not already launch
   full screen from the home screen; entering it also asks for landscape
-  (`src/platform/fullscreen.ts`).
+  (`src/platform/fullscreen.ts`). The compact canvas refits when the
+  screen changes size after load (full screen, turning the device, a
+  browser bar); the 2026-10-12 emulator recheck found it kept its load
+  size in full screen.
 - **New frames for what the mocks predate,** for the owner to approve
   before the wave that builds them: the Mandate marker and its swings,
   Overcharge, Hunt, Provoked, First Dawn, life totals above 20 in the 96 px
