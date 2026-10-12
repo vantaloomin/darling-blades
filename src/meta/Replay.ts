@@ -42,6 +42,9 @@ import { RULES, type GameFormat, type ReserveFormat } from '../config/rules';
 // was recorded at 20 and replays at 20. v17 also marks the Mandate (Core Set
 // II): only cards that claim it change play, and the db stamp already refuses
 // a log recorded against other cards, so v17 still maps to rules revision 4.
+// Story Mode duels (2.0) record `context.mode: 'story'` with `context.story`
+// inside v17: the context is metadata the replayer never reads, so it needs no
+// bump of its own.
 export const REPLAY_LOG_VERSION = 17 as const;
 /** Every log before v17 was recorded at this starting life. */
 const LEGACY_REPLAY_STARTING_LIFE = 20;
@@ -49,8 +52,19 @@ const LEGACY_REPLAY_STARTING_LIFE = 20;
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
 
+/** Which Story Mode run and node a story duel was (labels only; the replayer ignores them). */
+export interface StoryReplayContext {
+  runId: string;
+  characterId: string;
+  act: number;
+  nodeId: string;
+  nodeKind: 'fight' | 'elite' | 'boss';
+  /** Endless loop (0 inside an act). */
+  endlessLoop: number;
+}
+
 export interface ReplayContext {
-  mode: 'practice' | 'gauntlet' | 'limited';
+  mode: 'practice' | 'gauntlet' | 'limited' | 'story';
   /** Tower logs store the floor tier's base brain, not the avatar's old band. */
   difficulty: 'easy' | 'medium' | 'hard';
   /** Avatar id for gauntlet/practice-vs-avatar duels; null for plain AI. */
@@ -58,6 +72,8 @@ export interface ReplayContext {
   /** Display name at record time (persona/avatar names survive roster edits). */
   opponentName: string;
   gauntletRung: number | null;
+  /** Present exactly on story duels (`mode: 'story'`). */
+  story?: StoryReplayContext;
 }
 
 export interface ReplayLog {
@@ -289,6 +305,7 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.decks.every((d) => Array.isArray(d) && d.every((id) => typeof id === 'string')) &&
     !!log.context &&
     typeof log.context === 'object' &&
+    storyContextShape(log.context) &&
     Array.isArray(log.actions) &&
     log.actions.every(
       (s) => !!s && typeof s === 'object' && (s.p === 0 || s.p === 1) && !!s.a && typeof s.a.type === 'string',
@@ -299,6 +316,20 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     && payloadShape;
   if (valid && format && rawFormat !== format) (log as { format?: ReserveFormat }).format = format;
   return valid;
+}
+
+/** A story duel carries well-formed story labels; no other mode carries any. */
+function storyContextShape(context: ReplayContext): boolean {
+  const story = (context as { story?: unknown }).story;
+  if (context.mode !== 'story') return story === undefined;
+  if (!story || typeof story !== 'object') return false;
+  const s = story as Partial<StoryReplayContext>;
+  return typeof s.runId === 'string' && s.runId.length > 0
+    && typeof s.characterId === 'string' && s.characterId.length > 0
+    && Number.isSafeInteger(s.act) && (s.act as number) >= 1
+    && typeof s.nodeId === 'string' && s.nodeId.length > 0
+    && (s.nodeKind === 'fight' || s.nodeKind === 'elite' || s.nodeKind === 'boss')
+    && Number.isSafeInteger(s.endlessLoop) && (s.endlessLoop as number) >= 0;
 }
 
 function normalizeReplayFormat(value: unknown): ReserveFormat | undefined {

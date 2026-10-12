@@ -1104,6 +1104,8 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
       ...GOLDEN_V35_BLOB,
       version: CURRENT_SAVE_VERSION,
       settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false },
+      // v38's Story Mode record arrives fresh on any older save.
+      story: freshSave(0).story,
     });
   });
 
@@ -1523,5 +1525,95 @@ describe('SaveData v38 migration (open-duel mark)', () => {
     expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: good }).openDuel).toEqual(good);
     expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: { mode: 'gauntlet', rung: 0, difficulty: 'hard' } }))
       .not.toHaveProperty('openDuel');
+  });
+});
+
+/**
+ * Story Mode shares the v37 -> v38 step (one bump for the 2.0 train, plan-2.0
+ * P10). Older saves start with the fresh record; a v38 save keeps its own,
+ * normalized, and a v38 dev save from before the field existed gets the fresh
+ * record rather than failing to load.
+ */
+describe('SaveData v38 migration (Story Mode record)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+
+  function v38Blob(): Record<string, unknown> {
+    const save = freshSave(1);
+    save.gold = 321;
+    save.collection = { 'bk-wolfqueen': 2 };
+    save.collectionVariants = { 'bk-wolfqueen': { [variantKey(PLAIN_VARIANT)]: 2 } };
+    return JSON.parse(JSON.stringify(save)) as Record<string, unknown>;
+  }
+
+  it('gives a v37 save the fresh record: only Guan Yu, no counts, no run, and nothing else changes', () => {
+    const blob = v38Blob();
+    delete blob.story;
+    const migrated = load({ ...blob, version: 37 });
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.story).toEqual(freshSave(0).story);
+    expect(migrated.story.unlockedCharacterIds).toEqual(['guan-yu']);
+    expect(migrated.gold).toBe(321);
+    expect(migrated.collection).toEqual({ 'bk-wolfqueen': 2 });
+  });
+
+  it('ignores a story record on a pre-v38 save, since none could have been earned', () => {
+    const blob = v38Blob();
+    const migrated = load({
+      ...blob,
+      version: 37,
+      story: { ...(blob.story as object), wins: { 'guan-yu': 5 }, claimedRewardKeys: ['x:act1:keep'] },
+    });
+    expect(migrated.story).toEqual(freshSave(0).story);
+  });
+
+  it('walks an ancient save all the way to the fresh record', () => {
+    const migrated = load({ version: 1, createdAt: 5, gold: 9, collection: {}, decks: [], stats: {} });
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.story).toEqual(freshSave(0).story);
+  });
+
+  it('normalizes a v38 save with no story record, or a malformed one, to the fresh record', () => {
+    const missing = v38Blob();
+    delete missing.story;
+    expect(load(missing).story).toEqual(freshSave(0).story);
+    expect(load({ ...v38Blob(), story: 'corrupt' }).story).toEqual(freshSave(0).story);
+    expect(load({ ...v38Blob(), story: { activeRun: { runId: 7 } } }).story).toEqual(freshSave(0).story);
+  });
+
+  it('keeps a v38 story record across save and reload, normalized', () => {
+    const blob = v38Blob();
+    const story = {
+      contentVersion: 1,
+      activeRun: null,
+      unlockedCharacterIds: ['guan-yu', 'persephone', 'persephone', 'not-a-heroine'],
+      countedRuns: { 'guan-yu': 3 },
+      wins: { 'guan-yu': 1 },
+      claimedRewardKeys: ['run-a:act1:keep', 'run-a:act1:keep'],
+      seenSceneIds: [],
+      endless: { bestLoop: {}, daily: null },
+    };
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...blob, story }));
+    const first = new SaveManager(storage, 456);
+    expect(first.data.story.unlockedCharacterIds).toEqual(['guan-yu', 'persephone']);
+    expect(first.data.story.claimedRewardKeys).toEqual(['run-a:act1:keep']);
+    expect(first.data.story.countedRuns).toEqual({ 'guan-yu': 3 });
+    first.flush();
+    expect(new SaveManager(storage, 789).data.story).toEqual(first.data.story);
+  });
+
+  it('carries the story record through a save code', () => {
+    const save = freshSave(1);
+    save.story.wins = { 'guan-yu': 2 };
+    save.story.unlockedCharacterIds = ['guan-yu', 'persephone'];
+    save.story.claimedRewardKeys = ['run-a:act1:keep'];
+    const decoded = decode(encode(save));
+    if (!decoded.ok) throw new Error(decoded.error.message);
+    expect(decoded.save.story).toEqual(save.story);
+    expect(decoded.preview.storySummary).toEqual({ charactersUnlocked: 2, actClears: 2, runInProgress: false });
   });
 });

@@ -297,6 +297,8 @@ behind a flag, on lane C's layouts and 1.9's text scale; Act 1 content and
 the three starter pools once Core Set II's roster locks; the story matrix
 and progression runs; release QA.
 
+**Wave 1 built 2026-10-12** (headless only, no scene or menu entry): the story data, seeded Act 1 maps and their validator, StoryProgress, the `story` save field in the v37 -> v38 step, the save code's shape check and import preview, `mode: 'story'` replays inside v17, and a headless Guan Yu run. Details and the first measurement are in [plan-story-mode.md](plan-story-mode.md), Wave 1.
+
 **Copy is approved text, not placeholders.** The README promises nothing is
 placeholder. The premise is ruled (the Fallen Mandate, 2026-10-11, Story plan S1 to S4); Act 1's scenes go to the owner as a
 script before wave 3.
