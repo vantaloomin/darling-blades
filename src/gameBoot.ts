@@ -15,16 +15,15 @@ import {
   setActiveRenderScale,
   setActiveSceneZoom,
 } from './platform/renderScale';
+import { onFullScreenChange } from './platform/fullscreen';
 import {
-  compactCanvasSize,
+  compactFit,
   compactLayoutRequested,
-  designWindowZoom,
   resolveScreenMetrics,
   type ScreenMetrics,
-  UPRIGHT_TABLET_WIDTH_SHARE,
 } from './platform/screenMetrics';
 import { screenFixtureNamed } from './platform/screenFixtures';
-import { CANVAS_CLEAR } from './ui/SceneBackdrop';
+import { applySceneSettings, CANVAS_CLEAR } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -84,10 +83,24 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
 // the support matrix (src/platform/screenFixtures.ts) on any browser, the a11y
 // probe's viewport axis: #app is sized to the fixture and its pixel ratio and
 // safe areas are the fixture's.
+// Read the real screen (not a fixture) as compact metrics, or null when it is
+// not a compact screen.
+function readCompactScreen(): ScreenMetrics | null {
+  const app = document.getElementById('app');
+  const m = resolveScreenMetrics({
+    viewportWidth: app?.clientWidth || window.innerWidth,
+    viewportHeight: app?.clientHeight || window.innerHeight,
+    coarsePointer: true,
+    devicePixelRatio: window.devicePixelRatio,
+  });
+  return m.profile === 'compact' ? m : null;
+}
+const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)
+  ? screenFixtureNamed(window.location.search) : null;
 const compact: ScreenMetrics | null = (() => {
   if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
   const app = document.getElementById('app');
-  const fixture = import.meta.env.DEV ? screenFixtureNamed(window.location.search) : null;
+  const fixture = compactFixture;
   if (fixture) {
     document.documentElement.classList.add('layout-compact');
     if (app) Object.assign(app.style, { inset: 'auto', left: '0', top: '0', width: `${fixture.viewportWidth}px`, height: `${fixture.viewportHeight}px` });
@@ -95,33 +108,27 @@ const compact: ScreenMetrics | null = (() => {
   }
   if (window.matchMedia?.('(pointer: coarse)').matches !== true) return null;
   document.documentElement.classList.add('layout-compact');
-  const m = resolveScreenMetrics({
-    viewportWidth: app?.clientWidth || window.innerWidth,
-    viewportHeight: app?.clientHeight || window.innerHeight,
-    coarsePointer: true,
-    devicePixelRatio: window.devicePixelRatio,
-  });
-  if (m.profile === 'compact') return m;
-  document.documentElement.classList.remove('layout-compact');
-  return null;
+  const m = readCompactScreen();
+  if (!m) document.documentElement.classList.remove('layout-compact');
+  return m;
 })();
 const k = compact?.renderK ?? showcaseScale ?? (RENDER_SCALE_UNLOCKED
   ? resolveRenderScale(Services.save.data.settings.renderScale, qualityTier())
   : 1);
 setActiveRenderScale(k);
-const canvas = compact ? compactCanvasSize(compact) : { width: 1280 * k, height: 720 * k };
 // An upright tablet letterboxes the window at 96% of its width (M11), with
 // the page's scene image in the bands: the game clears to transparent there.
-const letterbox = compact?.presentation === 'letterbox';
-const widthShare = letterbox ? UPRIGHT_TABLET_WIDTH_SHARE : 1;
-if (letterbox) document.documentElement.classList.add('layout-letterbox');
-const sceneZoom = compact ? designWindowZoom(canvas.width, canvas.height, widthShare) : k;
-setActiveSceneZoom(compact ? sceneZoom : null, widthShare);
+const fit = compact ? compactFit(compact) : null;
+const canvas = fit?.canvas ?? { width: 1280 * k, height: 720 * k };
+const letterbox = fit?.letterbox ?? false;
+document.documentElement.classList.toggle('layout-letterbox', letterbox);
+const sceneZoom = fit?.zoom ?? k;
+setActiveSceneZoom(fit ? sceneZoom : null, fit?.widthShare ?? 1);
 // Text rasterizes at the scene's zoom (canvas px per design px), never below
 // 1: on desktop that is k, as before. Under the compact profile a text drawn
 // at k and then shrunk by a fractional zoom smeared, measured on the Android
 // emulator 2026-10-10; at the zoom it lands on the canvas about 1:1.
-const textResolution = Math.max(1, sceneZoom);
+let textResolution = Math.max(1, sceneZoom);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
 // (1280·k × 720·k, clamped to the screen). Fire-and-forget and a hard no-op in
@@ -139,7 +146,7 @@ void applyDesktopWindowSize(k);
 // per-Text resolutions (none in this repo today) are respected. Object
 // width/height stay in logical units (Text.js divides by resolution), so
 // layout and inflated hit areas are unaffected.
-if (textResolution > 1) {
+if (textResolution > 1 || compact) {
   type TextStyleLike = { resolution: number };
   type SetStyleFn = (
     this: TextStyleLike,
@@ -263,6 +270,34 @@ document.addEventListener('visibilitychange', () => {
 // sees a moment later. Same recovery sync the main menu runs; no toast here.
 if (syncAchievements(Services.save.data, CARD_DB).length > 0) Services.save.flush();
 signals.start();
+
+// The compact canvas follows the screen when it changes size after load:
+// entering or leaving full screen (M8; the 2026-10-12 emulator recheck found
+// the canvas stayed at its load size), turning the device, or a browser bar
+// coming or going. Each running scene re-fits its camera to the new window;
+// texts drawn from then on rasterize at the new zoom.
+if (compact && !compactFixture) {
+  let pending: number | undefined;
+  const refit = (): void => {
+    pending = undefined;
+    const m = readCompactScreen();
+    if (!m) return;
+    const next = compactFit(m);
+    if (next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
+      && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
+    document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
+    setActiveSceneZoom(next.zoom, next.widthShare);
+    textResolution = Math.max(1, next.zoom);
+    game.scale.resize(next.canvas.width, next.canvas.height);
+    for (const scene of game.scene.getScenes(true)) applySceneSettings(scene);
+  };
+  const schedule = (): void => {
+    if (pending !== undefined) window.clearTimeout(pending);
+    pending = window.setTimeout(refit, 150);
+  };
+  window.addEventListener('resize', schedule);
+  onFullScreenChange(schedule);
+}
 
 // Dev-tool access (scene jumps, state inspection from the console).
 window.__game = game;
