@@ -56,7 +56,9 @@ export type OpenDuel =
       matchIndex: number;
       difficulty: 'easy' | 'medium' | 'hard';
       deckStyle: LimitedDeckStyle;
-    };
+    }
+  /** A Story Mode duel: the run and the duel node it was launched at (docs/plan-story-mode.md). */
+  | { mode: 'story'; runId: string; nodeId: string; difficulty: 'easy' | 'medium' | 'hard' };
 
 const DIFFICULTIES: readonly unknown[] = ['easy', 'medium', 'hard'];
 const DECK_STYLES: readonly unknown[] = ['mono', 'dual', 'other'];
@@ -84,6 +86,13 @@ export function normalizeOpenDuel(raw: unknown): OpenDuel | undefined {
       difficulty,
       deckStyle: o.deckStyle as LimitedDeckStyle,
     };
+  }
+  if (
+    o.mode === 'story'
+    && typeof o.runId === 'string' && o.runId !== ''
+    && typeof o.nodeId === 'string' && o.nodeId !== ''
+  ) {
+    return { mode: 'story', runId: o.runId, nodeId: o.nodeId, difficulty };
   }
   return undefined;
 }

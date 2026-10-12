@@ -65,6 +65,7 @@ import {
   settingsTextSizeCaption,
 } from '../../src/ui/settingsPresentation';
 import { RARITY_ORDER } from '../../src/meta/collectionFilter';
+import { storyCaptionBand, storyCardGridLayout, storyMapPanelLayout, storySelectLayout } from '../../src/ui/storyLayout';
 import { theme } from '../../src/ui/theme';
 import { A11Y_CELLS } from './a11yCells';
 
@@ -141,6 +142,11 @@ const ENROLLED: readonly Enrolled[] = [
     frame: { here: 'Play: deck plate and paged deck selection' },
     gap: { here: 'Play: deck plate and paged deck selection' },
     inset: { here: 'Play: deck plate and paged deck selection' },
+  } },
+  { module: 'src/ui/storyLayout.ts (Story: character select, choices, deck grid, map and run panel)', rules: {
+    frame: { file: 'tests/ui/storyPresentation.test.ts', tests: ['keeps the three heroine tiles inside the frame, apart, with the measured text below the portrait and above the footer', 'puts every node of every generated Act 1 map on screen, inside the frame, apart, and clear of the run panel (200 seeds)'] },
+    gap: { file: 'tests/ui/storyPresentation.test.ts', tests: ['fits a row of offered cards and their caption band between the content top and the footer, apart', 'stacks the run panel in reading order with room for its text, every action a 44px target, Abandon a destructive gap from the main action'] },
+    inset: { file: 'tests/ui/storyPresentation.test.ts', tests: ['pages the run deck grid with every card and caption inside its area, apart, above the pager'] },
   } },
   { module: 'src/ui/playPresentation.ts (PracticePicker)', rules: {
     frame: { here: 'Practice: portrait, name and action tracks' }, gap: { here: 'Practice: portrait, name and action tracks' },
@@ -905,15 +911,25 @@ function coreMenuRules(textScale: number): void {
 
   describe('Play: deck plate and paged deck selection', () => {
     it('isolates mode actions, launch feedback and the active deck above the frame bottom', () => {
-      const l = playMenuLayout();
-      const actions = l.actionYs.map((y, i): [string, Rect] => [`mode ${i}`, hitBox(640, y, 300)]);
-      for (const [, rect] of actions) expect(isInsideTitleSafe(rect)).toBe(true);
-      expect(isInsideTitleSafe(l.plate)).toBe(true);
-      expect(isInsideTitleSafe(l.notice)).toBe(true);
-      expectPairwiseGap([...actions, ['notice', l.notice], ['plate', l.plate]], GAP_FLOORS.ordinary);
-      const stacked = playTextStack([menuLineHeight(theme.type.micro), menuLineHeight(theme.type.h2), 3 * menuLineHeight(theme.type.caption)], 0, 8);
-      expect(stacked.bottom).toBeLessThanOrEqual(l.plate.height - 16);
-      expect(l.plate.height).toBeGreaterThanOrEqual(2 * HIT + 12 + 16);
+      // Three rows, and four with Story Mode's row (FEATURES.storyLive), placed from the measured marquee.
+      for (const rows of [3, 4]) {
+        const titleH = menuLineHeight(theme.type.displayXL);
+        const subtitleH = menuLineHeight(theme.type.h2);
+        const l = playMenuLayout(rows, titleH, subtitleH);
+        expect(l.actionYs).toHaveLength(rows);
+        const actions = l.actionYs.map((y, i): [string, Rect] => [`mode ${i}`, hitBox(640, y, 300)]);
+        for (const [, rect] of actions) expect(isInsideTitleSafe(rect)).toBe(true);
+        expect(isInsideTitleSafe(l.plate)).toBe(true);
+        expect(isInsideTitleSafe(l.notice)).toBe(true);
+        const title = box(640, l.titleY, 200, titleH);
+        const subtitle = box(640, l.subtitleY, theme.design.safeWidth, subtitleH);
+        expect(isInsideTitleSafe(title)).toBe(true);
+        expectStacked([['title', title], ['subtitle', subtitle], ['first mode', actions[0][1]]], 4);
+        expectPairwiseGap([...actions, ['notice', l.notice], ['plate', l.plate]], GAP_FLOORS.ordinary);
+        const stacked = playTextStack([menuLineHeight(theme.type.micro), menuLineHeight(theme.type.h2), 3 * menuLineHeight(theme.type.caption)], 0, 8);
+        expect(stacked.bottom).toBeLessThanOrEqual(l.plate.height - 16);
+        expect(l.plate.height).toBeGreaterThanOrEqual(2 * HIT + 12 + 16);
+      }
     });
 
     it('keeps deck names and metadata clear of measured counts and the widest status label', () => {
@@ -1040,7 +1056,9 @@ describe('the matrix itself', () => {
         title: [SCENE_TITLE.fontSize, SCENE_TITLE.subtitleTop],
         settings: [SETTINGS_PANELS, SETTINGS_FRAMES, SETTINGS_TAB_ROW, settingsRhythm(), layoutSettingsTab('game'), layoutSettingsTab('accessibility')],
         mainMenu: [mainMenuHeaderRow([180, 220], 180, 160), mainMenuNavRows(), mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [{ title: menuLineHeight(theme.type.label), description: menuLineHeight(theme.type.caption), progress: menuLineHeight(theme.type.caption), action: HIT }])],
-        play: [playMenuLayout(), playDeckPickerLayout(28), practicePickerLayout(), gauntletPresentation(), gauntletTowerLayout(28, gauntletPresentation().tower)],
+        play: [playMenuLayout(), playMenuLayout(4), playDeckPickerLayout(28), practicePickerLayout(), gauntletPresentation(), gauntletTowerLayout(28, gauntletPresentation().tower)],
+        story: [storySelectLayout(130, 160), storyMapPanelLayout({ x: 920, y: 130, width: 296, height: 554 }), storyCaptionBand(2),
+          storyCardGridLayout({ x: 64, y: 130, width: 1152, height: 480 }, 30)],
         profile: [PROFILE_HEADER, PROFILE_RECORD, PROFILE_SHOWCASE, PROFILE_PANELS, PROFILE_REPLAYS, PROFILE_REPLAY_ROW, profileReplayCell(9)],
       });
     const bySize: string[] = [];

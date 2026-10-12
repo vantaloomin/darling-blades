@@ -44,6 +44,7 @@ import { ProfileScene } from './scenes/ProfileScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
+import { StoryScene } from './scenes/StoryScene';
 import { applySavedAccessibility } from './ui/settingsPresentation';
 import { installTextRasterGuards } from './ui/textRaster';
 
@@ -229,6 +230,8 @@ const game = new Phaser.Game({
     LimitedScene,
     LimitedDraftScene,
     LimitedDeckBuilderScene,
+    // Story Mode (2.0): reached only from Play's Story row, behind FEATURES.storyLive.
+    StoryScene,
     ProfileScene,
     AchievementsScene,
     DuelScene,

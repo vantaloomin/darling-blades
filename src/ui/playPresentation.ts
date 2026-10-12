@@ -11,13 +11,34 @@ export function playTextStack(heights: readonly number[], top = 0, gap = theme.s
   return { ys, bottom: heights.length ? bottom - gap : top };
 }
 
-export function playMenuLayout() {
-  const firstY = 270;
-  const pitch = theme.control.minHitHeight + theme.space(3);
-  return { actionYs: [0, 1, 2].map((i) => firstY + pitch * i),
-    notice: { x: theme.design.safeLeft, y: firstY + 2 * pitch + theme.control.minHitHeight / 2 + theme.space(3),
-      width: theme.design.safeWidth, height: theme.control.minHitHeight * 2 + theme.space(3) },
-    plate: { x: theme.design.centerX - 320, y: 530, width: 640, height: theme.design.safeBottom - 530 } };
+/**
+ * The Play screen, top to bottom: the marquee title and its line, the mode
+ * rows, the launch-notice band and the active-deck plate. Three rows sit where
+ * they always have (title 140, line 205, first row 270, plate 530). A fourth
+ * row (Story, behind `FEATURES.storyLive`) is placed from the bottom up: the
+ * plate keeps room for its measured text stack (tag, name and up to three
+ * status lines), the notice band keeps its height, and the rows, then the
+ * line and the title, move up only as far as that needs. `titleHeight` and
+ * `subtitleHeight` are the scene's measured Texts.
+ */
+export function playMenuLayout(rows = 3, titleHeight = menuLineHeight(theme.type.displayXL), subtitleHeight = menuLineHeight(theme.type.h2)) {
+  const hit = theme.control.minHitHeight;
+  const gap = theme.space(3);
+  const pitch = hit + gap;
+  const noticeHeight = hit * 2 + gap;
+  // The plate's own floor: two stacked actions (Fix over Change) or the measured text stack, plus the inset.
+  const plateText = playTextStack([menuLineHeight(theme.type.micro), menuLineHeight(theme.type.h2), 3 * menuLineHeight(theme.type.caption)], 0, theme.space(2)).bottom;
+  const plateMin = Math.max(2 * hit + gap, plateText) + theme.space(4);
+  const latestPlateY = theme.design.safeBottom - plateMin;
+  const latestFirstY = latestPlateY - gap - noticeHeight - gap - hit / 2 - (rows - 1) * pitch;
+  const firstY = Math.min(270, latestFirstY);
+  const noticeY = firstY + (rows - 1) * pitch + hit / 2 + gap;
+  const plateY = Math.max(530, noticeY + noticeHeight + gap);
+  const subtitleY = Math.min(205, firstY - hit / 2 - gap - subtitleHeight / 2);
+  const titleY = Math.min(140, subtitleY - subtitleHeight / 2 - theme.space(1) - titleHeight / 2);
+  return { titleY, subtitleY, actionYs: Array.from({ length: rows }, (_, i) => firstY + pitch * i),
+    notice: { x: theme.design.safeLeft, y: noticeY, width: theme.design.safeWidth, height: noticeHeight },
+    plate: { x: theme.design.centerX - 320, y: plateY, width: 640, height: theme.design.safeBottom - plateY } };
 }
 
 /** Shared row tracks subtract the measured right-hand metadata before capping names. */

@@ -170,7 +170,7 @@ export class MainMenuScene extends Phaser.Scene {
       const item = menuNavButton(this, navRows[i], {
         label: entry.label,
         primary: isPlay,
-        ...(isPlay ? { sublabel: activeDeck ? activeDeck.name : 'Gauntlet, Draft or Practice' } : {}),
+        ...(isPlay ? { sublabel: activeDeck ? activeDeck.name : FEATURES.storyLive ? 'Story, Gauntlet, Draft or Practice' : 'Gauntlet, Draft or Practice' } : {}),
         ...(isAchievements ? { trailing: `${unlocked} / ${achievements.length}` } : {}),
         onTap: () => this.scene.start(entry.scene, entry.data),
       });

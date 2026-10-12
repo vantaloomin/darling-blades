@@ -48,6 +48,13 @@ const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   { label: 'Practice', scene: 'PracticePicker' },
 ];
 
+/** Story Mode (2.0) leads the list while its flag is on; it plays its own run deck, so no deck check applies. */
+const STORY_ITEM = { label: 'Story', scene: 'Story' };
+
+function playItems(): { label: string; scene: string; data?: object }[] {
+  return FEATURES.storyLive ? [STORY_ITEM, ...PLAY_ITEMS] : PLAY_ITEMS;
+}
+
 export interface PlaySceneData {
   launchNotice?: string;
   /** Dev-only presentation fixtures. Never installed in Services or persisted. */
@@ -65,6 +72,8 @@ export class PlayScene extends Phaser.Scene {
   private launchNotice: Phaser.GameObjects.Container | null = null;
   private reserveFormatsEnabled = false;
   private classicRetired = false;
+  /** This visit's measured layout (the row count and the marquee's measured heights). */
+  private layout: ReturnType<typeof playMenuLayout> = playMenuLayout();
 
   constructor() {
     super('Play');
@@ -104,20 +113,27 @@ export class PlayScene extends Phaser.Scene {
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
 
-    this.add
+    const items = playItems();
+    const title = this.add
       .text(width / 2, 140, 'Play', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.displayXL}px`,
         color: theme.colors.heading,
       })
       .setOrigin(0.5);
-    this.add
-      .text(width / 2, 205, 'Climb the tower, draft against the table, or spar freely.', {
+    const subtitle = this.add
+      .text(width / 2, 205, FEATURES.storyLive
+        ? 'Begin a story, climb the tower, draft, or spar freely.'
+        : 'Climb the tower, draft against the table, or spar freely.', {
         fontFamily: theme.fonts.display,
         fontSize: `${theme.type.h2}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+    // Measure, then place: a fourth row moves the marquee up only as far as it must.
+    this.layout = playMenuLayout(items.length, title.height, subtitle.height);
+    title.setY(this.layout.titleY);
+    subtitle.setY(this.layout.subtitleY);
 
     this.menuTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
@@ -126,8 +142,8 @@ export class PlayScene extends Phaser.Scene {
     // edge, on the header line.
     goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { getValue: () => this.save.gold });
 
-    const menu = playMenuLayout();
-    PLAY_ITEMS.forEach((entry, i) => {
+    const menu = this.layout;
+    items.forEach((entry, i) => {
       const btn = themedButton(this, width / 2, menu.actionYs[i], entry.label, {
         variant: 'ghost',
         size: 'sm',
@@ -197,7 +213,7 @@ export class PlayScene extends Phaser.Scene {
     this.clearLaunchNotice();
     const notice = this.add.container(0, 0);
     this.launchNotice = notice;
-    const area = playMenuLayout().notice;
+    const area = this.layout.notice;
     const button = action ? themedButton(this, 0, 0, action.label, {
       variant: 'ghost', size: 'sm', minWidth: 132, onTap: action.onTap,
     }) : null;
@@ -250,7 +266,7 @@ export class PlayScene extends Phaser.Scene {
 
     const save = this.save;
     const deck = this.activeDeck();
-    const { x: left, y: top, width: w, height: h } = playMenuLayout().plate;
+    const { x: left, y: top, width: w, height: h } = this.layout.plate;
     const cy = top + h / 2;
     c.add(panel(this, left, top, w, h));
 
