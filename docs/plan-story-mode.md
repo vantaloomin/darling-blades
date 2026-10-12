@@ -83,6 +83,11 @@ Asked as one group in the "Story Mode draft" project thread, with the three prem
 
   For 2.0, an Act 1 clear is a win for R4's unlock chain. "For now" leaves open what a win means once Acts 2 and 3 ship; that is decided with those acts, and wins already recorded are never taken away.
 
+- **V1. Scene art (2026-10-12).** Question: animated story scenes (short generated video loops) in 2.0, after a one-clip pilot, or later?
+  > "Let's plan for Stills and dialogue inserts for launch for Act 1, and then we'll do full animations for "Full Story" launch."
+
+  Act 1 ships with still scene backgrounds and still speaker portraits inserted beside the dialogue, with no motion. Full scene animation comes with the Full Story launch (Acts 2 and 3, [plan-2.0.md](plan-2.0.md) lane G), and it covers Act 1's scenes too then.
+
 ## Player-facing spec
 
 **Character select (R2, R3, R4, R8, R9, R10).** Three characters: Guan Yu, Saint of War (Three Kingdoms), Persephone, Queen of Two Courts (Olympian), and a new Core Set II Beastkin legend. Guan Yu is open at the start. Persephone unlocks on a Guan Yu win or 3 counted Guan Yu runs; the Beastkin legend unlocks on a Persephone win or 3 counted Persephone runs (R10). A run counts once it has had at least three fights, however it then ends: win, loss or abandon (R9). For scale, today's cards: Guan Yu is {W}{R}{R}, a 5/4 with First Blade and Sentinel (UR); Persephone is {2}{B}{G}, a 3/3 with Deathblade that leaves two Bloom tokens when she dies (SSR).
@@ -93,7 +98,7 @@ Asked as one group in the "Story Mode draft" project thread, with the three prem
 
 **Keeping cards (R6, R8b).** Clearing an act keeps one card to the collection. Shops can also sell a card as a permanent collection card for a large amount of run gold; the limits and price are open. A run card that is not kept never reaches the collection.
 
-**The story spine.** Scenes show a speaker name, a portrait or background, and short text blocks with Continue, Backlog and Skip. A choice that affects a duel or a reward states its effect. Act 1's scenes: an opening per heroine, Sima Yi's intro and defeat lines per heroine, 8 to 10 event vignettes, an Act 1 ending per heroine and one line into endless, about 1,500 to 2,500 words in all, in the S2 tone. No scene text is approved yet: the Act 1 script goes to the owner before wave 3.
+**The story spine.** Scenes show a still background, the speaker's name and a still portrait insert beside the dialogue (V1: no motion in Act 1), with short text blocks and Continue, Backlog and Skip. A choice that affects a duel or a reward states its effect. Act 1's scenes: an opening per heroine, Sima Yi's intro and defeat lines per heroine, 8 to 10 event vignettes, an Act 1 ending per heroine and one line into endless, about 1,500 to 2,500 words in all, in the S2 tone. No scene text is approved yet: the Act 1 script goes to the owner before wave 3.
 
 ## Recommended (the planning session's proposals)
 
@@ -211,7 +216,7 @@ From the planning session's handoff:
 - **Permanent-buy price and limits.** See Recommended for the planning session's proposal.
 - **Other unlock routes.** Whether characters 2 and 3 can be unlocked any other way. Not discussed.
 
-Closed 2026-09-29: the run-count threshold (R9) and whose runs count (R10). Closed 2026-10-11: the premise, tone, Act 1 length and what counts as a win (S1 to S4).
+Closed 2026-09-29: the run-count threshold (R9) and whose runs count (R10). Closed 2026-10-11: the premise, tone, Act 1 length and what counts as a win (S1 to S4). Closed 2026-10-12: scene art (V1).
 
 ## Risks and dependencies
 
