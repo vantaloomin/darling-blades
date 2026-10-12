@@ -1,0 +1,503 @@
+<title>Art Run Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Cinzel:wght@500;700&family=Inter:wght@400;600&display=swap">
+<style>
+/* Layout: a production ledger. Summary strip on top, lanes, then a filterable wall of 4:5 card slots. */
+:root{
+  --bg:#f6f4ef; --panel:#ffffff; --ink:#221a17; --muted:#6f655d; --line:#e2dcd2;
+  --jade:#2f8a69; --jade-soft:#d7eee3; --gold:#b98a1f; --gold-soft:#f6ebc9;
+  --red:#b3202a; --red-soft:#f6dcdc; --queued:#cfc7bb; --gen:#2f6fa8; --gen-soft:#dbe8f5;
+  --head:#e0473c;
+  --f-display:"Shippori Mincho","Noto Serif",Georgia,serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1412; --panel:#231b18; --ink:#f1ebe3; --muted:#a89c91; --line:#3a2f2a;
+  --jade:#6cc7a0; --jade-soft:#1f3a2f; --gold:#e3bd5a; --gold-soft:#3d3218;
+  --red:#ef6b62; --red-soft:#43211f; --queued:#4a3f39; --gen:#7fb3de; --gen-soft:#1f3044; --head:#ff7a6e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1412; --panel:#231b18; --ink:#f1ebe3; --muted:#a89c91; --line:#3a2f2a;
+  --jade:#6cc7a0; --jade-soft:#1f3a2f; --gold:#e3bd5a; --gold-soft:#3d3218;
+  --red:#ef6b62; --red-soft:#43211f; --queued:#4a3f39; --gen:#7fb3de; --gen-soft:#1f3044; --head:#ff7a6e; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body);margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:22px}
+header{display:grid;gap:6px}
+.eyebrow{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font:800 clamp(26px,5vw,38px)/1.1 var(--f-display);margin:0;text-wrap:balance}
+.phase{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font:500 13px var(--f-body);background:var(--gold-soft);color:var(--ink)}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--gold)}
+.pill.live::before{background:var(--gen);animation:pulse 1.6s infinite}
+.pill.halt{background:var(--red-soft)} .pill.halt::before{background:var(--red)}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion: reduce){.pill.live::before{animation:none}}
+.upd{font:13px var(--f-mono);color:var(--muted)}
+.note{color:var(--muted);max-width:68ch;margin:0}
+.summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:14px}
+.bigrow{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px}
+.big{font:800 34px/1 var(--f-display);font-variant-numeric:tabular-nums}
+.big small{font:500 15px var(--f-body);color:var(--muted)}
+.bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--queued)}
+.bar span{display:block;height:100%}
+.counts{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--muted)}
+.counts b{color:var(--ink);font:500 14px var(--f-mono);font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+.d-done{background:var(--jade)} .d-flag{background:var(--gold)} .d-gen{background:var(--gen)} .d-fail{background:var(--red)} .d-queued{background:var(--queued)}
+.sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 18px}
+.sec{display:grid;gap:4px;font-size:13px;min-width:0}
+.sec .top{display:flex;justify-content:space-between;gap:8px}
+.sec .top span:last-child{font:12px var(--f-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.sec .bar{height:6px}
+h2{font:600 18px var(--f-display);margin:0}
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.lane{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;gap:2px;background:var(--panel);min-width:0}
+.lane .lt{font:500 12px var(--f-mono);letter-spacing:.06em;color:var(--muted)}
+.lane .cur{font-weight:500;overflow-wrap:anywhere}
+.lane .cur.idle{color:var(--muted);font-weight:400}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:5px 12px;font:500 13px var(--f-body);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.card{display:grid;gap:6px;min-width:0}
+.slot{position:relative;aspect-ratio:4/5;max-width:100%;border-radius:6px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+.slot img{width:100%;height:100%;object-fit:cover;display:block}
+.slot .hl{position:absolute;left:0;right:0;top:22.375%;border-top:1px dashed var(--head);opacity:.85}
+.slot .ph{position:absolute;inset:0;display:grid;place-items:center;font:12px var(--f-mono);color:var(--muted);text-align:center;padding:8px}
+.slot.s-gen{border-color:var(--gen);background:var(--gen-soft)}
+.slot.s-fail{border-color:var(--red);background:var(--red-soft)}
+.tag{position:absolute;top:6px;left:6px;font:500 11px var(--f-mono);padding:2px 6px;border-radius:4px;background:var(--panel);color:var(--ink)}
+.tag.t-done{background:var(--jade-soft)} .tag.t-flag{background:var(--gold-soft)} .tag.t-gen{background:var(--gen-soft)} .tag.t-fail{background:var(--red-soft)}
+.cn{font-weight:500;font-size:13.5px;line-height:1.3;overflow-wrap:anywhere}
+.meta{font:11.5px var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.cnote{font-size:12.5px;color:var(--muted);line-height:1.35}
+.empty{padding:28px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+footer{font-size:12.5px;color:var(--muted)}
+.slot.clk{cursor:zoom-in}
+.slot.clk:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+.mback{position:fixed;inset:0;z-index:50;background:rgba(10,8,7,.72);display:grid;place-items:center;padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(16px + env(safe-area-inset-bottom,0px));overflow:auto}
+.modal{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;width:min(1000px,100%);display:grid;gap:14px;padding:16px;max-height:100%;overflow:auto}
+.mhead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline;justify-content:space-between}
+.mhead h3{font:700 20px/1.2 var(--f-display);margin:0;overflow-wrap:anywhere;min-width:0}
+.mnav{display:flex;gap:6px}
+.mnav button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 11px;cursor:pointer}
+.mnav button:focus-visible{outline:2px solid var(--gen);outline-offset:2px}
+.msplit{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+@media (max-width:640px){.msplit{gap:8px}.modal{padding:12px}}
+.mcol{display:grid;gap:6px;min-width:0;justify-items:center}
+.mcap{font:12px var(--f-mono);color:var(--muted);text-align:center}
+.full{position:relative;width:100%;max-width:440px;aspect-ratio:4/5;border-radius:6px;overflow:hidden;background:var(--queued)}
+.full img{width:100%;height:100%;object-fit:cover;display:block}
+.full .hl{position:absolute;left:0;right:0;top:22.375%;border-top:2px dashed var(--head)}
+.full .hl span{position:absolute;right:4px;top:2px;font:11px var(--f-mono);color:#fff;background:rgba(0,0,0,.55);padding:1px 5px;border-radius:3px}
+.full .cut{position:absolute;left:0;right:0;background:rgba(0,0,0,.42)}
+.full .cut.t{top:0;height:17.25%;border-bottom:1px solid rgba(255,255,255,.7)}
+.full .cut.b{bottom:0;height:17.25%;border-top:1px solid rgba(255,255,255,.7)}
+.full.raw{aspect-ratio:auto;touch-action:none;user-select:none}
+.full.raw img{height:auto;object-fit:contain}
+.full .box{position:absolute;box-shadow:0 0 0 9999px rgba(0,0,0,.5);outline:2px solid #fff;cursor:grab;touch-action:none}
+.full .box:active{cursor:grabbing}
+.full .box:focus-visible{outline:3px solid var(--gen)}
+.full .box .band{position:absolute;left:0;right:0;top:17.25%;bottom:17.25%;border-top:1px solid rgba(255,255,255,.75);border-bottom:1px solid rgba(255,255,255,.75);background:transparent;box-shadow:0 0 0 9999px rgba(0,0,0,.18);pointer-events:none}
+.full .box{overflow:hidden}
+.rv{position:absolute;top:6px;right:6px;font:600 11px var(--f-mono);padding:2px 6px;border-radius:4px;color:#fff}
+.rv.approved{background:#2f8a69} .rv.regen{background:#b3202a} .rv.crop{background:#2f6fa8} .rv.other{background:#7a5c8f}
+.rv.wait{outline:2px dashed #fff;outline-offset:-3px}
+.review{display:grid;gap:6px;width:100%;max-width:440px}
+.review .seg{display:flex;flex-wrap:wrap;gap:6px}
+.review .seg button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;padding:5px 12px;cursor:pointer}
+.review .seg button kbd{font:11px var(--f-mono);color:var(--muted);margin-left:4px}
+.review .seg button[aria-pressed="true"].approved{background:#2f8a69;color:#fff;border-color:#2f8a69}
+.review .seg button[aria-pressed="true"].regen{background:#b3202a;color:#fff;border-color:#b3202a}
+.review .seg button[aria-pressed="true"].crop{background:#2f6fa8;color:#fff;border-color:#2f6fa8}
+.review .seg button[aria-pressed="true"].other{background:#7a5c8f;color:#fff;border-color:#7a5c8f}
+.review input{font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);min-width:0;width:100%}
+.review .rs{font:12px var(--f-mono);color:var(--muted)}
+
+.full .box .fa{position:absolute;top:0;bottom:0;left:6.16%;right:6.16%;outline:2px dashed #f5d77a;outline-offset:-2px;pointer-events:none}
+
+.full .box .hl{position:absolute;left:0;right:0;top:22.375%;border-top:2px dashed var(--head);pointer-events:none}
+.cropbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;width:100%;max-width:440px;font-size:13px}
+.cropbar input[type=range]{flex:1 1 120px;min-width:0}
+.cropbar button{font:500 12.5px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:4px 10px;cursor:pointer}
+.cropbar .saved{font:12px var(--f-mono);color:var(--muted)}
+.cropbar .st{font:500 11.5px var(--f-mono);padding:1px 7px;border-radius:999px}
+.cropbar .st.pend{background:var(--gold-soft)} .cropbar .st.done{background:var(--jade-soft)}
+
+/* Card frame mock-up: 300x420 card, 1cqw = 3 card px (src/config/cardFaceGeometry.ts) */
+.cfw{width:100%;max-width:360px}
+.real{width:100%;aspect-ratio:624/864}
+.real canvas{display:block;margin:0 auto}
+.cf{position:relative;width:100%;aspect-ratio:300/420;container-type:inline-size;border-radius:5.6cqw;background:linear-gradient(var(--fT),var(--fB));box-shadow:inset 0 0 0 1.4cqw var(--fE),inset 0 0 0 2cqw rgba(0,0,0,.18);color:#1d1714;font-family:var(--f-body)}
+.cf .nb,.cf .tb{position:absolute;left:5.33cqw;width:89.33cqw;background:var(--fP);border:.35cqw solid var(--fE);border-radius:1.6cqw;display:flex;align-items:center;gap:2cqw;padding:0 2.4cqw;overflow:hidden}
+.cf .nb{top:4.2cqw;height:9.6cqw;font:700 4.5cqw/1 var(--f-display);justify-content:space-between}
+.cf .nb span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cf .nb .rar{font:600 2.8cqw var(--f-mono);text-transform:uppercase;color:var(--fA);flex:none}
+.cf .art{position:absolute;left:6cqw;top:15.33cqw;width:88cqw;height:72cqw;overflow:hidden;border:.35cqw solid var(--fE);background:#222}
+.cf .art img{width:100%;height:100%;object-fit:cover;object-position:50% 50%;display:block}
+.cf .tb{top:89.33cqw;height:7.33cqw;font:500 3.4cqw/1 var(--f-body);white-space:nowrap}
+.cf .tx{position:absolute;left:5.33cqw;top:98.67cqw;width:89.33cqw;height:35.33cqw;background:var(--fX);border:.35cqw solid var(--fE);border-radius:1.2cqw;padding:1.6cqw 2.6cqw 11cqw;font:400 3.55cqw/1.3 var(--f-body);overflow:hidden}
+.cf .bd{position:absolute;top:126.67cqw;height:10.33cqw;background:var(--fE);color:#fff;border-radius:2cqw;display:flex;align-items:center;gap:.8cqw;padding:0 2cqw;font:700 4.2cqw var(--f-mono)}
+.cf .bd.cost{left:3cqw}
+.cf .bd.pt{right:3cqw}
+.cf .pip{display:inline-grid;place-items:center;width:5.4cqw;height:5.4cqw;border-radius:50%;font:700 3.2cqw/1 var(--f-mono);color:#1d1714;box-shadow:0 0 0 .3cqw rgba(0,0,0,.35)}
+
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow">Darling Blades · art run</div>
+    <h1 id="htitle">Art Run Tracker</h1>
+    <div class="phase"><span class="pill" id="phase">Connecting…</span><span class="upd" id="upd"></span></div>
+    <p class="note" id="note">Live status appears here once the run's ledger loads.</p>
+  </header>
+
+  <section class="summary" aria-label="Progress">
+    <div class="bigrow">
+      <div class="big" id="bigDone">–<small> delivered</small></div>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="Progress by status"></div>
+    <div class="sections" id="sections"></div>
+  </section>
+
+  <section style="display:grid;gap:10px" aria-label="Lanes">
+    <h2>Lanes</h2>
+    <div class="lanes" id="lanes"></div>
+  </section>
+
+  <section style="display:grid;gap:12px" aria-label="Cards">
+    <h2>Cards</h2>
+    <div class="filters" id="fStatus"></div>
+    <div class="filters" id="fSection"></div>
+    <div class="filters" id="fReview"></div>
+    <div class="filters" id="fSort"></div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <footer>Delivered = 640×800 WebP made from the raw. The dashed red line on each thumbnail is the y 179 head line; "Flagged" means it needs a look or a re-roll. Click any thumbnail to see the image beside the card as the game draws it. Drag the crop box on the raw to reframe a card; the run on the PC re-cuts it from the raw. Nothing here ships to the game; approved art moves into the repo separately.</footer>
+</div>
+
+<div class="mback" id="mback" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+    <div class="mhead"><h3 id="mtitle"></h3><div class="mnav"><button type="button" id="mprev">Previous</button><button type="button" id="mnext">Next</button><button type="button" id="mclose">Close</button></div></div>
+    <div class="msplit">
+      <div class="mcol"><div class="full" id="mfull"></div><div class="cropbar" id="cropbar" hidden><label for="mzoom">Zoom</label><input type="range" id="mzoom" min="40" max="100" step="1" value="100"><button type="button" id="mreset">Reset</button><span class="st" id="mstate"></span><span class="saved" id="msaved"></span></div><div class="mcap" id="mcap1"></div><div class="review" id="mreview"><div class="seg" role="group" aria-label="Review"><button type="button" class="approved" data-v="approved">Approved<kbd>1</kbd></button><button type="button" class="regen" data-v="regen">Regen<kbd>2</kbd></button><button type="button" class="crop" data-v="crop">Crop changed<kbd>3</kbd></button><button type="button" class="other" data-v="other">Other<kbd>4</kbd></button></div><input type="text" id="mnote" placeholder="Note: for Regen, say what to change in the prompt" aria-label="Review note"><span class="rs" id="mrs"></span></div><div class="mcap" style="text-align:left;max-width:440px;width:100%">Keys: 1–4 review · A full art · ← → previous/next · Esc close · arrows move the crop box when it has focus</div></div>
+      <div class="mcol"><div class="cfw"><div id="mreal" class="real"></div><div class="cf" id="mcard" hidden></div></div><div class="cropbar" style="justify-content:center"><button type="button" class="chip" id="mfa" aria-pressed="false">Full Art <kbd style="font:11px var(--f-mono);opacity:.7">A</kbd></button></div><div class="mcap" id="mcap2">The game's own card renderer, with the card's rules text</div></div>
+    </div>
+  </div>
+</div>
+
+<script src="dbcard.js"></script>
+<script>
+const STATUS = [
+  ["all","All"],["done","Delivered"],["flag","Flagged"],["gen","Generating"],["fail","Failed"],["queued","Queued"]
+];
+/* Set-specific settings come from tracker.json, published beside this page (see scripts/art-tracker/README.md). */
+let CFG = { title:"Art Run Tracker", eyebrow:"Darling Blades · art run", idPrefix:"", drafts:{} };
+let SECTIONS = [];
+const LABEL = {done:"Delivered",flag:"Flagged",gen:"Generating",fail:"Failed",queued:"Queued"};
+const RLABEL = {approved:"Approved",regen:"Regen",crop:"Crop changed",other:"Other"};
+let state = null, fs = "all", fsec = "all", sortBy = "az", frv = "all", REVIEWS = {};
+try { frv = localStorage.getItem("frv") || "all"; } catch(e) {}
+const sortKey = n => (n||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+try { sortBy = localStorage.getItem("sortBy") || "az"; } catch(e) {}
+try { fs = localStorage.getItem("fs") || "all"; fsec = localStorage.getItem("fsec") || "all"; } catch(e) {}
+
+function el(tag, cls, text){ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function chips(host, items, cur, onPick){
+  host.replaceChildren();
+  for (const [v,l] of items){
+    const b=el("button","chip",l); b.type="button"; b.id="chip-"+host.id+"-"+v.replace(/\W+/g,"-");
+    b.setAttribute("aria-pressed", String(v===cur));
+    b.onclick=()=>onPick(v); host.appendChild(b);
+  }
+}
+function ago(iso){
+  if(!iso) return ""; const s=(Date.now()-Date.parse(iso))/1000;
+  if (isNaN(s)) return ""; if (s<90) return "updated just now";
+  if (s<3600) return "updated "+Math.round(s/60)+" min ago";
+  return "updated "+Math.round(s/3600)+" h ago";
+}
+
+/* Card faces: a card already in the game data renders from its real CardDef (DBCard.def); a draft card renders from
+   CFG.drafts[id] = [cost, "supertype · type · Subtypes", "A/D", printed rules text, rarity, "W/U"]. */
+function defFor(id, n){ const real = window.DBCard && window.DBCard.def ? window.DBCard.def(id) : null; return real || cardDef(id, n, CFG.drafts[id] || []); }
+const FRAMES = {W:["#8d7b45","#f0e7cd","#b6a05e","#fdf8e7","#f7f1dc","#7a6428"],U:["#274a73","#6ea3d8","#1d3a5f","#dcebf7","#e8f1f9","#173c66"],B:["#3c2b4a","#6d5a80","#221631","#d9d2e0","#e4dfe9","#2c1a3d"],R:["#6e2318","#d97a5a","#5e1410","#f6ded3","#f9e8de","#5e150d"],G:["#2a5232","#7fb98a","#1c3f26","#ddecdc","#e9f2e5","#1c4526"],gold:["#8a6d1f","#eed77a","#8a6a20","#faf0c8","#f9f2d4","#6e5314"],C:["#565b63","#b9bdc4","#5f646d","#e6e8ec","#eceef1","#43474e"]};
+const PIP = {W:"#f3ecd2",U:"#9cc3ea",B:"#a596b3",R:"#eea58a",G:"#a6d3ae",C:"#d6d8dc"};
+
+const TYPES = new Set(["creature","charm","ritual","enchantment","artifact","land"]);
+function cardDef(id, n, ct){
+  const segs = (ct[1]||"").split(" · ").map(s=>s.trim()).filter(Boolean);
+  let sub = []; if (segs.length && /^[A-Z]/.test(segs[segs.length-1])) sub = segs.pop().split(/\s+/);
+  const words = segs.join(" ").split(/\s+/);
+  const types = words.filter(w=>TYPES.has(w));
+  const pips = {}; let generic = 0, x = false;
+  for (const m of (ct[0]||"").matchAll(/\{([^}]+)\}/g)){ const t=m[1]; if(/^\d+$/.test(t)) generic+=+t; else if(t==="X") x=true; else if("WUBRG".includes(t)) pips[t]=(pips[t]||0)+1; }
+  const colors = (ct[5]||"").split("/").filter(c=>"WUBRG".includes(c) && c);
+  const [a,d] = (ct[2]||"").split("/").map(v=>parseInt(v,10));
+  const def = { id, name:n, types: types.length?types:["creature"], subtypes: sub, cost:{generic,pips}, colors, rarity: ct[4]||"c", set:"base", __printed: ct[3]||"" };
+  if (words.includes("legendary")) def.supertypes = ["legendary"];
+  if (x) def.x = {min:0};
+  if (def.types.includes("creature") && !isNaN(a)) { def.attack=a; def.defense=isNaN(d)?a:d; }
+  return def;
+}
+
+/* Crop box over the RAW (fractions of the raw; 4:5 in raw pixels). Saved to crops/<id> = {x,y,w,h,savedAt};
+   the run on the PC re-cuts the 640x800 from the raw and writes cards.<id>.cropApplied = savedAt. */
+let wheelTimer = null;
+let CROPS = {}, cropCtx = null, dbRef = null, saveTimer = null, previewTimer = null;
+function boxLimits(c){ const maxW = Math.min(1, (c.rh*0.8)/c.rw); return { maxW, minW: maxW*0.4 }; }
+function hOf(c, w){ return (w*c.rw*1.25)/c.rh; }
+function defaultBox(c){ const {maxW} = boxLimits(c); const h = hOf(c, maxW); return { x:(1-maxW)/2, y:Math.max(0,(1-h)/2), w:maxW, h }; }
+function clampBox(c, b){ const {maxW, minW} = boxLimits(c); const w = Math.max(minW, Math.min(maxW, b.w)); const h = hOf(c, w);
+  const r = v => Math.round(v*10000)/10000;
+  return { x: r(Math.max(0, Math.min(1-w, b.x))), y: r(Math.max(0, Math.min(1-h, b.y))), w: r(w), h: r(h) }; }
+function cropStateText(){
+  if (!cropCtx) return; const id = cropCtx.id, saved = CROPS[id], c = (state && state.cards && state.cards[id]) || cropCtx.c;
+  const st = document.getElementById("mstate");
+  if (!saved){ st.textContent = ""; st.className = "st"; return; }
+  const applied = c.cropApplied && c.cropApplied === saved.savedAt;
+  st.textContent = applied ? "Applied" : "Pending re-cut"; st.className = "st " + (applied ? "done" : "pend");
+}
+function setCrop(b, save){
+  if (!cropCtx) return; const c = cropCtx.c; const k = clampBox(c, b || defaultBox(c)); cropCtx.k = k;
+  const box = document.querySelector("#mfull .box"); if (!box) return;
+  Object.assign(box.style, { left:(k.x*100)+"%", top:(k.y*100)+"%", width:(k.w*100)+"%", height:(k.h*100)+"%" });
+  const {maxW} = boxLimits(c); document.getElementById("mzoom").value = Math.round(k.w/maxW*100);
+  document.getElementById("msaved").textContent = save ? "saving…" : (CROPS[cropCtx.id] ? "saved" : "");
+  cropStateText();
+  if (save){ schedulePreview(); scheduleSave(); }
+}
+function schedulePreview(){ clearTimeout(previewTimer); previewTimer = setTimeout(renderCropped, 120); }
+function renderCropped(){
+  if (!cropCtx || !window.DBCard) return; const ctx0 = cropCtx;
+  const go = img => { if (cropCtx !== ctx0) return; const k = ctx0.k; const W = img.naturalWidth, H = img.naturalHeight;
+    const cv = document.createElement("canvas"); cv.width = 640; cv.height = 800; const g = cv.getContext("2d"); g.imageSmoothingQuality = "high";
+    g.drawImage(img, k.x*W, k.y*H, k.w*W, k.h*H, 0, 0, 640, 800);
+    window.DBCard.show(defFor(ctx0.id, ctx0.c.n), cv, {fullArt: fullArtOn}); };
+  if (ctx0.img) return go(ctx0.img);
+  const img = new Image(); img.onload = () => { ctx0.img = img; go(img); }; img.src = ctx0.c.r;
+}
+function isOriginal(id, k){ const c = (state && state.cards && state.cards[id]) || (cropCtx && cropCtx.c) || {}; const o = c.crop ? clampBox(c, c.crop) : (c.rw ? clampBox(c, defaultBox(c)) : null);
+  return !!o && ["x","y","w","h"].every(p=>Math.abs((o[p]||0)-(k[p]||0)) < 0.002); }
+function scheduleSave(){
+  clearTimeout(saveTimer); const id = cropCtx.id, k = cropCtx.k;
+  saveTimer = setTimeout(async ()=>{
+    const rec = { ...k, savedAt: new Date().toISOString() };
+    if (!dbRef){ document.getElementById("msaved").textContent = "Can't save in this view"; return; }
+    try { await dbRef.collection("crops").doc(id).set(rec); CROPS[id] = rec; if (!REVIEWS[id] && !isOriginal(id, rec)) saveReview(id, "crop", "");
+      if (cropCtx && cropCtx.id === id){ document.getElementById("msaved").textContent = "saved"; cropStateText(); } }
+    catch(e){ document.getElementById("msaved").textContent = "Not saved (" + (e && e.code || "error") + ")"; }
+  }, 600);
+}
+(function wireCrop(){
+  const full = document.getElementById("mfull"); let drag = null;
+  full.addEventListener("pointerdown", e=>{ const box = e.target.closest(".box"); if (!box || !cropCtx) return;
+    const r = full.getBoundingClientRect(); drag = { px:e.clientX, py:e.clientY, k:{...cropCtx.k}, rw:r.width, rh:r.height };
+    box.setPointerCapture(e.pointerId); e.preventDefault(); });
+  full.addEventListener("pointermove", e=>{ if (!drag) return;
+    setCrop({ ...drag.k, x: drag.k.x + (e.clientX-drag.px)/drag.rw, y: drag.k.y + (e.clientY-drag.py)/drag.rh }, false); schedulePreview(); });
+  const end = ()=>{ if (!drag) return; drag = null; setCrop(cropCtx.k, true); };
+  full.addEventListener("pointerup", end); full.addEventListener("pointercancel", end);
+  full.addEventListener("keydown", e=>{ if (!e.target.closest(".box") || !cropCtx) return; const s = e.shiftKey ? .03 : .006; const k = {...cropCtx.k};
+    if (e.key==="ArrowUp") k.y-=s; else if (e.key==="ArrowDown") k.y+=s; else if (e.key==="ArrowLeft") k.x-=s; else if (e.key==="ArrowRight") k.x+=s; else return;
+    e.preventDefault(); e.stopPropagation(); setCrop(k, true); });
+  document.getElementById("mzoom").addEventListener("input", e=>{ if (!cropCtx) return; const c = cropCtx.c, k = cropCtx.k; const w = boxLimits(c).maxW*e.target.value/100;
+    const cx = k.x + k.w/2, cy = k.y + k.h/2, h = hOf(c, w); setCrop({ x: cx - w/2, y: cy - h/2, w, h }, true); });
+  full.addEventListener("wheel", e=>{ if (!cropCtx || !cropCtx.k) return; e.preventDefault();
+    const c = cropCtx.c, k = cropCtx.k, r = full.getBoundingClientRect();
+    const fx = (e.clientX - r.left)/r.width, fy = (e.clientY - r.top)/r.height;
+    const dy = e.deltaMode === 1 ? e.deltaY*16 : e.deltaY; const f = Math.exp(dy*0.001);
+    const w = k.w*f, h = hOf(c, Math.max(boxLimits(c).minW, Math.min(boxLimits(c).maxW, w))), wc = Math.max(boxLimits(c).minW, Math.min(boxLimits(c).maxW, w));
+    const ax = Math.max(0, Math.min(1, (fx - k.x)/k.w)), ay = Math.max(0, Math.min(1, (fy - k.y)/k.h));
+    setCrop({ x: fx - ax*wc, y: fy - ay*h, w: wc, h }, false); schedulePreview(); clearTimeout(wheelTimer); wheelTimer = setTimeout(()=>{ if (cropCtx) setCrop(cropCtx.k, true); }, 400); }, { passive:false });
+  document.getElementById("mreset").onclick = async ()=>{ if (!cropCtx) return; const id = cropCtx.id; clearTimeout(saveTimer);
+    setCrop(cropCtx.c.crop || null, false); schedulePreview();
+    if (REVIEWS[id] && REVIEWS[id].status === "crop") saveReview(id, null, "");
+    const had = CROPS[id]; delete CROPS[id]; cropStateText();
+    if (!dbRef){ document.getElementById("msaved").textContent = "Can't save in this view"; return; }
+    try { if (had) await dbRef.collection("crops").doc(id).delete(); document.getElementById("msaved").textContent = had ? "reset to the original crop" : ""; }
+    catch(e){ CROPS[id] = had; cropStateText(); document.getElementById("msaved").textContent = "Not reset (" + (e && e.code || "error") + ")"; } };
+})();
+let fullArtOn = false; try { fullArtOn = localStorage.getItem("fullArt") === "1"; } catch(e) {}
+
+let reviewId = null, noteTimer = null;
+function fillReview(id){
+  reviewId = id; const r = REVIEWS[id] || {}; const c = (state && state.cards && state.cards[id]) || {};
+  document.querySelectorAll("#mreview .seg button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.v === r.status)));
+  const note = document.getElementById("mnote"); if (document.activeElement !== note) note.value = r.note || "";
+  let s = ""; if (r.status === "regen") s = c.regenDone === r.savedAt ? ("Re-rolled" + (c.promptEdit ? " · Revised: " + c.promptEdit : "")) : (r.note ? "Queued: the prompt will be revised from your note" : "Queued: add a note saying what to change"); else if (r.status) s = "Saved";
+  document.getElementById("mrs").textContent = s;
+}
+async function saveReview(id, status, note){
+  const rec = { status, note: note || "", savedAt: new Date().toISOString() };
+  const prev = REVIEWS[id];
+  if (status) REVIEWS[id] = rec; else delete REVIEWS[id];
+  fillReview(id); render();
+  if (!dbRef){ document.getElementById("mrs").textContent = "Can't save in this view"; return; }
+  try { if (status) await dbRef.collection("reviews").doc(id).set(rec); else await dbRef.collection("reviews").doc(id).delete(); }
+  catch(e){ if (prev) REVIEWS[id] = prev; else delete REVIEWS[id]; fillReview(id); render(); document.getElementById("mrs").textContent = "Not saved (" + (e && e.code || "error") + ")"; }
+}
+function pickReview(v){ if (!reviewId) return; const cur = REVIEWS[reviewId]; const note = document.getElementById("mnote").value;
+  saveReview(reviewId, cur && cur.status === v ? null : v, note);
+  if (v === "regen" && !(cur && cur.status === v)) { const n = document.getElementById("mnote"); n.focus(); } }
+document.querySelector("#mreview .seg").addEventListener("click", e=>{ const b = e.target.closest("button[data-v]"); if (b) pickReview(b.dataset.v); });
+document.getElementById("mnote").addEventListener("input", ()=>{ clearTimeout(noteTimer); const id = reviewId; noteTimer = setTimeout(()=>{ const cur = REVIEWS[id];
+  saveReview(id, cur ? cur.status : "other", document.getElementById("mnote").value); }, 700); });
+document.addEventListener("keydown", e=>{ if (document.getElementById("mback").hidden || e.target.tagName === "INPUT") return;
+  if ((e.key==="a"||e.key==="A") && !e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); document.getElementById("mfa").click(); return; }
+  const v = {"1":"approved","2":"regen","3":"crop","4":"other"}[e.key]; if (v){ e.preventDefault(); pickReview(v); } });
+let realMounted = false;
+(function wireFullArt(){
+  const b = document.getElementById("mfa"); b.setAttribute("aria-pressed", String(fullArtOn));
+  b.onclick = ()=>{ fullArtOn = !fullArtOn; b.setAttribute("aria-pressed", String(fullArtOn)); try { localStorage.setItem("fullArt", fullArtOn ? "1" : "0"); } catch(e) {}
+    const fa = document.querySelector("#mfull .box .fa"); if (fa) fa.hidden = !fullArtOn;
+    const band = document.querySelector("#mfull .box .band"); if (band) band.hidden = fullArtOn;
+    document.getElementById("mcap2").textContent = fullArtOn ? "Full-art frame: the art fills the card; the gold dashes on the left mark what shows" : "The game's own card renderer, with the card's rules text";
+    if (cropCtx) renderCropped(); else if (mIdx >= 0) { const id = mList[mIdx], c = state.cards[id]; window.DBCard && window.DBCard.show(defFor(id, c.n), c.f || c.t || null, {fullArt: fullArtOn}); } };
+})();
+
+function showReal(id, c, ct, src){
+  const host = document.getElementById("mreal"), mock = document.getElementById("mcard");
+  if (!window.DBCard){ host.hidden = true; mock.hidden = false; document.getElementById("mcap2").textContent = "Card frame mock-up: the art window shows rows 138 to 662 of the 640×800 image"; return false; }
+  if (!realMounted){ window.DBCard.mount(host); realMounted = true; }
+  window.DBCard.show(defFor(id, c.n), src || null, {fullArt: fullArtOn});
+  return true;
+}
+let mList = [], mIdx = -1;
+function openModal(id){ mIdx = mList.indexOf(id); fillModal(); const b=document.getElementById("mback"); b.hidden=false; document.documentElement.classList.add("modal-open"); document.getElementById("mclose").focus(); }
+function closeModal(){ document.getElementById("mback").hidden=true; document.documentElement.classList.remove("modal-open"); mIdx=-1; }
+function fillModal(){
+  if (mIdx<0 || !state) return;
+  const id = mList[mIdx], c = (state.cards||{})[id]; if(!c) return;
+  fillReview(id);
+  if (cropCtx && cropCtx.id === id && document.querySelector("#mfull .box") && c.r === cropCtx.c.r) { cropCtx.c = c; cropStateText(); return; }
+  const src = c.f || c.t; const ct = CFG.drafts[id] || ["","","","","",""];
+  document.getElementById("mtitle").textContent = c.n;
+  const full = document.getElementById("mfull"); full.replaceChildren(); full.classList.remove("raw"); full.style.aspectRatio = "";
+  const canCrop = !!(c.r && c.rw && c.rh);
+  document.getElementById("cropbar").hidden = !canCrop;
+  if (canCrop){
+    full.classList.add("raw"); full.style.aspectRatio = c.rw + "/" + c.rh;
+    const im=el("img"); im.src=c.r; im.alt=c.n+" (raw)"; im.draggable=false;
+    const box=el("div","box"); box.tabIndex=0; box.setAttribute("role","slider"); box.setAttribute("aria-label","Crop position");
+    const hl=el("div","hl"); hl.append(el("span",null,"y 179")); const fa=el("div","fa"); fa.hidden=!fullArtOn; const band=el("div","band"); band.hidden=fullArtOn; box.append(band, fa, hl); full.append(im, box);
+    cropCtx = { id, c, ct, img:null }; setCrop(CROPS[id] ? CROPS[id] : (c.crop || null), false);
+  } else if (src){ cropCtx = null; const im=el("img"); im.src=src; im.alt=c.n; full.append(im, el("div","cut t"), el("div","cut b")); const hl=el("div","hl"); hl.append(el("span",null,"y 179")); full.append(hl); }
+  else { cropCtx = null; full.append(el("div","ph", LABEL[c.st]||"Queued")); }
+  const bits=[LABEL[c.st]||c.st]; if(c.h!=null) bits.push("head y "+c.h); if(c.lane) bits.push(c.lane); if(c.note) bits.push(c.note);
+  document.getElementById("mcap1").textContent = (canCrop ? "The raw image: drag the white box to set the 640×800 crop; the inner band is what the card shows · " : "Full image, shaded where the card frame crops it · ") + bits.join(" · ");
+  if (showReal(id, c, ct, canCrop ? null : src)) { if (canCrop) renderCropped(); document.getElementById("mprev").disabled = mIdx<=0; document.getElementById("mnext").disabled = mIdx>=mList.length-1; return; }
+  const col = (ct[5]||"C"); const key = col.includes("/") ? "gold" : (FRAMES[col] ? col : "C");
+  const f = FRAMES[key]; const card = document.getElementById("mcard");
+  ["--fE","--fT","--fB","--fP","--fX","--fA"].forEach((v,i)=>card.style.setProperty(v,f[i]));
+  card.replaceChildren();
+  const nb=el("div","nb"); nb.append(el("span",null,c.n), el("span","rar",ct[4]));
+  const art=el("div","art"); if(src){ const im=el("img"); im.src=src; im.alt=""; art.append(im); }
+  const tb=el("div","tb",ct[1]); const tx=el("div","tx",ct[3]);
+  card.append(nb,art,tb,tx);
+  const cost=el("div","bd cost");
+  for (const m of (ct[0]||"").matchAll(/\{([^}]+)\}/g)){ const t=m[1]; const p=el("span","pip",/^\d+$/.test(t)?t:""); p.style.background=PIP[t]||PIP.C; cost.append(p); }
+  if (cost.childNodes.length) card.append(cost);
+  if (ct[2]) card.append(el("div","bd pt",ct[2]));
+  requestAnimationFrame(()=>{ let s=3.55; tx.style.fontSize=s+"cqw"; while(tx.scrollHeight>tx.clientHeight+1 && s>2){ s-=.1; tx.style.fontSize=s.toFixed(2)+"cqw"; } });
+  document.getElementById("mprev").disabled = mIdx<=0; document.getElementById("mnext").disabled = mIdx>=mList.length-1;
+}
+document.getElementById("mclose").onclick=closeModal;
+document.getElementById("mprev").onclick=()=>{ if(mIdx>0){mIdx--; fillModal();} };
+document.getElementById("mnext").onclick=()=>{ if(mIdx<mList.length-1){mIdx++; fillModal();} };
+let downOnBack = false;
+document.getElementById("mback").addEventListener("pointerdown",e=>{ downOnBack = e.target.id==="mback"; }, true);
+document.getElementById("mback").addEventListener("click",e=>{ if(e.target.id==="mback" && downOnBack) closeModal(); downOnBack = false; });
+document.addEventListener("keydown",e=>{ if(document.getElementById("mback").hidden) return;
+  if(e.key==="Escape") closeModal(); else if(e.key==="ArrowLeft") document.getElementById("mprev").click(); else if(e.key==="ArrowRight") document.getElementById("mnext").click(); });
+
+function render(){
+  if(!state) return;
+  const cards = Object.entries(state.cards||{}).map(([id,c])=>({id,...c})).sort(sortBy==="az" ? (a,b)=>sortKey(a.n).localeCompare(sortKey(b.n)) : (a,b)=>(a.o||0)-(b.o||0));
+  const total = cards.length;
+  { const seen = []; for (const c of [...cards].sort((a,b)=>(a.o||0)-(b.o||0))) if (c.s && !seen.includes(c.s)) seen.push(c.s); SECTIONS = seen; }
+  const cnt = {done:0,flag:0,gen:0,fail:0,queued:0};
+  for (const c of cards) cnt[c.st in cnt ? c.st : "queued"]++;
+  const delivered = cnt.done + cnt.flag;
+
+  const ph = document.getElementById("phase");
+  ph.textContent = state.phase || "Idle";
+  ph.className = "pill" + (state.running ? " live" : "") + (state.halted ? " halt" : "");
+  document.getElementById("upd").textContent = ago(state.updatedAt);
+  document.getElementById("note").textContent = state.note || "";
+  const big = document.getElementById("bigDone");
+  big.replaceChildren(document.createTextNode(String(delivered)), el("small",null," of "+total+" delivered"));
+
+  const counts = document.getElementById("counts"); counts.replaceChildren();
+  for (const k of ["done","flag","gen","fail","queued"]){
+    const s=el("span"); s.append(el("span","dot d-"+k), el("b",null,String(cnt[k])), document.createTextNode(" "+LABEL[k].toLowerCase()));
+    counts.appendChild(s);
+  }
+  const bar = document.getElementById("bar"); bar.replaceChildren();
+  const colors = {done:"var(--jade)",flag:"var(--gold)",gen:"var(--gen)",fail:"var(--red)"};
+  for (const k of ["done","flag","gen","fail"]) if (cnt[k]) { const s=el("span"); s.style.width=(cnt[k]/total*100)+"%"; s.style.background=colors[k]; bar.appendChild(s); }
+
+  const secHost = document.getElementById("sections"); secHost.replaceChildren();
+  for (const s of SECTIONS){
+    const list = cards.filter(c=>c.s===s); if(!list.length) continue;
+    const d = list.filter(c=>c.st==="done"||c.st==="flag").length;
+    const box=el("div","sec"); const top=el("div","top"); top.append(el("span",null,s), el("span",null,d+"/"+list.length));
+    const b=el("div","bar"); const f=el("span"); f.style.width=(d/list.length*100)+"%"; f.style.background="var(--jade)"; b.appendChild(f);
+    box.append(top,b); secHost.appendChild(box);
+  }
+
+  const lanes = document.getElementById("lanes"); lanes.replaceChildren();
+  const L = state.lanes || {};
+  for (const k of Object.keys(L).sort()){
+    const ln=L[k]||{}; const box=el("div","lane");
+    const cur = ln.current ? (state.cards?.[ln.current]?.n || ln.current) : "";
+    box.append(el("div","lt",k+" · "+(ln.done||0)+" done"+(ln.total?(" of "+ln.total):"")), el("div","cur"+(cur?"":" idle"), cur?("Now: "+cur):"Idle"));
+    if (ln.group) box.append(el("div","meta",ln.group));
+    lanes.appendChild(box);
+  }
+
+  chips(document.getElementById("fStatus"), STATUS.map(([v,l])=>[v, v==="all"?l+" "+total:l+" "+(cnt[v]||0)]), fs, v=>{fs=v; try{localStorage.setItem("fs",v)}catch(e){} render();});
+  chips(document.getElementById("fSection"), [["all","Every section"],...SECTIONS.map(s=>[s,s])], fsec, v=>{fsec=v; try{localStorage.setItem("fsec",v)}catch(e){} render();});
+
+  const rc = {none:0, approved:0, regen:0, crop:0, other:0}; for (const c of cards) rc[REVIEWS[c.id]?.status || "none"]++;
+  chips(document.getElementById("fReview"), [["all","Any review"],["none","Not reviewed "+rc.none],["approved","Approved "+rc.approved],["regen","Regen "+rc.regen],["crop","Crop changed "+rc.crop],["other","Other "+rc.other]], frv, v=>{frv=v; try{localStorage.setItem("frv",v)}catch(e){} render();});
+  chips(document.getElementById("fSort"), [["az","Sort A to Z"],["run","Sort by run order"]], sortBy, v=>{sortBy=v; try{localStorage.setItem("sortBy",v)}catch(e){} render();});
+  const grid = document.getElementById("grid"); grid.replaceChildren();
+  const shown = cards.filter(c=>(fs==="all"||c.st===fs)&&(fsec==="all"||c.s===fsec)&&(frv==="all"||(REVIEWS[c.id]?.status||"none")===frv));
+  const curId = mIdx>=0 ? mList[mIdx] : null; const shownIds = new Set(shown.map(c=>c.id)); mList = cards.filter(c=>c.t && (shownIds.has(c.id) || c.id===curId)).map(c=>c.id); if (curId){ mIdx = mList.indexOf(curId); if (mIdx<0) closeModal(); else fillModal(); }
+  if(!shown.length){ grid.appendChild(el("div","empty","No cards match this filter yet.")); return; }
+  for (const c of shown){
+    const card=el("div","card"); const slot=el("div","slot s-"+c.st);
+    if (c.t) { const img=el("img"); img.src=c.t; img.alt=c.n; img.loading="lazy"; slot.append(img, el("div","hl")); slot.classList.add("clk"); slot.tabIndex=0; slot.setAttribute("role","button"); slot.setAttribute("aria-label","Open "+c.n); slot.onclick=()=>openModal(c.id); slot.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openModal(c.id);} }; }
+    else slot.append(el("div","ph", c.st==="gen"?"Generating…":c.st==="fail"?"Failed":"Queued"));
+    slot.append(el("span","tag t-"+c.st, LABEL[c.st]||c.st));
+    const rvw = REVIEWS[c.id]; if (rvw && RLABEL[rvw.status]) { const wait = rvw.status==="regen" && c.regenDone !== rvw.savedAt; const b = el("span","rv "+rvw.status+(wait?" wait":""), RLABEL[rvw.status]+(wait?" queued":"")); slot.append(b); }
+    card.append(slot, el("div","cn",c.n));
+    const meta=[CFG.idPrefix && c.id.startsWith(CFG.idPrefix) ? c.id.slice(CFG.idPrefix.length) : c.id, c.s]; if (c.h!=null) meta.push("head y "+c.h); if (c.lane) meta.push(c.lane);
+    card.append(el("div","meta",meta.join(" · ")));
+    if (c.note) card.append(el("div","cnote",c.note));
+    grid.appendChild(card);
+  }
+}
+setInterval(()=>{ if(state) document.getElementById("upd").textContent = ago(state.updatedAt); }, 30000);
+
+(async()=>{
+  try { const r = await fetch("tracker.json"); if (r.ok) CFG = { ...CFG, ...(await r.json()) }; } catch(e) {}
+  CFG.drafts = CFG.drafts || {};
+  document.title = CFG.title; document.getElementById("htitle").textContent = CFG.title; document.getElementById("eyebrow").textContent = CFG.eyebrow;
+  for (let i=0; i<50 && !(window.claude && window.claude.use); i++) await new Promise(r=>setTimeout(r,100));
+  const db = (window.claude && window.claude.use) ? await window.claude.use("db") : null;
+  if(!db){ document.getElementById("phase").textContent="Offline"; document.getElementById("note").textContent="The live ledger isn't available in this view. Open the artifact on claude.ai while signed in."; return; }
+  dbRef = db;
+  db.collection("reviews").onSnapshot(snap=>{ const m = {}; snap.docs.forEach(d=>{ if (d.exists) m[d.id] = d.data(); }); REVIEWS = m; render(); if (reviewId) fillReview(reviewId); }, ()=>{});
+  db.collection("crops").onSnapshot(snap=>{ const m = {}; snap.docs.forEach(d=>{ if (d.exists) m[d.id] = d.data(); }); CROPS = m; cropStateText(); }, ()=>{});
+  db.doc("run/state").onSnapshot(s=>{
+    if(!s.exists){ document.getElementById("phase").textContent="Waiting for the run"; document.getElementById("note").textContent="No run data yet. Claude writes progress here as images are delivered."; return; }
+    state = s.data(); render();
+  }, e=>{ document.getElementById("phase").textContent="Disconnected"; document.getElementById("note").textContent="Live updates stopped ("+e.code+"). Reload the page to reconnect."; });
+})();
+</script>
