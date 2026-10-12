@@ -339,7 +339,7 @@ launch. The launch plan doc is written in 2.0.
 
 ### Lane G: Story Mode, full (priority 7)
 
-Acts 2 and 3, their bosses, scenes and keeps, on the shell lane E ships.
+Acts 2 and 3, their bosses, scenes and keeps, on the shell lane E ships. Full Story is also when scene animation arrives (owner, 2026-10-12, Story plan V1): Act 1 launches with still backgrounds and dialogue portrait inserts, and the animation covers every act's scenes once Full Story ships.
 **Proposed: 2.0.x**, unless 2.0's waves finish with room. Since keeps are
 per act, each act added is an economy change and goes through
 progression-sim.
