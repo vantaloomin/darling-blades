@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import artLookupHandlesLateArt from './eslint-rules/art-lookup-handles-late-art.js';
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'scripts/art-tracker/dist/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
