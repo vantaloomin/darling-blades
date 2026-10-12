@@ -9,6 +9,8 @@ import type { StoryCharacter } from './types';
  * run plays. Persephone's and Yutu's decks are stand-ins so every character is
  * a complete, validated entry; wave 3 replaces all three with the Core Set II
  * starter pools (docs/plan-story-mode.md, Dependencies on Core Set II).
+ * Starters are 30 cards (owner ruling 2026-10-12): at 20 the run deck ran out
+ * before the avatars' decks did.
  */
 
 export const GUAN_YU_ID = 'guan-yu';
@@ -23,22 +25,22 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
     colors: ['W', 'R'],
     starterDeck: [
       // Early Shu and Three Kingdoms bodies
-      'tk-wu-handang',
+      'tk-wu-handang', 'tk-wu-handang',
       'tk-shu-guansuo', 'tk-shu-guansuo',
       'tk-other-huaxiong', 'tk-other-huaxiong',
-      'tk-other-lulingqi',
+      'tk-other-lulingqi', 'tk-other-lulingqi',
       'tk-shu-wangping', 'tk-shu-wangping',
-      'tk-wu-chengpu',
-      'tk-shu-liushan',
+      'tk-wu-chengpu', 'tk-wu-chengpu',
+      'tk-shu-liushan', 'tk-shu-liushan',
       'tk-shu-machao', 'tk-shu-machao',
-      'tk-jin-wenyang',
-      'tk-other-yuanshao',
+      'tk-jin-wenyang', 'tk-jin-wenyang',
+      'tk-other-yuanshao', 'tk-other-yuanshao',
       // Cheap tricks and reach
       'in-fire-attack', 'in-fire-attack',
-      'in-shieldwall',
-      'so-flame-lash',
-      'so-muster-militia',
-      'so-lava-axe',
+      'in-shieldwall', 'in-shieldwall',
+      'so-flame-lash', 'so-flame-lash',
+      'so-muster-militia', 'so-muster-militia',
+      'so-lava-axe', 'so-lava-axe',
     ],
     landReserve: [
       'ld-beacon-ridge', 'ld-beacon-ridge',
@@ -65,20 +67,20 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
     darlingId: 'gk-persephone',
     colors: ['B', 'G'],
     starterDeck: [
-      'rg-dire-pup',
-      'rg-corpse-taker', 'rg-corpse-taker',
+      'rg-dire-pup', 'rg-dire-pup',
+      'rg-corpse-taker', 'rg-corpse-taker', 'rg-corpse-taker',
       'bk-bearkin-guardian', 'bk-bearkin-guardian',
       'rg-wolf-pack-runner', 'rg-wolf-pack-runner',
       'rg-bog-lurker', 'rg-bog-lurker',
       'gk-pan', 'gk-pan',
-      'gk-thanatos',
-      'rg-frost-jotun',
-      'rg-plaguebearer-draugr',
-      'rg-elder-jotun',
-      'in-grave-chill', 'in-grave-chill',
-      'in-valley-mist',
-      'so-creeping-malaise',
-      'in-wild-surge',
+      'gk-thanatos', 'gk-thanatos',
+      'rg-frost-jotun', 'rg-frost-jotun',
+      'rg-plaguebearer-draugr', 'rg-plaguebearer-draugr',
+      'rg-elder-jotun', 'rg-elder-jotun',
+      'in-grave-chill', 'in-grave-chill', 'in-grave-chill',
+      'in-valley-mist', 'in-valley-mist',
+      'so-creeping-malaise', 'so-creeping-malaise',
+      'in-wild-surge', 'in-wild-surge',
     ],
     landReserve: [
       'ld-asphodel-meadow', 'ld-asphodel-meadow',
@@ -100,20 +102,20 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
     darlingId: 'cs2-yutu',
     colors: ['W', 'U'],
     starterDeck: [
-      'bk-bunny-vanguard', 'bk-bunny-vanguard',
+      'bk-bunny-vanguard', 'bk-bunny-vanguard', 'bk-bunny-vanguard',
       'bk-mousekin-pantry-guard', 'bk-mousekin-pantry-guard',
-      'gk-hoplite', 'gk-hoplite',
+      'gk-hoplite', 'gk-hoplite', 'gk-hoplite',
       'bk-kitsune-illusionist', 'bk-kitsune-illusionist',
       'bk-mermaid-chartsinger', 'bk-mermaid-chartsinger',
       'bk-holstaur-milkmaid', 'bk-holstaur-milkmaid',
-      'gk-selene',
-      'gk-eos',
-      'in-shieldwall',
-      'in-tidal-slip',
-      'in-undertow',
-      'in-empty-fort-stratagem',
-      'so-divination',
-      'so-muster-militia',
+      'gk-selene', 'gk-selene',
+      'gk-eos', 'gk-eos',
+      'in-shieldwall', 'in-shieldwall',
+      'in-tidal-slip', 'in-tidal-slip',
+      'in-undertow', 'in-undertow',
+      'in-empty-fort-stratagem', 'in-empty-fort-stratagem',
+      'so-divination', 'so-divination',
+      'so-muster-militia', 'so-muster-militia',
     ],
     landReserve: [
       'ld-misty-palace-terrace', 'ld-misty-palace-terrace',
