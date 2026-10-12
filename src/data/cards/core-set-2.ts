@@ -3030,7 +3030,7 @@ export const CORE_SET_2: readonly CardDef[] = [
     rarity: 'c',
     set: 'core-set-2',
   },
-  // When this arrives, claim the Mandate.
+  // When this arrives, claim the Mandate. {2}, {T}: Foresee 1.
   {
     id: 'cs2-mandate-tally-stone',
     name: 'Tally-Stone of the Mandate',
@@ -3039,6 +3039,7 @@ export const CORE_SET_2: readonly CardDef[] = [
     cost: cost(1),
     colors: [],
     abilities: [{ when: 'arrives', ops: [{ op: 'claimMandate' }] }],
+    activated: { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'foresee', n: 1 }] },
     rarity: 'c',
     set: 'core-set-2',
   },
@@ -3066,7 +3067,7 @@ export const CORE_SET_2: readonly CardDef[] = [
     rarity: 'c',
     set: 'core-set-2',
   },
-  // When this arrives, draw two cards.
+  // When this arrives, draw two cards. {2}, {T}: Gain 1 life.
   {
     id: 'cs2-supply-cart',
     name: 'Supply Cart of the Army',
@@ -3075,6 +3076,7 @@ export const CORE_SET_2: readonly CardDef[] = [
     cost: cost(4),
     colors: [],
     abilities: [{ when: 'arrives', ops: [{ op: 'draw', n: 2 }] }],
+    activated: { cost: { tap: true, mana: cost(2) }, ops: [{ op: 'gainLife', n: 1 }] },
     rarity: 'c',
     set: 'core-set-2',
   },
@@ -3090,15 +3092,15 @@ export const CORE_SET_2: readonly CardDef[] = [
     rarity: 'c',
     set: 'core-set-2',
   },
-  // When this arrives, tap target creature an opponent controls. Foresee 1.
+  // Charm (an artifact until 2026-10-12, owner's ruling). tap target creature an opponent controls. Foresee 1.
   {
     id: 'cs2-signal-drum',
     name: 'Signal Drum of the Watch',
-    types: ['artifact'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(1),
     colors: [],
-    abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'foresee', n: 1 }] }],
     rarity: 'c',
     set: 'core-set-2',
   },
@@ -3152,15 +3154,15 @@ export const CORE_SET_2: readonly CardDef[] = [
     rarity: 'c',
     set: 'core-set-2',
   },
-  // When this arrives, tap target creature an opponent controls. Gain 2 life.
+  // Charm (an artifact until 2026-10-12, owner's ruling). tap target creature an opponent controls. Gain 2 life.
   {
     id: 'cs2-moon-gate-bell',
     name: 'Bell of the Moon Gate',
-    types: ['artifact'],
+    types: ['charm'],
     subtypes: [],
     cost: cost(0, 'W'),
     colors: ['W'],
-    abilities: [{ when: 'arrives', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'gainLife', n: 2 }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'opponentCreature' }], ops: [{ op: 'tap', to: 'target' }, { op: 'gainLife', n: 2 }] }],
     rarity: 'c',
     set: 'core-set-2',
   },
@@ -3260,15 +3262,15 @@ export const CORE_SET_2: readonly CardDef[] = [
     rarity: 'c',
     set: 'core-set-2',
   },
-  // When this arrives, return target creature card with mana value 3 or less from your graveyard to your hand.
+  // Ritual (an artifact until 2026-10-12, owner's ruling). return target creature card with mana value 3 or less from your graveyard to your hand.
   {
     id: 'cs2-funeral-mask',
     name: 'Funeral Mask of the Underworld',
-    types: ['artifact'],
+    types: ['ritual'],
     subtypes: [],
     cost: cost(0, 'B'),
     colors: ['B'],
-    abilities: [{ when: 'arrives', targets: [{ what: 'yourGraveCreature', maxCost: 3 }], ops: [{ op: 'reclaim' }] }],
+    abilities: [{ when: 'spell', targets: [{ what: 'yourGraveCreature', maxCost: 3 }], ops: [{ op: 'reclaim' }] }],
     rarity: 'c',
     set: 'core-set-2',
   },
