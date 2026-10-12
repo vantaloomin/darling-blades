@@ -13,6 +13,9 @@ import type { StoryCharacter } from '../../data/story/types';
 import { isBasicLand, isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS, reserveColorIdentity } from '../warchest';
 import { isStoryDeckCard } from './storyMap';
 
+/** Starter deck size (owner ruling 2026-10-12: 30, up from the planned 15 to 20, which decked out). */
+export const STARTER_DECK_SIZE = 30;
+
 /**
  * Problems in one character entry. Wave 1 decks and pools use shipped cards
  * only: Core Set II is not live, so a card from it would be unobtainable in a
@@ -43,8 +46,8 @@ export function validateStoryCharacter(db: CardDb, character: StoryCharacter): s
       }
     }
   };
-  if (character.starterDeck.length < 15 || character.starterDeck.length > 20) {
-    problems.push(`${where}: starter deck has ${character.starterDeck.length} cards (15 to 20)`);
+  if (character.starterDeck.length !== STARTER_DECK_SIZE) {
+    problems.push(`${where}: starter deck has ${character.starterDeck.length} cards (${STARTER_DECK_SIZE})`);
   }
   checkList('starter', character.starterDeck);
   checkList('reward', character.rewardPool);
