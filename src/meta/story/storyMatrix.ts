@@ -31,7 +31,8 @@ export type StoryMatrixRun =
       characterId: string;
       seed: number;
       cleared: boolean;
-      nodes: readonly Pick<HeadlessNodeSummary, 'floor' | 'kind' | 'result' | 'turns' | 'endReason'>[];
+      nodes: readonly (Pick<HeadlessNodeSummary, 'floor' | 'kind' | 'result' | 'turns' | 'endReason'> &
+        Partial<Pick<HeadlessNodeSummary, 'avatarId'>>)[];
     }
   | { characterId: string; seed: number; error: { kind: 'threw' | 'hung'; message: string } };
 
@@ -53,6 +54,12 @@ export interface StoryCharacterReport {
   lostOnFloor: number[];
   duels: StoryDuelTally;
   byKind: Record<StoryMatrixDuelKind, StoryDuelTally>;
+  /**
+   * Elite and boss duels by opponent id, in first-met order (owner ruling D2,
+   * 2026-10-13, compares the boss with each elite). Nodes without an avatar id
+   * are left out.
+   */
+  byOpponent: { kind: 'elite' | 'boss'; avatarId: string; tally: StoryDuelTally }[];
   /** Mean of each duel's last game turn (both players' turns count), over every duel played (null with none). */
   meanTurns: number | null;
   /** How the heroine's duels were lost. */
@@ -70,6 +77,7 @@ function emptyReport(characterId: string, floors: number): StoryCharacterReport 
     lostOnFloor: Array.from({ length: floors }, () => 0),
     duels: { wins: 0, losses: 0 },
     byKind: { fight: { wins: 0, losses: 0 }, elite: { wins: 0, losses: 0 }, boss: { wins: 0, losses: 0 } },
+    byOpponent: [],
     meanTurns: null,
     lossesBy: { life: 0, deck: 0, other: 0 },
     impossible: [],
@@ -108,6 +116,17 @@ export function foldStoryMatrix(runs: readonly StoryMatrixRun[], floors: number)
       if (!isDuelKind(node.kind) || node.result === undefined) continue;
       const won = node.result === 'win';
       const tally = report.byKind[node.kind];
+      if (node.kind !== 'fight' && node.avatarId) {
+        const kind = node.kind;
+        const avatarId = node.avatarId;
+        let entry = report.byOpponent.find((e) => e.kind === kind && e.avatarId === avatarId);
+        if (!entry) {
+          entry = { kind, avatarId, tally: { wins: 0, losses: 0 } };
+          report.byOpponent.push(entry);
+        }
+        if (won) entry.tally.wins++;
+        else entry.tally.losses++;
+      }
       if (won) {
         tally.wins++;
         report.duels.wins++;
@@ -187,6 +206,14 @@ export function renderStoryMatrix(reports: readonly StoryCharacterReport[], seed
   const ffmt = (cells: string[]): string => cells.map((c, i) => c.padEnd(fw[i])).join('  ').trimEnd();
   lines.push(ffmt(floorHeader));
   for (const row of floorRows) lines.push(ffmt(row));
+  lines.push('');
+  lines.push('Elites and boss by opponent (W-L when met):');
+  for (const r of reports) {
+    const cells = [...r.byOpponent]
+      .sort((x, y) => (x.kind === y.kind ? x.avatarId.localeCompare(y.avatarId) : x.kind === 'elite' ? -1 : 1))
+      .map((e) => `${e.kind === 'boss' ? 'boss ' : ''}${e.avatarId} ${wl(e.tally)}`);
+    lines.push(`  ${r.characterId}: ${cells.length > 0 ? cells.join(', ') : '-'}`);
+  }
   const impossible = reports.flatMap((r) => r.impossible.map((x) => `  ! ${r.characterId} seed ${x.seed} ${x.kind}: ${x.message}`));
   lines.push('');
   if (impossible.length === 0) lines.push('IMPOSSIBLE SEEDS: none.');

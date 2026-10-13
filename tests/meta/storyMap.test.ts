@@ -61,6 +61,7 @@ describe('story content', () => {
     expect(has(/unknown avatar no-such-avatar/)).toBe(true);
     // Gongsun Zan is a Medium elite; as a fight she is as strong as the other elites.
     expect(has(/act act1: every elite must be a stronger avatar than every fight/)).toBe(true);
+    expect(has(/act act1: the boss must be a stronger avatar than every elite/)).toBe(false);
     expect(has(/unknown speaker nobody/)).toBe(true);
     expect(has(/line 2: empty text/)).toBe(true);
     expect(has(/guan-yu: has 0 opening scenes/)).toBe(true);
@@ -87,7 +88,7 @@ describe('Act 1 map generation', () => {
         const allowed = ACT1.mapTemplate.floors[f].kinds;
         if (f === 8) {
           expect(floor.map((node) => node.kind)).toEqual(['boss']);
-          expect(floor[0].avatarId).toBe('simayi');
+          expect(floor[0].avatarId).toBe(ACT1.bossAvatarId);
         } else {
           expect(floor.length).toBeGreaterThanOrEqual(2);
           expect(floor.length).toBeLessThanOrEqual(3);
@@ -110,6 +111,13 @@ describe('Act 1 map generation', () => {
         expect(duels).toBeLessThanOrEqual(6);
       }
     }
+  });
+
+  it('reports a boss who is not a stronger avatar than every elite (owner ruling D2)', () => {
+    // The Tower's Sima Yi is a Medium brain, like the elites: as Act 1's boss she would not be the hardest fight.
+    const content = { ...SHIPPED_STORY_CONTENT, acts: [{ ...SHIPPED_STORY_CONTENT.acts[0], bossAvatarId: 'simayi' }] };
+    const report = checkStoryContent(CARD_DB, { content, missingArt: () => [] });
+    expect(report.errors).toContain('act act1: the boss must be a stronger avatar than every elite');
   });
 
   it('puts elites against stronger avatars than ordinary fights', () => {

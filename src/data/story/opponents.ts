@@ -1,12 +1,16 @@
 import { makePersonality } from '../../ai/personality';
 import { AVATARS, avatarById, type Avatar } from '../opponents';
 
+const TOWER_SIMAYI: Avatar = avatarById('simayi');
+
 /**
- * Story Mode's own opponents (docs/plan-story-mode.md, wave 3; owner ruling W3,
- * 2026-10-13): the three Act 1 elites whose intros the approved script already
- * carries (src/data/story/script.ts, `elite-intro-*`). They are NOT Tower
- * avatars: AVATARS' tiers 1..28 are unique and drive the Tower, the avatar
- * gates and the balance tests, so these live here and never join that list.
+ * Story Mode's own opponents (docs/plan-story-mode.md, wave 3): the three Act 1
+ * elites whose intros the approved script already carries
+ * (src/data/story/script.ts, `elite-intro-*`; owner ruling W3, 2026-10-13),
+ * and Act 1's boss, a Story-only Sima Yi (owner ruling D2, 2026-10-13). They
+ * are NOT Tower avatars: AVATARS' tiers 1..28 are unique and drive the Tower,
+ * the avatar gates and the balance tests, so these live here and never join
+ * that list.
  *
  * Each uses the Avatar shape so the story duel, the duel screen and replays
  * read them like any avatar. A story duel is always a Darlings duel
@@ -14,18 +18,18 @@ import { AVATARS, avatarById, type Avatar } from '../opponents';
  * `difficulty` and `personality`), so the classic `deck` and the Warchest
  * `reserveDeck` are empty, and `tier` is 0: not a Tower rung.
  *
- * The Darlings lists come from the themed builder
+ * The elites' Darlings lists come from the themed builder
  * (scripts/darlingsDeckBuilder.ts, run with Core Set II live) over commons
  * only, plus each elite's own hint cards for Gongsun Zan and Shanjun, with a
  * few themes left out so the list plays its blurb: Gongsun Zan takes no walls,
  * lifegain, sweepers or bodies of power 1 or less; Penthesilea and Shanjun
- * take no sweepers. They pass the
- * validator the Tower avatars pass (validateDarlingsDeck: 79 singletons in
- * the Darling's colours, no other legendary creature). Strength: Medium
- * brains, a harder brain than the Easy Tower rungs Act 1's fights draw from
- * (check-story's elite rule). Measured against the boss (plan doc, story
- * matrix, 2026-10-13), the elites are easier than Sima Yi for Guan Yu but a
- * little harder for Persephone and Yutu.
+ * take no sweepers. Every list here passes the validator the Tower avatars
+ * pass (validateDarlingsDeck: 79 singletons in the Darling's colours, no
+ * other legendary creature). Strength: the elites are Medium brains, a harder
+ * brain than the Easy Tower rungs Act 1's fights draw from, and the boss is a
+ * Hard brain, harder than every elite (check-story's elite and boss rules).
+ * The story matrix (plan doc, Measurement) has each heroine winning less often
+ * against the boss than against any elite.
  */
 export const STORY_OPPONENTS: readonly Avatar[] = [
   {
@@ -342,6 +346,100 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       'dd-tide-worn-brute',
     ],
     darlingId: 'cs2-shanjun',
+  },
+  {
+    // Act 1's boss (owner ruling D2, 2026-10-13): the Tower's Sima Yi (rung 6)
+    // with her own Story list and a Hard brain, so she is the hardest fight of
+    // the act. Name, title, blurb, portrait, personality and land reserve are
+    // the Tower avatar's; the Tower avatar itself never changes (it drives the
+    // ladder and the win-rate gates).
+    ...TOWER_SIMAYI,
+    id: 'simayi-mandate',
+    tier: 0,
+    difficulty: 'hard',
+    deck: [],
+    reserveDeck: [],
+    darlingsDeck: [
+      'in-reapers-due',
+      'so-night-extortion',
+      'fdc-nirra-bo',
+      'cf-badb-cathas-warning',
+      'fd-kree-wind-crest',
+      'in-doom-bolt',
+      'cs2-jin-chronicler',
+      'gm-nocturne-manor',
+      'cs2-oath-on-the-styx',
+      'gm-dracula-ball-invite',
+      'sd-the-last-chart-of-the-duat',
+      'cs2-heavens-edict',
+      'sd-keeper-of-the-fifth-channel',
+      'sb-voidcurrent-conjurer',
+      'cs2-river-court-diver',
+      'fd-rise-from-tar',
+      'sb-violet-wake-beacon',
+      'cs2-hecatomb',
+      'en-persephones-return',
+      'gm-black-lace-pact',
+      'dd-drowned-bell-choir',
+      'ac-queen-regents-command',
+      'in-dream-fracture',
+      'cf-mist-over-tara',
+      'cs2-jin-poison-cup',
+      'cs2-unheeded-warning',
+      'dt-thirteenth-spindle',
+      'ac-fallen-banner',
+      'dd-salt-in-the-wound',
+      'cs2-judgment-of-hades',
+      'fd-swallowed-by-tar',
+      'fdr-ash-rite',
+      'gm-lightning-rod-spire',
+      'dt-apple-of-endless-sleep',
+      'ac-lantern-in-fog',
+      'cf-glimmerdust-trick',
+      'cs2-otters-slip',
+      'dd-drowned-scholar',
+      'fd-egg-of-first-dawn',
+      'tk-wei-chenqun',
+      'bk-spiderkin-weaver',
+      'so-dirge-of-loss',
+      'tk-jin-jiachong',
+      'bk-lamia-nightblade',
+      'cs2-ghost-cat',
+      'tk-wei-jiaxu',
+      'yn-network-sprite',
+      'cs2-moon-palace-cat',
+      'cs2-dragon-banner',
+      'ac-oathbroken-knight',
+      'cs2-shade-of-tartarus',
+      'gk-hermes',
+      'cs2-moon-palace-kitten',
+      'sd-chart-keeper-of-the-two-ways',
+      'sd-navigator-of-the-last-channel',
+      'gm-batcloak-cutthroat',
+      'dd-drowned-lighthouse-keeper',
+      'tk-wei-zhenji',
+      'gk-nyx',
+      'bk-batkin-duskwing',
+      'tk-wei-wangyi',
+      'tk-wei-zhanghe',
+      'bk-crowkin-shrike',
+      'gm-screaming-staircase',
+      'ar-training-dummy',
+      'sb-propagation-engine',
+      'cs2-eight-trigrams',
+      'dd-wharf-rat',
+      'tk-other-dongbai',
+      'tk-wu-xiaoqiao',
+      'cs2-jin-assassin-initiate',
+      'gm-stitched-footman',
+      'cs2-mandate-tally-stone',
+      'dd-undertow-charm',
+      'dt-sea-glass-knife',
+      'tk-wei-manchong',
+      'sb-ossuary-gate',
+      'tk-jin-zhonghui',
+      'cf-bean-sidhe-keening',
+    ],
   },
 ];
 

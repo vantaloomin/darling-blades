@@ -46,6 +46,20 @@ describe('story opponents', () => {
     }
   });
 
+  it("plays Act 1's boss as a Story-only Sima Yi, leaving the Tower's Sima Yi as it is (owner ruling D2)", () => {
+    const tower = avatarById('simayi');
+    for (const act of STORY_ACTS) {
+      const boss = storyAvatarById(act.bossAvatarId);
+      expect(isStoryOpponentId(boss.id), boss.id).toBe(true);
+      expect(boss).not.toBe(tower);
+      // The same Sima Yi on the duel screen and in her scenes: name, portrait and Darling.
+      expect([boss.name, boss.portraitCardId, boss.darlingId]).toEqual([tower.name, tower.portraitCardId, tower.darlingId]);
+      expect(boss.difficulty).toBe('hard');
+    }
+    // The Tower rung still fields its own Medium list.
+    expect(tower).toMatchObject({ tier: 6, difficulty: 'medium' });
+  });
+
   it('fields Darlings decks that pass the validator the Tower avatars pass, with no dead-target cards', () => {
     const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
     for (const opponent of STORY_OPPONENTS) {
