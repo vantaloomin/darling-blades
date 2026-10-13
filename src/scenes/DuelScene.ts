@@ -9641,9 +9641,21 @@ export class DuelScene extends Phaser.Scene {
       this.scene.start('Story');
     };
 
+    // Rows stack from the headline down, so the panel is only as tall as the
+    // lines this result has: with an unlock line and a gold line it is the
+    // 340px panel the other results use; without them the band closes up.
+    const runY = 318;
+    const unlockY = copy.unlockLine ? runY + 42 : null;
+    const rewardY = rewardCopy ? (unlockY ?? runY) + (unlockY === null ? 42 : 38) : null;
+    const buttonsY = (rewardY ?? unlockY ?? runY) + 58;
+    // The full stack (262..456) sits in 190..530: 72px above the headline, 74px below the buttons.
+    const panelHeight = buttonsY - 262 + 72 + 74;
+    const shift = (340 - panelHeight) / 2;
+    const at = (y: number): number => y + shift;
+
     const shell = modalShell(this, {
       width: 620,
-      height: 340,
+      height: panelHeight,
       dimAlpha: 0.82,
       dismissal: 'esc-only',
       depth: theme.depth.results,
@@ -9657,7 +9669,7 @@ export class DuelScene extends Phaser.Scene {
     const reasonCopy = resultReasonCopy(won, reason);
     c.add(
       this.add
-        .text(640, 262, copy.headline, {
+        .text(640, at(262), copy.headline, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.display}px`,
           fontStyle: theme.weight.w700,
@@ -9667,7 +9679,7 @@ export class DuelScene extends Phaser.Scene {
     );
     c.add(
       this.add
-        .text(640, 318, `${copy.runLine}${reasonCopy ? `  ${reasonCopy}` : ''}`, {
+        .text(640, at(runY), `${copy.runLine}${reasonCopy ? `  ${reasonCopy}` : ''}`, {
           fontFamily: theme.fonts.ui,
           fontSize: `${theme.type.body}px`,
           color: theme.colors.muted,
@@ -9677,11 +9689,11 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0.5),
     );
-    const rows: { y: number; wrapWidth?: number }[] = [{ y: 262 }, { y: 318, wrapWidth: 540 }];
-    if (copy.unlockLine) {
+    const rows: { y: number; wrapWidth?: number }[] = [{ y: at(262) }, { y: at(runY), wrapWidth: 540 }];
+    if (copy.unlockLine && unlockY !== null) {
       c.add(
         this.add
-          .text(640, 360, copy.unlockLine, {
+          .text(640, at(unlockY), copy.unlockLine, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.body}px`,
             fontStyle: theme.weight.w600,
@@ -9692,12 +9704,12 @@ export class DuelScene extends Phaser.Scene {
           })
           .setOrigin(0.5),
       );
-      rows.push({ y: 360, wrapWidth: 540 });
+      rows.push({ y: at(unlockY), wrapWidth: 540 });
     }
-    if (rewardCopy) {
+    if (rewardCopy && rewardY !== null) {
       c.add(
         this.add
-          .text(640, 398, rewardCopy, {
+          .text(640, at(rewardY), rewardCopy, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.label}px`,
             color: theme.colors.gold,
@@ -9707,11 +9719,11 @@ export class DuelScene extends Phaser.Scene {
           })
           .setOrigin(0.5),
       );
-      rows.push({ y: 398, wrapWidth: 540 });
+      rows.push({ y: at(rewardY), wrapWidth: 540 });
     }
 
     const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
-      const btn = themedButton(this, x, 456, label, {
+      const btn = themedButton(this, x, at(buttonsY), label, {
         variant,
         minWidth: 170,
         onTap: (p) => {
@@ -9728,8 +9740,8 @@ export class DuelScene extends Phaser.Scene {
       mk(510, 'Story', 'primary', toStory);
       mk(770, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
     }
-    rows.push({ y: 456 });
-    fitDuelModal(this, shell, { width: 620, height: 340, rows });
+    rows.push({ y: at(buttonsY) });
+    fitDuelModal(this, shell, { width: 620, height: panelHeight, rows });
     this.guard.open(this.overlayGuardTargets());
   }
 

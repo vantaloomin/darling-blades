@@ -92,6 +92,7 @@ import {
   type EventChoiceProgress,
 } from '../ui/storyDialogue';
 import { colorInt, theme } from '../ui/theme';
+import { Toast } from '../ui/Toast';
 import {
   DEPTH,
   drawChoicePanel,
@@ -322,6 +323,11 @@ export class StoryScene extends Phaser.Scene {
       return this.buildEvent(screen.run, screen.node);
     }
     this.chrome(true);
+    // The toast host, for notices queued on the way here (a refused story
+    // duel, achievements from the duel's result). Not on event screens, whose
+    // steps clear everything drawn after the still, nor over script scenes:
+    // their notices wait for the next screen that mounts one.
+    new Toast(this, { modalGuard: this.guard });
     switch (screen.kind) {
       case 'select': return this.buildSelect();
       case 'boon': return this.buildBoon(screen.run, screen.offers);
