@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -514,6 +514,97 @@ const drawEye: Draw = (ctx, c) => {
   ctx.fill();
 };
 
+/** A lens with a handle (search, where the field folds away). */
+const drawSearch: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(c - 5, c - 5, 13, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c + 5, c + 5);
+  ctx.lineTo(c + 18, c + 18);
+  ctx.stroke();
+};
+
+/** A funnel (filters). */
+const drawFilter: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(c - 20, c - 16);
+  ctx.lineTo(c + 20, c - 16);
+  ctx.lineTo(c + 5, c + 2);
+  ctx.lineTo(c + 5, c + 18);
+  ctx.lineTo(c - 5, c + 12);
+  ctx.lineTo(c - 5, c + 2);
+  ctx.closePath();
+  ctx.stroke();
+};
+
+/** An arrow up out of a tray (share a deck code). */
+const drawShare: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(c, c + 6);
+  ctx.lineTo(c, c - 20);
+  ctx.moveTo(c - 11, c - 9);
+  ctx.lineTo(c, c - 20);
+  ctx.lineTo(c + 11, c - 9);
+  ctx.moveTo(c - 10, c - 2);
+  ctx.lineTo(c - 18, c - 2);
+  ctx.lineTo(c - 18, c + 19);
+  ctx.lineTo(c + 18, c + 19);
+  ctx.lineTo(c + 18, c - 2);
+  ctx.lineTo(c + 10, c - 2);
+  ctx.stroke();
+};
+
+/** A plus (add one, a new deck). */
+const drawPlus: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c, c - 17);
+  ctx.lineTo(c, c + 17);
+  ctx.moveTo(c - 17, c);
+  ctx.lineTo(c + 17, c);
+  ctx.stroke();
+};
+
+/** A minus (remove one). */
+const drawMinus: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 17, c);
+  ctx.lineTo(c + 17, c);
+  ctx.stroke();
+};
+
+/** A triangle with a bang (a deck that needs fixing). */
+const drawWarning: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(c, c - 20);
+  ctx.lineTo(c + 21, c + 17);
+  ctx.lineTo(c - 21, c + 17);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c, c - 7);
+  ctx.lineTo(c, c + 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c, c + 11, 3, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -543,6 +634,12 @@ const DRAW: Record<UiIconName, Draw> = {
   star: drawStar,
   close: drawClose,
   eye: drawEye,
+  search: drawSearch,
+  filter: drawFilter,
+  share: drawShare,
+  plus: drawPlus,
+  minus: drawMinus,
+  warning: drawWarning,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {
