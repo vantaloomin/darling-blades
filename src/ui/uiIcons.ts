@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -499,6 +499,21 @@ const drawInfo: Draw = (ctx, c) => {
   ctx.fill();
 };
 
+/** An open eye (Preview deck). */
+const drawEye: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(c - 24, c);
+  ctx.quadraticCurveTo(c, c - 26, c + 24, c);
+  ctx.quadraticCurveTo(c, c + 26, c - 24, c);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c, c, 7, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -527,6 +542,7 @@ const DRAW: Record<UiIconName, Draw> = {
   download: drawDownload,
   star: drawStar,
   close: drawClose,
+  eye: drawEye,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

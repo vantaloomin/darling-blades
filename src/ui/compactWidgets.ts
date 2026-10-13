@@ -8,10 +8,11 @@ import { menuNoticeLayout } from './mainMenuPresentation';
 import { sceneStage } from './SceneBackdrop';
 import { bindMenuScroll } from './menuScroll';
 import { createSearchInput, type SearchInputHandle } from './SearchInput';
-import { modalShell, type ModalShell, type ModalShellOptions } from './themeWidgets';
+import { goldBadge, modalShell, type GoldBadge, type ModalShell, type ModalShellOptions } from './themeWidgets';
 import { controlStrokeWidth, themedButtonColors, type ThemedButtonVariant } from './controlStyle';
 import { colorInt, theme } from './theme';
-import { bakeUiIcon, uiIconTinted, type UiIconName } from './uiIcons';
+import { bakeUiIcon, uiIconSize, uiIconTinted, type UiIconName } from './uiIcons';
+import { splitIconLabel } from './iconLabel';
 
 /**
  * The compact profile's drawn controls (docs/plan-mobile-overhaul.md C6):
@@ -56,6 +57,7 @@ export interface CompactButton {
 }
 
 const ICON_GAP = 10;
+const INLINE_GAP = 6;
 const ROW_INSET = 16;
 
 export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opts: CompactButtonOptions): CompactButton {
@@ -65,27 +67,59 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
   const fontSize = opts.fontSize ?? theme.compactType.body;
   const container = scene.add.container(rect.x, rect.y);
   const plate = scene.add.graphics();
-  const label = scene.add.text(0, rect.height / 2, text, {
+  const style = {
     fontFamily: opts.fontFamily ?? theme.fonts.ui,
     fontSize: `${fontSize}px`,
     fontStyle: theme.weight.w600,
     color: colors.fg,
-  }).setOrigin(0, 0.5);
+  };
+  const label = scene.add.text(0, rect.height / 2, '', style).setOrigin(0, 0.5);
   const iconSize = Math.round(fontSize * 1.45);
   const icon = opts.icon
     ? scene.add.image(0, rect.height / 2, bakeUiIcon(scene, opts.icon)).setDisplaySize(iconSize, iconSize)
     : null;
   if (icon && opts.icon && uiIconTinted(opts.icon)) icon.setTint(colorInt(colors.fg));
+  // A label may carry one icon inside it (`Buy · {gold} 525`): the text before
+  // it, the icon at the text's size, then the rest.
+  const inlineSize = uiIconSize(fontSize);
+  const tail = scene.add.text(0, rect.height / 2, '', style).setOrigin(0, 0.5);
+  let inline: { image: Phaser.GameObjects.Image; name: UiIconName } | null = null;
+  const applyText = (next: string): void => {
+    const split = opts.icon ? null : splitIconLabel(next);
+    label.setText(split ? split.head : next);
+    tail.setText(split ? split.tail : '');
+    if (split) {
+      if (!inline) {
+        inline = { image: scene.add.image(0, rect.height / 2, bakeUiIcon(scene, split.icon)), name: split.icon };
+        container.addAt(inline.image, container.getIndex(tail));
+      }
+      inline.name = split.icon;
+      inline.image.setTexture(bakeUiIcon(scene, split.icon)).setDisplaySize(inlineSize, inlineSize).setVisible(true);
+      tintInline();
+    } else inline?.image.setVisible(false);
+  };
+  const tintInline = (): void => {
+    if (!inline) return;
+    if (uiIconTinted(inline.name)) inline.image.setTint(colorInt(colors.fg));
+    else inline.image.clearTint();
+  };
+  const inlineShown = (): boolean => inline?.image.visible ?? false;
   const place = (): void => {
-    const contentW = (icon ? iconSize + (label.text ? ICON_GAP : 0) : 0) + label.width;
+    const inlineW = inlineShown() ? INLINE_GAP + inlineSize + INLINE_GAP + tail.width : 0;
+    const contentW = (icon ? iconSize + (label.text ? ICON_GAP : 0) : 0) + label.width + inlineW;
     const left = opts.align === 'left' ? opts.inset ?? ROW_INSET : Math.round((rect.width - contentW) / 2);
     icon?.setX(left + iconSize / 2);
     label.setX(left + (icon ? iconSize + ICON_GAP : 0));
+    if (inline && inlineShown()) {
+      inline.image.setX(label.x + label.width + INLINE_GAP + inlineSize / 2);
+      tail.setX(label.x + label.width + INLINE_GAP + inlineSize + INLINE_GAP);
+    }
   };
-  place();
   const inputZone = scene.add.zone(rect.width / 2, rect.height / 2, rect.width, rect.height)
     .setInteractive({ useHandCursor: true });
-  container.add([plate, ...(icon ? [icon] : []), label, inputZone]);
+  container.add([plate, ...(icon ? [icon] : []), label, tail, inputZone]);
+  applyText(text);
+  place();
 
   let hovered = false;
   const redraw = (): void => {
@@ -114,9 +148,9 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
     container,
     inputZone,
     label,
-    labelRight: () => label.x + label.width,
+    labelRight: () => (inlineShown() ? tail.x + tail.width : label.x + label.width),
     setLabel: (next) => {
-      label.setText(next);
+      applyText(next);
       place();
     },
     setVariant: (next) => {
@@ -124,7 +158,9 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
       variant = next;
       colors = themedButtonColors(variant);
       label.setColor(colors.fg);
+      tail.setColor(colors.fg);
       if (icon && opts.icon && uiIconTinted(opts.icon)) icon.setTint(colorInt(colors.fg));
+      tintInline();
       redraw();
     },
     setEnabled: (next) => {
@@ -176,6 +212,40 @@ export function compactGoldPill(scene: Phaser.Scene, right: number, centerY: num
   scene.add.image(left + padX + coinSize / 2, centerY, bakeUiIcon(scene, 'gold')).setDisplaySize(coinSize, coinSize);
   amount.setX(left + padX + coinSize + gap);
   return left;
+}
+
+/**
+ * The purse at the top bar's right end when it changes on screen (a buy, a
+ * craft, the shard ritual's count-up): the shared gold badge on a pill, its
+ * right edge at `right`. Returns the badge, whose refresh redraws the pill,
+ * and the pill's left edge with room for one more digit.
+ */
+export function compactPurse(
+  scene: Phaser.Scene,
+  right: number,
+  centerY: number,
+  getValue: () => number,
+): { badge: GoldBadge; left: number } {
+  const height = 38;
+  const padX = 14;
+  const badge = goldBadge(scene, right - padX, centerY, { fontSize: theme.compactType.h2, flashOnChange: true, getValue });
+  const plate = scene.add.graphics();
+  badge.container.addAt(plate, 0);
+  const draw = (): void => {
+    const width = badge.width() + padX * 2;
+    plate.clear()
+      .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+      .fillRoundedRect(padX - width, -height / 2, width, height, height / 2)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(padX - width, -height / 2, width, height, height / 2);
+  };
+  draw();
+  const refresh = badge.refresh;
+  const digit = badge.text.width / Math.max(1, badge.text.text.length);
+  return {
+    badge: { ...badge, refresh: (value?: number) => { refresh(value); draw(); } },
+    left: right - badge.width() - padX * 2 - digit,
+  };
 }
 
 export interface CompactHeader {
