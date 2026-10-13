@@ -42,8 +42,16 @@ import {
   type WingSummary,
 } from '../ui/achievementPresentation';
 import { CardView } from '../ui/CardView';
+import { ACHIEVEMENTS_COMPACT, achievementHallFrames, achievementHallNarrowWidth, achievementRowColumns, compactAchievementsLayout, flowItems } from '../ui/achievementsCompact';
+import { COMPACT } from '../ui/compactLayout';
+import { compactButton, compactHeader, compactSegments, COMPACT_DRAG_SLOP, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import type { Rect } from '../ui/layout';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { addPortraitArt } from '../ui/portraitArt';
+import { ellipsizeText } from '../ui/textFit';
+import { bindTapButton } from '../platform/gestures';
 import { gateOnArt } from '../ui/artGate';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { colorInt, theme } from '../ui/theme';
 import {
@@ -111,6 +119,8 @@ interface AchievementsRoute {
   filter: AchievementFilter;
   view: HallView;
   bucket: HallBucket | 'all';
+  /** Phones: where the list (or the hall) was scrolled, so a claim or a pin comes back to it. */
+  scroll?: number;
 }
 
 /** Dev probe only (`src/dev/wave3PackGlossaryFixtures.ts`): an in-memory save, never persisted. */
@@ -228,7 +238,7 @@ export class AchievementsScene extends Phaser.Scene {
     const PER_PAGE = list.perPage;
     const pageCount = Math.max(1, Math.ceil(filteredStatuses.length / PER_PAGE));
     const page = Math.min(Math.max(0, data.page ?? 0), pageCount - 1);
-    this.route = { page, filter, view, bucket };
+    this.route = { page, filter, view, bucket, scroll: data.scroll ?? 0 };
     const visibleStatuses = filteredStatuses.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
     const unlocked = statuses.filter((s) => s.unlocked).length;
     const claimed = statuses.filter((s) => s.claimed).length;
@@ -242,6 +252,15 @@ export class AchievementsScene extends Phaser.Scene {
       claimAllButton?.setEnabled(false);
       claimButtons.forEach((button) => button.setEnabled(false));
     };
+
+    if (sceneStage(this).compact) {
+      this.data.set('a11yDensity', { actual: [], release: [] });
+      this.buildCompact({
+        statuses, filtered: filteredStatuses, claimable, claimableGold, unlocked, claimed, animationLevel,
+        scroll: data.scroll ?? 0,
+      });
+      return;
+    }
 
     const chrome = sceneHeaderFooter(this, {
       title: 'Achievements',
@@ -809,8 +828,9 @@ export class AchievementsScene extends Phaser.Scene {
 
     // The mutation is already durable. Hold navigation briefly so the scene
     // cannot be torn down halfway through its confirmation choreography.
+    const stage = sceneStage(this);
     const inputShield = this.add
-      .zone(DESIGN_W / 2, DESIGN_H / 2, DESIGN_W, DESIGN_H)
+      .zone(stage.width / 2, stage.height / 2, stage.width, stage.height)
       .setInteractive()
       .setDepth(theme.depth.reveal - 1);
     targets.forEach((target, index) => {
@@ -849,4 +869,434 @@ export class AchievementsScene extends Phaser.Scene {
       this.restartAt({ ...this.route, page: nextPage }),
     );
   }
+
+  // ------------------------------------------------------------------ phones
+
+  /**
+   * The phone composition (mocks M-Achievements, M-AchievementsList): the
+   * hall's five wings or the scrolling list in the main pane, the totals,
+   * the Hall/List switch, the filters and Claim all in the column.
+   */
+  private buildCompact(ctx: {
+    statuses: AchievementStatus[];
+    filtered: AchievementStatus[];
+    claimable: AchievementStatus[];
+    claimableGold: number;
+    unlocked: number;
+    claimed: number;
+    animationLevel: AnimationLevel;
+    scroll: number;
+  }): void {
+    const type = theme.compactType;
+    const L = compactAchievementsLayout(sceneStage(this).content);
+    const toMenu = (): void => { this.scene.start('MainMenu'); };
+    compactHeader(this, L.shell, {
+      title: 'Achievements',
+      subtitle: `${ctx.unlocked}/${ctx.statuses.length} complete · ${ctx.claimable.length} ready to claim · ${ctx.claimed} claimed`,
+      onBack: toMenu,
+    });
+    registerSceneBackNavigation(this, toMenu);
+
+    const claimButtons: CompactButton[] = [];
+    let claimAll: CompactButton | null = null;
+    const disableClaimControls = (): void => {
+      claimAll?.setEnabled(false);
+      claimButtons.forEach((button) => button.setEnabled(false));
+    };
+    const claimTargets = new Map<string, ClaimSealTarget>();
+
+    // The column, top down: the totals (Hall), the switch, the filters (List).
+    const col = L.column;
+    let y = col.y;
+    if (this.route.view === 'hall') y = this.drawCompactTotals(col) + 14;
+    compactSegments(this, { x: col.x, y, width: col.width, height: COMPACT.touch }, ['Hall', 'List'], this.route.view === 'hall' ? 0 : 1, (index) => {
+      const view: HallView = index === 0 ? 'hall' : 'list';
+      if (view !== this.route.view) this.restartAt({ ...this.route, page: 0, view, scroll: 0 });
+    });
+    y += COMPACT.touch + 14;
+    if (this.route.view === 'list') {
+      const chipW = (col.width - COMPACT.gap) / 2;
+      FILTERS.forEach((filter, i) => {
+        const rect = { x: col.x + (i % 2) * (chipW + COMPACT.gap), y: y + Math.floor(i / 2) * (COMPACT.touch + COMPACT.gap), width: chipW, height: COMPACT.touch };
+        compactButton(this, rect, filter.label, {
+          variant: filter.key === this.route.filter ? 'selected' : 'ghost',
+          onTap: () => {
+            if (filter.key !== this.route.filter) this.restartAt({ ...this.route, page: 0, filter: filter.key, scroll: 0 });
+          },
+        });
+      });
+      y += COMPACT.touch * 2 + COMPACT.gap + 14;
+      if (this.route.bucket !== 'all') {
+        // The wing the hall opened the list on; tapping it widens the list to every wing.
+        compactButton(this, { x: col.x, y, width: col.width, height: COMPACT.touch }, `${BUCKET_LABEL[this.route.bucket]}  ✕`, {
+          variant: 'selected',
+          onTap: () => this.restartAt({ ...this.route, page: 0, bucket: 'all', scroll: 0 }),
+        });
+      }
+    }
+    if (ctx.claimable.length > 0) {
+      claimAll = compactButton(this, L.claimAll, `Claim all +${formatGold(ctx.claimableGold)}`, {
+        variant: 'primary',
+        onTap: () => {
+          disableClaimControls();
+          const result = claimAllAchievements(this.saveData);
+          if (result.gold <= 0) {
+            this.restartAt(this.route);
+            return;
+          }
+          this.persist();
+          const targets = result.ids.flatMap((id) => {
+            const target = claimTargets.get(id);
+            return target ? [target] : [];
+          });
+          const fallback = { x: L.claimAll.x + L.claimAll.width / 2, y: L.claimAll.y + L.claimAll.height / 2 };
+          this.playClaimCascade(targets.length > 0 ? targets : [fallback], ctx.animationLevel, () => {
+            Sfx.play('coin');
+            this.restartAt(this.route);
+          });
+        },
+      });
+    }
+
+    if (this.route.view === 'hall') {
+      this.drawCompactHall(ctx.statuses, L.main);
+      return;
+    }
+    if (ctx.filtered.length === 0) {
+      this.add.text(L.main.x + L.main.width / 2, L.main.y + COMPACT.touch, 'No achievements in this state.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+      }).setOrigin(0.5, 0);
+      return;
+    }
+    this.drawCompactList(ctx.filtered, L.main, ctx.scroll, ctx.animationLevel, claimButtons, claimTargets, disableClaimControls);
+  }
+
+  /** The column's totals (M-Achievements): the pool, the special cards and one count per colour. Returns the bottom. */
+  private drawCompactTotals(col: Rect): number {
+    const type = theme.compactType;
+    const completion = collectionCompletion(ALL_CARDS, this.saveData);
+    const line = (y: number, text: string): Phaser.GameObjects.Text => {
+      const t = this.add.text(col.x, y, text, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+        wordWrap: { width: col.width },
+      });
+      return t;
+    };
+    const pool = line(col.y, `Pool ${completion.owned}/${completion.total} · ${progressPercentLabel(completion.percent)}`);
+    const special = line(pool.y + pool.height + 4, `Special cards ${completion.variants.specialCards}`);
+    const top = special.y + special.height + 12;
+    const pip = Math.round(type.body * 1.45);
+    const items = COLOR_KEYS.map((key) => {
+      const row = completion.byColor.find((entry) => entry.key === key);
+      const c = this.add.container(0, 0);
+      const icon = this.add.image(pip / 2, 0, `pip-${key}`).setDisplaySize(pip, pip);
+      const text = this.add.text(pip + 6, 0, `${row?.owned ?? 0}/${row?.total ?? 0}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+      }).setOrigin(0, 0.5);
+      c.add([icon, text]);
+      return { c, width: pip + 6 + text.width, height: Math.max(pip, text.height) };
+    });
+    const lineH = Math.max(...items.map((item) => item.height));
+    const flow = flowItems(col.width, items.map((item) => item.width), lineH, ACHIEVEMENTS_COMPACT.pipGapX, ACHIEVEMENTS_COMPACT.pipGapY);
+    items.forEach((item, i) => item.c.setPosition(col.x + flow.at[i].x, top + flow.at[i].y + lineH / 2));
+    return top + flow.height;
+  }
+
+  /** The Trophy Hall on a phone: five wing cards, three over two, each opening its wing's list. */
+  private drawCompactHall(statuses: AchievementStatus[], main: Rect): void {
+    const C = ACHIEVEMENTS_COMPACT;
+    const type = theme.compactType;
+    const owned = Object.keys(this.saveData.collection);
+    const byId = new Map(statuses.map((status) => [status.def.id, status]));
+    const wings = wingSummaries(statuses);
+    const content = this.add.container(main.x, main.y);
+    const build = (width: number): { cards: { wing: WingSummary; c: Phaser.GameObjects.Container; head: number; plinth: Phaser.GameObjects.Container; plinthH: number }[]; frames: Rect[]; height: number } => {
+      const narrow = achievementHallNarrowWidth(width);
+      const wide = (width - C.wingGap) / 2;
+      const cards = wings.map((wing, index) => {
+        const w = index < 3 ? narrow : wide;
+        const c = this.add.container(0, 0);
+        const name = this.add.text(C.wingPad, C.wingPad, BUCKET_LABEL[wing.bucket], {
+          fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+        });
+        // A long wing name at large text on the smallest phone steps its size down rather than lose letters.
+        for (let size = type.h2; name.width > w - C.wingPad * 2 && size > type.label; size--) name.setFontSize(size - 1);
+        ellipsizeText(name, w - C.wingPad * 2);
+        const ringTop = name.y + name.height + C.wingInnerGap;
+        const ringD = C.ringR * 2 + C.ringStroke;
+        const ringX = C.wingPad + ringD / 2;
+        const countX = C.wingPad + ringD + C.wingInnerGap;
+        const countW = Math.max(0, w - countX - C.wingPad);
+        // The count, then what it counts: "claimed", or (a wing with trophies waiting) how many are ready, in gold.
+        // A wide card has room to say both (M-Achievements' Mastery and Economy).
+        const wideCard = index >= 3;
+        const ready = wing.ready > 0;
+        const count = this.add.text(countX, 0, ready && wideCard ? `${wing.claimed}/${wing.total} claimed` : `${wing.claimed}/${wing.total}`, {
+          fontFamily: theme.fonts.ui, fontSize: `${ready && wideCard ? type.label : type.h2}px`, fontStyle: ready && wideCard ? 'normal' : theme.weight.w700,
+          color: ready && wideCard ? theme.colors.muted : theme.colors.heading,
+        });
+        const note = this.add.text(countX, 0, ready ? `${wing.ready} ready` : 'claimed', {
+          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: ready ? theme.weight.w700 : 'normal',
+          color: ready ? theme.colors.gold : theme.colors.muted,
+        });
+        for (let size = parseFloat(String(count.style.fontSize)); count.width > countW && size > type.label; size--) count.setFontSize(size - 1);
+        ellipsizeText(count, countW);
+        ellipsizeText(note, countW);
+        const block = Math.max(ringD, count.height + note.height);
+        count.setY(ringTop + (block - count.height - note.height) / 2);
+        note.setY(count.y + count.height);
+        const ringY = ringTop + block / 2;
+        // Two owned cards' art lean behind the count, faded, as on the desktop's plinths.
+        const art = wingFurnishings(wing.bucket, owned, index >= 3 ? 2 : 1);
+        art.forEach((cardId, t) => {
+          const artW = Math.min(44, w * 0.26);
+          const rect = { x: w - C.wingPad - artW - t * (artW * 0.55), y: ringTop - 4, width: artW, height: artW * 1.3 };
+          try {
+            const image = addPortraitArt(this, rect.x, rect.y, cardId, (img) => coverFitImage(img, rect, 0.1));
+            if (image) c.addAt(image.setAlpha(0.45).setAngle(t === 0 ? 5 : -6), 0);
+          } catch {
+            // No art for that card: the corner stays bare.
+          }
+        });
+        const gauge = this.add.graphics();
+        gauge.lineStyle(C.ringStroke, theme.graphics.panelStroke, theme.alpha.subtle).strokeCircle(ringX, ringY, C.ringR);
+        if (wing.percent > 0) {
+          gauge.lineStyle(C.ringStroke, colorInt(wing.percent >= 1 ? theme.colors.success : theme.colors.gold), 1);
+          if (wing.percent >= 1) gauge.strokeCircle(ringX, ringY, C.ringR);
+          else gauge.beginPath().arc(ringX, ringY, C.ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * wing.percent, false).strokePath();
+        }
+        const pct = this.add.text(ringX, ringY, progressPercentLabel(wing.percent), {
+          fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w700, color: theme.colors.body,
+        }).setOrigin(0.5);
+        c.add([name, gauge, pct, count, note]);
+        const head = ringTop + block + C.wingInnerGap;
+        // The plinth: the wing's featured trophy, ready (gold) or claimed (green).
+        const featured = wing.featuredId ? byId.get(wing.featuredId) : undefined;
+        let plinth: Phaser.GameObjects.Container;
+        let plinthH: number;
+        const textW = w - C.wingPad * 2 - C.plinthInset * 2;
+        if (featured) {
+          const ready = featured.unlocked && !featured.claimed;
+          plinth = this.add.container(C.wingPad, 0);
+          const title = this.add.text(C.plinthInset, C.plinthPadY, featured.def.title, {
+            fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700,
+            color: ready ? theme.colors.heading : theme.colors.success, wordWrap: { width: textW },
+          });
+          const status = this.add.text(C.plinthInset, title.y + title.height, ready ? 'Ready to claim' : 'Claimed', {
+            fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w700,
+            color: ready ? theme.colors.gold : theme.colors.success, wordWrap: { width: textW },
+          });
+          plinthH = status.y + status.height + C.plinthPadY;
+          const g = this.add.graphics()
+            .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(0, 0, w - C.wingPad * 2, plinthH, theme.radius.control)
+            .lineStyle(theme.control.borderWidth, colorInt(ready ? theme.colors.gold : theme.colors.success), theme.alpha.chrome)
+            .strokeRoundedRect(0, 0, w - C.wingPad * 2, plinthH, theme.radius.control);
+          plinth.add([g, title, status]);
+        } else {
+          plinth = this.add.container(C.wingPad, 0);
+          const empty = this.add.text(0, 0, 'No trophies here yet.', {
+            fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: w - C.wingPad * 2 },
+          });
+          plinth.add(empty);
+          plinthH = empty.height;
+        }
+        c.add(plinth);
+        return { wing, c, head, plinth, plinthH };
+      });
+      const need = (i: number): number => cards[i].head + cards[i].plinthH + C.wingPad;
+      const hall = achievementHallFrames(width, main.height, [Math.max(need(0), need(1), need(2)), Math.max(need(3), need(4))]);
+      return { cards, frames: hall.frames, height: hall.height };
+    };
+    let built = build(main.width);
+    if (built.height > main.height) {
+      built.cards.forEach((card) => card.c.destroy());
+      built = build(main.width - C.thumbLane);
+    }
+    built.cards.forEach(({ wing, c, plinth, plinthH }, i) => {
+      const f = built.frames[i];
+      const bg = this.add.graphics()
+        .fillStyle(theme.graphics.panelFill, theme.alpha.panel).fillRoundedRect(0, 0, f.width, f.height, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, colorInt(wing.ready > 0 ? theme.colors.gold : theme.colors.panelStroke), wing.ready > 0 ? 1 : theme.alpha.chrome)
+        .strokeRoundedRect(0, 0, f.width, f.height, theme.radius.panel);
+      c.addAt(bg, 0).setPosition(f.x, f.y);
+      // The plinth keeps to the card's foot.
+      plinth.setY(f.height - C.wingPad - plinthH);
+      content.add(c);
+    });
+    const scroll = built.height > main.height
+      ? bindMenuScroll(this, content, main, built.height, undefined, [], 0, undefined, this.route.scroll ?? 0)
+      : null;
+    if (scroll) scroll.onScroll = (offset) => { this.route.scroll = offset; };
+    // One tap target over the pane, fixed while the hall scrolls under it: the wing is the card under the tap,
+    // so a card half out of view still opens, and nothing reaches past the pane into the top bar.
+    const tap = this.add.zone(main.x + main.width / 2, main.y + main.height / 2, main.width, main.height).setInteractive({ useHandCursor: true });
+    bindTapButton(this, tap, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP) return;
+      const x = pointer.worldX - main.x;
+      const y = pointer.worldY - main.y + (scroll?.offset() ?? 0);
+      const hit = built.frames.findIndex((f) => x >= f.x && x <= f.x + f.width && y >= f.y && y <= f.y + f.height);
+      if (hit >= 0) this.restartAt({ page: 0, filter: 'all', view: 'list', bucket: built.cards[hit].wing.bucket, scroll: 0 });
+    });
+  }
+
+  /** The list on a phone (M-AchievementsList): every achievement of the filter, scrolling. */
+  private drawCompactList(
+    statuses: readonly AchievementStatus[],
+    main: Rect,
+    initialScroll: number,
+    animationLevel: AnimationLevel,
+    claimButtons: CompactButton[],
+    claimTargets: Map<string, ClaimSealTarget>,
+    disableClaimControls: () => void,
+  ): void {
+    const C = ACHIEVEMENTS_COMPACT;
+    const type = theme.compactType;
+    const build = (rowW: number): { list: Phaser.GameObjects.Container; height: number; adapters: ThemedButton[]; claims: { id: string; button: CompactButton; target: ClaimSealTarget }[] } => {
+      const list = this.add.container(0, main.y);
+      const adapters: ThemedButton[] = [];
+      const claims: { id: string; button: CompactButton; target: ClaimSealTarget }[] = [];
+      let y = 0;
+      for (const status of statuses) {
+        const claimable = status.unlocked && !status.claimed;
+        const claimed = status.claimed;
+        const row = this.add.container(main.x, y);
+        const reward = this.add.text(0, 0, `+${formatGold(status.def.reward.gold)}`, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+          color: claimable ? theme.colors.gold : claimed ? theme.colors.muted : theme.colors.body,
+        }).setOrigin(1, 0.5);
+        let readout: Phaser.GameObjects.Text | null = null;
+        let claimW = 0;
+        if (claimable) {
+          const probe = this.add.text(0, 0, 'Claim', { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
+          claimW = Math.max(84, Math.ceil(probe.width) + 32);
+          probe.destroy();
+        } else {
+          readout = this.add.text(0, 0, `${Math.min(status.current, status.target)}/${status.target} · ${progressPercentLabel(status.percent)}`, {
+            fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+            color: claimed ? theme.colors.muted : theme.colors.body,
+          }).setOrigin(1, 0.5);
+        }
+        const cols = achievementRowColumns(rowW, reward.width, claimable ? claimW : readout!.width);
+        const title = this.add.text(cols.copyX, 0, `${claimed ? '✓ ' : ''}${status.def.title}`, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
+          color: claimed ? theme.colors.success : status.unlocked ? theme.colors.heading : theme.colors.body,
+          wordWrap: { width: cols.copyWidth },
+        });
+        const goal = this.add.text(cols.copyX, 0, `${BUCKET_LABEL[status.def.bucket]} · ${status.def.description}`, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: cols.copyWidth },
+        });
+        const copyH = title.height + 2 + goal.height;
+        const rightH = cols.stacked ? (claimable ? COMPACT.touch : readout!.height) + 4 + reward.height : claimable ? COMPACT.touch : 0;
+        const h = Math.max(COMPACT.touch + 12, copyH + C.rowPadY * 2, rightH + C.rowPadY * 2);
+        const mid = h / 2;
+        title.setY((h - copyH) / 2);
+        goal.setY(title.y + title.height + 2);
+        const plate = this.add.graphics()
+          .fillStyle(claimable ? theme.graphics.rowFillActive : theme.graphics.rowFill, claimed ? theme.alpha.subtle : theme.alpha.panel)
+          .fillRoundedRect(0, 0, rowW, h, theme.radius.control)
+          .lineStyle(theme.control.borderWidth, colorInt(claimable ? theme.colors.gold : theme.colors.panelStroke), claimable ? 1 : theme.alpha.chrome)
+          .strokeRoundedRect(0, 0, rowW, h, theme.radius.control);
+        row.add([plate, title, goal, reward]);
+        // The right-hand block: the readout (or Claim) and the reward, side by side or stacked.
+        const progressRight = cols.progressX + cols.progressWidth;
+        if (cols.stacked) {
+          const upper = claimable ? COMPACT.touch : readout!.height;
+          const top = (h - (upper + 4 + reward.height)) / 2;
+          readout?.setPosition(progressRight, top + upper / 2);
+          reward.setPosition(cols.rewardRight, top + upper + 4 + reward.height / 2);
+        } else {
+          readout?.setPosition(progressRight, mid);
+          reward.setPosition(cols.rewardRight, mid);
+        }
+        if (readout) row.add(readout);
+        const gx = C.gaugeLane / 2 + 2;
+        if (claimed) {
+          // A claimed trophy's ring is full and says nothing: its slot pins it to the Profile showcase.
+          const pinned = this.saveData.achievements.pinned.includes(status.def.id);
+          const size = uiIconSize(type.body);
+          const pin = this.add.image(gx, mid, bakeUiIcon(this, 'pin')).setDisplaySize(size, size)
+            .setTint(colorInt(pinned ? theme.colors.gold : theme.colors.muted)).setAlpha(pinned ? 1 : 0.6);
+          const zone = this.add.zone(gx, mid, COMPACT.touch, COMPACT.touch).setInteractive({ useHandCursor: true });
+          bindTapButton(this, zone, (pointer) => {
+            if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP) return;
+            const save = this.saveData;
+            save.achievements.pinned = togglePin(save.achievements.pinned, status.def.id);
+            if (!this.fixture) Services.save.touch();
+            this.restartAt(this.route);
+          });
+          row.add([pin, zone]);
+          adapters.push(listAdapter(zone, list, { x: main.x + gx - COMPACT.touch / 2, y: y + mid - COMPACT.touch / 2, width: COMPACT.touch, height: COMPACT.touch }));
+        } else {
+          row.add(this.compactGauge(status, gx, mid));
+        }
+        if (claimable) {
+          const rect = { x: cols.progressX, y: cols.stacked ? (h - (COMPACT.touch + 4 + reward.height)) / 2 : mid - COMPACT.touch / 2, width: cols.progressWidth, height: COMPACT.touch };
+          const target = { x: main.x + rect.x + rect.width / 2, y: 0 };
+          const button = compactButton(this, rect, 'Claim', {
+            variant: 'primary',
+            onTap: () => {
+              disableClaimControls();
+              const result = claimAchievement(this.saveData, status.def.id);
+              if (!result.ok) {
+                this.restartAt(this.route);
+                return;
+              }
+              this.persist();
+              this.playClaimCascade([{ x: target.x, y: list.y + row.y + rect.y + rect.height / 2 }], animationLevel, () => {
+                Sfx.play('coin');
+                this.restartAt(this.route);
+              });
+            },
+          });
+          row.add(button.container);
+          adapters.push(listAdapter(button.inputZone, list, { x: main.x + rect.x, y: y + rect.y, width: rect.width, height: rect.height }));
+          claims.push({ id: status.def.id, button, target: { x: target.x, y: y + rect.y + rect.height / 2 } });
+        }
+        list.add(row);
+        y += h + C.rowGap;
+      }
+      return { list, height: Math.max(0, y - C.rowGap), adapters, claims };
+    };
+    let built = build(main.width);
+    if (built.height > main.height) {
+      built.list.destroy();
+      built = build(main.width - C.thumbLane);
+    }
+    const scroll = bindMenuScroll(this, built.list, main, built.height, undefined, built.adapters, 0, undefined, initialScroll);
+    scroll.onScroll = (offset) => { this.route.scroll = offset; };
+    this.route.scroll = scroll.offset();
+    for (const claim of built.claims) {
+      claimButtons.push(claim.button);
+      // Claim all stamps the rows in view; a row scrolled away has nothing to stamp.
+      const y = claim.target.y - scroll.offset();
+      if (y >= 0 && y <= main.height) claimTargets.set(claim.id, { x: claim.target.x, y: main.y + y });
+    }
+  }
+
+  /** A list row's progress ring (M-AchievementsList): the share done, gold, round its lane. */
+  private compactGauge(status: AchievementStatus, x: number, y: number): Phaser.GameObjects.Graphics {
+    const progress = Math.min(1, Math.max(0, status.percent));
+    const r = 15;
+    const gauge = this.add.graphics();
+    gauge.lineStyle(4, theme.graphics.panelStroke, theme.alpha.chrome).strokeCircle(x, y, r);
+    if (progress <= 0) return gauge;
+    gauge.lineStyle(4, colorInt(theme.colors.gold), 1);
+    if (progress >= 1) gauge.strokeCircle(x, y, r);
+    else gauge.beginPath().arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress, false).strokePath();
+    return gauge;
+  }
+}
+
+/** A tap target inside a scrolling list, for `bindMenuScroll` to switch off while it is out of view. */
+function listAdapter(zone: Phaser.GameObjects.Zone, list: Phaser.GameObjects.Container, hit: Rect): ThemedButton {
+  return {
+    container: list,
+    inputZone: zone,
+    // The list moves the container: the hit is in its local space, x in world.
+    getMeasuredBounds: () => ({ hit }),
+    setEnabled: (on: boolean) => {
+      if (on) zone.setInteractive({ useHandCursor: true });
+      else zone.disableInteractive();
+    },
+  } as unknown as ThemedButton;
 }
