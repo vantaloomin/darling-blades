@@ -36,7 +36,7 @@ import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
-import { compactButton, compactIconButton, type CompactButton } from '../ui/compactWidgets';
+import { compactButton, compactDialog, compactGoldPill, compactIconButton, compactScrim, coverFitImage, type CompactButton, type CompactDialogAction } from '../ui/compactWidgets';
 import { compactDailyPage, compactMainMenuLayout, MAIN_MENU_COMPACT, type CompactMainMenuLayout } from '../ui/mainMenuCompact';
 import type { Rect } from '../ui/layout';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -44,7 +44,6 @@ import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import type { ThemedButtonVariant } from '../ui/controlStyle';
 import type { UiIconName } from '../ui/uiIcons';
 import { bakeUiIcon } from '../ui/uiIcons';
-import { formatCount } from '../ui/goldFormat';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { FEATURES } from '../config/features';
 import {
@@ -72,8 +71,6 @@ const COMPACT_NAV: readonly { label: string; scene: string; icon: UiIconName }[]
 ];
 /** Every Daily row's action column: Reroll, Claim +N, Claimed, No rerolls. */
 const DAILY_ACTION_WIDTH = 120;
-/** A menu notice's width on the phone (mock M-NoticeRepair). */
-const COMPACT_NOTICE_W = 520;
 const TUTORIAL_PROMPT_MESSAGE =
   'A quick match teaches the basics: mana, creatures, and combat.\n' +
   'You get the same starting bonus either way, so skipping costs you nothing.\n' +
@@ -324,23 +321,7 @@ export class MainMenuScene extends Phaser.Scene {
 
   /** The gold, a pill in the top bar (not a control). */
   private compactGold(right: number, centerY: number, height: number): void {
-    const type = theme.compactType;
-    const plate = this.add.graphics();
-    const amount = this.add.text(0, centerY, formatCount(Services.save.data.gold), {
-      fontFamily: theme.fonts.ui, fontSize: `${type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
-    }).setOrigin(0, 0.5);
-    const coinSize = Math.round(type.h2 * 1.15);
-    const padX = 14;
-    const gap = 8;
-    const width = padX + coinSize + gap + amount.width + padX;
-    const left = right - width;
-    plate
-      .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
-      .fillRoundedRect(left, centerY - height / 2, width, height, height / 2)
-      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
-      .strokeRoundedRect(left, centerY - height / 2, width, height, height / 2);
-    this.add.image(left + padX + coinSize / 2, centerY, bakeUiIcon(this, 'gold')).setDisplaySize(coinSize, coinSize);
-    amount.setX(left + padX + coinSize + gap);
+    compactGoldPill(this, right, centerY, height, Services.save.data.gold);
   }
 
   /**
@@ -357,16 +338,7 @@ export class MainMenuScene extends Phaser.Scene {
     const cx = rect.x + rect.width / 2;
     const cy = rect.y + rect.height / 2;
     // Cover-fit, faces biased up (the Story picker's crop).
-    const fit = (image: Phaser.GameObjects.Image): void => {
-      const scale = Math.max(rect.width / image.width, rect.height / image.height);
-      image.setScale(scale);
-      const cropW = Math.min(image.width, rect.width / scale);
-      const cropH = Math.min(image.height, rect.height / scale);
-      const cropX = (image.width - cropW) / 2;
-      const cropY = Math.max(0, Math.min(image.height - cropH, (image.height - cropH) / 2 - (rect.height * 0.12) / scale));
-      image.setCrop(cropX, cropY, cropW, cropH);
-      image.setPosition(cx - (cropX + cropW / 2 - image.width / 2) * scale, cy - (cropY + cropH / 2 - image.height / 2) * scale);
-    };
+    const fit = (image: Phaser.GameObjects.Image): void => coverFitImage(image, rect, 0.12);
     let art: Phaser.GameObjects.Image | null = null;
     if (cardId) {
       try {
@@ -381,15 +353,7 @@ export class MainMenuScene extends Phaser.Scene {
       fit(art);
     }
     // A scrim from the middle down, so the record and the label read over any art.
-    // Stepped bands rather than a gradient fill, which not every renderer draws.
-    const scrim = this.add.graphics();
-    const scrimTop = rect.y + rect.height * 0.4;
-    const bands = 12;
-    const bandH = (rect.y + rect.height - scrimTop) / bands;
-    for (let i = 0; i < bands; i++) {
-      scrim.fillStyle(theme.graphics.panelFill, Math.min(0.94, ((i + 1) / bands) * 1.1));
-      scrim.fillRect(rect.x, scrimTop + i * bandH, rect.width, Math.ceil(bandH));
-    }
+    compactScrim(this, rect);
     this.add.graphics()
       .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
       .strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
@@ -688,42 +652,15 @@ export class MainMenuScene extends Phaser.Scene {
   private compactNotice(
     titleText: string,
     messageText: string,
-    secondary: { label: string; onTap: (close: () => void) => void },
-    primary: { label: string; onTap: (close: () => void) => void },
+    secondary: CompactDialogAction,
+    primary: CompactDialogAction,
     onClose: () => void,
   ): void {
-    const type = theme.compactType;
-    const content = sceneStage(this).content;
-    const width = Math.min(COMPACT_NOTICE_W, content.width);
-    const pad = theme.space(6);
-    const title = this.add.text(0, 0, titleText, {
-      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
-      wordWrap: { width: width - 2 * pad },
-    });
-    const message = this.add.text(0, 0, messageText, {
-      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body,
-      wordWrap: { width: width - 2 * pad }, lineSpacing: theme.space(1),
-    });
-    const layout = menuNoticeLayout(width, title.height, message.height);
-    const shell = modalShell(this, {
-      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
-      dismissal: 'mandatory', onClose: () => { this.guard.close(); onClose(); },
+    compactDialog(this, {
+      title: titleText, message: messageText, secondary, primary,
+      onClose: () => { this.guard.close(); onClose(); },
     });
     this.guard.open(this.menuItems);
-    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y + (shell.tracks.titleTrack.height - title.height) / 2);
-    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
-    shell.container.add([title, message]);
-    const footer = shell.tracks.footerTrack;
-    const gap = theme.space(4);
-    const half = (footer.width - gap) / 2;
-    const close = (): void => shell.close();
-    const left = compactButton(this, { x: footer.x, y: footer.y, width: half, height: footer.height }, secondary.label, {
-      onTap: () => secondary.onTap(close),
-    });
-    const right = compactButton(this, { x: footer.x + half + gap, y: footer.y, width: half, height: footer.height }, primary.label, {
-      variant: 'primary', onTap: () => primary.onTap(close),
-    });
-    shell.container.add([left.container, right.container]);
   }
 
   private showDeckRepairNotice(flagged: readonly FlaggedDeckSummary[]): void {

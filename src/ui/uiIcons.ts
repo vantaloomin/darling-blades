@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -374,6 +374,28 @@ const drawChevron: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+/** A left-pointing chevron (the compact back control). */
+const drawBack: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c + 8, c - 18);
+  ctx.lineTo(c - 10, c);
+  ctx.lineTo(c + 8, c + 18);
+  ctx.stroke();
+};
+
+/** A tick (the active deck, a claimed quest). */
+const drawCheck: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 16, c + 1);
+  ctx.lineTo(c - 5, c + 12);
+  ctx.lineTo(c + 17, c - 12);
+  ctx.stroke();
+};
+
 /** A ringed "i" (How to play). */
 const drawInfo: Draw = (ctx, c) => {
   stroked(ctx);
@@ -409,6 +431,8 @@ const DRAW: Record<UiIconName, Draw> = {
   sword: drawSword,
   chevron: drawChevron,
   info: drawInfo,
+  back: drawBack,
+  check: drawCheck,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {
