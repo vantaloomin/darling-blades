@@ -16,7 +16,15 @@ import { TAP_SLOP_PX } from '../platform/gestureCore';
 import { gateOnArt } from '../ui/artGate';
 import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT } from '../ui/compactLayout';
+import { compactButton, compactDialog, compactHeader, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { ModalGuard } from '../ui/Modal';
+import { compactPracticeLayoutFitting, PRACTICE_COMPACT, practiceGridHeight, practiceTilePosition, type CompactPracticeLayout } from '../ui/practiceCompact';
+import { bindTapButton } from '../platform/gestures';
+import { bakeUiIcon } from '../ui/uiIcons';
+import type { Rect } from '../ui/layout';
 import { showDarlingsTutorial } from '../ui/DarlingsTutorial';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import {
@@ -84,6 +92,17 @@ export class PracticePickerScene extends Phaser.Scene {
   private reserveFormatsEnabled = false;
   private a11yFixture = false;
   private fixtureAvatarId: string | null = null;
+  /** The compact (phone) composition's live parts; null on the wide profile. */
+  private compact: {
+    layout: CompactPracticeLayout;
+    tiles: { id: string; plate: Phaser.GameObjects.Graphics; name: Phaser.GameObjects.Text; badge: Phaser.GameObjects.Container; rect: Rect }[];
+    hero: Phaser.GameObjects.GameObject[];
+    blurb: Phaser.GameObjects.Container | null;
+    launch: CompactButton;
+    difficulty: Difficulty;
+  } | null = null;
+  private compactTargets: Phaser.GameObjects.GameObject[] = [];
+  private guard = new ModalGuard();
 
   constructor() {
     super('PracticePicker');
@@ -116,6 +135,9 @@ export class PracticePickerScene extends Phaser.Scene {
     this.selectionLabel = null;
     this.launchNotice = null;
     this.launchNoticeAction = null;
+    this.compact = null;
+    this.compactTargets = [];
+    this.guard = new ModalGuard();
 
     // Design-space constants, NOT this.scale (see src/platform/renderScale.ts).
     const width = 1280;
@@ -145,6 +167,14 @@ export class PracticePickerScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
     Music.setMood('menu');
 
+    // On a phone the picker draws its own compact composition (mock M-Practice).
+    const stage = sceneStage(this);
+    if (stage.compact) {
+      this.buildCompact(stage.content);
+      this.offerDarlingsTutorial();
+      return;
+    }
+
     sceneTitle(this, 'Practice');
     sceneSubtitle(this, 'Choose a rival, then choose how hard they fight.', { fontSize: theme.type.label });
 
@@ -153,7 +183,11 @@ export class PracticePickerScene extends Phaser.Scene {
 
     backButton(this, 'Play', () => this.scene.start('Play'));
     registerSceneBackNavigation(this, () => this.scene.start('Play'));
+    this.offerDarlingsTutorial();
+  }
 
+  /** The once-per-save Darlings explainer, when the active deck is a Darlings deck. */
+  private offerDarlingsTutorial(): void {
     const activeDeck = activeVisibleSavedDeck(
       Services.save.data.decks,
       Services.save.data.activeDeckId,
@@ -167,6 +201,233 @@ export class PracticePickerScene extends Phaser.Scene {
         }),
       });
     }
+  }
+
+  // ------------------------------------------------------------------ compact (phone)
+
+  /** The picker's compact composition: the picked rival, the rival grid, difficulty and the launch. */
+  private buildCompact(content: Rect): void {
+    const type = theme.compactType;
+    const label = this.add.text(0, 0, 'Difficulty', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.muted,
+    });
+    const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
+    const names = roster.map((av) => this.add.text(0, 0, tileName(av.name), {
+      fontFamily: theme.fonts.display, fontSize: `${type.label}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.heading, align: 'center',
+    }).setOrigin(0.5));
+    // Every name in one size (mixed sizes in one list read as a fault): the
+    // largest that holds each name in two lines without breaking a word.
+    const sizes = [type.label, type.label - 1, type.label - 2];
+    const fitAt = (size: number, width: number): boolean => names.map((n, i) => {
+      n.setFontSize(size);
+      wrapTileName(n, tileName(roster[i].name), width);
+      return n.width <= width;
+    }).every(Boolean);
+    const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)));
+    const nameW = layout.tileW - 2 * PRACTICE_COMPACT.nameInset;
+    fitAt(sizes.find((size) => fitAt(size, nameW)) ?? sizes[sizes.length - 1], nameW);
+    label.setPosition(layout.difficultyLabel.x, layout.difficultyLabel.y);
+    const header = compactHeader(this, layout.shell, {
+      title: 'Practice',
+      subtitle: 'Choose a rival, then choose how hard they fight.',
+      onBack: () => this.scene.start('Play'),
+    });
+    this.compactTargets.push(header.back.inputZone);
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
+
+    const difficulties: readonly Difficulty[] = ['easy', 'medium', 'hard'];
+    const segments = compactSegments(this, layout.segments, ['Easy', 'Medium', 'Hard'], 1, (i) => {
+      if (this.compact) this.compact.difficulty = difficulties[i];
+    });
+    this.compactTargets.push(...segments.zones);
+    const launch = compactButton(this, layout.launch, 'Face', {
+      variant: 'primary', fontSize: type.h2, onTap: () => this.startPractice(this.compact?.difficulty ?? 'medium'),
+    });
+    this.compactTargets.push(launch.inputZone);
+    this.compact = { layout, tiles: [], hero: [], blurb: null, launch, difficulty: 'medium' };
+    this.buildCompactGrid(layout, roster, names);
+    this.selectCompactRival(this.selectedAvatarId);
+  }
+
+  /** Every rival, summit first, in a grid that scrolls vertically. */
+  private buildCompactGrid(layout: CompactPracticeLayout, roster: readonly (typeof AVATARS)[number][], names: Phaser.GameObjects.Text[]): void {
+    const { grid, columns, tileW, tileH } = layout;
+    // Even one column too narrow for a name: it keeps its first line whole.
+    const nameW = tileW - 2 * PRACTICE_COMPACT.nameInset;
+    names.forEach((n) => {
+      if (n.width <= nameW) return;
+      const lines = n.text.split('\n');
+      ellipsizeText(n, nameW, lines[0]);
+    });
+    const nameBand = Math.max(...names.map((n) => n.height)) + 10;
+    const content = this.add.container(0, grid.y);
+    const adapters: ThemedButton[] = [];
+    const badgeSize = 24;
+    roster.forEach((av, i) => {
+      const pos = practiceTilePosition(i, columns, tileW, tileH);
+      const rect = { x: grid.x + pos.x, y: pos.y, width: tileW, height: tileH };
+      const tile = this.add.container(0, 0);
+      const plate = this.add.graphics();
+      tile.add(plate);
+      const artRect = { x: rect.x + 2, y: rect.y + 2, width: rect.width - 4, height: rect.height - nameBand - 2 };
+      try {
+        const art = addPortraitArt(this, artRect.x, artRect.y, av.portraitCardId, (image) => coverFitImage(image, artRect, 0.12));
+        if (art) tile.add(art);
+      } catch {
+        // the plate and name stand in for missing art
+      }
+      const name = names[i].setPosition(rect.x + rect.width / 2, rect.y + rect.height - nameBand / 2);
+      name.setData('a11yTextHeight', nameBand - 4);
+      name.setData('a11yMaxLines', 2);
+      tile.add(name);
+      const badge = this.add.container(rect.x + rect.width - 6 - badgeSize / 2, rect.y + 6 + badgeSize / 2);
+      badge.add(this.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillCircle(0, 0, badgeSize / 2));
+      badge.add(this.add.image(0, 0, bakeUiIcon(this, 'check')).setDisplaySize(15, 15).setTint(theme.graphics.panelFill));
+      tile.add(badge);
+      const zone = this.add.zone(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width, rect.height)
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, zone, (pointer) => {
+        // A drag that scrolled the grid is not a pick.
+        if (Math.abs(pointer.upY - pointer.downY) > 12) return;
+        this.selectCompactRival(av.id);
+      });
+      tile.add(zone);
+      content.add(tile);
+      this.compactTargets.push(zone);
+      this.compact?.tiles.push({ id: av.id, plate, name, badge, rect });
+      adapters.push({
+        container: tile,
+        inputZone: zone,
+        getMeasuredBounds: () => ({ hit: rect }),
+        setEnabled: (on: boolean) => { if (on) zone.setInteractive({ useHandCursor: true }); else zone.disableInteractive(); },
+      } as unknown as ThemedButton);
+    });
+    const total = practiceGridHeight(roster.length, columns, tileH);
+    // Start scrolled so the picked rival is in view.
+    const index = Math.max(0, roster.findIndex((av) => av.id === this.selectedAvatarId));
+    const bottom = practiceTilePosition(index, columns, tileW, tileH).y + tileH;
+    bindMenuScroll(this, content, grid, total, () => this.guard.isOpen, adapters, 0, undefined, Math.max(0, bottom - grid.height));
+  }
+
+  /** Pick a rival: her tile, her column on the left, her blurb, and the launch label follow. */
+  private selectCompactRival(id: string): void {
+    const compact = this.compact;
+    const av = AVATARS.find((a) => a.id === id) ?? AVATARS[AVATARS.length - 1];
+    if (!compact || !av) return;
+    this.selectedAvatarId = av.id;
+    for (const tile of compact.tiles) {
+      const selected = tile.id === av.id;
+      const r = tile.rect;
+      tile.plate.clear()
+        .fillStyle(selected ? theme.graphics.rowFillActive : theme.graphics.rowFill, 1)
+        .fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel)
+        .lineStyle(selected ? theme.outline.state : theme.control.borderWidth,
+          selected ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, selected ? 1 : theme.alpha.chrome)
+        .strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel);
+      tile.name.setColor(selected ? theme.colors.gold : theme.colors.heading);
+      tile.badge.setVisible(selected);
+    }
+    this.buildCompactHero(compact.layout.hero, av);
+    this.buildCompactBlurb(compact.layout.blurb, av.blurb);
+    const launch = compact.launch;
+    // The rival's name whole where it can be: the label steps down a size
+    // before it is shortened.
+    launch.label.setFontSize(theme.compactType.h2);
+    launch.setLabel(`Face ${av.name}`);
+    const room = compact.layout.launch.width - 24;
+    if (launch.label.width > room) {
+      launch.label.setFontSize(theme.compactType.body);
+      launch.setLabel(launch.label.text);
+    }
+    if (launch.label.width > room) {
+      ellipsizeText(launch.label, room);
+      launch.setLabel(launch.label.text);
+    }
+    prefetchDuelArt(this, { opponentId: av.id });
+  }
+
+  /** The picked rival, large, with her name and title under her. */
+  private buildCompactHero(hero: Rect, av: (typeof AVATARS)[number]): void {
+    const compact = this.compact;
+    if (!compact) return;
+    for (const obj of compact.hero) obj.destroy();
+    const type = theme.compactType;
+    const name = this.add.text(hero.x, 0, av.name, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700,
+      color: theme.colors.heading, wordWrap: { width: hero.width },
+    });
+    const title = this.add.text(hero.x, 0, av.title, {
+      fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: 'italic',
+      color: theme.colors.gold, wordWrap: { width: hero.width },
+    }).setPadding({ right: 2 });
+    // The portrait keeps the mock's proportion while the words fit under it;
+    // long names step down before the portrait shrinks under its floor.
+    const portraitH = (): number => Math.min(Math.round(hero.width * 1.17), hero.height - 8 - name.height - 2 - title.height);
+    if (portraitH() < hero.width * 0.8) name.setFontSize(type.h2);
+    if (portraitH() < hero.width * 0.8) title.setFontSize(type.label);
+    const artRect = { x: hero.x, y: hero.y, width: hero.width, height: Math.max(COMPACT.touch, portraitH()) };
+    const frame = this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 1)
+      .fillRoundedRect(artRect.x, artRect.y, artRect.width, artRect.height, theme.radius.panel);
+    const objects: Phaser.GameObjects.GameObject[] = [frame];
+    try {
+      const inset = { x: artRect.x + 2, y: artRect.y + 2, width: artRect.width - 4, height: artRect.height - 4 };
+      const art = addPortraitArt(this, inset.x, inset.y, av.portraitCardId, (image) => coverFitImage(image, inset, 0.1));
+      if (art) objects.push(art);
+    } catch {
+      // the frame stands in for missing art
+    }
+    objects.push(this.add.graphics()
+      .lineStyle(theme.outline.state, colorInt(theme.colors.gold), 1)
+      .strokeRoundedRect(artRect.x, artRect.y, artRect.width, artRect.height, theme.radius.panel));
+    name.setY(artRect.y + artRect.height + 8);
+    title.setY(name.y + name.height + 2);
+    // Anything still past the column's foot gives way on one line each.
+    if (title.y + title.height > hero.y + hero.height) {
+      name.setWordWrapWidth(0); ellipsizeText(name, hero.width);
+      title.setWordWrapWidth(0); ellipsizeText(title, hero.width);
+      title.setY(name.y + name.height + 2);
+    }
+    objects.push(name, title);
+    compact.hero = objects;
+  }
+
+  /** The rival's blurb at the column's top, scrolling in whole lines when it runs long. */
+  private buildCompactBlurb(rect: Rect, text: string): void {
+    const compact = this.compact;
+    if (!compact) return;
+    compact.blurb?.destroy();
+    const blurb = this.add.text(rect.x + 2, 0, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, color: theme.colors.body,
+      lineSpacing: theme.space(1), wordWrap: { width: rect.width - 10 },
+    });
+    const lines = Math.max(1, blurb.getWrappedText().length);
+    const lineHeight = (blurb.height - blurb.lineSpacing * (lines - 1)) / lines;
+    const linePitch = lineHeight + blurb.lineSpacing;
+    blurb.setData('a11yWholeLines', { lineHeight, linePitch });
+    const container = this.add.container(0, rect.y);
+    container.add(blurb);
+    // A viewport of whole lines, so no line is ever cut in half at its foot.
+    const viewport = { ...rect, height: Math.max(lineHeight, Math.floor((rect.height + blurb.lineSpacing) / linePitch) * linePitch - blurb.lineSpacing) };
+    bindMenuScroll(this, container, viewport, blurb.height, () => this.guard.isOpen, undefined, linePitch);
+    compact.blurb = container;
+  }
+
+  /** A launch notice on a phone: a compact dialog with its action. */
+  private compactLaunchNotice(message: string, action?: { label: string; onTap: () => void }): void {
+    const [titleText, ...rest] = message.split(': ');
+    compactDialog(this, {
+      title: rest.length ? titleText : 'Cannot start',
+      message: rest.length ? rest.join(': ') : message,
+      secondary: action ? { label: 'Close', onTap: (close) => close() } : undefined,
+      primary: action
+        ? { label: action.label, onTap: (close) => { close(); action.onTap(); } }
+        : { label: 'Close', variant: 'ghost', onTap: (close) => close() },
+      dismissal: 'dismissible',
+      onClose: () => this.guard.close(),
+    });
+    this.guard.open(this.compactTargets);
   }
 
   /**
@@ -518,6 +779,10 @@ export class PracticePickerScene extends Phaser.Scene {
     message: string,
     action?: { label: string; onTap: () => void },
   ): void {
+    if (this.compact) {
+      this.compactLaunchNotice(message, action);
+      return;
+    }
     if (!this.launchNotice || !this.launchNotice.active) {
       this.launchNotice = this.add
         .text(0, this.picker.noticeY, message, {
@@ -597,4 +862,37 @@ export class PracticePickerScene extends Phaser.Scene {
       return null;
     }
   }
+}
+
+/**
+ * A rival's name on her grid tile: the part before the comma ("Anubis", not
+ * "Anubis, Who Holds the Scale"), as the mock has it. Her whole name heads
+ * her column when she is picked.
+ */
+function tileName(name: string): string {
+  return name.split(',')[0].trim();
+}
+
+/**
+ * Set a grid name on at most two lines, broken where the longer line is
+ * shortest: at a space, or just after a hyphen ("The Marsh-|Mother"), never
+ * mid-word. One line when it fits. The caller checks the width that results.
+ */
+function wrapTileName(text: Phaser.GameObjects.Text, name: string, width: number): void {
+  text.setWordWrapWidth(0);
+  text.setText(name);
+  if (text.width <= width) return;
+  let best = name;
+  let bestW = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < name.length; i++) {
+    const breakAfter = name[i - 1] === '-' || name[i] === ' ';
+    if (!breakAfter) continue;
+    const candidate = `${name.slice(0, i).trimEnd()}\n${name.slice(i).trimStart()}`;
+    text.setText(candidate);
+    if (text.width < bestW) {
+      bestW = text.width;
+      best = candidate;
+    }
+  }
+  text.setText(best);
 }

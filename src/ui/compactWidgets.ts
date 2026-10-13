@@ -6,6 +6,7 @@ import { formatCount } from './goldFormat';
 import { ellipsizeText } from './textFit';
 import { menuNoticeLayout } from './mainMenuPresentation';
 import { sceneStage } from './SceneBackdrop';
+import { bindMenuScroll } from './menuScroll';
 import { modalShell, type ModalShell } from './themeWidgets';
 import { controlStrokeWidth, themedButtonColors, type ThemedButtonVariant } from './controlStyle';
 import { colorInt, theme } from './theme';
@@ -253,7 +254,8 @@ export function compactDialog(
   scene: Phaser.Scene,
   opts: {
     title: string;
-    message: string;
+    /** One paragraph, or several (M-Darlings), set apart by a small gap. */
+    message: string | readonly string[];
     secondary?: CompactDialogAction;
     primary: CompactDialogAction & { variant?: ThemedButtonVariant };
     dismissal?: 'mandatory' | 'dismissible';
@@ -268,18 +270,52 @@ export function compactDialog(
     fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
     wordWrap: { width: width - 2 * pad },
   });
-  const message = scene.add.text(0, 0, opts.message, {
+  const style = {
     fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body,
     wordWrap: { width: width - 2 * pad }, lineSpacing: theme.space(1),
-  });
-  const layout = menuNoticeLayout(width, title.height, message.height);
+  };
+  const paragraphs = typeof opts.message === 'string' ? [opts.message] : [...opts.message];
+  const paragraphGap = theme.space(2);
+  let texts = paragraphs.map((p) => scene.add.text(0, 0, p, style));
+  let bodyH = texts.reduce((sum, t) => sum + t.height, 0) + paragraphGap * (texts.length - 1);
+  // Taller than the screen (Largest text on a small phone): one text, the
+  // paragraphs a blank line apart, scrolling in whole lines inside the dialog.
+  const room = content.height - theme.space(4) - menuNoticeLayout(width, title.height, 0).height;
+  let scroll: { linePitch: number } | null = null;
+  if (bodyH > room) {
+    for (const t of texts) t.destroy();
+    const one = scene.add.text(0, 0, paragraphs.join('\n\n'), style);
+    const lines = Math.max(1, one.getWrappedText().length);
+    const lineHeight = (one.height - one.lineSpacing * (lines - 1)) / lines;
+    const linePitch = lineHeight + one.lineSpacing;
+    one.setData('a11yWholeLines', { lineHeight, linePitch });
+    texts = [one];
+    bodyH = Math.max(lineHeight, Math.floor((room + one.lineSpacing) / linePitch) * linePitch - one.lineSpacing);
+    scroll = { linePitch };
+  }
+  const layout = menuNoticeLayout(width, title.height, bodyH);
   const shell = modalShell(scene, {
     width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
     dismissal: opts.dismissal ?? 'mandatory', onClose: opts.onClose,
   });
   title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y + (shell.tracks.titleTrack.height - title.height) / 2);
-  message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
-  shell.container.add([title, message]);
+  shell.container.add(title);
+  const body = shell.tracks.contentBounds;
+  if (scroll) {
+    const column = scene.add.container(0, body.y);
+    texts[0].setPosition(body.x, 0);
+    column.add(texts[0]);
+    shell.container.add(column);
+    bindMenuScroll(scene, column, { x: body.x, y: body.y, width: body.width, height: bodyH }, texts[0].height,
+      undefined, undefined, scroll.linePitch, shell);
+  } else {
+    let y = body.y;
+    for (const t of texts) {
+      t.setPosition(body.x, y);
+      y += t.height + paragraphGap;
+    }
+    shell.container.add(texts);
+  }
   const footer = shell.tracks.footerTrack;
   const gap = theme.space(4);
   const close = (): void => shell.close();
@@ -318,4 +354,76 @@ export function compactProgressBar(scene: Phaser.Scene, centerX: number, y: numb
   };
   set(0);
   return { set, graphics: g };
+}
+
+export interface CompactSegments {
+  container: Phaser.GameObjects.Container;
+  zones: Phaser.GameObjects.Zone[];
+  select(index: number): void;
+}
+
+/**
+ * A segmented choice (the Practice difficulty, M-Practice): equal segments
+ * side by side on one plate, the chosen one drawn in the selected style (gold
+ * outline and label) so the screen's one gold plate stays its primary. Each
+ * segment is its full share of the rect, at least the touch floor high.
+ */
+export function compactSegments(
+  scene: Phaser.Scene,
+  rect: Rect,
+  labels: readonly string[],
+  selected: number,
+  onPick: (index: number) => void,
+): CompactSegments {
+  const type = theme.compactType;
+  const container = scene.add.container(rect.x, rect.y);
+  const plate = scene.add.graphics();
+  container.add(plate);
+  const n = Math.max(1, labels.length);
+  const inset = 4;
+  const segW = (rect.width - inset * 2) / n;
+  const texts = labels.map((label, i) => scene.add.text(inset + segW * i + segW / 2, rect.height / 2, label, {
+    fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+  }).setOrigin(0.5));
+  // One size for every segment: the label size when any would not fit at body.
+  if (texts.some((t) => t.width > segW - 8)) texts.forEach((t) => t.setFontSize(type.label));
+  texts.forEach((t) => ellipsizeText(t, segW - 8));
+  container.add(texts);
+  let current = selected;
+  const draw = (): void => {
+    const ghost = themedButtonColors('ghost');
+    const chosen = themedButtonColors('selected');
+    plate.clear()
+      .fillStyle(colorInt(ghost.bg), 1)
+      .fillRoundedRect(0, 0, rect.width, rect.height, theme.radius.panel)
+      .lineStyle(theme.control.borderWidth, colorInt(ghost.stroke), theme.alpha.chrome)
+      .strokeRoundedRect(0, 0, rect.width, rect.height, theme.radius.panel);
+    if (current >= 0 && current < n) {
+      const x = inset + segW * current;
+      plate.fillStyle(colorInt(chosen.bg), 1)
+        .fillRoundedRect(x, inset, segW, rect.height - inset * 2, theme.radius.control)
+        .lineStyle(theme.control.borderWidth, colorInt(chosen.stroke), 1)
+        .strokeRoundedRect(x, inset, segW, rect.height - inset * 2, theme.radius.control);
+    }
+    texts.forEach((t, i) => t.setColor(i === current ? chosen.fg : ghost.fg));
+  };
+  const zones = labels.map((_, i) => {
+    const zone = scene.add.zone(inset + segW * i + segW / 2, rect.height / 2, segW, rect.height).setInteractive({ useHandCursor: true });
+    bindTapButton(scene, zone, () => {
+      current = i;
+      draw();
+      onPick(i);
+    });
+    return zone;
+  });
+  container.add(zones);
+  draw();
+  return {
+    container,
+    zones,
+    select: (index) => {
+      current = index;
+      draw();
+    },
+  };
 }

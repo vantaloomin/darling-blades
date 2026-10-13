@@ -6,7 +6,9 @@ import {
   DARLINGS_TUTORIAL_LINES,
   DARLINGS_TUTORIAL_TITLE,
 } from './darlingsTutorialCopy';
+import { compactDialog } from './compactWidgets';
 import { modalShellLayout } from './layout';
+import { sceneStage } from './SceneBackdrop';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
@@ -47,6 +49,27 @@ export function showDarlingsTutorial(
     markSeen();
     if (!readMore) options.onDismiss?.();
   };
+
+  // On a phone the explainer is a compact dialog (mock M-Darlings): Read more
+  // on the left, Got it the primary on the right.
+  if (sceneStage(scene).compact) {
+    return compactDialog(scene, {
+      title: DARLINGS_TUTORIAL_TITLE,
+      message: DARLINGS_TUTORIAL_LINES,
+      secondary: {
+        label: DARLINGS_TUTORIAL_BUTTONS[1],
+        onTap: (close) => {
+          readMore = true;
+          markSeen();
+          close();
+          options.onReadMore();
+        },
+      },
+      primary: { label: DARLINGS_TUTORIAL_BUTTONS[0], onTap: (close) => close() },
+      dismissal: 'dismissible',
+      onClose: dismiss,
+    });
+  }
 
   const centerX = theme.design.centerX;
   const paragraphs = DARLINGS_TUTORIAL_LINES.map((line) =>
