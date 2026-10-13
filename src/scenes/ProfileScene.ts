@@ -27,6 +27,7 @@ import { OverlayCoordinator, type OverlayDomHandle } from '../ui/OverlayCoordina
 import { createMultilineInput, type MultilineInputHandle } from '../ui/MultilineInput';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { Art } from '../art/ArtResolver';
+import { artTextureTier } from '../art/artWatch';
 import { artMissing, liveArtStore } from '../art/artLoader';
 import { ART_WAIT_TEXT_STYLE, awaitArt, PagedArt } from '../ui/artGate';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
@@ -430,7 +431,9 @@ export class ProfileScene extends Phaser.Scene {
     new PagedArt(this, 'profile-replay-portraits').show(replays.flatMap((log) => {
       const avatar = replayOpponentAvatar(log);
       const pending = avatar ? Art.resolver?.getArt(avatar.portraitCardId, undefined, 'half').pending : undefined;
-      return pending === undefined ? [] : [pending];
+      // The store is asked by art key, not by texture key.
+      const art = pending === undefined ? null : artTextureTier(pending);
+      return art === null ? [] : [art.key];
     }));
     let built = build(view.width);
     if (built.height > view.height) {
@@ -525,7 +528,7 @@ export class ProfileScene extends Phaser.Scene {
     let drawn = false;
     if (avatar) {
       try {
-        const image = addPortraitArt(this, face.x, face.y, avatar.portraitCardId, (img) => coverFitImage(img, face, 0.12));
+        const image = addPortraitArt(this, face.x, face.y, avatar.portraitCardId, (img) => coverFitImage(img, face, 0.12), 'half');
         if (image) {
           list.add(image);
           drawn = true;
@@ -956,80 +959,92 @@ export class ProfileScene extends Phaser.Scene {
         }));
         return;
       }
-      // Every tile's plate, under its art, which goes in above this as its row nears the view.
-      const plates = this.add.graphics();
-      list.add(plates);
-      const frames: { g: Phaser.GameObjects.Graphics; id: string; rect: Rect }[] = [];
-      const drawFrame = (f: (typeof frames)[number]): void => {
-        const on = f.id === selected;
+      // Only the rows near the view exist: a whole collection of tiles (two thousand cards) would stall
+      // every frame, and the art with it. A row is built as it nears the view and dropped once it is a
+      // screen away.
+      const rowCount = Math.ceil(filtered.length / P.gridColumns);
+      const rows: (Phaser.GameObjects.Container | null)[] = new Array<Phaser.GameObjects.Container | null>(rowCount).fill(null);
+      const frames = new Map<string, { g: Phaser.GameObjects.Graphics; rect: Rect }>();
+      const drawFrame = (id: string): void => {
+        const f = frames.get(id);
+        if (!f) return;
+        const on = id === selected;
         f.g.clear().lineStyle(on ? 3 : 1, on ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, on ? 1 : theme.alpha.chrome)
           .strokeRoundedRect(f.rect.x, f.rect.y, f.rect.width, f.rect.height, theme.radius.control);
       };
-      const adapters: ThemedButton[] = [];
-      const rows: { cards: typeof filtered; y: number; art: Phaser.GameObjects.Image[] | null }[] = [];
-      filtered.forEach((card, i) => {
-        const col = i % P.gridColumns;
-        const row = Math.floor(i / P.gridColumns);
-        if (!rows[row]) rows[row] = { cards: [], y: row * pitchY, art: null };
-        rows[row].cards.push(card);
-        const rect = { x: view.x + col * pitchX, y: row * pitchY, width: thumbW, height: artH };
-        plates.fillStyle(theme.graphics.rowFill, 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.control);
-        const name = this.add.text(rect.x + thumbW / 2, rect.y + artH + 4, '', {
-          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body,
-        }).setOrigin(0.5, 0);
-        ellipsizeText(name, thumbW, card.name);
-        const g = this.add.graphics();
-        const zone = this.add.zone(rect.x + thumbW / 2, rect.y + (artH + 4 + nameH) / 2, thumbW, artH + 4 + nameH).setInteractive({ useHandCursor: true });
-        const f = { g, id: card.id, rect };
-        frames.push(f);
-        drawFrame(f);
-        bindTapButton(this, zone, (pointer) => {
-          if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP) return;
-          selected = card.id;
-          frames.forEach(drawFrame);
-          void showPreview(card.id);
+      const buildRow = (r: number): Phaser.GameObjects.Container => {
+        const row = this.add.container(0, r * pitchY);
+        const cards = filtered.slice(r * P.gridColumns, (r + 1) * P.gridColumns);
+        const plates = this.add.graphics();
+        row.add(plates);
+        cards.forEach((card, k) => {
+          const rect = { x: view.x + k * pitchX, y: 0, width: thumbW, height: artH };
+          plates.fillStyle(theme.graphics.rowFill, 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.control);
+          try {
+            const image = addPortraitArt(this, rect.x, rect.y, card.id, (img) => coverFitImage(img, rect, 0.1), 'half');
+            if (image) row.add(image);
+          } catch {
+            // A card with no art keeps its plain plate.
+          }
+          const name = this.add.text(rect.x + thumbW / 2, rect.y + artH + 4, '', {
+            fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body,
+          }).setOrigin(0.5, 0);
+          ellipsizeText(name, thumbW, card.name);
+          const g = this.add.graphics();
+          row.add([name, g]);
+          frames.set(card.id, { g, rect });
+          drawFrame(card.id);
+          g.once(Phaser.GameObjects.Events.DESTROY, () => frames.delete(card.id));
         });
-        list.add([name, g, zone]);
-        adapters.push(this.compactAdapter(zone, list, { x: rect.x, y: rect.y, width: thumbW, height: artH + 4 + nameH }));
-      });
-      // Art for the rows in view and a screen either side; the rest let go of theirs.
-      const halfKey = (cardId: string): string[] => {
-        const pending = Art.resolver?.getArt(cardId, undefined, 'half').pending;
-        return pending === undefined ? [] : [pending];
+        list.add(row);
+        return row;
       };
-      const showArt = (offset: number): void => {
-        const inView = (row: (typeof rows)[number]): boolean => row.y + pitchY >= offset && row.y <= offset + view.height;
-        pickerArt.show(
-          rows.filter(inView).flatMap((row) => row.cards.flatMap((card) => halfKey(card.id))),
-          rows.filter((row) => !inView(row) && row.y + pitchY >= offset - view.height && row.y <= offset + view.height * 2)
-            .flatMap((row) => row.cards.flatMap((card) => halfKey(card.id))),
-        );
-        rows.forEach((row) => {
-          const near = row.y + pitchY >= offset - view.height && row.y <= offset + view.height * 2;
-          if (near && !row.art) {
-            row.art = [];
-            row.cards.forEach((card, k) => {
-              const rect = { x: view.x + k * pitchX, y: row.y, width: thumbW, height: artH };
-              try {
-                const image = addPortraitArt(this, rect.x, rect.y, card.id, (img) => coverFitImage(img, rect, 0.1));
-                if (image) {
-                  list.addAt(image, 1);
-                  row.art!.push(image);
-                }
-              } catch {
-                // A card with no art keeps its plain plate.
-              }
-            });
-          } else if (!near && row.art) {
-            row.art.forEach((image) => image.destroy());
-            row.art = null;
+      // Art for the rows in view and a screen either side.
+      const artKey = (cardId: string): string[] => {
+        const pending = Art.resolver?.getArt(cardId, undefined, 'half').pending;
+        const art = pending === undefined ? null : artTextureTier(pending);
+        return art === null ? [] : [art.key];
+      };
+      const keysFor = (from: number, to: number): string[] =>
+        filtered.slice(Math.max(0, from) * P.gridColumns, Math.max(0, to) * P.gridColumns).flatMap((card) => artKey(card.id));
+      const showRows = (offset: number): void => {
+        const first = Math.floor(offset / pitchY);
+        const last = Math.floor((offset + view.height) / pitchY);
+        const span = Math.ceil(view.height / pitchY);
+        pickerArt.show(keysFor(first, last + 1), [...keysFor(first - span, first), ...keysFor(last + 1, last + 1 + span)]);
+        rows.forEach((row, r) => {
+          const near = r >= first - span && r <= last + span;
+          if (near && !row) rows[r] = buildRow(r);
+          else if (!near && row) {
+            row.destroy();
+            rows[r] = null;
           }
         });
       };
-      const contentH = rows.length * pitchY - P.gridGap;
-      const scroll = bindMenuScroll(this, list, view, contentH, undefined, adapters, 0, frame.shell);
-      scroll.onScroll = showArt;
-      showArt(0);
+      const contentH = rowCount * pitchY - P.gridGap;
+      const scroll = bindMenuScroll(this, list, view, contentH, undefined, [], 0, frame.shell);
+      scroll.onScroll = showRows;
+      showRows(0);
+      // One tap target over the grid: the tile is worked out from where the tap lands.
+      const tap = this.add.zone(view.x + view.width / 2, view.y + view.height / 2, view.width, view.height).setInteractive({ useHandCursor: true });
+      c.add(tap);
+      list.once(Phaser.GameObjects.Events.DESTROY, () => tap.destroy());
+      bindTapButton(this, tap, (pointer) => {
+        if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP) return;
+        const x = pointer.worldX - view.x;
+        const y = pointer.worldY - view.y + scroll.offset();
+        const col = Math.floor(x / pitchX);
+        const r = Math.floor(y / pitchY);
+        // The gaps between tiles are not a tap on either.
+        if (col < 0 || col >= P.gridColumns || x - col * pitchX > thumbW || y - r * pitchY > artH + 4 + nameH) return;
+        const card = filtered[r * P.gridColumns + col];
+        if (!card) return;
+        const previous = selected;
+        selected = card.id;
+        if (previous) drawFrame(previous);
+        drawFrame(card.id);
+        void showPreview(card.id);
+      });
     };
 
     const search = createSearchInput(this, side.x + side.width / 2, side.y + searchH / 2, {
