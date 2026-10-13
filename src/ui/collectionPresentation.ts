@@ -18,6 +18,8 @@ export interface CollectionA11yFixture {
   variantPage?: number;
   compareVariantIndex?: number;
   clearedDisplayPin?: boolean;
+  /** Phone: open the binder scrolled to its end. */
+  scroll?: 'end';
 }
 
 export function collectionHeaderLayout(counterHeight: number, completionHeight: number) {

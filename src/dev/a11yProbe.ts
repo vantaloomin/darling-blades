@@ -274,6 +274,7 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
     .map((modal) => ({ label: `Deck Builder / ${modal}`, key: 'DeckBuilder', data: builderFixture({ modal }, modal === 'repair' ? WAVE_2B_FIXTURE_IDS.fullCatalog : WAVE_2B_FIXTURE_IDS.darlings) })),
   { label: 'Deck Builder / set options', key: 'DeckBuilder', data: builderFixture({ modal: 'filters', filter: 'set' }) },
   { label: 'Collection / full catalog', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE } } },
+  { label: 'Collection / full catalog / scrolled to the end', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, scroll: 'end' } } },
   { label: 'Collection / empty', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, cards: [] } } },
   ...(['set', 'color', 'type', 'rarity', 'sort'] as const).map((openFilter) => ({
     label: `Collection / ${openFilter} options`, key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, openFilter } },

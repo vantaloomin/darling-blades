@@ -961,6 +961,8 @@ export function backButton(
 export interface GoldBadgeOptions {
   getValue?: () => number;
   flashOnChange?: boolean;
+  /** The number's size; the desktop h2 by default (the phone top bar passes its own). */
+  fontSize?: number;
 }
 
 export interface GoldBadge {
@@ -979,7 +981,7 @@ export function goldBadge(
   y: number,
   opts: GoldBadgeOptions = {},
 ): GoldBadge {
-  const fontSize = theme.type.h2;
+  const fontSize = opts.fontSize ?? theme.type.h2;
   const text = scene.add
     .text(0, 0, '0', {
       fontFamily: theme.fonts.ui,
