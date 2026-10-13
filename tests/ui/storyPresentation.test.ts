@@ -213,6 +213,10 @@ describe('Story screens: copy and view state', () => {
     expect(abandonNote({ fightsPlayed: 2 }, true)).toContain('2 of 3');
     expect(abandonNote({ fightsPlayed: 2 }, true)).not.toBe(abandonNote({ fightsPlayed: 3 }, true));
     expect(abandonNote({ fightsPlayed: 3 }, true)).toBe(abandonNote({ fightsPlayed: 7 }, true));
+    // The standing note stops describing the threshold once the run has passed it.
+    expect(abandonNote({ fightsPlayed: 2 }, false)).toContain('once it has 3 fights');
+    expect(abandonNote({ fightsPlayed: 3 }, false)).not.toContain('once it has');
+    expect(abandonNote({ fightsPlayed: 3 }, false)).toBe(abandonNote({ fightsPlayed: 7 }, false));
   });
 
   it('lets the shop cart add only what the gold left covers, and always lets a carted card back out', () => {

@@ -82,8 +82,13 @@ export function recordLine(wins: number, runs: number): string {
 
 /** The standing note under Abandon, then the armed consequence (R9). */
 export function abandonNote(run: Pick<StoryRun, 'fightsPlayed'>, armed: boolean): string {
-  if (!armed) return `A run counts toward unlocks once it has ${RUN_COUNT_FIGHTS} fights, even if you abandon it.`;
-  if (run.fightsPlayed >= RUN_COUNT_FIGHTS) {
+  const counts = run.fightsPlayed >= RUN_COUNT_FIGHTS;
+  if (!armed) {
+    return counts
+      ? 'This run counts toward unlocks, even if you abandon it.'
+      : `A run counts toward unlocks once it has ${RUN_COUNT_FIGHTS} fights, even if you abandon it.`;
+  }
+  if (counts) {
     return `Abandoning ends this run and its run deck. It has reached ${RUN_COUNT_FIGHTS} fights, so it still counts toward unlocks.`;
   }
   return `Abandoning ends this run and its run deck. It has ${run.fightsPlayed} of ${RUN_COUNT_FIGHTS} fights, so it will not count.`;
