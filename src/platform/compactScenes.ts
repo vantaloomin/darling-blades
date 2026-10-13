@@ -18,7 +18,7 @@
 import type { ScreenMetrics } from './screenMetrics';
 
 /** Scene keys with a compact composition. Each joins in the PR that builds it. */
-export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet']);
+export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings']);
 
 let metrics: ScreenMetrics | null = null;
 

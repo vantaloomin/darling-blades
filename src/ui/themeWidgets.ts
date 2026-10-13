@@ -87,6 +87,9 @@ export interface ThemedButton {
 /** A disabled button's label: visibly off, still readable (a price, a reason). */
 const DISABLED_LABEL_ALPHA = 0.72;
 
+/** The close button's width on a phone: the touch floor. */
+const COMPACT_CLOSE = 44;
+
 /** Rounded button chrome with an explicit Zone input target (never the container). */
 export function themedButton(
   scene: Phaser.Scene,
@@ -827,10 +830,11 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
   if (dismissal.showClose) {
+    // A phone gets the mocks' square 44 px close (M-SettingsLegal, M-WhatIsSent).
     closeButton = themedButton(scene, 0, 0, '×', {
       variant: 'ghost',
-      size: 'sm',
-      minWidth: 30,
+      size: stage.compact ? 'md' : 'sm',
+      minWidth: stage.compact ? COMPACT_CLOSE : 30,
       onTap: close,
     });
     container.add(closeButton.container);
