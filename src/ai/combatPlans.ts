@@ -457,17 +457,22 @@ export function chooseAttackers(
   const opp = opponentOf(me);
   const memo = new BoardMemo(bf, db, mandateHolder);
   const weights = weightBoard === bf ? memo : new BoardMemo(weightBoard, db);
+  // Legality reads the Mandate too: a "while you hold the Mandate" Warcry
+  // (Dragon Banner) lets a creature that arrived this turn attack, and the
+  // engine then compels it if it has Rage. Reading the bare battlefield here
+  // dropped such an attacker and handed the engine an illegal declaration.
+  const legalBoard: BoardInput = mandateHolder === null ? bf : { battlefield: bf, mandateHolder };
   // Rage removes the choice, so the planner is not allowed to score these away.
   // Read from the UNFILTERED legality call on purpose: a compelled attacker
   // with 0 power is still compelled, and the `attack > 0` filter below would
   // otherwise drop it and hand the engine an illegal declaration.
-  const compelled = compelledAttackers(bf, db, me);
+  const compelled = compelledAttackers(legalBoard, db, me);
   const withCompelled = (chosen: readonly number[]): number[] => {
     if (compelled.length === 0) return [...chosen];
     const keep = new Set([...chosen, ...compelled]);
-    return eligibleAttackers(bf, db, me).filter((iid) => keep.has(iid));
+    return eligibleAttackers(legalBoard, db, me).filter((iid) => keep.has(iid));
   };
-  const eligible = eligibleAttackers(bf, db, me).filter(
+  const eligible = eligibleAttackers(legalBoard, db, me).filter(
     (iid) => memo.combatant(iid).attack > 0,
   );
   if (eligible.length === 0) return withCompelled([]);

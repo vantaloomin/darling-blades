@@ -6,10 +6,13 @@ import type { StoryAct, StoryBoon } from './types';
  * floor 5 elite or fight; floor 6 event or rest; floor 7 fight or elite;
  * floor 8 rest or shop; floor 9 the boss, Sima Yi (ruling S1).
  *
- * Opponents are existing avatars: ordinary fights draw from the first Tower
- * rungs, elites from the next two, so an elite is always a stronger avatar
- * than any ordinary fight. Gold numbers are wave 1 placeholders; wave 3 sets
- * them with progression-sim (they are run gold and never reach the save's gold).
+ * Ordinary fights draw from the first three Tower rungs (Easy brains). The
+ * elites are Story Mode's own opponents (src/data/story/opponents.ts, owner
+ * ruling W3 2026-10-13): Gongsun Zan, Penthesilea and Shanjun, whose intros
+ * the script carries. They are Medium brains, so an elite is always stronger
+ * than any ordinary fight, and they never join the Tower. Gold numbers are
+ * wave 1 placeholders; wave 3 sets them with progression-sim (they are run
+ * gold and never reach the save's gold).
  */
 export const ACT1: StoryAct = {
   id: 'act1',
@@ -31,7 +34,7 @@ export const ACT1: StoryAct = {
     maxWidth: 3,
   },
   fightAvatarIds: ['menghuo', 'hestia', 'lupa'],
-  eliteAvatarIds: ['hera', 'zhurong'],
+  eliteAvatarIds: ['gongsunzan', 'penthesilea', 'shanjun'],
   bossAvatarId: 'simayi',
   economy: {
     startGold: 50,

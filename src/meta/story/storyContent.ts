@@ -6,11 +6,12 @@
  * passes a `missingArt` probe (src/meta never touches the file system).
  */
 
-import type { CardDb } from '../../engine/types';
+import type { CardDb, CardDef } from '../../engine/types';
 import { CORE_SET_2_SET } from '../../data/liveness';
-import { AVATARS } from '../../data/opponents';
+import type { Avatar } from '../../data/opponents';
 import { STORY_BOONS, STORY_ACTS, BOON_OFFER_COUNT } from '../../data/story/act1';
 import { STORY_CHARACTERS, FIRST_STORY_CHARACTER_ID } from '../../data/story/characters';
+import { storyAvatarById, storyAvatarIds } from '../../data/story/opponents';
 import { STORY_EVENTS, STORY_SCENES, STORY_SPEAKERS } from '../../data/story/script';
 import type {
   StoryAct,
@@ -22,7 +23,7 @@ import type {
   StorySpeaker,
 } from '../../data/story/types';
 import { collectiblePool } from '../collectionFilter';
-import { isBasicLand, isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS, reserveColorIdentity } from '../warchest';
+import { isBasicLand, isDualLand, isUtilityTapland, LAND_RESERVE_SIZE, MAX_DUAL_LANDS, reserveColorIdentity } from '../warchest';
 import { storyFilterCards } from './storyEvents';
 import { isStoryDeckCard } from './storyMap';
 
@@ -30,11 +31,18 @@ import { isStoryDeckCard } from './storyMap';
 export const STARTER_DECK_SIZE = 30;
 
 /**
- * Problems in one character entry. Wave 1 decks and pools use shipped cards
- * only: Core Set II is not live, so a card from it would be unobtainable in a
- * release build. Only the Darling may come from it (Yutu is a Core Set II
- * legend by ruling P13). Wave 3 relaxes this when the set ships.
+ * Whether a card may sit in a starter deck or reward pool: a collectible card
+ * of the live pool, or of Core Set II whether or not that set's flag is on.
+ * Owner ruling W2 (2026-10-13): starters and pools draw on Core Set I (the
+ * shipped catalog) and Core Set II, since Story Mode ships with Core Set II in
+ * 2.0. A token, basic, land or retired utility tapland never qualifies.
  */
+function isStoryPoolCard(card: CardDef, collectible: ReadonlySet<string>): boolean {
+  if (card.set === CORE_SET_2_SET) return !card.token && !card.supertypes?.includes('basic') && !isUtilityTapland(card);
+  return collectible.has(card.id);
+}
+
+/** Problems in one character entry (cards, colours, sizes, reserve). */
 export function validateStoryCharacter(db: CardDb, character: StoryCharacter): string[] {
   const problems: string[] = [];
   const where = `story character ${character.id}`;
@@ -55,8 +63,7 @@ export function validateStoryCharacter(db: CardDb, character: StoryCharacter): s
         continue;
       }
       const card = db[id];
-      if (card.set === CORE_SET_2_SET) problems.push(`${where}: ${label} card ${id} is from Core Set II, which is not live`);
-      else if (!collectible.has(id)) problems.push(`${where}: ${label} card ${id} is not in the collectible pool`);
+      if (!isStoryPoolCard(card, collectible)) problems.push(`${where}: ${label} card ${id} is not in the collectible pool`);
       if (card.colors.some((color) => !character.colors.includes(color))) {
         problems.push(`${where}: ${label} card ${id} is outside ${character.colors.join('')}`);
       }
@@ -92,12 +99,18 @@ function colorOrder(a: string, b: string): number {
   return COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b);
 }
 
+const DIFFICULTY_RANK: Readonly<Record<Avatar['difficulty'], number>> = { easy: 0, medium: 1, hard: 2 };
+
 /**
- * Avatars the Act 1 script names that wave 3 builds (the three elite intros).
- * A reference to one of these is a warning, not an error, until it exists in
- * src/data/opponents.ts; any other unknown avatar id is an error.
+ * Whether `elite` is a stronger opponent than `fight`: a harder brain, or the
+ * same brain on a higher Tower rung (Story-only opponents sit on no rung, tier
+ * 0, so against a same-difficulty Tower avatar they do not count as stronger).
  */
-export const PLANNED_WAVE3_AVATAR_IDS: readonly string[] = ['gongsunzan', 'penthesilea', 'shanjun'];
+export function isStrongerOpponent(elite: Avatar, fight: Avatar): boolean {
+  const byBrain = DIFFICULTY_RANK[elite.difficulty] - DIFFICULTY_RANK[fight.difficulty];
+  if (byBrain !== 0) return byBrain > 0;
+  return elite.tier > 0 && fight.tier > 0 && elite.tier > fight.tier;
+}
 
 /** Where scene art lives (relative to the repo root): full size, then phones. Files are `<art id>.webp`. */
 export const STORY_ART_DIRS: readonly string[] = ['public/assets/art/story', 'public/assets/art/story-half'];
@@ -128,7 +141,7 @@ export const SHIPPED_STORY_CONTENT: StoryContentSource = {
 
 export interface StoryContentOptions {
   content?: StoryContentSource;
-  /** Avatar ids that exist (default: src/data/opponents.ts). */
+  /** Opponent ids that exist (default: the Story-only opponents and the Tower avatars). */
   avatarIds?: readonly string[];
   /**
    * The places an art id is missing from (empty when present everywhere). Left
@@ -147,14 +160,19 @@ export interface StoryContentReport {
 /** Every problem in the story content, split into errors (fail the check) and warnings. */
 export function checkStoryContent(db: CardDb, options: StoryContentOptions = {}): StoryContentReport {
   const content = options.content ?? SHIPPED_STORY_CONTENT;
-  const avatarIds = new Set(options.avatarIds ?? AVATARS.map((avatar) => avatar.id));
-  const planned = new Set(PLANNED_WAVE3_AVATAR_IDS);
+  const avatarIds = new Set(options.avatarIds ?? storyAvatarIds());
   const errors: string[] = [];
   const warnings: string[] = [];
   const checkAvatar = (where: string, id: string): void => {
-    if (avatarIds.has(id)) return;
-    if (planned.has(id)) warnings.push(`${where}: avatar ${id} is a planned wave 3 avatar, not built yet`);
-    else errors.push(`${where}: unknown avatar ${id}`);
+    if (!avatarIds.has(id)) errors.push(`${where}: unknown avatar ${id}`);
+  };
+  const known = (id: string): Avatar | null => {
+    if (!avatarIds.has(id)) return null;
+    try {
+      return storyAvatarById(id);
+    } catch {
+      return null;
+    }
   };
   const checkText = (where: string, text: string): void => {
     if (!text.trim()) errors.push(`${where}: empty text`);
@@ -186,16 +204,14 @@ export function checkStoryContent(db: CardDb, options: StoryContentOptions = {})
   });
 
   // ------------------------------------------------------------------ acts
-  const tierOf = (id: string): number => AVATARS.find((avatar) => avatar.id === id)?.tier ?? 0;
   for (const act of content.acts) {
     for (const id of act.fightAvatarIds) checkAvatar(`act ${act.id} fight`, id);
     for (const id of act.eliteAvatarIds) checkAvatar(`act ${act.id} elite`, id);
     checkAvatar(`act ${act.id} boss`, act.bossAvatarId);
-    const builtFights = act.fightAvatarIds.filter((id) => avatarIds.has(id));
-    const builtElites = act.eliteAvatarIds.filter((id) => avatarIds.has(id));
+    const fights = act.fightAvatarIds.map(known).filter((avatar): avatar is Avatar => avatar !== null);
+    const elites = act.eliteAvatarIds.map(known).filter((avatar): avatar is Avatar => avatar !== null);
     if (act.fightAvatarIds.length === 0 || act.eliteAvatarIds.length === 0) errors.push(`act ${act.id}: needs fight and elite avatars`);
-    const hardestFight = Math.max(0, ...builtFights.map(tierOf));
-    if (builtElites.some((id) => tierOf(id) <= hardestFight)) {
+    if (elites.some((elite) => fights.some((fight) => !isStrongerOpponent(elite, fight)))) {
       errors.push(`act ${act.id}: every elite must be a stronger avatar than every fight`);
     }
     const floors = act.mapTemplate.floors;

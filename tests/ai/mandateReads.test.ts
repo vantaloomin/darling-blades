@@ -19,6 +19,12 @@ const DB: CardDb = {
   guard: creature('guard', 1, 1),
   // 0/1, and +3/+0 while you hold the Mandate.
   herald: { ...creature('herald', 0, 1), abilities: [{ when: 'static', static: { scope: 'self', p: 3, t: 0, condition: 'youHoldMandate' } }] },
+  // A 1/1 with Rage, and a Dragon Banner: your creatures gain Warcry while you hold the Mandate.
+  rager: { ...creature('rager', 1, 1), keywords: ['rage'] },
+  banner: {
+    ...TEST_DB.bear, id: 'banner', types: ['artifact'], attack: undefined, defense: undefined, keywords: [],
+    abilities: [{ when: 'static', static: { scope: 'filter', filter: {}, p: 1, t: 0, grantKeywords: ['warcry'], condition: 'youHoldMandate' } }],
+  },
 };
 
 const board = (perms: Partial<Permanent>[]): Permanent[] => makeTestState({ battlefield: perms }).battlefield;
@@ -49,6 +55,25 @@ describe('Medium attacks to steal the Mandate', () => {
     const herald = board([{ iid: 1, cardId: 'herald', controller: 0 }]);
     expect(chooseAttackers(herald, DB, 0, 20, 0, 20, undefined, herald, null)).toEqual([]);
     expect(chooseAttackers(herald, DB, 0, 20, 0, 20, undefined, herald, 0)).toEqual([1]);
+  });
+});
+
+describe('Medium declares what the Mandate makes legal', () => {
+  // A Rage creature that arrived this turn can attack only through the
+  // Mandate's Warcry; once it can, the engine compels it, so a declaration
+  // without it is illegal (a story elite's Dragon Banner hit this, 2026-10-13).
+  const bf = board([
+    { iid: 1, cardId: 'rager', controller: 0, enteredThisTurn: true },
+    { iid: 2, cardId: 'banner', controller: 0 },
+    { iid: 10, cardId: 'three', controller: 1 },
+  ]);
+
+  it('sends a summoning-sick Rage creature the held Mandate gives Warcry, even into a bad block', () => {
+    expect(chooseAttackers(bf, DB, 0, 20, 0, 20, undefined, bf, 0)).toEqual([1]);
+  });
+
+  it('keeps it home when the Mandate is not held, since it cannot attack yet', () => {
+    expect(chooseAttackers(bf, DB, 0, 20, 0, 20, undefined, bf, null)).toEqual([]);
   });
 });
 

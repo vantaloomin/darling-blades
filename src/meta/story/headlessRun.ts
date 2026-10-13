@@ -16,8 +16,8 @@
 import { MediumAI } from '../../ai/MediumAI';
 import { buildAI } from '../../ai/personality';
 import { CARD_DB } from '../../data/catalog';
-import { avatarById } from '../../data/opponents';
 import { GUAN_YU_ID } from '../../data/story/characters';
+import { storyAvatarById } from '../../data/story/opponents';
 import type { StoryBoonId } from '../../data/story/types';
 import { Game } from '../../engine/Game';
 import type { CardDb } from '../../engine/types';
@@ -100,14 +100,14 @@ function playStoryDuel(
   seed: number,
   maxActions: number,
   onAction?: (p: 0 | 1, action: Parameters<Game['submit']>[1]) => void,
-): 0 | 1 {
-  const avatar = avatarById(avatarId);
+): 0 | 1 | 'draw' {
+  const avatar = storyAvatarById(avatarId);
   const ais = [new MediumAI(db), buildAI(avatar.difficulty, db, seed, avatar.personality)];
   for (let i = 0; i < maxActions; i++) {
     const awaiting = game.awaiting;
     if (awaiting.kind === 'gameOver') {
       const winner = game.instanceState.winner;
-      if (winner !== 0 && winner !== 1) throw new Error(`story duel (seed ${seed}) ended without a winner`);
+      if (winner !== 0 && winner !== 1 && winner !== 'draw') throw new Error(`story duel (seed ${seed}) ended without a winner`);
       return winner;
     }
     const view = game.viewFor(awaiting.player);
@@ -186,9 +186,9 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
             startingHandSize: config.startingHandSize,
             context: {
               mode: 'story',
-              difficulty: avatarById(avatarId).difficulty,
+              difficulty: storyAvatarById(avatarId).difficulty,
               opponentId: avatarId,
-              opponentName: avatarById(avatarId).name,
+              opponentName: storyAvatarById(avatarId).name,
               gauntletRung: null,
               story: {
                 runId: active.runId,
@@ -207,6 +207,7 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
       const winner = playStoryDuel(game, db, avatarId, config.seed, maxActions, draft
         ? (p, action) => recordReplayAction(draft, p, action)
         : undefined);
+      // A draw is not a win, so it ends the run like a loss, as the duel screen records it.
       const result = winner === 0 ? 'win' : 'loss';
       if (draft && options.onReplay) {
         options.onReplay(finishReplay(draft, result, options.now, game.state.turn));

@@ -143,10 +143,10 @@ describe('StoryProgress: opening boons (R5)', () => {
     const story = freshStoryState();
     startRun(story, GUAN_YU_ID, seed, NOW);
     expect(chooseBoon(story, CARD_DB, 'trim-two').ok).toBe(false);
-    expect(chooseBoon(story, CARD_DB, 'trim-two', { removeCardIds: ['tk-shu-guansuo', 'tk-shu-zhaoyun'] }).ok).toBe(false);
+    expect(chooseBoon(story, CARD_DB, 'trim-two', { removeCardIds: ['dd-wreck-runner', 'tk-wu-taishici'] }).ok).toBe(false);
     expect(story.activeRun!.deck).toEqual(guanYu.starterDeck);
-    expect(chooseBoon(story, CARD_DB, 'trim-two', { removeCardIds: ['tk-shu-guansuo', 'tk-shu-guansuo'] }).ok).toBe(true);
-    expect(story.activeRun!.deck.filter((id) => id === 'tk-shu-guansuo')).toHaveLength(0);
+    expect(chooseBoon(story, CARD_DB, 'trim-two', { removeCardIds: ['dd-wreck-runner', 'dd-wreck-runner'] }).ok).toBe(true);
+    expect(story.activeRun!.deck.filter((id) => id === 'dd-wreck-runner')).toHaveLength(0);
     expect(story.activeRun!.deck).toHaveLength(guanYu.starterDeck.length - 2);
   });
 
@@ -340,9 +340,9 @@ describe('StoryProgress: the Act 1 keep (R6) is granted exactly once', () => {
     walk(save.story, 2);
     expect(claimKeep(save, CARD_DB, save.story.activeRun!.deck[0]).ok).toBe(false);
     const cleared = clearedSave();
-    // The walk takes no card rewards, so a UR from the pool is not in the run deck.
-    expect(cleared.story.activeRun!.deck).not.toContain('tk-other-lubu');
-    expect(claimKeep(cleared, CARD_DB, 'tk-other-lubu').ok).toBe(false);
+    // The walk takes no card rewards, so a pool card the starter lacks is not in the run deck.
+    expect(cleared.story.activeRun!.deck).not.toContain('cs2-peach-sworn-sister');
+    expect(claimKeep(cleared, CARD_DB, 'cs2-peach-sworn-sister').ok).toBe(false);
     expect(cleared.story.claimedRewardKeys).toEqual([]);
   });
 

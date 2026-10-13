@@ -3,7 +3,7 @@ import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
-import { avatarById } from '../data/opponents';
+import { storyAvatarById } from '../data/story/opponents';
 import { STORY_BOONS } from '../data/story/act1';
 import { storyCharacterById } from '../data/story/characters';
 import type { StoryBoonId, StoryCharacter, StoryEvent, StoryScene as StoryScriptScene } from '../data/story/types';
@@ -754,7 +754,7 @@ export class StoryScene extends Phaser.Scene {
   private buildCleared(run: StoryRun): void {
     const character = storyCharacterById(run.characterId);
     const act = storyActByNumber(run.act);
-    const boss = act ? avatarById(act.bossAvatarId) : null;
+    const boss = act ? storyAvatarById(act.bossAvatarId) : null;
     const top = this.subtitle('Act 1 cleared.');
     const lines = [
       `${character ? shortName(character) : 'Your heroine'} defeated ${boss?.name ?? 'the boss'}.`,
@@ -1156,7 +1156,7 @@ export class StoryScene extends Phaser.Scene {
       const faded = !reachable && run.nodeId !== null && node.floor <= (storyNodeFloor(map, run.nodeId) ?? 0);
       plate.setAlpha(faded ? 0.45 : 1);
       label.setAlpha(faded ? 0.5 : 1);
-      const under = [legalIds.has(node.id) ? 'Next' : '', node.kind === 'boss' && node.avatarId ? avatarById(node.avatarId).name : '']
+      const under = [legalIds.has(node.id) ? 'Next' : '', node.kind === 'boss' && node.avatarId ? storyAvatarById(node.avatarId).name : '']
         .filter(Boolean).join(': ');
       if (under) this.text(r.x + r.width / 2, r.y + r.height + theme.space(1), under, theme.type.caption, theme.colors.gold).setOrigin(0.5, 0);
       // Words, not only the border colour, mark where the run stands and where it can go.
@@ -1238,7 +1238,7 @@ export class StoryScene extends Phaser.Scene {
         detailName.setText('No stop chosen');
         detailBody.setText('Tap a stop marked Next to choose it.');
       } else {
-        const avatar = selected.avatarId ? avatarById(selected.avatarId) : null;
+        const avatar = selected.avatarId ? storyAvatarById(selected.avatarId) : null;
         detailName.setText(avatar ? `${NODE_KIND_LABEL[selected.kind]}: ${avatar.name}` : NODE_KIND_LABEL[selected.kind]);
         detailBody.setText(avatar ? `${avatar.title}. ${nodeSummary(selected.kind)}` : nodeSummary(selected.kind));
       }

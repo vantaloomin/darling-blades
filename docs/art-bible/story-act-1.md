@@ -1,4 +1,4 @@
-<!-- source-of-truth: public/assets/art/story/, public/assets/art/story-half/, docs/plan-story-mode.md · last-verified: 2026-10-12 · art bible for Story Mode Act 1; update a prompt here whenever an image is regenerated -->
+<!-- source-of-truth: public/assets/art/story/, public/assets/art/story-half/, docs/plan-story-mode.md · last-verified: 2026-10-13 · art bible for Story Mode Act 1; update a prompt here whenever an image is regenerated -->
 
 # Story Mode Act 1 art
 

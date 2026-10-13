@@ -78,7 +78,7 @@ export interface StoryAct {
   mapTemplate: StoryMapTemplate;
   /** Avatar ids (src/data/opponents.ts) for ordinary fights, chosen per node by seed. */
   fightAvatarIds: readonly string[];
-  /** Stronger avatars for elites. */
+  /** Stronger opponents for elites (Story-only ones in src/data/story/opponents.ts, or Tower avatars). */
   eliteAvatarIds: readonly string[];
   bossAvatarId: string;
   economy: StoryActEconomy;

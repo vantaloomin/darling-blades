@@ -7,7 +7,7 @@
 
 import { createRngState, rngInt, rngShuffle, type RngState } from '../../engine/rng';
 import type { CardDb } from '../../engine/types';
-import { AVATARS } from '../../data/opponents';
+import { storyAvatarIds } from '../../data/story/opponents';
 import { STORY_DUEL_KINDS, type StoryAct, type StoryNodeKind } from '../../data/story/types';
 import { clampSeed, rungSeed } from '../gauntletSeed';
 
@@ -159,7 +159,7 @@ export function isDuelNode(node: Pick<StoryNode, 'kind'>): boolean {
 export function validateStoryMap(map: StoryMap, act: StoryAct): string[] {
   const problems: string[] = [];
   const template = act.mapTemplate;
-  const avatarIds = new Set(AVATARS.map((avatar) => avatar.id));
+  const avatarIds = new Set(storyAvatarIds());
   if (map.floors.length !== template.floors.length) {
     problems.push(`map has ${map.floors.length} floors, template ${template.floors.length}`);
     return problems;
