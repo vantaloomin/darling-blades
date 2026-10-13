@@ -420,6 +420,7 @@ export const CORE_SET_2_PACK_ART: PackArtOpts = {
   sceneArtKey: 'scene-pack-art-core-set-2',
   tint: CORE_SET_2_PACK_TINT,
   trimY: 63,
+  realArtTrim: CORE_SET_2_PACK_TINT.trim,
 };
 
 export function packTextureForSku(sku: BoosterSku): string {
