@@ -162,6 +162,35 @@ export function activeSceneZoom(): number {
   return sceneZoom ?? active;
 }
 
+// ---------------------------------------------------------------------------
+// The running scene's own zoom. A scene with a compact composition
+// (src/platform/compactScenes.ts) draws in the phone's design space, not the
+// fitted 1280×720 window, so its camera zoom differs from activeSceneZoom.
+// SceneBackdrop.applySceneSettings records whichever zoom it applied last; the
+// tap slop and the text raster follow it. Null means the fitted zoom.
+// ---------------------------------------------------------------------------
+
+let currentZoom: number | null = null;
+
+/** Recorded by SceneBackdrop.applySceneSettings for the scene it just set up. */
+export function setCurrentSceneZoom(zoom: number | null): void {
+  currentZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+}
+
+/** The camera zoom of the scene set up last: canvas px per world px. */
+export function currentSceneZoom(): number {
+  return currentZoom ?? activeSceneZoom();
+}
+
+/**
+ * The resolution Texts rasterize at (src/gameBoot.ts's TextStyle hook): the
+ * running scene's zoom, never below 1, so a glyph lands on the canvas about
+ * 1:1. On desktop that is k, as before.
+ */
+export function textRasterResolution(): number {
+  return Math.max(1, currentSceneZoom());
+}
+
 /**
  * The tap slop (gestureCore.ts) in world px. Under the compact profile the
  * slop means TAP_SLOP_PX CSS px (docs/plan-mobile-overhaul.md, wave 1): the
@@ -170,5 +199,5 @@ export function activeSceneZoom(): number {
  * wobble. On desktop it stays TAP_SLOP_PX world px, as before.
  */
 export function tapSlopWorldPx(): number {
-  return sceneZoom === null ? TAP_SLOP_PX : (TAP_SLOP_PX * active) / sceneZoom;
+  return sceneZoom === null ? TAP_SLOP_PX : (TAP_SLOP_PX * active) / currentSceneZoom();
 }

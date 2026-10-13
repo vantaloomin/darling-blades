@@ -5,8 +5,6 @@ import { ModalGuard } from './Modal';
 import { colorInt, theme } from './theme';
 import { collapseToastBatch, TOAST_CARD, toastCardLayout, toastStackCenters, type ToastNotice } from './toastQueue';
 
-const TOAST_W = TOAST_CARD.width;
-const TOAST_X = theme.design.safeRight - TOAST_W / 2;
 const TOAST_ENTRY_MS = 220;
 const TOAST_HOLD_MS = 3200;
 const TOAST_STAGGER_MS = 140;
@@ -24,6 +22,13 @@ export interface ToastOptions {
    * deal be replayed, so the tap only dismisses the notice.
    */
   allowActions?: () => boolean;
+  /**
+   * Where the stack hangs, in the scene's design px: its right edge, its top
+   * edge and the cards' width. A compact scene puts it at the top of its
+   * command column (mock M-Toasts); unset, the release rail at the top right
+   * of the 1280×720 window.
+   */
+  rail?: { right: number; top: number; width: number };
 }
 
 interface ToastCard {
@@ -62,6 +67,10 @@ export class Toast {
   private held: boolean;
   private live = true;
   private hidden = false;
+  private readonly cardW: number;
+  private readonly restX: number;
+  private readonly offX: number;
+  private readonly topOffset: number;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -70,6 +79,10 @@ export class Toast {
     if (activeToast && activeToast !== this) pendingToasts.unshift(...activeToast.detach());
     setActiveToast(this);
     this.held = opts.held ?? false;
+    this.cardW = opts.rail?.width ?? TOAST_CARD.width;
+    this.restX = (opts.rail?.right ?? theme.design.safeRight) - this.cardW / 2;
+    this.offX = (opts.rail ? opts.rail.right + 8 : theme.design.width) + this.cardW / 2;
+    this.topOffset = opts.rail ? opts.rail.top - (TOAST_CARD.firstCenterY - TOAST_CARD.height / 2) : 0;
     this.queued.push(...pendingToasts.splice(0));
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.update, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
@@ -139,39 +152,39 @@ export class Toast {
     // top edge. Cards at the release height walk the same y's the fixed
     // `82 + index * (86 + 12)` used to produce.
     const cards = notices.map((notice, index) => this.present(notice, index));
-    toastStackCenters(cards.map((card) => card.height)).forEach((y, index) => cards[index].container.setY(y));
+    toastStackCenters(cards.map((card) => card.height)).forEach((y, index) => cards[index].container.setY(y + this.topOffset));
   }
 
   /** Builds one card (the caller places it on the stack) and returns it with its height. */
   private present(notice: ToastNotice, index: number): { container: Phaser.GameObjects.Container; height: number } {
     const container = this.scene.add
-      .container(theme.design.width + TOAST_W / 2, 0)
+      .container(this.offX, 0)
       .setDepth(theme.depth.toast)
       .setAlpha(0);
     const title = this.scene.add
-      .text(-TOAST_W / 2 + 18, 0, notice.title, {
+      .text(-this.cardW / 2 + 18, 0, notice.title, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: theme.weight.w700,
         color: theme.colors.gold,
-        wordWrap: { width: TOAST_W - 36 },
+        wordWrap: { width: this.cardW - 36 },
       })
       .setOrigin(0, 0);
     const body = this.scene.add
-      .text(-TOAST_W / 2 + 18, 0, notice.body, {
+      .text(-this.cardW / 2 + 18, 0, notice.body, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.label}px`,
         color: theme.colors.body,
-        wordWrap: { width: TOAST_W - 36 },
+        wordWrap: { width: this.cardW - 36 },
       })
       .setOrigin(0, 0);
     const detail = notice.detail
       ? this.scene.add
-          .text(-TOAST_W / 2 + 18, 0, notice.detail, {
+          .text(-this.cardW / 2 + 18, 0, notice.detail, {
             fontFamily: theme.fonts.ui,
             fontSize: `${theme.type.caption}px`,
             color: theme.colors.muted,
-            wordWrap: { width: TOAST_W - 36 },
+            wordWrap: { width: this.cardW - 36 },
           })
           .setOrigin(0, 0)
       : undefined;
@@ -194,17 +207,17 @@ export class Toast {
 
     const plaque = this.scene.add.graphics();
     plaque.fillStyle(theme.graphics.panelFill, 0.96);
-    plaque.fillRoundedRect(-TOAST_W / 2, top, TOAST_W, height, theme.radius.panel);
+    plaque.fillRoundedRect(-this.cardW / 2, top, this.cardW, height, theme.radius.panel);
     plaque.lineStyle(2, colorInt(theme.colors.gold), 0.92);
-    plaque.strokeRoundedRect(-TOAST_W / 2 + 1, top + 1, TOAST_W - 2, height - 2, theme.radius.panel);
+    plaque.strokeRoundedRect(-this.cardW / 2 + 1, top + 1, this.cardW - 2, height - 2, theme.radius.panel);
     plaque.lineStyle(1, theme.graphics.panelStroke, 0.9);
-    plaque.strokeRoundedRect(-TOAST_W / 2 + 7, top + 7, TOAST_W - 14, height - 14, theme.radius.control);
+    plaque.strokeRoundedRect(-this.cardW / 2 + 7, top + 7, this.cardW - 14, height - 14, theme.radius.control);
 
     const shine = this.scene.add.graphics();
     shine.fillStyle(colorInt(theme.colors.gold), 0.2);
-    shine.fillRoundedRect(-TOAST_W / 2 + 14, top + 10, 22, height - 20, theme.radius.control);
-    shine.setX(-TOAST_W / 2 + 14);
-    const input = this.scene.add.zone(0, 0, TOAST_W, height).setInteractive({ useHandCursor: true });
+    shine.fillRoundedRect(-this.cardW / 2 + 14, top + 10, 22, height - 20, theme.radius.control);
+    shine.setX(-this.cardW / 2 + 14);
+    const input = this.scene.add.zone(0, 0, this.cardW, height).setInteractive({ useHandCursor: true });
     const card: ToastCard = { notice, container, input, timer: null };
     bindTapButton(this.scene, input, (pointer) => {
       if (pointer.rightButtonReleased()) return;
@@ -218,7 +231,7 @@ export class Toast {
 
     this.scene.tweens.add({
       targets: container,
-      x: TOAST_X,
+      x: this.restX,
       alpha: 1,
       duration: TOAST_ENTRY_MS,
       delay: index * TOAST_STAGGER_MS,
@@ -229,7 +242,7 @@ export class Toast {
     });
     this.scene.tweens.add({
       targets: shine,
-      x: TOAST_W / 2 - 36,
+      x: this.cardW / 2 - 36,
       alpha: 0,
       duration: 620,
       delay: index * TOAST_STAGGER_MS + 80,
@@ -265,7 +278,7 @@ export class Toast {
       card.input.disableInteractive();
       this.scene.tweens.add({
         targets: card.container,
-        x: TOAST_X + 48,
+        x: this.restX + 48,
         alpha: 0,
         duration: 180,
         ease: 'Cubic.easeIn',

@@ -5,7 +5,9 @@ import {
   resolveRenderScale,
   setActiveRenderScale,
   setActiveSceneZoom,
+  setCurrentSceneZoom,
   tapSlopWorldPx,
+  textRasterResolution,
 } from '../../src/platform/renderScale';
 
 describe('resolveRenderScale', () => {
@@ -76,6 +78,7 @@ describe('tapSlopWorldPx', () => {
   afterEach(() => {
     setActiveRenderScale(1);
     setActiveSceneZoom(null);
+    setCurrentSceneZoom(null);
   });
 
   it('is 10 world px on desktop at every render factor', () => {
@@ -89,5 +92,18 @@ describe('tapSlopWorldPx', () => {
     setActiveRenderScale(2);
     setActiveSceneZoom(1);
     expect(tapSlopWorldPx()).toBe(20);
+  });
+
+  it('is 10 CSS px in a scene drawing its own compact composition', () => {
+    // The same phone, but the scene lays out in CSS px: its camera zoom is k,
+    // so a world px is a CSS px, and texts rasterize at k to land 1:1.
+    setActiveRenderScale(2);
+    setActiveSceneZoom(1);
+    setCurrentSceneZoom(2);
+    expect(tapSlopWorldPx()).toBe(10);
+    expect(textRasterResolution()).toBe(2);
+    setCurrentSceneZoom(null);
+    expect(tapSlopWorldPx()).toBe(20);
+    expect(textRasterResolution()).toBe(1);
   });
 });

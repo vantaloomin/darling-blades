@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -260,6 +260,135 @@ const drawCorners = (outward: boolean): Draw => (ctx, c) => {
   }
 };
 
+/** Line icons for the compact main menu's rows (mock M-MainMenu): 5 px strokes, round ends. */
+const stroked = (ctx: CanvasRenderingContext2D): void => {
+  ctx.strokeStyle = WHITE;
+  ctx.fillStyle = WHITE;
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+};
+
+const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void => {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+};
+
+/** A shopfront: a framed panel with an awning line. */
+const drawShop: Draw = (ctx, c) => {
+  stroked(ctx);
+  roundRect(ctx, c - 20, c - 24, 40, 48, 5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c - 20, c - 10);
+  ctx.lineTo(c + 20, c - 10);
+  ctx.stroke();
+};
+
+/** Two cards, the back one peeking out on the right. */
+const drawCards: Draw = (ctx, c) => {
+  stroked(ctx);
+  roundRect(ctx, c - 22, c - 22, 28, 40, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c + 12, c - 16);
+  ctx.lineTo(c + 18, c - 16);
+  ctx.arcTo(c + 22, c - 16, c + 22, c - 12, 4);
+  ctx.lineTo(c + 22, c + 22);
+  ctx.arcTo(c + 22, c + 26, c + 18, c + 26, 4);
+  ctx.lineTo(c - 12, c + 26);
+  ctx.stroke();
+};
+
+/** One upright card with a band across its foot. */
+const drawDeck: Draw = (ctx, c) => {
+  stroked(ctx);
+  roundRect(ctx, c - 16, c - 24, 32, 48, 5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c - 16, c + 12);
+  ctx.lineTo(c + 16, c + 12);
+  ctx.stroke();
+};
+
+/** A cup on a stem and foot, with handles. */
+const drawTrophy: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c - 15, c - 24);
+  ctx.lineTo(c + 15, c - 24);
+  ctx.lineTo(c + 15, c - 10);
+  ctx.quadraticCurveTo(c + 15, c + 6, c, c + 6);
+  ctx.quadraticCurveTo(c - 15, c + 6, c - 15, c - 10);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c - 15, c - 18);
+  ctx.quadraticCurveTo(c - 26, c - 18, c - 24, c - 8);
+  ctx.quadraticCurveTo(c - 22, c - 2, c - 13, c - 2);
+  ctx.moveTo(c + 15, c - 18);
+  ctx.quadraticCurveTo(c + 26, c - 18, c + 24, c - 8);
+  ctx.quadraticCurveTo(c + 22, c - 2, c + 13, c - 2);
+  ctx.moveTo(c, c + 6);
+  ctx.lineTo(c, c + 16);
+  ctx.moveTo(c - 12, c + 24);
+  ctx.lineTo(c + 12, c + 24);
+  ctx.moveTo(c - 6, c + 16);
+  ctx.lineTo(c + 6, c + 16);
+  ctx.lineTo(c + 8, c + 24);
+  ctx.moveTo(c - 6, c + 16);
+  ctx.lineTo(c - 8, c + 24);
+  ctx.stroke();
+};
+
+/** A blade on the diagonal, point at the top right, with a crossguard. */
+const drawSword: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c + 24, c - 24);
+  ctx.lineTo(c - 8, c + 8);
+  ctx.moveTo(c + 24, c - 24);
+  ctx.lineTo(c + 14, c - 22);
+  ctx.moveTo(c + 24, c - 24);
+  ctx.lineTo(c + 22, c - 14);
+  ctx.moveTo(c - 16, c);
+  ctx.lineTo(c, c + 16);
+  ctx.moveTo(c - 8, c + 8);
+  ctx.lineTo(c - 22, c + 22);
+  ctx.stroke();
+};
+
+/** A right-pointing chevron (a row that opens another screen). */
+const drawChevron: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 8, c - 18);
+  ctx.lineTo(c + 10, c);
+  ctx.lineTo(c - 8, c + 18);
+  ctx.stroke();
+};
+
+/** A ringed "i" (How to play). */
+const drawInfo: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.arc(c, c, c - 6, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c, c - 2);
+  ctx.lineTo(c, c + 14);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c, c - 13, 3.5, 0, Math.PI * 2);
+  ctx.fill();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -273,6 +402,13 @@ const DRAW: Record<UiIconName, Draw> = {
   pencil: drawPencil,
   expand: drawCorners(true),
   shrink: drawCorners(false),
+  shop: drawShop,
+  cards: drawCards,
+  deck: drawDeck,
+  trophy: drawTrophy,
+  sword: drawSword,
+  chevron: drawChevron,
+  info: drawInfo,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

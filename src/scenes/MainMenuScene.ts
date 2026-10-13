@@ -25,16 +25,26 @@ import {
   rerollDailyQuest,
 } from '../meta/Quests';
 import { Services } from '../meta/services';
+import { bindTapButton } from '../platform/gestures';
 import { fullScreenOffered, isFullScreen, onFullScreenChange, toggleFullScreen } from '../platform/fullscreen';
 import { markSaveOverNoticeShown, readSaveOverNoticeOwed } from '../platform/homeScreen';
 import { normalizeStatsNoticeVersion, STATS_NOTICE_VERSION } from '../meta/statsNotice';
 import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
+import { compactButton, compactIconButton, type CompactButton } from '../ui/compactWidgets';
+import { compactDailyPage, compactMainMenuLayout, MAIN_MENU_COMPACT, type CompactMainMenuLayout } from '../ui/mainMenuCompact';
+import type { Rect } from '../ui/layout';
+import { addPortraitArt } from '../ui/portraitArt';
+import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
+import type { ThemedButtonVariant } from '../ui/controlStyle';
+import type { UiIconName } from '../ui/uiIcons';
+import { bakeUiIcon } from '../ui/uiIcons';
+import { formatCount } from '../ui/goldFormat';
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { FEATURES } from '../config/features';
 import {
@@ -53,14 +63,41 @@ import { VERSION_LABEL } from '../version';
 
 // Game modes live one level down. "Decks" remains the saved-deck picker and builder.
 const MENU_ITEMS = MAIN_MENU_ITEMS;
+/** The phone's command column, top to bottom above Play (mock M-MainMenu). */
+const COMPACT_NAV: readonly { label: string; scene: string; icon: UiIconName }[] = [
+  { label: 'Shop', scene: 'Shop', icon: 'shop' },
+  { label: 'Collection', scene: 'Collection', icon: 'cards' },
+  { label: 'Decks', scene: 'DeckBuilder', icon: 'deck' },
+  { label: 'Achievements', scene: 'Achievements', icon: 'trophy' },
+];
 /** Every Daily row's action column: Reroll, Claim +N, Claimed, No rerolls. */
 const DAILY_ACTION_WIDTH = 120;
+/** A menu notice's width on the phone (mock M-NoticeRepair). */
+const COMPACT_NOTICE_W = 520;
+const TUTORIAL_PROMPT_MESSAGE =
+  'A quick match teaches the basics: mana, creatures, and combat.\n' +
+  'You get the same starting bonus either way, so skipping costs you nothing.\n' +
+  'You can replay it anytime from "How to Play".';
+const SAVE_OVER_MESSAGE =
+  'Your home-screen game starts fresh: it keeps its own save, apart from Safari\'s. ' +
+  'To carry on where you were, open Darling Blades in Safari, go to Profile and Export save, then Import that code here.';
+const deckRepairMessage = (count: number): string =>
+  (count === 1
+    ? 'The rules changed with this update. One of your decks no longer fits the current format. '
+    : `The rules changed with this update. ${count} of your decks no longer fit the current format. `) +
+  'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.';
+/** The Profile tile's art when the player has no deck to take a face from. */
+const PROFILE_FALLBACK_ART = 'scene-card-back';
+/** The phone's Daily Blades action buttons: the touch floor. */
+const COMPACT_ACTION_H = 44;
 
 export class MainMenuScene extends Phaser.Scene {
   private fixture = false;
   private menuItems: Phaser.GameObjects.GameObject[] = [];
   private guard = new ModalGuard();
   private toasts!: Toast;
+  /** The compact composition's Daily Blades page (mock M-MainMenu130's fold). */
+  private dailyPage = 0;
 
   constructor() {
     super('MainMenu');
@@ -70,13 +107,15 @@ export class MainMenuScene extends Phaser.Scene {
     a11yFixture?: boolean; tutorial?: boolean; repair?: FlaggedDeckSummary[];
     /** Dev probe only (src/dev/wave3DialogFixtures.ts): open one shared dialog over the fixture menu. */
     a11yOpen?: (scene: Phaser.Scene) => void;
+    /** The phone's Daily Blades page, kept across the panel's own restarts. */
+    dailyPage?: number;
   } = {}): void {
     const fixture = IS_DEV && data.a11yFixture === true;
+    this.dailyPage = data.dailyPage ?? 0;
     this.fixture = fixture;
     this.sys.settings.data = {};
     this.menuItems = [];
     this.guard = new ModalGuard();
-    this.toasts = new Toast(this, { modalGuard: this.guard });
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -94,6 +133,17 @@ export class MainMenuScene extends Phaser.Scene {
       fallback: () => {
         /* scene had no background of its own — the clear colour shows */
       },
+    });
+    // On a phone the menu draws its own compact composition (mock M-MainMenu)
+    // in the phone's design space; everywhere else the 1280×720 menu.
+    const stage = sceneStage(this);
+    const compact = stage.compact
+      ? compactMainMenuLayout(stage.content, { fullScreen: fullScreenOffered(), navCount: COMPACT_NAV.length })
+      : null;
+    // Toasts stack at the top of the command column on a phone (mock M-Toasts).
+    this.toasts = new Toast(this, {
+      modalGuard: this.guard,
+      ...(compact ? { rail: { right: compact.play.x + compact.play.width, top: compact.nav[0]?.y ?? compact.play.y, width: compact.play.width } } : {}),
     });
 
     // One tick/click for every interactive object; rapid duplicates dedupe in
@@ -115,6 +165,12 @@ export class MainMenuScene extends Phaser.Scene {
     if (!fixture && ensureDailyState(save, today)) Services.save.flush();
     const achievements = evaluateAchievements(save, CARD_DB);
     const claimableAchievements = achievements.filter((status) => status.unlocked && !status.claimed).length;
+
+    if (compact) {
+      this.buildCompact(compact, today, fixture, claimableAchievements);
+      this.finishCreate(data, fixture);
+      return;
+    }
 
     this.add
       .text(width / 2, 140, 'Darling Blades', {
@@ -194,11 +250,323 @@ export class MainMenuScene extends Phaser.Scene {
       stamp.width + 2 * MAIN_MENU_VERSION.padX, stamp.height + 2 * MAIN_MENU_VERSION.padY, { radius: theme.radius.control });
     this.children.moveBelow(stampPlate, stamp);
 
+    this.finishCreate(data, fixture);
+  }
+
+  /** The arrival notices (or the probe fixture's own dialog), on either composition. */
+  private finishCreate(
+    data: { tutorial?: boolean; repair?: FlaggedDeckSummary[]; a11yOpen?: (scene: Phaser.Scene) => void },
+    fixture: boolean,
+  ): void {
     if (fixture) {
       if (data.tutorial) this.promptTutorial();
       else if (data.repair?.length) this.showDeckRepairNotice(data.repair);
       else data.a11yOpen?.(this);
     } else this.runArrival();
+  }
+
+
+  // ---------------------------------------------------------------- the phone
+
+  /**
+   * The compact composition (mock M-MainMenu, Largest text M-MainMenu130): the
+   * title, gold and icons in the top bar; the Profile tile, How to play and
+   * Glossary on the left; Daily Blades in the centre; the destinations and
+   * Play in the command column. Same actions as the desktop menu.
+   */
+  private buildCompact(layout: CompactMainMenuLayout, today: string, fixture: boolean, claimable: number): void {
+    const type = theme.compactType;
+
+    // Top bar: the title, then the gold, the full-screen icon (M8) and Settings.
+    const title = this.add.text(layout.title.x, layout.title.centerY, 'Darling Blades', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    }).setOrigin(0, 0.5);
+    if (title.width > layout.title.maxWidth) title.setScale(layout.title.maxWidth / title.width);
+    this.compactGold(layout.gold.right, layout.gold.centerY, layout.gold.height);
+    if (layout.fullScreen) {
+      const expand = compactIconButton(this, layout.fullScreen, isFullScreen() ? 'shrink' : 'expand', () => { void toggleFullScreen(); });
+      this.menuItems.push(expand.inputZone);
+      const unsubscribe = onFullScreenChange(() => expand.setIcon(isFullScreen() ? 'shrink' : 'expand'));
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, unsubscribe);
+    }
+    this.menuItems.push(compactIconButton(this, layout.gear, 'gear', () => this.scene.start('Settings')).inputZone);
+
+    // Left: identity.
+    this.compactProfileTile(layout.profile);
+    this.menuItems.push(
+      compactButton(this, layout.howToPlay, 'How to play', { icon: 'info', onTap: () => this.startTutorial() }).inputZone,
+      compactButton(this, layout.glossary, 'Glossary', { icon: 'book', onTap: () => this.scene.start('Glossary') }).inputZone,
+    );
+    this.add.text(layout.version.x, layout.version.bottom, VERSION_LABEL, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: theme.colors.muted,
+    }).setOrigin(0, 1).setData('a11yExpendable', true);
+
+    // Centre: Daily Blades.
+    this.compactDaily(layout.daily, today, fixture);
+
+    // Right: the command column.
+    COMPACT_NAV.forEach((entry, i) => {
+      const rect = layout.nav[i];
+      if (!rect) return;
+      const row = compactButton(this, rect, entry.label, {
+        icon: entry.icon, align: 'left', radius: theme.radius.panel, onTap: () => this.scene.start(entry.scene),
+      });
+      this.menuItems.push(row.inputZone);
+      if (entry.scene === 'Achievements' && claimable > 0) {
+        this.addClaimBadge(rect.x + rect.width - 16 - 13, rect.y + rect.height / 2, claimable);
+      }
+    });
+    const play = compactButton(this, layout.play, 'Play', {
+      variant: 'primary', icon: 'sword', fontSize: type.h2, onTap: () => this.scene.start('Play'),
+    });
+    this.menuItems.push(play.inputZone);
+  }
+
+  /** The gold, a pill in the top bar (not a control). */
+  private compactGold(right: number, centerY: number, height: number): void {
+    const type = theme.compactType;
+    const plate = this.add.graphics();
+    const amount = this.add.text(0, centerY, formatCount(Services.save.data.gold), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+    }).setOrigin(0, 0.5);
+    const coinSize = Math.round(type.h2 * 1.15);
+    const padX = 14;
+    const gap = 8;
+    const width = padX + coinSize + gap + amount.width + padX;
+    const left = right - width;
+    plate
+      .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+      .fillRoundedRect(left, centerY - height / 2, width, height, height / 2)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(left, centerY - height / 2, width, height, height / 2);
+    this.add.image(left + padX + coinSize / 2, centerY, bakeUiIcon(this, 'gold')).setDisplaySize(coinSize, coinSize);
+    amount.setX(left + padX + coinSize + gap);
+  }
+
+  /**
+   * The Profile tile: the player's commander art (the face their duels use),
+   * the record over it, and "Profile" with a chevron. One tap opens Profile.
+   */
+  private compactProfileTile(rect: Rect): void {
+    const type = theme.compactType;
+    const save = Services.save.data;
+    this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 1)
+      .fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+    const cardId = this.profileFaceCardId();
+    const cx = rect.x + rect.width / 2;
+    const cy = rect.y + rect.height / 2;
+    // Cover-fit, faces biased up (the Story picker's crop).
+    const fit = (image: Phaser.GameObjects.Image): void => {
+      const scale = Math.max(rect.width / image.width, rect.height / image.height);
+      image.setScale(scale);
+      const cropW = Math.min(image.width, rect.width / scale);
+      const cropH = Math.min(image.height, rect.height / scale);
+      const cropX = (image.width - cropW) / 2;
+      const cropY = Math.max(0, Math.min(image.height - cropH, (image.height - cropH) / 2 - (rect.height * 0.12) / scale));
+      image.setCrop(cropX, cropY, cropW, cropH);
+      image.setPosition(cx - (cropX + cropW / 2 - image.width / 2) * scale, cy - (cropY + cropH / 2 - image.height / 2) * scale);
+    };
+    let art: Phaser.GameObjects.Image | null = null;
+    if (cardId) {
+      try {
+        art = addPortraitArt(this, cx, cy, cardId, fit);
+      } catch {
+        art = null;
+      }
+    }
+    // No deck yet (a new save): the card back's art stands in.
+    if (!art && this.textures.exists(PROFILE_FALLBACK_ART)) {
+      art = this.add.image(cx, cy, PROFILE_FALLBACK_ART);
+      fit(art);
+    }
+    // A scrim from the middle down, so the record and the label read over any art.
+    // Stepped bands rather than a gradient fill, which not every renderer draws.
+    const scrim = this.add.graphics();
+    const scrimTop = rect.y + rect.height * 0.4;
+    const bands = 12;
+    const bandH = (rect.y + rect.height - scrimTop) / bands;
+    for (let i = 0; i < bands; i++) {
+      scrim.fillStyle(theme.graphics.panelFill, Math.min(0.94, ((i + 1) / bands) * 1.1));
+      scrim.fillRect(rect.x, scrimTop + i * bandH, rect.width, Math.ceil(bandH));
+    }
+    this.add.graphics()
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+    const pad = 12;
+    const games = save.stats.wins + save.stats.losses;
+    const label = this.add.text(rect.x + pad, rect.y + rect.height - pad, 'Profile', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+    }).setOrigin(0, 1);
+    const chevronSize = Math.round(type.body * 1.15);
+    this.add.image(rect.x + rect.width - pad - chevronSize / 2, label.y - label.height / 2, bakeUiIcon(this, 'chevron'))
+      .setDisplaySize(chevronSize, chevronSize).setTint(colorInt(theme.colors.body));
+    this.add.text(rect.x + pad, label.y - label.height - 4,
+      games > 0 ? `${save.stats.wins} W / ${save.stats.losses} L` : 'No duels played yet', {
+        fontFamily: games > 0 ? theme.fonts.display : theme.fonts.ui,
+        fontSize: `${games > 0 ? type.h2 : type.label}px`,
+        fontStyle: theme.weight.w700,
+        color: games > 0 ? theme.colors.gold : theme.colors.muted,
+        wordWrap: { width: rect.width - 2 * pad },
+      }).setOrigin(0, 1);
+    const zone = this.add.zone(cx, cy, rect.width, rect.height).setInteractive({ useHandCursor: true });
+    bindTapButton(this, zone, () => this.scene.start('Profile'));
+    this.menuItems.push(zone);
+  }
+
+  /** The card whose art the Profile tile shows: the player's duel face, as DuelScene picks it. */
+  private profileFaceCardId(): string | null {
+    const save = Services.save.data;
+    const deck = activeVisibleSavedDeck(save.decks, save.activeDeckId, FEATURES.reserveFormats);
+    const darling = deck?.format === 'darlings' ? darlingFaceCardFor(deck, CARD_DB) : null;
+    const hero = deck?.heroCardId && CARD_DB[deck.heroCardId] && deck.cards.includes(deck.heroCardId) ? deck.heroCardId : null;
+    const fallback = save.heroCardId && CARD_DB[save.heroCardId] ? save.heroCardId : null;
+    return darling ?? hero ?? fallback ?? (deck ? faceCardFor(deck.cards, CARD_DB) : null);
+  }
+
+  /**
+   * Daily Blades in the centre pane: the heading, the streak line and the
+   * three quests. When they do not all fit (Largest text, a short phone) the
+   * last slot becomes a fold row that pages through the rest (M-MainMenu130).
+   */
+  private compactDaily(rect: Rect, today: string, fixture: boolean): void {
+    const type = theme.compactType;
+    const save = Services.save.data;
+    const L = MAIN_MENU_COMPACT;
+    const quests = fixture ? DAILY_QUESTS.slice().sort((a, b) => b.description.length - a.description.length).slice(0, 3).map((q, i) => ({
+      ...q, progress: i === 1 ? q.target : 0, claimed: i === 2, complete: i !== 0,
+    })) : dailyQuestStatuses(save, today);
+    const rerollsLeft = dailyRerollsRemaining(save, today);
+    const streak = dailyStreakStatus(save, today);
+    panel(this, rect.x, rect.y, rect.width, rect.height);
+    const pad = L.dailyPad;
+    const inner = { x: rect.x + pad, width: rect.width - 2 * pad };
+    const heading = this.add.text(inner.x, rect.y + pad, 'Daily Blades', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    const rerolls = this.add.text(inner.x + inner.width, heading.y + heading.height / 2, `Rerolls ${rerollsLeft}/${ECONOMY.dailyRerollsPerDay}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+    }).setOrigin(1, 0.5);
+    const streakText = this.add.text(inner.x, heading.y + heading.height + 2, streak.wonToday
+      ? `Streak ${streak.count} · win locked in` : `Streak ${streak.count} · next win +${streak.nextGold}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600,
+      color: streak.wonToday ? theme.colors.success : theme.colors.gold,
+    });
+    // Largest text on a narrow phone: the reroll count drops to the streak
+    // line's right end, or under it, rather than shrinking the heading.
+    let listTop = streakText.y + streakText.height + 8;
+    if (heading.width + 8 + rerolls.width > inner.width) {
+      if (streakText.width + 8 + rerolls.width <= inner.width) {
+        rerolls.setY(streakText.y + streakText.height / 2);
+      } else {
+        rerolls.setOrigin(0, 0).setPosition(inner.x, streakText.y + streakText.height + 2);
+        listTop = rerolls.y + rerolls.height + 8;
+      }
+    }
+    const listH = rect.y + rect.height - pad + 2 - listTop;
+
+    // One action column for every row, as wide as its widest label needs.
+    const actionLabel = (q: (typeof quests)[number]): string | null =>
+      q.claimed ? '✓ Claimed' : !q.complete && rerollsLeft === 0 ? 'No rerolls' : q.complete ? `Claim +${q.rewardGold}` : 'Reroll';
+    const widest = Math.max(0, ...quests.map((q) => {
+      const probe = this.add.text(0, 0, actionLabel(q) ?? '', { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
+      const w = probe.width;
+      probe.destroy();
+      return w;
+    }));
+    const actionW = Math.min(Math.round(inner.width * 0.45), Math.max(L.dailyActionW, Math.ceil(widest) + 24));
+    // Build every row once (hidden), measure, then show the page that fits.
+    const textW = inner.width - 2 * 10 - actionW - 6;
+    const rows = quests.map((quest, i) => {
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      const name = this.add.text(0, 0, quest.title, {
+        fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
+        color: quest.claimed ? theme.colors.muted : theme.colors.heading, wordWrap: { width: textW },
+      });
+      const description = this.add.text(0, 0, quest.description, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: textW },
+      });
+      const count = this.add.text(0, 0, `${Math.min(quest.progress, quest.target)}/${quest.target}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body,
+      }).setOrigin(1, 0.5);
+      parts.push(name, description, count);
+      return { quest, index: i, name, description, count, parts, height: 0 };
+    });
+    // Two row shapes. Side by side (the mock): the text left, the button
+    // right. Stacked, when the text would wrap deep beside the button
+    // (Largest text on a narrow phone): the name and description run the full
+    // width, and the progress bar shares the last line with the button.
+    const sideHeight = (r: (typeof rows)[number]): number =>
+      Math.max(60, r.name.height + 2 + r.description.height + 6 + Math.max(8, r.count.height) + 2 * 6);
+    const fullW = inner.width - 2 * 10;
+    const sideHeights = rows.map(sideHeight);
+    for (const r of rows) { r.name.setWordWrapWidth(fullW); r.description.setWordWrapWidth(fullW); }
+    const stackedHeights = rows.map((r) => r.name.height + 2 + r.description.height + 6 + COMPACT_ACTION_H + 2 * 6);
+    // Whichever shape shows more quests before the fold wins (M-MainMenu130
+    // keeps two side by side); on a tie, the shorter list.
+    const shown = (heights: number[]): number => compactDailyPage(listH, heights, 0).quests.length;
+    const sum = (heights: number[]): number => heights.reduce((a, b) => a + b, 0);
+    const stacked = shown(stackedHeights) !== shown(sideHeights)
+      ? shown(stackedHeights) > shown(sideHeights)
+      : sum(stackedHeights) < sum(sideHeights);
+    if (!stacked) for (const r of rows) { r.name.setWordWrapWidth(textW); r.description.setWordWrapWidth(textW); }
+    rows.forEach((r, i) => { r.height = stacked ? stackedHeights[i] : sideHeights[i]; });
+    const page = compactDailyPage(listH, rows.map((r) => r.height), this.dailyPage);
+    let y = listTop;
+    for (const qi of page.quests) {
+      const r = rows[qi];
+      const box = { x: inner.x, y, width: inner.width, height: r.height };
+      panel(this, box.x, box.y, box.width, box.height, { radius: theme.radius.control });
+      const textX = box.x + 10;
+      const lastLine = stacked ? COMPACT_ACTION_H : Math.max(8, r.count.height);
+      const block = r.name.height + 2 + r.description.height + 6 + lastLine;
+      let ty = box.y + (box.height - block) / 2;
+      r.name.setPosition(textX, ty); ty += r.name.height + 2;
+      r.description.setPosition(textX, ty); ty += r.description.height + 6;
+      const barCenter = ty + lastLine / 2;
+      const barRight = stacked ? box.x + box.width - 10 - actionW - 10 : textX + textW;
+      r.count.setPosition(barRight, barCenter);
+      const barW = Math.max(24, barRight - textX - r.count.width - 8);
+      const progress = this.add.graphics().fillStyle(theme.graphics.panelStroke, 1).fillRoundedRect(textX, barCenter - 4, barW, 8, 4);
+      const fillW = Math.round(barW * Math.min(r.quest.progress, r.quest.target) / r.quest.target);
+      if (fillW > 0) progress.fillStyle(r.quest.complete ? colorInt(theme.colors.success) : colorInt(theme.colors.gold), 1).fillRoundedRect(textX, barCenter - 4, fillW, 8, 4);
+      for (const part of r.parts) this.children.bringToTop(part);
+      const action = { x: box.x + box.width - 10 - actionW, y: stacked ? barCenter - COMPACT_ACTION_H / 2 : box.y + (box.height - COMPACT_ACTION_H) / 2, width: actionW, height: COMPACT_ACTION_H };
+      const settled = r.quest.claimed || (!r.quest.complete && rerollsLeft === 0);
+      if (settled) {
+        const done = r.quest.claimed;
+        this.add.text(action.x + action.width / 2, action.y + action.height / 2, done ? '✓ Claimed' : 'No rerolls', {
+          fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+          color: done ? theme.colors.success : theme.colors.muted,
+        }).setOrigin(0.5);
+      } else {
+        const claim = r.quest.complete;
+        const button = compactButton(this, action, claim ? `Claim +${r.quest.rewardGold}` : 'Reroll', {
+          variant: (claim ? 'emphasis' : 'ghost') as ThemedButtonVariant,
+          onTap: () => {
+            if (fixture) return;
+            const result = claim ? claimDailyQuest(save, r.index, todayString()) : rerollDailyQuest(save, r.index, todayString());
+            if (!result.ok) return;
+            Services.save.flush();
+            if (claim) Sfx.play('coin');
+            this.scene.restart({ dailyPage: this.dailyPage });
+          },
+        });
+        this.menuItems.push(button.inputZone);
+      }
+      y += r.height + L.dailyRowGap;
+    }
+    // Rows off this page were built only to measure the page.
+    for (const r of rows) if (!page.quests.includes(r.index)) for (const part of r.parts) part.destroy();
+    if (page.fold) {
+      const fold = page.fold;
+      const more: CompactButton = compactButton(this, { x: inner.x, y, width: inner.width, height: L.moreRowH }, fold.label, {
+        onTap: () => {
+          this.scene.restart({ dailyPage: fold.next });
+        },
+      });
+      this.menuItems.push(more.inputZone);
+    }
   }
 
   /**
@@ -310,18 +678,77 @@ export class MainMenuScene extends Phaser.Scene {
     return noticeState.needsNotice ? flagged : null;
   }
 
+
+  /**
+   * A menu notice on the phone (mocks M-NoticeRepair, M-TutorialPrompt): the
+   * title, the message, and two buttons sharing the footer, the secondary on
+   * the left and the primary on the right (M18). No corner close: both
+   * buttons answer it. `onClose` runs once the shell is gone.
+   */
+  private compactNotice(
+    titleText: string,
+    messageText: string,
+    secondary: { label: string; onTap: (close: () => void) => void },
+    primary: { label: string; onTap: (close: () => void) => void },
+    onClose: () => void,
+  ): void {
+    const type = theme.compactType;
+    const content = sceneStage(this).content;
+    const width = Math.min(COMPACT_NOTICE_W, content.width);
+    const pad = theme.space(6);
+    const title = this.add.text(0, 0, titleText, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      wordWrap: { width: width - 2 * pad },
+    });
+    const message = this.add.text(0, 0, messageText, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body,
+      wordWrap: { width: width - 2 * pad }, lineSpacing: theme.space(1),
+    });
+    const layout = menuNoticeLayout(width, title.height, message.height);
+    const shell = modalShell(this, {
+      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
+      dismissal: 'mandatory', onClose: () => { this.guard.close(); onClose(); },
+    });
+    this.guard.open(this.menuItems);
+    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y + (shell.tracks.titleTrack.height - title.height) / 2);
+    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+    shell.container.add([title, message]);
+    const footer = shell.tracks.footerTrack;
+    const gap = theme.space(4);
+    const half = (footer.width - gap) / 2;
+    const close = (): void => shell.close();
+    const left = compactButton(this, { x: footer.x, y: footer.y, width: half, height: footer.height }, secondary.label, {
+      onTap: () => secondary.onTap(close),
+    });
+    const right = compactButton(this, { x: footer.x + half + gap, y: footer.y, width: half, height: footer.height }, primary.label, {
+      variant: 'primary', onTap: () => primary.onTap(close),
+    });
+    shell.container.add([left.container, right.container]);
+  }
+
   private showDeckRepairNotice(flagged: readonly FlaggedDeckSummary[]): void {
     const save = Services.save.data;
     let repairDeckId: string | null = null;
     const single = flagged.length === 1;
+    if (sceneStage(this).compact) {
+      const acknowledge = (): void => {
+        if (this.fixture) return;
+        save.deckRepairNoticeAck = deckRepairNoticeFingerprint(flagged);
+        Services.save.flush();
+      };
+      this.compactNotice(
+        single ? 'Your deck needs fixes' : 'Your decks need fixes',
+        deckRepairMessage(flagged.length),
+        { label: 'Later', onTap: (close) => { acknowledge(); close(); } },
+        { label: 'Fix now', onTap: (close) => { acknowledge(); repairDeckId = flagged[0]?.deckId ?? null; close(); } },
+        () => { if (repairDeckId) this.scene.start('DeckBuilder', { deckId: repairDeckId }); },
+      );
+      return;
+    }
     const title = this.add.text(0, 0, single ? 'Your deck needs fixes' : 'Your decks need fixes', {
       fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     });
-    const message = this.add.text(0, 0,
-      (single
-        ? 'The rules changed with this update. One of your decks no longer fits the current format. '
-        : `The rules changed with this update. ${flagged.length} of your decks no longer fit the current format. `) +
-        'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.', {
+    const message = this.add.text(0, 0, deckRepairMessage(flagged.length), {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
         wordWrap: { width: 696 }, lineSpacing: theme.space(1),
       });
@@ -522,13 +949,17 @@ export class MainMenuScene extends Phaser.Scene {
    * players claim their free starter in the Shop's Decks tab.)
    */
   private promptTutorial(): void {
+    if (sceneStage(this).compact) {
+      this.compactNotice('New to card games?', TUTORIAL_PROMPT_MESSAGE,
+        { label: 'Skip', onTap: () => this.skipTutorial() },
+        { label: 'Start tutorial', onTap: () => this.startTutorial() },
+        () => {});
+      return;
+    }
     const title = this.add.text(0, 0, 'New to card games?', {
       fontFamily: theme.fonts.display, fontSize: `${theme.type.display}px`, color: theme.colors.heading,
     });
-    const message = this.add.text(0, 0,
-      'A quick match teaches the basics: mana, creatures, and combat.\n' +
-      'You get the same starting bonus either way, so skipping costs you nothing.\n' +
-      'You can replay it anytime from "How to Play".', {
+    const message = this.add.text(0, 0, TUTORIAL_PROMPT_MESSAGE, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
         wordWrap: { width: 792 }, lineSpacing: theme.space(1),
       });
@@ -552,12 +983,23 @@ export class MainMenuScene extends Phaser.Scene {
    * arrival chain. Either way it is never shown in this storage again.
    */
   private showSaveOverNotice(onNotNow: () => void): void {
+    if (sceneStage(this).compact) {
+      let importing = false;
+      const choose = (toImport: boolean, close: () => void): void => {
+        if (!this.fixture) markSaveOverNoticeShown();
+        importing = toImport;
+        close();
+      };
+      this.compactNotice('Bring your save over', SAVE_OVER_MESSAGE,
+        { label: 'Not now', onTap: (close) => choose(false, close) },
+        { label: 'Import code', onTap: (close) => choose(true, close) },
+        () => { if (importing) this.scene.start('Profile', { openImport: true }); else onNotNow(); });
+      return;
+    }
     const title = this.add.text(0, 0, 'Bring your save over', {
       fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
     });
-    const message = this.add.text(0, 0,
-      'Your home-screen game starts fresh: it keeps its own save, apart from Safari\'s. ' +
-      'To carry on where you were, open Darling Blades in Safari, go to Profile and Export save, then Import that code here.', {
+    const message = this.add.text(0, 0, SAVE_OVER_MESSAGE, {
         fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
         wordWrap: { width: 696 }, lineSpacing: theme.space(1),
       });

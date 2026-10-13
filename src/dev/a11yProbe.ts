@@ -66,6 +66,7 @@ import { theme } from '../ui/theme';
 import { zonePanelHeaderFindings } from '../ui/duelPanelPresentation';
 import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
 import { activeSceneZoom } from '../platform/renderScale';
+import { sceneStage } from '../ui/SceneBackdrop';
 import { screenFixtureNamed } from '../platform/screenFixtures';
 import { COMPACT } from '../ui/compactLayout';
 import {
@@ -556,7 +557,8 @@ function laterWidgetRects(text: Phaser.GameObjects.Text): ProbeRect[] {
 function modalPanelRect(container: Phaser.GameObjects.Container): ProbeRect | null {
   const [dim, chrome] = container.list;
   if (!(dim instanceof Phaser.GameObjects.Rectangle) || !(chrome instanceof Phaser.GameObjects.Graphics)) return null;
-  if (dim.width < theme.design.width || dim.height < theme.design.height) return null;
+  const stage = sceneStage(container.scene);
+  if (dim.width < stage.width || dim.height < stage.height) return null;
   const local = graphicsLocalRect(chrome);
   return local ? toWorld(chrome, local) : null;
 }
@@ -667,6 +669,11 @@ function declaredArea(object: Phaser.GameObjects.GameObject): ProbeRect | undefi
 export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'> {
   const { texts, cardFaceTexts, maskedOut } = walkTexts(scene);
   const findings: ProbeFinding[] = [];
+  // A scene drawing its compact composition is checked against the phone's
+  // content box and design space, not the 1280×720 title-safe frame.
+  const stage = sceneStage(scene);
+  const frame: ProbeRect = stage.compact ? stage.content : FRAME;
+  const frameNote = stage.compact ? `compact content box ${JSON.stringify(stage.content)}` : 'title-safe frame x 64-1216, y 36-684';
   for (const t of texts) {
     const text = label(t.object);
     if (t.object.getData('a11yCueText') === true) {
@@ -674,7 +681,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       for (const kind of menuTextFindings({ expected: t.object.text, actual: t.object.text,
         lines: t.object.getWrappedText(), bounds: glyphBounds, glyphBounds,
         glyphClip: t.unclippedBounds,
-        clip: t.clip ?? { x: 0, y: 0, width: theme.design.width, height: theme.design.height },
+        clip: t.clip ?? { x: 0, y: 0, width: stage.width, height: stage.height },
         occluders: laterWidgetRects(t.object), keepVisible: true })) {
         findings.push({ kind, text, bounds: round(glyphBounds),
           detail: 'cue ink must fit its raster canvas and mask, and remain clear of later widget geometry' });
@@ -687,7 +694,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
     const area = declaredArea(t.object);
     const duelArea = scene.sys.settings.key === 'Duel' && area && area.width > 0 && area.height > 0
       && contains({ x: 0, y: 0, width: theme.design.width, height: theme.design.height }, area) ? area : null;
-    if (!contains(duelArea ?? FRAME, t.bounds) && t.object.getData('a11yExpendable') !== true) findings.push({ kind: 'outsideFrame', text, bounds: t.bounds, detail: duelArea ? `declared release Duel area ${JSON.stringify(duelArea)}` : 'title-safe frame x 64-1216, y 36-684' });
+    if (!contains(duelArea ?? frame, t.bounds) && t.object.getData('a11yExpendable') !== true) findings.push({ kind: 'outsideFrame', text, bounds: t.bounds, detail: duelArea ? `declared release Duel area ${JSON.stringify(duelArea)}` : frameNote });
     if (t.panel && !contains(t.panel, t.bounds)) {
       findings.push({ kind: 'outsidePanel', text, bounds: t.bounds, detail: `panel ${JSON.stringify(t.panel)}` });
     }
@@ -1061,7 +1068,10 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
             .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
           const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
           totalFindings += findings.length;
-          const taps = viewport.profile === 'compact' ? measureTapTargets(scene, viewport.cssPerDesignPx) : null;
+          // A compact scene has its own camera zoom (src/platform/compactScenes.ts).
+          const cssPerDesignPx = game.canvas.width > 0
+            ? game.canvas.getBoundingClientRect().width / game.canvas.width * scene.cameras.main.zoom : 0;
+          const taps = viewport.profile === 'compact' ? measureTapTargets(scene, cssPerDesignPx) : null;
           sceneReports.push({ scene: spec.label, ...result, findings, ...(taps ? { targets: taps.targets, smallTargets: taps.small } : {}) });
           if (options.snapshots) snapshots[spec.label] = await snapshot(game);
         } catch (error) {

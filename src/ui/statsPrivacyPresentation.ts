@@ -547,8 +547,8 @@ export function statsNoticeBodyStack(measured: StatsNoticeMeasuredBody): StatsNo
  * Read off the shared layout rather than restated, so a change to the shell's
  * tracks moves this dialog with it.
  */
-function statsNoticeShellProbe(): { chrome: number; contentWidth: number } {
-  const probe = modalShellLayout({ width: STATS_NOTICE_LAYOUT.width, height: STATS_NOTICE_LAYOUT.maxHeight });
+function statsNoticeShellProbe(width: number = STATS_NOTICE_LAYOUT.width): { chrome: number; contentWidth: number } {
+  const probe = modalShellLayout({ width, height: STATS_NOTICE_LAYOUT.maxHeight });
   return {
     chrome: probe.panel.height - probe.contentBounds.height,
     contentWidth: probe.contentBounds.width,
@@ -559,18 +559,28 @@ function statsNoticeShellProbe(): { chrome: number; contentWidth: number } {
  * The wrap width of the dialog's body. It depends on the width alone, so the
  * body can be measured BEFORE the shell exists and the shell then sized to it.
  */
-export function statsNoticeContentWidth(): number {
-  return statsNoticeShellProbe().contentWidth;
+export function statsNoticeContentWidth(width: number = STATS_NOTICE_LAYOUT.width): number {
+  return statsNoticeShellProbe(width).contentWidth;
 }
 
 /**
  * The dialog's height for a measured body stack: the stack, the footer gap and
  * the shell's chrome, whole pixels, never taller than the title-safe frame.
  */
-export function statsNoticeShellHeight(stackHeight: number): number {
-  const wanted = Math.ceil(stackHeight + STATS_NOTICE_LAYOUT.footerGap + statsNoticeShellProbe().chrome);
-  return Math.min(STATS_NOTICE_LAYOUT.maxHeight, wanted);
+export function statsNoticeShellHeight(
+  stackHeight: number,
+  width: number = STATS_NOTICE_LAYOUT.width,
+  maxHeight: number = STATS_NOTICE_LAYOUT.maxHeight,
+): number {
+  const wanted = Math.ceil(stackHeight + STATS_NOTICE_LAYOUT.footerGap + statsNoticeShellProbe(width).chrome);
+  return Math.min(maxHeight, wanted);
 }
+
+/**
+ * The dialog on a phone (mock M-StatsNotice): narrower than the desktop's
+ * 760, and never taller than the phone's content box.
+ */
+export const STATS_NOTICE_COMPACT_WIDTH = 540;
 
 /** The On/Off control, right-aligned to the content rect's right edge. */
 export function statsNoticeToggleCenterX(contentRight: number, hitWidth: number): number {
