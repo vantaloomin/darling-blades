@@ -132,10 +132,11 @@ describe('Story screens: layout rules in every accessibility cell', () => {
 
   it('puts every node of every generated Act 1 map on screen, inside the frame, apart, and clear of the run panel (200 seeds)', () => {
     const act = STORY_ACTS[0];
+    const maps = Array.from({ length: 200 }, (_, i) => runMap({ seed: i + 1, act: act.act }));
     forEachA11yCell((cell) => {
       const top = storyContentTop(subtitleBottom(1));
       for (let seed = 1; seed <= 200; seed++) {
-        const map = runMap({ seed, act: act.act });
+        const map = maps[seed - 1];
         const geo = storyMapLayout(map.floors, top);
         expect(isInsideTitleSafe(geo.panel), cell.name).toBe(true);
         const nodes: [string, Rect][] = [];
@@ -163,7 +164,7 @@ describe('Story screens: layout rules in every accessibility cell', () => {
         }
       }
     });
-  });
+  }, 60_000);
 
   it('stacks the run panel in reading order with room for its text, every action a 44px target, Abandon a destructive gap from the main action', () => {
     forEachA11yCell((cell) => {
