@@ -354,6 +354,9 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
     // the Tower avatar's; the Tower avatar itself never changes (it drives the
     // ladder and the win-rate gates).
     ...TOWER_SIMAYI,
+    // Copied, not shared, so a Story tweak can never reach the Tower avatar.
+    personality: { ...TOWER_SIMAYI.personality },
+    landReserve: [...TOWER_SIMAYI.landReserve],
     id: 'simayi-mandate',
     tier: 0,
     difficulty: 'hard',
