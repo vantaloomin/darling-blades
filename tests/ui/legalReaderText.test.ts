@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import { renderAllPages } from '../../scripts/gen-legal-pages';
 import { parseLegalPage } from '../../src/ui/legalReaderText';
 
@@ -16,7 +15,9 @@ describe('the in-game legal reader (M26)', () => {
   });
 
   it('lifts the effective date into the header and keeps the lead-in lines emphasised', () => {
-    const privacy = parseLegalPage(readFileSync('public/privacy.html', 'utf8'));
+    // The generated page itself is build output (gitignored): render it as the build does.
+    const html = [...renderAllPages()].find(([name]) => name.endsWith('privacy.html'))?.[1] ?? '';
+    const privacy = parseLegalPage(html);
     expect(privacy.effective).toMatch(/^Effective date: \w+ \d+, \d{4}$/);
     expect(privacy.blocks[0].kind).toBe('p');
     expect(privacy.blocks.some((b) => b.emphasis && b.text.startsWith('After each finished duel'))).toBe(true);
