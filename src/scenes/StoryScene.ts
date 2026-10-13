@@ -100,6 +100,7 @@ import {
   storyArtWaitLabel,
   StoryDialoguePlayer,
   StoryStage,
+  storyTextureKey,
 } from './StoryDialogue';
 import { bakeUiIcon } from '../ui/uiIcons';
 import {
@@ -150,6 +151,14 @@ interface CardPick {
   picked: string[];
   limit: number;
 }
+
+/**
+ * The Act 1 still behind every run screen (owner ruling M4, 2026-10-13): the
+ * Mandate's sky over the realm, the endless intro's own background. Loaded
+ * through the story-art loader, so the lite tier gets the half-size file; if
+ * it fails, the Tower's backdrop shows instead.
+ */
+const STORY_BACKDROP_ART = 'bg-mandate-sky';
 
 /**
  * Story Mode's run screens (docs/plan-story-mode.md, wave 2), behind
@@ -212,12 +221,11 @@ export class StoryScene extends Phaser.Scene {
     });
     const screen = storyScreen(this.story);
     const pending = this.pendingScene(screen, data.storyScene ?? null);
-    releaseStoryArt(this.textures, pending ? storySceneArtIds(pending.scene) : this.eventArt(screen));
-    if (pending) {
-      this.buildScenePlay(screen, pending);
-      return;
-    }
-    gateOnArt(this, this.artFor(screen), () => this.build(screen));
+    releaseStoryArt(this.textures, [STORY_BACKDROP_ART, ...(pending ? storySceneArtIds(pending.scene) : this.eventArt(screen))]);
+    loadStoryArt(this, [STORY_BACKDROP_ART], () => {
+      if (pending) return this.buildScenePlay(screen, pending);
+      gateOnArt(this, this.artFor(screen), () => this.build(screen));
+    });
   }
 
   /** The scene this visit plays before its screen: one asked for, the run's opening, or the boss's defeat. */
@@ -272,7 +280,9 @@ export class StoryScene extends Phaser.Scene {
   /** The Story backdrop, input sounds, music, zoom and the way back; the title on run screens, not over a scene. */
   private chrome(title: boolean): void {
     const before = new Set(this.children.list);
+    const still = storyTextureKey(STORY_BACKDROP_ART);
     applyBackdrop(this, 'gauntlet', {
+      textureKey: this.textures.exists(still) ? still : undefined,
       dim: theme.graphics.dim,
       dimAlpha: 0.55,
       fallback: () => {

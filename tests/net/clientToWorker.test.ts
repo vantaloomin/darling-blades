@@ -72,6 +72,7 @@ function duelInput(over: Partial<DuelFinishedInput> = {}): DuelFinishedInput {
     deck: { cards: STARTER_DECKS[0].cards, landReserve: null, darlingId: null, savedFormat: 'warchest' },
     limited: false,
     gauntlet: false,
+    story: false,
     opponentId: AVATARS[0].id,
     difficulty: 'medium',
     winner: 0,

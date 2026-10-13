@@ -64,6 +64,7 @@ function duelInput(over: Partial<DuelFinishedInput> = {}): DuelFinishedInput {
     deck: DECK,
     limited: false,
     gauntlet: false,
+    story: false,
     opponentId: AVATARS[0].id,
     difficulty: 'medium',
     winner: 0,
@@ -476,7 +477,10 @@ describe('the duel digest vocabulary', () => {
     }
   });
 
-  it('a gauntlet rung and a Limited match name their own format', () => {
+  it('a story duel, a gauntlet rung and a Limited match name their own format', () => {
+    signals.duelFinished(duelInput({ story: true, deck: { ...DECK, savedFormat: null } }));
+    expect((bodies()[0] as { format: string }).format).toBe('story');
+    fetchSpy.mockClear();
     signals.duelFinished(duelInput({ gauntlet: true }));
     expect((bodies()[0] as { format: string }).format).toBe('gauntlet');
     fetchSpy.mockClear();

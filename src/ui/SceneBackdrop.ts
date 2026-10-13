@@ -100,6 +100,11 @@ export interface BackdropOpts {
    * texture is absent. Keeps today's exact look as the graceful fallback.
    */
   fallback: (scene: Phaser.Scene) => void;
+  /**
+   * A loaded texture to draw in place of `scene-<key>` (Story's Act 1 still).
+   * When it is set the `scene-<key>` art is not consulted at all.
+   */
+  textureKey?: string;
 }
 
 /**
@@ -117,7 +122,7 @@ export function applyBackdrop(
   // single per-scene apply point for boot-time settings.
   applySceneSettings(scene);
 
-  const texKey = `scene-${key}`;
+  const texKey = opts.textureKey ?? `scene-${key}`;
   if (!scene.textures.exists(texKey)) {
     // No real art — the scene's current procedural background is the unchanged
     // fallback (proves visually identical to today).
