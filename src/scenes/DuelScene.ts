@@ -1218,9 +1218,9 @@ export class DuelScene extends Phaser.Scene {
         Services.save.flush();
       }
     }
-    // A story run deck is neither a saved deck nor a draft, and the digest has
-    // no story format, so story duels send no duel digest (yet).
-    this.signalDeck = story ? null : {
+    // A story duel reports the run deck under its own `story` format, so its
+    // savedFormat is null (there is no saved deck behind it).
+    this.signalDeck = {
       cards: myDeck.slice(),
       landReserve: landReserves?.[0] ?? null,
       darlingId: darlings?.[0] ?? null,
@@ -9364,8 +9364,8 @@ export class DuelScene extends Phaser.Scene {
       );
       this.replayDraft = null;
     }
-    // The one anonymous duel digest, reported here so a single call covers all
-    // three modes, and BEFORE the branches pay out: a Limited run is still open
+    // The one anonymous duel digest, reported here so a single call covers
+    // every mode, and BEFORE the branches pay out: a Limited run is still open
     // in the save at this point, which is how `deckSource` measures `drafted`
     // instead of taking the caller's word for it.
     if (this.signalDeck) {
@@ -9373,6 +9373,7 @@ export class DuelScene extends Phaser.Scene {
         deck: this.signalDeck,
         limited: this.limited !== null,
         gauntlet: this.opponent !== null && this.gauntletRung !== null,
+        story: this.story !== null,
         opponentId: this.opponent?.id ?? this.limitedPersona?.id ?? null,
         difficulty: this.difficulty,
         winner: this.duel.state.winner,

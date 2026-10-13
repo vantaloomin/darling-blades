@@ -74,6 +74,8 @@ export interface DuelFinishedInput {
   limited: boolean;
   /** This was a Gauntlet (Tower) rung. */
   gauntlet: boolean;
+  /** This was a Story Mode duel. */
+  story: boolean;
   /** The avatar or draft persona faced, or null for a plain practice duel. */
   opponentId: string | null;
   difficulty: string;
@@ -180,10 +182,12 @@ function signalEnv(): SignalEnv {
  * `constructed` is the pre-1.6 name for what is now the reserve-native
  * Warchest build, and a deck with no format at all is a granted deck from
  * before the field existed, which is the same thing: both report `warchest`.
- * A Gauntlet rung and a Limited match are formats of their own and win over
- * whatever list was brought, in the same order `showResults` branches.
+ * A Story duel, a Gauntlet rung and a Limited match are formats of their own
+ * and win over whatever list was brought, in the same order `showResults`
+ * branches.
  */
 function duelFormat(input: DuelFinishedInput): SignalDuelFormat {
+  if (input.story) return 'story';
   if (input.gauntlet) return 'gauntlet';
   if (input.limited) return 'limited';
   return input.deck.savedFormat === 'darlings' ? 'darlings' : 'warchest';

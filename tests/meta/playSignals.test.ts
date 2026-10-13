@@ -672,7 +672,7 @@ describe('playSignals deck identity', () => {
 
   it('there is no `constructed` format left anywhere: the reserve format is `warchest`', () => {
     const save = richSave();
-    for (const format of ['warchest', 'darlings', 'limited', 'gauntlet'] as const) {
+    for (const format of ['warchest', 'darlings', 'limited', 'gauntlet', 'story'] as const) {
       expect(buildDuelDigest({ ...RESULT, format }, DECK, save).format).toBe(format);
     }
     const legacy = { ...RESULT, format: 'constructed' as unknown as DuelResultInput['format'] };
