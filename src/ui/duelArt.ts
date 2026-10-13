@@ -71,6 +71,11 @@ function knownAvatar(id: string): Avatar | null {
   }
 }
 
+/** The built-in opponent a replay was played against, or null (a Draft drafter, or one this build no longer has). */
+export function replayOpponentAvatar(log: ReplayLog): Avatar | null {
+  return log.context.opponentId !== null ? knownAvatar(log.context.opponentId) : null;
+}
+
 /**
  * Every card the duel launched with `data` can draw, derived the way
  * `DuelScene.build` derives the duel: both seats' decks and Warchests, both
