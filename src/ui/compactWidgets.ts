@@ -335,6 +335,7 @@ export function compactScrim(scene: Phaser.Scene, rect: Rect, from = 0.4, alpha 
 
 export interface CompactDialogAction {
   label: string;
+  variant?: ThemedButtonVariant;
   /** `value` is the dialog's field, when it has one. */
   onTap: (close: () => void, value: string) => void;
 }
@@ -346,6 +347,15 @@ export interface CompactDialogField {
   placeholder?: string;
   /** A number pad rather than the full keyboard. */
   numeric?: boolean;
+  /** The most characters it takes (a deck name's 24). */
+  maxLength?: number;
+}
+
+/** A choice row under a dialog's message (D-NewDeck): a title over a caption, and a chevron. */
+export interface CompactDialogOption {
+  label: string;
+  caption?: string;
+  onTap: (close: () => void) => void;
 }
 
 /** A compact dialog's width: the mocks' notices, never wider than the content box. */
@@ -365,7 +375,11 @@ export function compactDialog(
     /** One paragraph, or several (M-Darlings), set apart by a small gap. */
     message: string | readonly string[];
     secondary?: CompactDialogAction;
-    primary: CompactDialogAction & { variant?: ThemedButtonVariant };
+    /** A third footer button, between the two (D-Unsaved's Leave without saving). */
+    middle?: CompactDialogAction;
+    primary: CompactDialogAction;
+    /** Choice rows under the message, each its own action (D-NewDeck). */
+    options?: readonly CompactDialogOption[];
     dismissal?: 'mandatory' | 'dismissible' | 'esc-only';
     /** A text field under the message; the dialog then docks to the top, above the keyboard. */
     field?: CompactDialogField;
@@ -393,7 +407,28 @@ export function compactDialog(
   // Taller than the screen (Largest text on a small phone): one text, the
   // paragraphs a blank line apart, scrolling in whole lines inside the dialog.
   const fieldH = opts.field ? COMPACT.touch + paragraphGap : 0;
-  const room = content.height - theme.space(4) - fieldH - menuNoticeLayout(width, title.height, 0).height;
+  // Choice rows, measured: a title over an optional caption, a chevron at the right.
+  const chevron = Math.round(type.body * 0.9);
+  const optionTextW = width - 2 * pad - 32 - chevron;
+  const optionTexts = (opts.options ?? []).map((option) => {
+    const head = scene.add.text(0, 0, option.label, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+      wordWrap: { width: optionTextW },
+    });
+    const sub = option.caption
+      ? scene.add.text(0, 0, option.caption, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: optionTextW },
+      })
+      : null;
+    return { head, sub, height: Math.max(COMPACT.touch, head.height + (sub?.height ?? 0) + 16) };
+  });
+  const optionsH = optionTexts.reduce((sum, o) => sum + o.height + COMPACT.gap, 0);
+  if (optionTexts.length > 0 && paragraphs.every((p) => p === '')) {
+    for (const t of texts) t.destroy();
+    texts = [];
+    bodyH = -paragraphGap;
+  }
+  const room = content.height - theme.space(4) - fieldH - optionsH - menuNoticeLayout(width, title.height, 0).height;
   let scroll: { linePitch: number } | null = null;
   if (bodyH > room) {
     for (const t of texts) t.destroy();
@@ -406,7 +441,7 @@ export function compactDialog(
     bodyH = Math.max(lineHeight, Math.floor((room + one.lineSpacing) / linePitch) * linePitch - one.lineSpacing);
     scroll = { linePitch };
   }
-  const layout = menuNoticeLayout(width, title.height, bodyH + fieldH);
+  const layout = menuNoticeLayout(width, title.height, bodyH + fieldH + optionsH);
   const shell = modalShell(scene, {
     width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
     dismissal: opts.dismissal ?? 'mandatory', onClose: opts.onClose, ...opts.overlay,
@@ -431,15 +466,35 @@ export function compactDialog(
     }
     shell.container.add(texts);
   }
+  let optionY = body.y + bodyH + paragraphGap;
+  optionTexts.forEach(({ head, sub, height }, i) => {
+    const option = opts.options![i];
+    const plate = scene.add.graphics()
+      .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(body.x, optionY, body.width, height, theme.radius.panel)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(body.x, optionY, body.width, height, theme.radius.panel);
+    const top = optionY + (height - head.height - (sub?.height ?? 0)) / 2;
+    head.setPosition(body.x + 16, top);
+    sub?.setPosition(body.x + 16, top + head.height);
+    const arrow = scene.add.image(body.x + body.width - 16 - chevron / 2, optionY + height / 2, bakeUiIcon(scene, 'chevron'))
+      .setDisplaySize(chevron, chevron).setTint(colorInt(theme.colors.body));
+    const zone = scene.add.zone(body.x + body.width / 2, optionY + height / 2, body.width, height).setInteractive({ useHandCursor: true });
+    bindTapButton(scene, zone, (pointer) => {
+      if (!dragged(pointer)) option.onTap(() => shell.close());
+    });
+    shell.container.add([plate, head, ...(sub ? [sub] : []), arrow, zone]);
+    optionY += height + COMPACT.gap;
+  });
   let input: SearchInputHandle | null = null;
   if (opts.field) {
     const field = opts.field;
-    const top = body.y + bodyH + paragraphGap;
+    const top = body.y + bodyH + paragraphGap + optionsH;
     input = createSearchInput(scene, body.x + body.width / 2, top + COMPACT.touch / 2, {
       width: body.width, placeholder: field.placeholder ?? '', accessibleName: field.accessibleName, onChange: () => undefined,
     });
     const el = input.inputElement;
-    el.value = field.value;
+    if (field.maxLength !== undefined) el.maxLength = field.maxLength;
+    el.value = field.maxLength !== undefined ? field.value.slice(0, field.maxLength) : field.value;
     if (field.numeric) {
       el.inputMode = 'numeric';
       el.pattern = '[0-9]*';
@@ -459,17 +514,25 @@ export function compactDialog(
   const footer = shell.tracks.footerTrack;
   const gap = theme.space(4);
   const close = (): void => shell.close();
-  const half = (footer.width - gap) / 2;
-  const primaryRect = opts.secondary
-    ? { x: footer.x + half + gap, y: footer.y, width: half, height: footer.height }
-    : { x: footer.x + footer.width - half, y: footer.y, width: half, height: footer.height };
-  if (opts.secondary) {
-    const secondary = opts.secondary;
-    const left = compactButton(scene, { x: footer.x, y: footer.y, width: half, height: footer.height }, secondary.label, {
-      onTap: () => secondary.onTap(close, fieldValue()),
+  // Two halves, or three thirds with a middle action; a lone primary takes the right half.
+  const slots = opts.middle ? 3 : 2;
+  const slotW = (footer.width - gap * (slots - 1)) / slots;
+  const slot = (i: number): Rect => ({ x: footer.x + i * (slotW + gap), y: footer.y, width: slotW, height: footer.height });
+  const primaryRect = slot(slots - 1);
+  const extra = (action: CompactDialogAction | undefined, rect: Rect): void => {
+    if (!action) return;
+    const button = compactButton(scene, rect, action.label, {
+      variant: action.variant ?? 'ghost', onTap: () => action.onTap(close, fieldValue()),
     });
-    shell.container.add(left.container);
-  }
+    // A label longer than its third gets the label size before it would clip.
+    if (button.label.width > rect.width - 16) {
+      button.label.setFontSize(type.label);
+      button.setLabel(action.label);
+    }
+    shell.container.add(button.container);
+  };
+  extra(opts.secondary, slot(0));
+  extra(opts.middle, slot(1));
   const right = compactButton(scene, primaryRect, opts.primary.label, {
     variant: opts.primary.variant ?? 'primary', onTap: () => opts.primary.onTap(close, fieldValue()),
   });

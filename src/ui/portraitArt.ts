@@ -24,6 +24,8 @@ import { fitAndHoldArt } from './artRefit';
  * `tier` picks the store tier: `half` for a thumbnail, which then never asks
  * for the full file.
  *
+ * `landStyle` dresses a basic land in its deck's style (a Warchest slot).
+ *
  * Returns null when there is no resolver (nothing has booted the art). Throws
  * what `getArt` throws for a card with no art at all, as the lookup always did,
  * so a caller's fallback for missing art still applies.
@@ -35,11 +37,12 @@ export function addPortraitArt(
   cardId: string,
   fit: (image: Phaser.GameObjects.Image) => void,
   tier: ArtTier = 'primary',
+  landStyle?: string,
 ): Phaser.GameObjects.Image | null {
   const resolver = Art.resolver;
   if (resolver === null) return null;
-  const ref = resolver.getArt(cardId, undefined, tier);
+  const ref = resolver.getArt(cardId, landStyle, tier);
   const image = scene.add.image(x, y, ref.textureKey, ref.frameName);
-  fitAndHoldArt(image, ref, () => resolver.getArt(cardId, undefined, tier), fit, holdArt);
+  fitAndHoldArt(image, ref, () => resolver.getArt(cardId, landStyle, tier), fit, holdArt);
   return image;
 }
