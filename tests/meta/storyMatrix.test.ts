@@ -8,8 +8,8 @@ const RUNS: StoryMatrixRun[] = [
     characterId: 'a', seed: 1, cleared: true, nodes: [
       { floor: 1, kind: 'fight', result: 'win', turns: 10, endReason: 'life' },
       { floor: 2, kind: 'event' },
-      { floor: 3, kind: 'elite', result: 'win', turns: 12, endReason: 'deck' },
-      { floor: 4, kind: 'boss', result: 'win', turns: 14, endReason: 'life' },
+      { floor: 3, kind: 'elite', avatarId: 'e1', result: 'win', turns: 12, endReason: 'deck' },
+      { floor: 4, kind: 'boss', avatarId: 'boss', result: 'win', turns: 14, endReason: 'life' },
     ],
   },
   // Lost the boss to an empty deck.
@@ -18,7 +18,7 @@ const RUNS: StoryMatrixRun[] = [
       { floor: 1, kind: 'fight', result: 'win', turns: 8, endReason: 'life' },
       { floor: 2, kind: 'fight', result: 'win', turns: 9, endReason: 'life' },
       { floor: 3, kind: 'shop' },
-      { floor: 4, kind: 'boss', result: 'loss', turns: 20, endReason: 'deck' },
+      { floor: 4, kind: 'boss', avatarId: 'boss', result: 'loss', turns: 20, endReason: 'deck' },
     ],
   },
   // Lost the first fight on life; then an impossible seed.
@@ -42,6 +42,16 @@ describe('story matrix fold', () => {
     expect(a.duels).toEqual({ wins: 5, losses: 2 });
     expect(a.byKind).toEqual({ fight: { wins: 3, losses: 1 }, elite: { wins: 1, losses: 0 }, boss: { wins: 1, losses: 1 } });
     expect(b.byKind.elite).toEqual({ wins: 0, losses: 1 });
+  });
+
+  it('tallies elites and the boss by opponent, so the boss can be compared with each elite', () => {
+    expect(a.byOpponent).toEqual([
+      { kind: 'elite', avatarId: 'e1', tally: { wins: 1, losses: 0 } },
+      { kind: 'boss', avatarId: 'boss', tally: { wins: 1, losses: 1 } },
+    ]);
+    // An elite node without an avatar id is counted by kind only.
+    expect(b.byOpponent).toEqual([]);
+    expect(renderStoryMatrix([a, b], 4)).toContain('a: e1 1-0 (100.0%), boss boss 1-1 (50.0%)');
   });
 
   it('counts survival by floor and where each run was lost', () => {

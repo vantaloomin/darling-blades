@@ -35,7 +35,7 @@ export const ACT1: StoryAct = {
   },
   fightAvatarIds: ['menghuo', 'hestia', 'lupa'],
   eliteAvatarIds: ['gongsunzan', 'penthesilea', 'shanjun'],
-  bossAvatarId: 'simayi',
+  bossAvatarId: 'simayi-mandate',
   economy: {
     startGold: 50,
     fightGold: 20,

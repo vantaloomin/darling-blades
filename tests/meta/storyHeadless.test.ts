@@ -38,7 +38,7 @@ describe('headless Story Mode Act 1 run (Guan Yu)', () => {
       expect(summary.cleared).toBe(!lost);
       if (lost) expect(summary.duelResults.indexOf('loss')).toBe(summary.duelResults.length - 1);
       if (summary.cleared) {
-        expect(summary.nodes.at(-1)).toMatchObject({ kind: 'boss', avatarId: 'simayi', result: 'win' });
+        expect(summary.nodes.at(-1)).toMatchObject({ kind: 'boss', avatarId: ACT1.bossAvatarId, result: 'win' });
         expect(summary.unlocked).toEqual(['persephone']);
         expect(summary.finalDeck).toContain(summary.keptCardId);
       } else {

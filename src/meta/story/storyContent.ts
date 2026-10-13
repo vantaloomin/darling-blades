@@ -105,6 +105,8 @@ const DIFFICULTY_RANK: Readonly<Record<Avatar['difficulty'], number>> = { easy: 
  * Whether `elite` is a stronger opponent than `fight`: a harder brain, or the
  * same brain on a higher Tower rung (Story-only opponents sit on no rung, tier
  * 0, so against a same-difficulty Tower avatar they do not count as stronger).
+ * check-story asks it of every elite against every fight, and of the boss
+ * against every elite.
  */
 export function isStrongerOpponent(elite: Avatar, fight: Avatar): boolean {
   const byBrain = DIFFICULTY_RANK[elite.difficulty] - DIFFICULTY_RANK[fight.difficulty];
@@ -213,6 +215,12 @@ export function checkStoryContent(db: CardDb, options: StoryContentOptions = {})
     if (act.fightAvatarIds.length === 0 || act.eliteAvatarIds.length === 0) errors.push(`act ${act.id}: needs fight and elite avatars`);
     if (elites.some((elite) => fights.some((fight) => !isStrongerOpponent(elite, fight)))) {
       errors.push(`act ${act.id}: every elite must be a stronger avatar than every fight`);
+    }
+    // Owner ruling D2 (2026-10-13): the boss is the act's hardest fight, so by
+    // the same measure she is a stronger avatar than every elite.
+    const boss = known(act.bossAvatarId);
+    if (boss && elites.some((elite) => !isStrongerOpponent(boss, elite))) {
+      errors.push(`act ${act.id}: the boss must be a stronger avatar than every elite`);
     }
     const floors = act.mapTemplate.floors;
     if (floors.some((floor, i) => floor.floor !== i + 1 || floor.kinds.length === 0)) {
