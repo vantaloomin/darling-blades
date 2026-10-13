@@ -6,7 +6,7 @@
  */
 
 import type { Color } from '../engine/types';
-import type { StoryActEconomy, StoryCharacter, StoryNodeKind } from '../data/story/types';
+import type { StoryCharacter, StoryNodeKind } from '../data/story/types';
 import type { StoryUnlockProgress } from '../meta/story/storyFlow';
 import { RUN_COUNT_FIGHTS, type StoryRun } from '../meta/story/storyState';
 
@@ -39,7 +39,7 @@ export function nodeSummary(kind: StoryNodeKind): string {
     case 'fight': return 'Win for run gold and a card reward.';
     case 'elite': return 'A harder duel. Win for more run gold and a card reward.';
     case 'boss': return 'The last duel of the act. Win it to clear Act 1.';
-    case 'event': return 'A stop on the road: take gold or a card.';
+    case 'event': return 'A stop on the road, and a choice to make.';
     case 'shop': return 'Buy cards for this run with run gold.';
     case 'rest': return 'Rest, and remove a card from your run deck if you like.';
   }
@@ -87,13 +87,6 @@ export function abandonNote(run: Pick<StoryRun, 'fightsPlayed'>, armed: boolean)
     return `Abandoning ends this run and its run deck. It has reached ${RUN_COUNT_FIGHTS} fights, so it still counts toward unlocks.`;
   }
   return `Abandoning ends this run and its run deck. It has ${run.fightsPlayed} of ${RUN_COUNT_FIGHTS} fights, so it will not count.`;
-}
-
-/** The event vignette's one neutral line (wave 1: authored events come later). */
-export const EVENT_LINE = 'A traveller on the road offers you a gift.';
-
-export function eventGoldLabel(economy: Pick<StoryActEconomy, 'eventGold'>): string {
-  return `${economy.eventGold} run gold`;
 }
 
 /** "1 card" / "31 cards". */

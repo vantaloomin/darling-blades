@@ -68,7 +68,20 @@ import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSu
 import { activeSceneZoom } from '../platform/renderScale';
 import { screenFixtureNamed } from '../platform/screenFixtures';
 import { COMPACT } from '../ui/compactLayout';
-import { chooseBoon, enterNode, legalNextNodes, recordFight, startRun, storyBoonOffers, takeCardReward } from '../meta/story/StoryProgress';
+import {
+  chooseBoon,
+  currentStoryNode,
+  enterNode,
+  legalNextNodes,
+  recordFight,
+  resolveRest,
+  resolveShop,
+  startRun,
+  storyBoonOffers,
+  takeCardReward,
+} from '../meta/story/StoryProgress';
+import { openingSceneFor, storyEventFor, storySceneById } from '../meta/story/storyEvents';
+import { isDuelNode } from '../meta/story/storyMap';
 import { freshStoryState, type StoryState } from '../meta/story/storyState';
 
 export interface ProbeCell {
@@ -378,9 +391,47 @@ function storyProbeFixture(stage: 'select' | 'boon' | 'reward' | 'map'): StorySt
   while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
   return story;
 }
-export const STORY_SCENES: readonly ProbeScene[] = (['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
-  label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
-}));
+/**
+ * A run walked to its first event node (entered, unresolved): duels won,
+ * rewards, shops and rests passed by, always taking an event when one is next.
+ */
+function storyEventFixture(): StoryState {
+  const story = storyProbeFixture('map');
+  for (let guard = 0; guard < 20; guard++) {
+    const legal = legalNextNodes(story);
+    const next = legal.find((n) => n.kind === 'event') ?? legal[0];
+    if (!next) break;
+    enterNode(story, next.id);
+    if (next.kind === 'event') return story;
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else if (next.kind === 'rest') resolveRest(story, null);
+  }
+  throw new Error('a11yProbe: no event node on the fixture run');
+}
+
+/** The opening on its first spoken line (name plate and portrait), and an event on its choices. */
+function storyDialogueProbeScenes(): ProbeScene[] {
+  const story = storyProbeFixture('map');
+  const opening = openingSceneFor(story.activeRun!.characterId)!;
+  const spoken = opening.lines.findIndex((line) => line.speakerId !== null);
+  const event = storyEventFixture();
+  const run = event.activeRun!;
+  const lines = storySceneById(storyEventFor(run, currentStoryNode(run)!).id)?.lines.length ?? 0;
+  return [
+    { label: 'Story / dialogue', key: 'Story', data: { a11yFixture: { story, at: spoken }, storyScene: { id: opening.id, then: 'screen' } } },
+    { label: 'Story / event choices', key: 'Story', data: { a11yFixture: { story: event, at: lines } } },
+  ];
+}
+
+export const STORY_SCENES: readonly ProbeScene[] = [
+  ...(['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
+    label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
+  })),
+  ...storyDialogueProbeScenes(),
+];
 
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
 

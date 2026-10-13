@@ -23,7 +23,6 @@ import {
   abandonNote,
   colourWords,
   deckEntries,
-  EVENT_LINE,
   NODE_KIND_LABEL,
   nodeActionLabel,
   nodeSummary,
@@ -250,7 +249,7 @@ describe('Story screens: copy and view state', () => {
     const kinds = Object.keys(NODE_KIND_LABEL) as (keyof typeof NODE_KIND_LABEL)[];
     const story = freshStoryState();
     const copy = [
-      EVENT_LINE, recordLine(1, 2),
+      recordLine(1, 2),
       ...kinds.flatMap((k) => [NODE_KIND_LABEL[k], nodeSummary(k), nodeActionLabel(k)]),
       ...[0, 2, 3].flatMap((n) => [abandonNote({ fightsPlayed: n }, true), abandonNote({ fightsPlayed: n }, false)]),
       ...STORY_CHARACTERS.flatMap((c) => Object.values(unlockLines(storyUnlockProgress(story, c)))),
