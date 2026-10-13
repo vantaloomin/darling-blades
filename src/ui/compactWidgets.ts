@@ -7,6 +7,7 @@ import { ellipsizeText } from './textFit';
 import { menuNoticeLayout } from './mainMenuPresentation';
 import { sceneStage } from './SceneBackdrop';
 import { bindMenuScroll } from './menuScroll';
+import { createSearchInput, type SearchInputHandle } from './SearchInput';
 import { modalShell, type ModalShell } from './themeWidgets';
 import { controlStrokeWidth, themedButtonColors, type ThemedButtonVariant } from './controlStyle';
 import { colorInt, theme } from './theme';
@@ -170,7 +171,8 @@ export function compactHeader(
   const type = theme.compactType;
   const backRect = shell.back?.visual ?? { x: shell.title.x - COMPACT.touch - 12, y: shell.title.y, width: COMPACT.touch, height: COMPACT.touch };
   const back = compactIconButton(scene, backRect, 'back', opts.onBack);
-  let titleRight = shell.title.x + shell.title.width;
+  // With nothing in the right slot the title's lines may run on across it.
+  let titleRight = opts.gold === undefined ? shell.right.x + shell.right.width : shell.title.x + shell.title.width;
   if (opts.gold !== undefined) {
     const left = compactGoldPill(scene, shell.right.x + shell.right.width, shell.right.y + shell.right.height / 2, 38, opts.gold);
     titleRight = Math.min(titleRight, left - COMPACT.gap);
@@ -237,7 +239,17 @@ export function compactScrim(scene: Phaser.Scene, rect: Rect, from = 0.4, alpha 
 
 export interface CompactDialogAction {
   label: string;
-  onTap: (close: () => void) => void;
+  /** `value` is the dialog's field, when it has one. */
+  onTap: (close: () => void, value: string) => void;
+}
+
+/** A dialog's text field (M25): a real page input, so the phone's keyboard comes up. */
+export interface CompactDialogField {
+  value: string;
+  accessibleName: string;
+  placeholder?: string;
+  /** A number pad rather than the full keyboard. */
+  numeric?: boolean;
 }
 
 /** A compact dialog's width: the mocks' notices, never wider than the content box. */
@@ -259,6 +271,8 @@ export function compactDialog(
     secondary?: CompactDialogAction;
     primary: CompactDialogAction & { variant?: ThemedButtonVariant };
     dismissal?: 'mandatory' | 'dismissible';
+    /** A text field under the message; the dialog then docks to the top, above the keyboard. */
+    field?: CompactDialogField;
     onClose: () => void;
   },
 ): ModalShell {
@@ -280,7 +294,8 @@ export function compactDialog(
   let bodyH = texts.reduce((sum, t) => sum + t.height, 0) + paragraphGap * (texts.length - 1);
   // Taller than the screen (Largest text on a small phone): one text, the
   // paragraphs a blank line apart, scrolling in whole lines inside the dialog.
-  const room = content.height - theme.space(4) - menuNoticeLayout(width, title.height, 0).height;
+  const fieldH = opts.field ? COMPACT.touch + paragraphGap : 0;
+  const room = content.height - theme.space(4) - fieldH - menuNoticeLayout(width, title.height, 0).height;
   let scroll: { linePitch: number } | null = null;
   if (bodyH > room) {
     for (const t of texts) t.destroy();
@@ -293,10 +308,12 @@ export function compactDialog(
     bodyH = Math.max(lineHeight, Math.floor((room + one.lineSpacing) / linePitch) * linePitch - one.lineSpacing);
     scroll = { linePitch };
   }
-  const layout = menuNoticeLayout(width, title.height, bodyH);
+  const layout = menuNoticeLayout(width, title.height, bodyH + fieldH);
   const shell = modalShell(scene, {
     width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
     dismissal: opts.dismissal ?? 'mandatory', onClose: opts.onClose,
+    // With a field the dialog docks to the top, where the keyboard cannot cover it.
+    ...(opts.field ? { y: content.y + Math.min(layout.height, content.height) / 2 } : {}),
   });
   title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y + (shell.tracks.titleTrack.height - title.height) / 2);
   shell.container.add(title);
@@ -316,6 +333,31 @@ export function compactDialog(
     }
     shell.container.add(texts);
   }
+  let input: SearchInputHandle | null = null;
+  if (opts.field) {
+    const field = opts.field;
+    const top = body.y + bodyH + paragraphGap;
+    input = createSearchInput(scene, body.x + body.width / 2, top + COMPACT.touch / 2, {
+      width: body.width, placeholder: field.placeholder ?? '', accessibleName: field.accessibleName, onChange: () => undefined,
+    });
+    const el = input.inputElement;
+    el.value = field.value;
+    if (field.numeric) {
+      el.inputMode = 'numeric';
+      el.pattern = '[0-9]*';
+    }
+    // 16 px or more, or a phone's browser zooms the page when the field takes focus.
+    Object.assign(el.style, { height: `${COMPACT.touch}px`, fontSize: `${Math.max(16, type.body)}px` });
+    const handle = input;
+    el.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      opts.primary.onTap(() => shell.close(), handle.inputElement.value);
+    });
+    shell.container.once('destroy', () => handle.destroy());
+    handle.focus();
+  }
+  const fieldValue = (): string => input?.inputElement.value ?? '';
   const footer = shell.tracks.footerTrack;
   const gap = theme.space(4);
   const close = (): void => shell.close();
@@ -326,12 +368,12 @@ export function compactDialog(
   if (opts.secondary) {
     const secondary = opts.secondary;
     const left = compactButton(scene, { x: footer.x, y: footer.y, width: half, height: footer.height }, secondary.label, {
-      onTap: () => secondary.onTap(close),
+      onTap: () => secondary.onTap(close, fieldValue()),
     });
     shell.container.add(left.container);
   }
   const right = compactButton(scene, primaryRect, opts.primary.label, {
-    variant: opts.primary.variant ?? 'primary', onTap: () => opts.primary.onTap(close),
+    variant: opts.primary.variant ?? 'primary', onTap: () => opts.primary.onTap(close, fieldValue()),
   });
   shell.container.add(right.container);
   return shell;

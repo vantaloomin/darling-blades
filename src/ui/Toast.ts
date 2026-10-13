@@ -206,7 +206,7 @@ export class Toast {
     if (detail && layout.detailTop !== null) detail.setY(top + layout.detailTop);
 
     const plaque = this.scene.add.graphics();
-    plaque.fillStyle(theme.graphics.panelFill, 0.96);
+    plaque.fillStyle(theme.graphics.panelFill, 1);
     plaque.fillRoundedRect(-this.cardW / 2, top, this.cardW, height, theme.radius.panel);
     plaque.lineStyle(2, colorInt(theme.colors.gold), 0.92);
     plaque.strokeRoundedRect(-this.cardW / 2 + 1, top + 1, this.cardW - 2, height - 2, theme.radius.panel);

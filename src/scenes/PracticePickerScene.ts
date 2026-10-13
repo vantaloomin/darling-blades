@@ -21,7 +21,7 @@ import { COMPACT } from '../ui/compactLayout';
 import { compactButton, compactDialog, compactHeader, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { ModalGuard } from '../ui/Modal';
-import { compactPracticeLayoutFitting, PRACTICE_COMPACT, practiceGridHeight, practiceTilePosition, type CompactPracticeLayout } from '../ui/practiceCompact';
+import { compactPracticeLayoutFitting, PRACTICE_COMPACT, practiceGridHeight, rivalShortName, practiceTilePosition, type CompactPracticeLayout } from '../ui/practiceCompact';
 import { bindTapButton } from '../platform/gestures';
 import { bakeUiIcon } from '../ui/uiIcons';
 import type { Rect } from '../ui/layout';
@@ -212,7 +212,7 @@ export class PracticePickerScene extends Phaser.Scene {
       fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.muted,
     });
     const roster = [...AVATARS].sort((a, b) => b.tier - a.tier);
-    const names = roster.map((av) => this.add.text(0, 0, tileName(av.name), {
+    const names = roster.map((av) => this.add.text(0, 0, rivalShortName(av.name), {
       fontFamily: theme.fonts.display, fontSize: `${type.label}px`, fontStyle: theme.weight.w700,
       color: theme.colors.heading, align: 'center',
     }).setOrigin(0.5));
@@ -221,7 +221,7 @@ export class PracticePickerScene extends Phaser.Scene {
     const sizes = [type.label, type.label - 1, type.label - 2];
     const fitAt = (size: number, width: number): boolean => names.map((n, i) => {
       n.setFontSize(size);
-      wrapTileName(n, tileName(roster[i].name), width);
+      wrapTileName(n, rivalShortName(roster[i].name), width);
       return n.width <= width;
     }).every(Boolean);
     const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)));
@@ -862,15 +862,6 @@ export class PracticePickerScene extends Phaser.Scene {
       return null;
     }
   }
-}
-
-/**
- * A rival's name on her grid tile: the part before the comma ("Anubis", not
- * "Anubis, Who Holds the Scale"), as the mock has it. Her whole name heads
- * her column when she is picked.
- */
-function tileName(name: string): string {
-  return name.split(',')[0].trim();
 }
 
 /**
