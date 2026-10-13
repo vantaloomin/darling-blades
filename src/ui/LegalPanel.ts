@@ -25,6 +25,7 @@ import {
 import { COMPACT, compactShell } from './compactLayout';
 import { compactButton } from './compactWidgets';
 import { bindMenuScroll } from './menuScroll';
+import { openLegalReader } from './LegalReader';
 import type { ModalGuard } from './Modal';
 import { sceneStage } from './SceneBackdrop';
 import { openExternalPage } from './openExternalPage';
@@ -120,8 +121,9 @@ export function createLegalPanel(
 
 /**
  * The phone's Legal sheet (mock M-SettingsLegal): over the main pane, one row
- * per page with its summary and a Read button that opens it outside the game.
+ * per page with its summary and a Read button.
  * The rows scroll when the text is too tall for the pane (Largest text).
+ * Read opens the page in the game's own reader (M26, src/ui/LegalReader.ts).
  */
 function createCompactLegalPanel(
   scene: Phaser.Scene,
@@ -151,15 +153,17 @@ function createCompactLegalPanel(
   const list = scene.add.container(0, view.y);
   container.add(list);
   const probe = scene.add.text(0, 0, LEGAL_READ_LABEL, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
-  // The label, the icon beside it, and 16 px either side.
-  const readW = Math.ceil(probe.width + type.body * 1.45 + 10) + 32;
+  // The label and 16 px either side, never under two touch widths.
+  const readW = Math.max(COMPACT.touch * 2, Math.ceil(probe.width) + 32);
   probe.destroy();
-  const textW = view.width - readW - COMPACT.gap * 2;
+  // The rows stop short of the scroll thumb's lane at the view's right edge.
+  const rowW = view.width - theme.space(3);
+  const textW = rowW - readW - COMPACT.gap * 2;
   const pad = 10;
   const reads: ReturnType<typeof compactButton>[] = [];
   let y = 0;
   LEGAL_ENTRIES.forEach((entry, i) => {
-    if (i > 0) list.add(scene.add.rectangle(view.x, y, view.width, 1, theme.graphics.panelStroke, theme.alpha.chrome).setOrigin(0, 0));
+    if (i > 0) list.add(scene.add.rectangle(view.x, y, rowW, 1, theme.graphics.panelStroke, theme.alpha.chrome).setOrigin(0, 0));
     const label = scene.add.text(view.x, 0, entry.label, {
       fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
       wordWrap: { width: textW },
@@ -171,8 +175,9 @@ function createCompactLegalPanel(
     const height = Math.max(COMPACT.touch, block) + pad * 2;
     label.setY(y + (height - block) / 2);
     summary.setY(label.y + label.height + 4);
-    const read = compactButton(scene, { x: view.x + view.width - readW, y: y + (height - COMPACT.touch) / 2, width: readW, height: COMPACT.touch },
-      LEGAL_READ_LABEL, { icon: 'external', onTap: () => openExternalPage(entry.href) });
+    const read = compactButton(scene, { x: view.x + rowW - readW, y: y + (height - COMPACT.touch) / 2, width: readW, height: COMPACT.touch },
+      // M26: read in the game; the reader carries Open in browser.
+      LEGAL_READ_LABEL, { onTap: () => openLegalReader(scene, entry) });
     list.add([label, summary, read.container]);
     shell.interactiveChildren.push(read.inputZone);
     reads.push(read);
