@@ -92,3 +92,85 @@ export interface StoryBoon {
   /** Player-facing one-liner (no other game's terms). */
   text: string;
 }
+
+// --------------------------------------------------------------- the script
+// The Act 1 script (owner-approved 2026-10-12) as data. Ids are save keys
+// (`seenSceneIds`) and art keys, so they are stable once shipped.
+
+/** A speaker who appears with a portrait: two expressions, the first the default (V3). */
+export interface StorySpeaker {
+  id: string;
+  /** The name shown over the dialogue box. */
+  name: string;
+  /** Expression ids; the portrait art is `pt-<speaker id>-<expression>`. */
+  expressions: readonly [string, string];
+}
+
+/** One tap of Continue. A null speaker is narration (no name, no portrait). */
+export interface StoryLine {
+  speakerId: string | null;
+  /** One of the speaker's two expressions; omitted for narration. */
+  expression?: string;
+  text: string;
+}
+
+export type StorySceneKind = 'opening' | 'boss-intro' | 'boss-defeat' | 'elite-intro' | 'event' | 'ending' | 'endless-intro';
+
+export interface StoryScene {
+  /** Stable id from the script (`open-guanyu`, `ev-meng-ford-toll`). */
+  id: string;
+  kind: StorySceneKind;
+  /** The script's heading, shown as the scene title; null where the script gives none. */
+  title: string | null;
+  /** Background art id (`bg-<place>`). */
+  backgroundId: string;
+  /** The heroine a per-heroine scene belongs to; null when shared. */
+  characterId: string | null;
+  /** The elite's avatar id for an elite intro; null otherwise. */
+  avatarId: string | null;
+  lines: readonly StoryLine[];
+}
+
+/** Which cards an event may add. A filter field left out does not restrict. */
+export interface StoryCardFilter {
+  /** 'pool': the heroine's reward pool. 'catalog': any collectible non-land card. */
+  source: 'pool' | 'catalog';
+  rarity?: import('../../engine/types').Rarity;
+  color?: import('../../engine/types').Color;
+  /** A creature subtype, such as 'Beastkin'. */
+  subtype?: string;
+}
+
+/**
+ * One effect of an event choice. Only gold, adding, removing and changing
+ * cards, so no event needs engine work (script notes).
+ */
+export type StoryEventEffect =
+  | { kind: 'gold'; amount: number }
+  | { kind: 'add-random'; filter: StoryCardFilter }
+  | { kind: 'add-choice'; options: number; filter: StoryCardFilter }
+  | { kind: 'remove-random' }
+  /**
+   * The player removes between `atLeast` and `upTo` cards. "Remove a card of
+   * your choice" is exactly one (the player paid for it: atLeast 1); "remove up
+   * to two cards" allows none (atLeast 0).
+   */
+  | { kind: 'remove-choice'; upTo: number; atLeast: number }
+  | { kind: 'transform-random' };
+
+export interface StoryEventChoice {
+  /** The button text, exactly as the script words it. */
+  label: string;
+  effects: readonly StoryEventEffect[];
+}
+
+/** An event vignette: its scene plays, then two choices. */
+export interface StoryEvent {
+  /** Same id as its scene. */
+  id: string;
+  /** The speaker who switches to their second expression once a choice resolves, if any. */
+  reactingSpeakerId: string | null;
+  /** The choice index after which that speaker switches (the script names one per event). */
+  reactsToChoice: number | null;
+  choices: readonly [StoryEventChoice, StoryEventChoice];
+}

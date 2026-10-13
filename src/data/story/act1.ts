@@ -56,7 +56,7 @@ export const BOON_OFFER_COUNT = 3;
 
 /** The opening boons (R5). A run is offered three of these, chosen by its seed. */
 export const STORY_BOONS: readonly StoryBoon[] = [
-  { id: 'run-gold', name: 'War Chest', text: `Start the run with ${BOON_RUN_GOLD} extra gold.` },
+  { id: 'run-gold', name: 'War Chest', text: `Start the run with ${BOON_RUN_GOLD} extra run gold.` },
   { id: 'sr-card', name: 'A Gift of Steel', text: 'Add a random SR card from your pool to your run deck.' },
   { id: 'trim-two', name: 'Travel Light', text: 'Remove two cards from your starter deck.' },
   { id: 'first-fight-reward', name: 'Spoils Promised', text: 'Take one extra card reward after your first fight.' },

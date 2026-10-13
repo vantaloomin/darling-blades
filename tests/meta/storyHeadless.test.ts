@@ -6,8 +6,13 @@ import { generateStoryMap } from '../../src/meta/story/storyMap';
 import { isReplayLog, replayGame, type ReplayLog } from '../../src/meta/Replay';
 
 const NOW = 1_700_000_000_000;
-/** Measured 2026-10-12 (30-card starter): seed 9 clears Act 1 with the fixed choice rules, so the keep path runs too. */
-const SEED = 9;
+/**
+ * Measured 2026-10-13 (30-card starter, the Act 1 script's events): seed 14
+ * clears Act 1 with the fixed choice rules, so the keep path runs too (seeds
+ * 14, 15 and 39 clear of 1 to 40). Seed 9 cleared under the wave 1 generic
+ * event and now loses its third duel.
+ */
+const SEED = 14;
 
 describe('headless Story Mode Act 1 run (Guan Yu)', () => {
   it('gives an identical summary for the same seed, and a different run for another seed', () => {

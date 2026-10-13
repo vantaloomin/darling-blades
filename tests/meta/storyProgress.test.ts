@@ -15,7 +15,6 @@ import {
   keepRewardKey,
   legalNextNodes,
   recordFight,
-  resolveEvent,
   resolveRest,
   resolveShop,
   shopStock,
@@ -25,6 +24,7 @@ import {
   storyDuelSetup,
   takeCardReward,
 } from '../../src/meta/story/StoryProgress';
+import { resolveStoryEventByRule } from '../../src/meta/story/storyEvents';
 import { isDuelNode } from '../../src/meta/story/storyMap';
 import { freshStoryState, normalizeStoryState, type StoryState } from '../../src/meta/story/storyState';
 
@@ -57,7 +57,7 @@ function begin(story: StoryState, characterId = GUAN_YU_ID, seed = seedOffering(
 
 /**
  * Walk the run forward by its leftmost legal node. Duels take `result(i)` for
- * the i-th duel (0-based); every other node resolves the cheapest way. Stops
+ * the i-th duel (0-based); every other node resolves by a fixed rule. Stops
  * after `duels` duels, at the end of the run, or after the boss.
  */
 function walk(story: StoryState, duels: number, result: (i: number) => 'win' | 'loss' = () => 'win'): void {
@@ -69,7 +69,7 @@ function walk(story: StoryState, duels: number, result: (i: number) => 'win' | '
     if (isDuelNode(next)) {
       expect(recordFight(story, result(played)).ok).toBe(true);
       played++;
-    } else if (next.kind === 'event') resolveEvent(story, 'gold');
+    } else if (next.kind === 'event') resolveStoryEventByRule(story, CARD_DB);
     else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
     else resolveRest(story, null);
   }
@@ -200,7 +200,7 @@ describe('StoryProgress: nodes', () => {
       enterNode(story, next.id);
       if (next.kind === 'shop') break;
       if (isDuelNode(next)) recordFight(story, 'win');
-      else if (next.kind === 'event') resolveEvent(story, 'gold');
+      else if (next.kind === 'event') resolveStoryEventByRule(story, CARD_DB);
       else resolveRest(story, null);
     }
     const run = story.activeRun!;
