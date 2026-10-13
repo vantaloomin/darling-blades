@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -396,6 +396,18 @@ const drawCheck: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+/** A cross (closes a full-screen detail). */
+const drawClose: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 15, c - 15);
+  ctx.lineTo(c + 15, c + 15);
+  ctx.moveTo(c + 15, c - 15);
+  ctx.lineTo(c - 15, c + 15);
+  ctx.stroke();
+};
+
 /** A box with an arrow leaving it (a page that opens outside the game). */
 const drawExternal: Draw = (ctx, c) => {
   stroked(ctx);
@@ -514,6 +526,7 @@ const DRAW: Record<UiIconName, Draw> = {
   copy: drawCopy,
   download: drawDownload,
   star: drawStar,
+  close: drawClose,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {
