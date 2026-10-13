@@ -45,6 +45,19 @@ export function nodeSummary(kind: StoryNodeKind): string {
   }
 }
 
+/**
+ * Where a stop the player is only looking at (hovered, or tapped off the
+ * route) stands, ahead of its summary in the map's panel. Next stops need no
+ * line: they are the ones to choose.
+ */
+export function mapStopStanding(current: boolean, next: boolean, face: 'live' | 'pressed' | 'locked'): string {
+  if (current) return 'You are here.';
+  if (next) return '';
+  if (face === 'pressed') return 'Already visited.';
+  if (face === 'locked') return 'Out of reach on this run.';
+  return 'Further along the road.';
+}
+
 /** The map's main action for a chosen node. */
 export function nodeActionLabel(kind: StoryNodeKind): string {
   switch (kind) {

@@ -167,8 +167,8 @@ export function storyCardGridLayout(area: Rect, count: number, scale = 0.36, cap
 
 // ------------------------------------------------------------------ the map
 
-/** Node sizes: a 44 px floor in both directions, the boss larger. */
-export const STORY_NODE = { width: 72, height: 48, bossWidth: 88, bossHeight: 56 } as const;
+/** Node sizes: round medallions (their hit squares), over the 44 px floor; the boss larger. */
+export const STORY_NODE = { width: 56, height: 56, bossWidth: 68, bossHeight: 68 } as const;
 export const STORY_SIDE_PANEL_W = 296;
 
 export interface StoryMapGeometry {

@@ -42,6 +42,7 @@ import {
 import { finishClearedRun, storyRoster, storyScreen, type StoryScreen } from '../meta/story/storyFlow';
 import { isDuelNode, storyMapNodes, type StoryNode } from '../meta/story/storyMap';
 import { runMap, storyActByNumber, type StoryRun, type StoryState } from '../meta/story/storyState';
+import { prefersReducedMotion } from '../platform/clientProfile';
 import { IS_DEV } from '../platform/env';
 import { bindTapButton, isTouchDevice, setStickyHost } from '../platform/gestures';
 import { gateOnArt } from '../ui/artGate';
@@ -56,6 +57,7 @@ import {
   cardCount,
   colourWords,
   deckEntries,
+  mapStopStanding,
   NODE_KIND_LABEL,
   nodeActionLabel,
   nodeSummary,
@@ -91,6 +93,7 @@ import {
   storySceneArtIds,
   type EventChoiceProgress,
 } from '../ui/storyDialogue';
+import { currentAccessibility } from '../ui/accessibility';
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import {
@@ -103,7 +106,8 @@ import {
   StoryStage,
   storyTextureKey,
 } from './StoryDialogue';
-import { bakeUiIcon } from '../ui/uiIcons';
+import { bakeUiIcon, uiIconKey } from '../ui/uiIcons';
+import { bakeBossPortraitMedallion, bakeStopGlow, bakeStopMedallion, bossPortraitArtId, reachableNodeIds, STOP_ICON, stopFace, stopPad, trailDots } from '../ui/storyMapStops';
 import {
   backButton,
   modalShell,
@@ -222,8 +226,9 @@ export class StoryScene extends Phaser.Scene {
     });
     const screen = storyScreen(this.story);
     const pending = this.pendingScene(screen, data.storyScene ?? null);
-    releaseStoryArt(this.textures, [STORY_BACKDROP_ART, ...(pending ? storySceneArtIds(pending.scene) : this.eventArt(screen))]);
-    loadStoryArt(this, [STORY_BACKDROP_ART], () => {
+    const screenArt = pending ? storySceneArtIds(pending.scene) : [...this.eventArt(screen), ...this.mapArt(screen)];
+    releaseStoryArt(this.textures, [STORY_BACKDROP_ART, ...screenArt]);
+    loadStoryArt(this, [STORY_BACKDROP_ART, ...(pending ? [] : this.mapArt(screen))], () => {
       if (pending) return this.buildScenePlay(screen, pending);
       gateOnArt(this, this.artFor(screen), () => this.build(screen));
     });
@@ -252,6 +257,17 @@ export class StoryScene extends Phaser.Scene {
     const event = storyEventFor(screen.run, screen.node);
     const scene = storySceneById(event.id);
     return scene ? storyEventArtIds(event, scene) : [];
+  }
+
+  /** The story art the map draws: the boss's dialogue portrait, for her medallion. */
+  private mapArt(screen: StoryScreen): string[] {
+    if (screen.kind !== 'map' && screen.kind !== 'duel') return [];
+    const ids: string[] = [];
+    for (const node of storyMapNodes(runMap(screen.run))) {
+      const id = node.kind === 'boss' && node.avatarId ? bossPortraitArtId(storyAvatarById(node.avatarId).name) : null;
+      if (id) ids.push(id);
+    }
+    return ids;
   }
 
   /** The card art a screen draws (portraits, thumbs and the run deck for the deck view). */
@@ -1123,63 +1139,118 @@ export class StoryScene extends Phaser.Scene {
     const legalIds = new Set(legal.map((n) => n.id));
     let selected: StoryNode | null = openDuel ?? (legal.length === 1 ? legal[0] : null);
 
-    // Edges first, under the nodes.
-    const edges = this.add.graphics();
-    for (const node of storyMapNodes(map)) {
-      const from = geo.nodes.get(node.id)!;
+    const nodes = storyMapNodes(map);
+    const reachable = reachableNodeIds(nodes, run.nodeId);
+    const highContrast = currentAccessibility().highContrast;
+    // The Next glow breathes only at full animations and without the system's reduce-motion ask.
+    const pulse = this.save.settings.animations === 'full' && !prefersReducedMotion();
+    const gold = colorInt(theme.colors.gold);
+    const centre = (id: string): { x: number; y: number; r: number } => {
+      const rect = geo.nodes.get(id)!;
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, r: rect.width / 2 };
+    };
+
+    // Dotted trails first, under the stops: the road walked in gold, the ways
+    // on from here in gold, the road still ahead pale, roads out of reach faint.
+    const trails = this.add.graphics();
+    for (const node of nodes) {
+      const a = centre(node.id);
       for (const nextId of node.nextNodeIds) {
-        const to = geo.nodes.get(nextId)!;
+        const b = centre(nextId);
         const walked = path.has(node.id) && path.has(nextId);
         const open = node.id === run.nodeId && legalIds.has(nextId);
-        edges.lineStyle(walked ? 4 : open ? 3 : 2, walked || open ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, walked || open ? 1 : 0.9)
-          .lineBetween(from.x + from.width, from.y + from.height / 2, to.x, to.y + to.height / 2);
+        const ahead = reachable.has(nextId) && (reachable.has(node.id) || node.id === run.nodeId);
+        const colour = walked || open ? gold : ahead ? colorInt(theme.colors.body) : theme.graphics.panelStroke;
+        const alpha = walked || open ? 1 : ahead ? 0.75 : 0.6;
+        const dot = walked ? 3.2 : open ? 2.8 : 2.2;
+        for (const d of trailDots(a, a.r, b, b.r, walked || open ? 9 : 11, 5)) {
+          trails.fillStyle(theme.graphics.dim, 0.75 * alpha).fillCircle(d.x, d.y + 0.6, dot + 1.3);
+          trails.fillStyle(colour, alpha).fillCircle(d.x, d.y, dot);
+        }
       }
     }
 
-    const plates = new Map<string, Phaser.GameObjects.Graphics>();
-    const drawNode = (node: StoryNode): void => {
-      const r = geo.nodes.get(node.id)!;
-      const isCurrent = node.id === run.nodeId;
-      const visited = path.has(node.id);
-      const isLegal = legalIds.has(node.id);
-      const isSelected = selected?.id === node.id;
-      const g = plates.get(node.id)!;
-      const stroke = isSelected ? theme.outline.state + 1 : isCurrent ? theme.outline.state : isLegal ? 2 : theme.control.borderWidth;
-      const strokeColour = isSelected || isCurrent ? colorInt(theme.colors.goldHover) : isLegal ? colorInt(theme.colors.gold) : theme.graphics.panelStroke;
-      g.clear()
-        .fillStyle(isCurrent || visited || isSelected ? theme.graphics.rowFillActive : theme.graphics.rowFill, 1)
-        .fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.control)
-        .lineStyle(stroke, strokeColour, 1)
-        .strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.control);
+    let hovered: StoryNode | null = null;
+    /** A stop off the route tapped to read its name (touch has no hover). */
+    let peek: StoryNode | null = null;
+    const rings = new Map<string, Phaser.GameObjects.Graphics>();
+    const drawRing = (node: StoryNode): void => {
+      const c = centre(node.id);
+      const g = rings.get(node.id)!.clear();
+      if (selected?.id === node.id) g.lineStyle(theme.outline.state + 1, colorInt(theme.colors.goldHover), 1).strokeCircle(c.x, c.y, c.r + 3);
+      else if (node.id === run.nodeId) g.lineStyle(theme.outline.state, gold, 1).strokeCircle(c.x, c.y, c.r + 3);
+      else if (legalIds.has(node.id)) g.lineStyle(2, gold, 1).strokeCircle(c.x, c.y, c.r + 2);
+      if ((hovered?.id === node.id || peek?.id === node.id) && selected?.id !== node.id) {
+        g.lineStyle(2, colorInt(theme.colors.heading), 0.9).strokeCircle(c.x, c.y, c.r + (legalIds.has(node.id) || node.id === run.nodeId ? 6 : 3));
+      }
     };
-    for (const node of storyMapNodes(map)) {
+    const glowKey = bakeStopGlow(this, 128);
+    for (const node of nodes) {
       const r = geo.nodes.get(node.id)!;
-      const plate = this.add.graphics();
-      plates.set(node.id, plate);
-      const reachable = legalIds.has(node.id) || path.has(node.id) || node.id === run.nodeId;
-      const label = this.text(r.x + r.width / 2, r.y + r.height / 2, NODE_KIND_LABEL[node.kind], theme.type.label,
-        node.kind === 'boss' ? theme.colors.gold : node.kind === 'elite' ? theme.colors.danger : theme.colors.heading, { bold: true }).setOrigin(0.5);
-      const faded = !reachable && run.nodeId !== null && node.floor <= (storyNodeFloor(map, run.nodeId) ?? 0);
-      plate.setAlpha(faded ? 0.45 : 1);
-      label.setAlpha(faded ? 0.5 : 1);
-      const under = [legalIds.has(node.id) ? 'Next' : '', node.kind === 'boss' && node.avatarId ? storyAvatarById(node.avatarId).name : '']
-        .filter(Boolean).join(': ');
-      if (under) this.text(r.x + r.width / 2, r.y + r.height + theme.space(1), under, theme.type.caption, theme.colors.gold).setOrigin(0.5, 0);
-      // Words, not only the border colour, mark where the run stands and where it can go.
-      if (node.id === run.nodeId) {
-        this.text(r.x + r.width / 2, r.y - theme.space(1), 'You', theme.type.caption, theme.colors.gold, { bold: true }).setOrigin(0.5, 1);
+      const c = centre(node.id);
+      const d = r.width;
+      const face = stopFace(node.id, path, reachable);
+      const isLegal = legalIds.has(node.id);
+      const isCurrent = node.id === run.nodeId;
+      if (isLegal || isCurrent) {
+        // "You" wears a steady halo; each Next stop a soft one that breathes.
+        const halo = this.add.image(c.x, c.y, glowKey).setTint(colorInt(isCurrent ? theme.colors.goldHover : theme.colors.gold));
+        halo.setDisplaySize(d * 1.75, d * 1.75).setAlpha(isCurrent ? 0.75 : 0.6);
+        if (isLegal && pulse) {
+          const s = halo.scaleX;
+          this.tweens.add({ targets: halo, alpha: { from: 0.3, to: 0.85 }, scale: { from: s * 0.9, to: s * 1.08 }, duration: 1100, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
+        }
       }
-      if (legalIds.has(node.id)) {
-        const zone = this.add.zone(r.x + r.width / 2, r.y + r.height / 2, r.width, r.height).setInteractive({ useHandCursor: true });
-        bindTapButton(this, zone, () => {
-          const was = selected;
+      const pad = stopPad(d);
+      const avatar = node.kind === 'boss' && node.avatarId ? storyAvatarById(node.avatarId) : null;
+      const portraitId = avatar ? bossPortraitArtId(avatar.name) : null;
+      const portraitKey = portraitId ? bakeBossPortraitMedallion(this, storyTextureKey(portraitId), face, d, highContrast) : null;
+      const medallion = this.add.image(c.x, c.y, portraitKey ?? bakeStopMedallion(this, node.kind, face, d, highContrast))
+        .setDisplaySize(d + 2 * pad, d + 2 * pad);
+      const name = avatar ? `${NODE_KIND_LABEL[node.kind]}: ${avatar.name}` : NODE_KIND_LABEL[node.kind];
+      medallion.setName(name);
+      if (face === 'locked') medallion.setAlpha(0.72);
+      if (!portraitKey) {
+        // The icon, struck into the face: a dark offset under it for depth.
+        const iconKey = bakeUiIcon(this, STOP_ICON[node.kind]);
+        const size = Math.round(d * (node.kind === 'boss' ? 0.5 : 0.52));
+        const ink = face === 'locked' ? theme.colors.muted : node.kind === 'boss' ? theme.colors.goldHover : theme.storyStop.ink;
+        const inkAlpha = face === 'pressed' ? 0.55 : face === 'locked' ? 0.7 : 1;
+        this.add.image(c.x, c.y + (face === 'pressed' ? -1 : 1.5), iconKey).setDisplaySize(size, size).setTint(0x000000).setAlpha(0.5 * inkAlpha);
+        this.add.image(c.x, c.y, uiIconKey(STOP_ICON[node.kind])).setDisplaySize(size, size).setTint(colorInt(ink)).setAlpha(inkAlpha);
+      }
+      rings.set(node.id, this.add.graphics());
+      const under = [isLegal ? 'Next' : '', avatar ? avatar.name : ''].filter(Boolean).join(': ');
+      if (under) this.text(c.x, r.y + r.height + theme.space(1), under, theme.type.caption, theme.colors.gold).setOrigin(0.5, 0);
+      // Words, not only the ring, mark where the run stands and where it can go.
+      if (isCurrent) this.text(c.x, r.y - theme.space(1), 'You', theme.type.caption, theme.colors.gold, { bold: true }).setOrigin(0.5, 1);
+      // Every stop answers hover (and a tap, on touch) with its name in the panel; only Next stops are chosen.
+      const zone = this.add.zone(c.x, c.y, r.width, r.height).setName(name).setInteractive({ useHandCursor: isLegal });
+      zone.on('pointerover', (p: Phaser.Input.Pointer) => {
+        if (p.wasTouch) return;
+        hovered = node;
+        drawRing(node);
+        refreshPanel();
+      });
+      zone.on('pointerout', () => {
+        if (hovered?.id !== node.id) return;
+        hovered = null;
+        drawRing(node);
+        refreshPanel();
+      });
+      bindTapButton(this, zone, () => {
+        const was = [selected, peek];
+        if (isLegal) {
           selected = node;
-          if (was) drawNode(was);
-          drawNode(node);
-          refreshPanel();
-        });
-      }
-      drawNode(node);
+          peek = null;
+        } else {
+          peek = peek?.id === node.id ? null : node;
+        }
+        for (const n of was) if (n) drawRing(n);
+        drawRing(node);
+        refreshPanel();
+      });
+      drawRing(node);
     }
 
     // The run panel.
@@ -1240,13 +1311,16 @@ export class StoryScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => disarm?.remove(false));
 
     const refreshPanel = (): void => {
-      if (!selected) {
+      const shown = hovered ?? peek ?? selected;
+      if (!shown) {
         detailName.setText('No stop chosen');
         detailBody.setText('Tap a stop marked Next to choose it.');
       } else {
-        const avatar = selected.avatarId ? storyAvatarById(selected.avatarId) : null;
-        detailName.setText(avatar ? `${NODE_KIND_LABEL[selected.kind]}: ${avatar.name}` : NODE_KIND_LABEL[selected.kind]);
-        detailBody.setText(avatar ? `${avatar.title}. ${nodeSummary(selected.kind)}` : nodeSummary(selected.kind));
+        const avatar = shown.avatarId ? storyAvatarById(shown.avatarId) : null;
+        detailName.setText(avatar ? `${NODE_KIND_LABEL[shown.kind]}: ${avatar.name}` : NODE_KIND_LABEL[shown.kind]);
+        const summary = avatar ? `${avatar.title}. ${nodeSummary(shown.kind)}` : nodeSummary(shown.kind);
+        const where = mapStopStanding(shown.id === run.nodeId, legalIds.has(shown.id), stopFace(shown.id, path, reachable));
+        detailBody.setText(shown === selected || legalIds.has(shown.id) ? summary : `${where} ${summary}`);
       }
       detailBody.setY(detailName.y + detailName.height + theme.space(1));
       go.setEnabled(!!selected);
