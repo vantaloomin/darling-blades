@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -416,6 +416,62 @@ const drawExternal: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+/** A solid triangle pointing right (watch a replay). */
+const drawPlay: Draw = (ctx, c) => {
+  ctx.fillStyle = WHITE;
+  ctx.beginPath();
+  ctx.moveTo(c - 13, c - 18);
+  ctx.lineTo(c + 17, c);
+  ctx.lineTo(c - 13, c + 18);
+  ctx.closePath();
+  ctx.fill();
+};
+
+/** Two overlapping sheets (copy to the clipboard). */
+const drawCopy: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  roundRect(ctx, c - 10, c - 10, 28, 28, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c + 2, c - 18);
+  ctx.lineTo(c - 18, c - 18);
+  ctx.lineTo(c - 18, c + 2);
+  ctx.stroke();
+};
+
+/** An arrow down onto a tray (save a file). */
+const drawDownload: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(c, c - 20);
+  ctx.lineTo(c, c + 8);
+  ctx.moveTo(c - 11, c - 3);
+  ctx.lineTo(c, c + 8);
+  ctx.lineTo(c + 11, c - 3);
+  ctx.moveTo(c - 19, c + 19);
+  ctx.lineTo(c + 19, c + 19);
+  ctx.stroke();
+};
+
+/** A five-point star outline (make something of your own). */
+const drawStar: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? 21 : 9;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const x = c + r * Math.cos(a);
+    const y = c + 2 + r * Math.sin(a);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.stroke();
+};
+
 /** A ringed "i" (How to play). */
 const drawInfo: Draw = (ctx, c) => {
   stroked(ctx);
@@ -454,6 +510,10 @@ const DRAW: Record<UiIconName, Draw> = {
   back: drawBack,
   check: drawCheck,
   external: drawExternal,
+  play: drawPlay,
+  copy: drawCopy,
+  download: drawDownload,
+  star: drawStar,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

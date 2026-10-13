@@ -8,7 +8,7 @@ import { menuNoticeLayout } from './mainMenuPresentation';
 import { sceneStage } from './SceneBackdrop';
 import { bindMenuScroll } from './menuScroll';
 import { createSearchInput, type SearchInputHandle } from './SearchInput';
-import { modalShell, type ModalShell } from './themeWidgets';
+import { modalShell, type ModalShell, type ModalShellOptions } from './themeWidgets';
 import { controlStrokeWidth, themedButtonColors, type ThemedButtonVariant } from './controlStyle';
 import { colorInt, theme } from './theme';
 import { bakeUiIcon, uiIconTinted, type UiIconName } from './uiIcons';
@@ -51,6 +51,8 @@ export interface CompactButton {
   setLabel(label: string): void;
   /** Redraw in another variant (a jump list's current section, an armed action). */
   setVariant(variant: ThemedButtonVariant): void;
+  /** Off: drawn faded and deaf to taps (Replace save until a code is previewed). */
+  setEnabled(enabled: boolean): void;
 }
 
 const ICON_GAP = 10;
@@ -94,8 +96,9 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
         hovered ? 1 : theme.alpha.chrome)
       .strokeRoundedRect(0, 0, rect.width, rect.height, radius);
   };
+  let enabled = true;
   bindTapButton(scene, inputZone, (pointer) => {
-    if (!dragged(pointer)) opts.onTap(pointer);
+    if (enabled && !dragged(pointer)) opts.onTap(pointer);
   });
   inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
     if (pointer.wasTouch) return;
@@ -123,6 +126,11 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
       label.setColor(colors.fg);
       if (icon && opts.icon && uiIconTinted(opts.icon)) icon.setTint(colorInt(colors.fg));
       redraw();
+    },
+    setEnabled: (next) => {
+      enabled = next;
+      container.setAlpha(next ? 1 : 0.45);
+      if (inputZone.input) inputZone.input.cursor = next ? 'pointer' : 'default';
     },
   };
 }
@@ -288,9 +296,11 @@ export function compactDialog(
     message: string | readonly string[];
     secondary?: CompactDialogAction;
     primary: CompactDialogAction & { variant?: ThemedButtonVariant };
-    dismissal?: 'mandatory' | 'dismissible';
+    dismissal?: 'mandatory' | 'dismissible' | 'esc-only';
     /** A text field under the message; the dialog then docks to the top, above the keyboard. */
     field?: CompactDialogField;
+    /** A scene that routes its overlays through an OverlayCoordinator (Profile) registers the dialog with it. */
+    overlay?: Pick<ModalShellOptions, 'coordinator' | 'registration' | 'depth'>;
     onClose: () => void;
   },
 ): ModalShell {
@@ -329,7 +339,7 @@ export function compactDialog(
   const layout = menuNoticeLayout(width, title.height, bodyH + fieldH);
   const shell = modalShell(scene, {
     width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
-    dismissal: opts.dismissal ?? 'mandatory', onClose: opts.onClose,
+    dismissal: opts.dismissal ?? 'mandatory', onClose: opts.onClose, ...opts.overlay,
     // With a field the dialog docks to the top, where the keyboard cannot cover it.
     ...(opts.field ? { y: content.y + Math.min(layout.height, content.height) / 2 } : {}),
   });
@@ -436,6 +446,8 @@ export function compactSegments(
   onPick: (index: number) => void,
   /** Segments this device cannot take (M-SettingsGameplay's render sizes): a lock, muted, no tap. */
   disabled: readonly boolean[] = [],
+  /** Size each segment to its label, the spare shared out evenly (M-Profile's stat tabs), rather than equal shares. */
+  proportional = false,
 ): CompactSegments {
   const type = theme.compactType;
   const container = scene.add.container(rect.x, rect.y);
@@ -443,16 +455,30 @@ export function compactSegments(
   container.add(plate);
   const n = Math.max(1, labels.length);
   const inset = 4;
-  const segW = (rect.width - inset * 2) / n;
-  const texts = labels.map((label, i) => scene.add.text(inset + segW * i + segW / 2, rect.height / 2, label, {
+  const inner = rect.width - inset * 2;
+  const texts = labels.map((label) => scene.add.text(0, rect.height / 2, label, {
     fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
   }).setOrigin(0.5));
   const lockSize = (size: number): number => Math.round(size * 1.15);
   const lockRoom = (t: Phaser.GameObjects.Text, i: number): number =>
     disabled[i] ? lockSize(parseFloat(String(t.style.fontSize))) + 6 : 0;
+  const widths = (): number[] => {
+    if (!proportional) return texts.map(() => inner / n);
+    const needs = texts.map((t, i) => t.width + lockRoom(t, i) + 8);
+    const spare = (inner - needs.reduce((a, b) => a + b, 0)) / n;
+    return spare >= 0 ? needs.map((need) => need + spare) : texts.map(() => inner / n);
+  };
+  let segWs = widths();
   // One size for every segment: the label size when any would not fit at body.
-  if (texts.some((t, i) => t.width + lockRoom(t, i) > segW - 8)) texts.forEach((t) => t.setFontSize(type.label));
-  texts.forEach((t, i) => ellipsizeText(t, segW - 8 - lockRoom(t, i)));
+  if (texts.some((t, i) => t.width + lockRoom(t, i) > segWs[i] - 8)) {
+    texts.forEach((t) => t.setFontSize(type.label));
+    segWs = widths();
+  }
+  const segXs = segWs.map((_, i) => inset + segWs.slice(0, i).reduce((a, b) => a + b, 0));
+  texts.forEach((t, i) => {
+    t.setX(segXs[i] + segWs[i] / 2);
+    ellipsizeText(t, segWs[i] - 8 - lockRoom(t, i));
+  });
   container.add(texts);
   texts.forEach((t, i) => {
     if (!disabled[i]) return;
@@ -474,16 +500,16 @@ export function compactSegments(
       .lineStyle(theme.control.borderWidth, colorInt(ghost.stroke), theme.alpha.chrome)
       .strokeRoundedRect(0, 0, rect.width, rect.height, theme.radius.panel);
     if (current >= 0 && current < n) {
-      const x = inset + segW * current;
+      const x = segXs[current];
       plate.fillStyle(colorInt(chosen.bg), 1)
-        .fillRoundedRect(x, inset, segW, rect.height - inset * 2, theme.radius.control)
+        .fillRoundedRect(x, inset, segWs[current], rect.height - inset * 2, theme.radius.control)
         .lineStyle(theme.control.borderWidth, colorInt(chosen.stroke), 1)
-        .strokeRoundedRect(x, inset, segW, rect.height - inset * 2, theme.radius.control);
+        .strokeRoundedRect(x, inset, segWs[current], rect.height - inset * 2, theme.radius.control);
     }
     texts.forEach((t, i) => t.setColor(i === current ? chosen.fg : disabled[i] ? theme.colors.muted : ghost.fg));
   };
   const zones = labels.map((_, i) => {
-    const zone = scene.add.zone(inset + segW * i + segW / 2, rect.height / 2, segW, rect.height);
+    const zone = scene.add.zone(segXs[i] + segWs[i] / 2, rect.height / 2, segWs[i], rect.height);
     if (!disabled[i]) zone.setInteractive({ useHandCursor: true });
     bindTapButton(scene, zone, (pointer) => {
       if (dragged(pointer)) return;

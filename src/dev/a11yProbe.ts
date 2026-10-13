@@ -630,7 +630,9 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
       const nextLayer = modal ? `${layer}/modal` : layer;
       const plate = modal ?? object.getData('a11ySurface') as ProbeRect | undefined;
       const nextSurface = plate ? { id: layer, bounds: plate, depth, order } : surface;
-      for (const child of object.list) visit(child, modal ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
+      // A modal's second plate beside its panel (a phone dialog's command column) declares its own bounds.
+      const ownPanel = object.getData('a11yPanel') as ProbeRect | undefined;
+      for (const child of object.list) visit(child, modal ?? ownPanel ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
       return;
     }
     if (!(object instanceof Phaser.GameObjects.Text) || object.text.trim() === '') return;
