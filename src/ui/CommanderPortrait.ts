@@ -45,6 +45,12 @@ export interface CommanderPortraitOpts {
   textureKey?: string;
   /** Deck/opponent name shown on the bottom plate. */
   label: string;
+  /**
+   * The phone Duel's frame (Version C T-03a): all four corners rounded, a
+   * rim in this colour, and no name plate (the art runs to the foot, where
+   * the scene sets the life plate).
+   */
+  phoneRim?: string;
 }
 
 export class CommanderPortrait extends Phaser.GameObjects.Container {
@@ -72,14 +78,15 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     const w = opts.width;
     const h = opts.height;
     const edge = opts.edge ?? 'bottom';
+    const phone = opts.phoneRim !== undefined;
     this.frameW = w;
     this.labelText = scene.add.text(w / 2, h - LABEL_H / 2, opts.label, {
       fontFamily: theme.fonts.display, fontSize: `${theme.type.caption}px`,
       fontStyle: theme.weight.w700, color: theme.colors.gold, resolution: 2, align: 'center',
     }).setOrigin(0.5).setData('a11yReleaseFullText', opts.label).setData('a11yKeepVisible', true);
     this.fitLabel();
-    const labelH = Math.max(LABEL_H, this.labelText.height + 8);
-    this.labelText.setY(h - labelH / 2);
+    const labelH = phone ? INSET : Math.max(LABEL_H, this.labelText.height + 8);
+    this.labelText.setY(h - labelH / 2).setVisible(!phone);
     this.setData('a11yArea', { x, y, width: w, height: h });
 
 
@@ -87,14 +94,18 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     // plate: 0x1d1636 @ 0.92 with a 1px 0x3a2f5c stroke). The bottom-edge
     // variant rises from the screen floor; the top-edge variant descends from
     // the ceiling, so its rounded corners flip to the bottom.
-    const corners = edge === 'bottom'
-      ? { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 }
-      : { tl: 0, tr: 0, bl: CORNER_R, br: CORNER_R };
+    const corners = phone
+      ? { tl: CORNER_R, tr: CORNER_R, bl: CORNER_R, br: CORNER_R }
+      : edge === 'bottom'
+        ? { tl: CORNER_R, tr: CORNER_R, bl: 0, br: 0 }
+        : { tl: 0, tr: 0, bl: CORNER_R, br: CORNER_R };
     const plate = scene.add.graphics();
     plate.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.92));
     plate.fillRoundedRect(0, 0, w, h, corners);
-    plate.lineStyle(1, theme.graphics.panelStroke, 1);
-    plate.strokeRoundedRect(0, 0, w, h, corners);
+    if (!phone) {
+      plate.lineStyle(1, theme.graphics.panelStroke, 1);
+      plate.strokeRoundedRect(0, 0, w, h, corners);
+    }
 
     const artW = w - INSET * 2;
     const artH = h - INSET - labelH;
@@ -109,9 +120,11 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     // stay behind and the shape would need redrawing at the new position.
     // The bottom-edge variant needs rounded top art corners. For the top-edge
     // variant, the bottom label plate owns the rounded outer corners instead.
-    const maskCorners = edge === 'bottom'
-      ? { tl: CORNER_R - INSET, tr: CORNER_R - INSET, bl: 0, br: 0 }
-      : { tl: 0, tr: 0, bl: 0, br: 0 };
+    const maskCorners = phone
+      ? { tl: CORNER_R - INSET, tr: CORNER_R - INSET, bl: CORNER_R - INSET, br: CORNER_R - INSET }
+      : edge === 'bottom'
+        ? { tl: CORNER_R - INSET, tr: CORNER_R - INSET, bl: 0, br: 0 }
+        : { tl: 0, tr: 0, bl: 0, br: 0 };
     this.maskGfx = scene.add.graphics().setVisible(false);
     // White is geometry-mask stencil ink, not a chrome colour.
     this.maskGfx.fillStyle(0xffffff, 1);
@@ -140,7 +153,11 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     // lower corners continue the top-edge frame's downward-facing rounding.
     const labelPlate = scene.add.graphics();
     labelPlate.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.94));
-    if (edge === 'top') {
+    if (phone) {
+      // No name plate: the rim is drawn over the art's edge instead.
+      labelPlate.lineStyle(2, colorInt(opts.phoneRim!), 1);
+      labelPlate.strokeRoundedRect(1, 1, w - 2, h - 2, CORNER_R);
+    } else if (edge === 'top') {
       labelPlate.fillRoundedRect(1, h - labelH, w - 2, labelH - 1, {
         tl: 0,
         tr: 0,
@@ -150,8 +167,10 @@ export class CommanderPortrait extends Phaser.GameObjects.Container {
     } else {
       labelPlate.fillRect(1, h - labelH, w - 2, labelH - 1);
     }
-    labelPlate.fillStyle(colorInt(theme.colors.gold), 0.55);
-    labelPlate.fillRect(1, h - labelH, w - 2, 1);
+    if (!phone) {
+      labelPlate.fillStyle(colorInt(theme.colors.gold), 0.55);
+      labelPlate.fillRect(1, h - labelH, w - 2, 1);
+    }
 
     this.pickBadge = scene.add.container(w / 2, h / 2).setVisible(false);
     const badgeRadius = CUE_MIN_SCREEN_PX.pickBadge / 2;

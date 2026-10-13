@@ -22,6 +22,18 @@ export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu
 
 let metrics: ScreenMetrics | null = null;
 
+/** Scenes a dev session has switched on early (`?duel=phone`), before their switch flips in COMPACT_SCENES. */
+const devScenes = new Set<string>();
+
+/**
+ * Dev only: lay a scene that is still being built out in the compact space
+ * anyway, so its PRs can be checked on a phone before it joins
+ * `COMPACT_SCENES`. src/gameBoot.ts calls it only on the dev server.
+ */
+export function enableDevCompactScene(sceneKey: string): void {
+  devScenes.add(sceneKey);
+}
+
 /** Set by src/gameBoot.ts under the compact profile, and again when the screen changes size. */
 export function setActiveCompactMetrics(next: ScreenMetrics | null): void {
   metrics = next !== null && next.profile === 'compact' ? next : null;
@@ -38,7 +50,7 @@ export function activeCompactMetrics(): ScreenMetrics | null {
  * null (the scene draws its 1280x720 layout, fitted).
  */
 export function compactSceneMetrics(sceneKey: string, scenes: ReadonlySet<string> = COMPACT_SCENES): ScreenMetrics | null {
-  return metrics !== null && scenes.has(sceneKey) ? metrics : null;
+  return metrics !== null && (scenes.has(sceneKey) || devScenes.has(sceneKey)) ? metrics : null;
 }
 
 export interface CompactCamera {

@@ -16,7 +16,7 @@ import {
   setActiveSceneZoom,
   textRasterResolution,
 } from './platform/renderScale';
-import { setActiveCompactMetrics } from './platform/compactScenes';
+import { enableDevCompactScene, setActiveCompactMetrics } from './platform/compactScenes';
 import { onFullScreenChange } from './platform/fullscreen';
 import {
   compactFit,
@@ -98,6 +98,9 @@ function readCompactScreen(): ScreenMetrics | null {
   });
   return m.profile === 'compact' ? m : null;
 }
+// Dev only: `?duel=phone` lays the Duel out in the compact space while its
+// phone layout is still being built (docs/plan-mobile-overhaul.md C4).
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('duel') === 'phone') enableDevCompactScene('Duel');
 const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)
   ? screenFixtureNamed(window.location.search) : null;
 const compact: ScreenMetrics | null = (() => {

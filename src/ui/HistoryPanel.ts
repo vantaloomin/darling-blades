@@ -147,6 +147,11 @@ export class HistoryPanel {
     return this.tabLabel;
   }
 
+  /** The lines, newest first (the phone Duel lists them in its command column). */
+  get lines(): readonly { text: string; cardId?: string }[] {
+    return this.entries;
+  }
+
   /** Add a move (newest); keeps the last ~14 lines. A cardId makes the row
    *  tappable (routes to onCardTap so the scene can show the card). */
   push(entry: string, cardId?: string): void {
