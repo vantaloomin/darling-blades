@@ -8,14 +8,35 @@ import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { isTauri } from '../platform/desktopWindow';
 import { IS_DEV } from '../platform/env';
 import { fullScreenOffered, isFullScreen, onFullScreenChange, toggleFullScreen } from '../platform/fullscreen';
-import { isTouchDevice } from '../platform/gestures';
+import { bindTapButton, isTouchDevice } from '../platform/gestures';
 import { qualityTier } from '../platform/quality';
 import type { AnimationLevel } from '../platform/animPolicy';
 import type { RenderScaleSetting } from '../platform/renderScale';
 import { createLegalPanel } from '../ui/LegalPanel';
 import { LEGAL_BUTTON_LABEL } from '../ui/legalPresentation';
 import { ModalGuard } from '../ui/Modal';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT } from '../ui/compactLayout';
+import {
+  compactButton,
+  compactHeader,
+  compactSegments,
+  compactSwitch,
+  COMPACT_DRAG_SLOP,
+  type CompactButton,
+  type CompactSwitch,
+} from '../ui/compactWidgets';
+import { bindMenuScroll } from '../ui/menuScroll';
+import {
+  SETTINGS_COMPACT,
+  compactSettingsLayout,
+  settingsActiveSection,
+  settingsCompactSectionForTab,
+  settingsCompactSections,
+  type SettingsCompactSection,
+} from '../ui/settingsCompact';
+import type { Rect } from '../ui/layout';
+import { ellipsizeText } from '../ui/textFit';
 import { sceneTitle } from '../ui/sceneTitle';
 import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
 import {
@@ -70,9 +91,12 @@ import {
 } from '../ui/statsPrivacyPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
-import { VERSION_LABEL, checkForUpdate } from '../version';
+import { VERSION_LABEL, checkForUpdate, type UpdateStatus } from '../version';
 
 const STEP = 0.1;
+/** A compact jump label starts 12 px into its button (the mock's 13) and keeps 4 px clear at its end. */
+const NAV_LABEL_INSET = 12;
+const NAV_LABEL_END = 4;
 
 const ANIM_CHIPS: { value: AnimationLevel; label: string }[] = [
   { value: 'full', label: 'Full' },
@@ -134,6 +158,9 @@ export class SettingsScene extends Phaser.Scene {
   private guard = new ModalGuard();
   private statsPanel: ModalShell | null = null;
   private legalPanel: ModalShell | null = null;
+  /** The compact (phone) list's switches, refreshed with the desktop toggles. */
+  private compactSwitches: { sw: CompactSwitch; on: () => boolean }[] = [];
+  private compactVolume: { bar: Phaser.GameObjects.Graphics; segW: number; segGap: number } | null = null;
 
   constructor() {
     super('Settings');
@@ -158,6 +185,8 @@ export class SettingsScene extends Phaser.Scene {
     this.guard = new ModalGuard();
     this.statsPanel = null;
     this.legalPanel = null;
+    this.compactSwitches = [];
+    this.compactVolume = null;
     this.shown = accessibilityControlsShown(IS_DEV);
     this.fullScreen = fullScreenOffered();
     if (this.fullScreen) {
@@ -174,6 +203,13 @@ export class SettingsScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
+
+    // On a phone every setting sits in one list with a jump column (mock M-Settings).
+    const stage = sceneStage(this);
+    if (stage.compact) {
+      this.buildCompact(stage.content);
+      return;
+    }
 
     sceneTitle(this, 'Settings');
     this.trackObject(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
@@ -237,6 +273,419 @@ export class SettingsScene extends Phaser.Scene {
         for (const row of section.rows) built.get(row.key)?.place(column.layout.rows[row.key]);
       }
     }
+  }
+
+  // -------------------------------------------------------------------------
+  // Compact (phone)
+  // -------------------------------------------------------------------------
+
+  /** One list of every setting, the jump column, the version and the foot (mock M-Settings). */
+  private buildCompact(content: Rect): void {
+    const type = theme.compactType;
+    const sections = settingsCompactSections(this.shown, this.fullScreen);
+    const footNeed = (label: string): number => {
+      const probe = this.add.text(0, 0, label, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
+      // The label and 12 px either side, the mock's foot buttons.
+      const width = Math.ceil(probe.width) + 24;
+      probe.destroy();
+      return width;
+    };
+    const nav = this.compactNavFont(sections);
+    const layout = compactSettingsLayout(content, sections.length, {
+      legal: footNeed(LEGAL_BUTTON_LABEL),
+      update: footNeed('Check for updates'),
+    }, nav.needs);
+    compactHeader(this, layout.shell, { title: 'Settings', onBack: () => this.scene.start('MainMenu') });
+    registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
+
+    const list = this.add.container(0, layout.list.y);
+    const adapters: ThemedButton[] = [];
+    const tops: number[] = [];
+    const x = layout.list.x;
+    let y = 0;
+    sections.forEach((section, si) => {
+      if (si > 0) y += SETTINGS_COMPACT.sectionGap;
+      tops.push(y);
+      const heading = this.add.text(x, y, section.title, {
+        fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      });
+      list.add(heading);
+      y += heading.height + SETTINGS_COMPACT.headingGap;
+      section.rows.forEach((key, ri) => {
+        if (ri > 0) {
+          list.add(this.add.rectangle(x, y, layout.rowW, 1, theme.graphics.panelStroke, theme.alpha.chrome).setOrigin(0, 0));
+        }
+        y += this.buildCompactRow(key, list, { x, y, width: layout.rowW, height: 0 }, adapters);
+      });
+    });
+    const contentHeight = y;
+
+    let jump: (index: number) => void = () => undefined;
+    const navButtons = this.buildCompactNav(layout.nav, sections, nav.fontSize, (i) => jump(i));
+    const opening = settingsCompactSectionForTab(this.tab, sections);
+    const openAt = opening ? tops[sections.findIndex((s) => s.key === opening)] ?? 0 : 0;
+    const scroll = bindMenuScroll(this, list, layout.list, contentHeight, undefined, adapters, 0, undefined, openAt);
+    const highlight = (index: number): void => navButtons.forEach((b, i) => b.setVariant(i === index ? 'selected' : 'ghost'));
+    const follow = (): void => highlight(settingsActiveSection(tops, scroll.offset(), layout.list.height, scroll.maxScroll));
+    scroll.onScroll = follow;
+    jump = (i) => {
+      scroll.scrollTo(tops[i]);
+      // The jumped-to section stays selected even where the list's end
+      // stops it short of the top; the next scroll recomputes.
+      highlight(i);
+    };
+    if (opening) highlight(sections.findIndex((s) => s.key === opening));
+    else follow();
+
+    this.buildCompactColumnFoot(layout);
+    this.refreshToggles();
+    this.refreshVolume();
+  }
+
+  /** Taps on a compact control, ignoring the press that scrolled the list. */
+  private bindCompactTap(zone: Phaser.GameObjects.Zone, onTap: (pointer: Phaser.Input.Pointer) => void): void {
+    zone.setInteractive({ useHandCursor: true });
+    bindTapButton(this, zone, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) <= COMPACT_DRAG_SLOP) onTap(pointer);
+    });
+  }
+
+  /**
+   * The jump labels' one size, and what each needs: the body size while every
+   * row of two can hold its pair, else the label size.
+   */
+  private compactNavFont(sections: readonly SettingsCompactSection[]): { fontSize: number; needs: number[] } {
+    const type = theme.compactType;
+    const columnW = COMPACT.columnW;
+    const probe = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontStyle: theme.weight.w600 });
+    const measure = (size: number): number[] => {
+      probe.setFontSize(size);
+      return sections.map((s) => Math.ceil(probe.setText(s.nav).width) + NAV_LABEL_INSET + NAV_LABEL_END);
+    };
+    const rowsFit = (needs: number[]): boolean => needs.every((need, i) =>
+      i % 2 === 1 || need + (needs[i + 1] ?? 0) + COMPACT.gap <= columnW);
+    let fontSize = type.body;
+    let needs = measure(fontSize);
+    if (!rowsFit(needs)) {
+      fontSize = type.label;
+      needs = measure(fontSize);
+    }
+    probe.destroy();
+    return { fontSize, needs };
+  }
+
+  /** The jump grid: one button per section, every label at one size. */
+  private buildCompactNav(
+    rects: readonly Rect[],
+    sections: readonly SettingsCompactSection[],
+    fontSize: number,
+    onJump: (index: number) => void,
+  ): CompactButton[] {
+    return sections.map((section, i) => {
+      const button = compactButton(this, rects[i], section.nav, { align: 'left', inset: NAV_LABEL_INSET, fontSize, onTap: () => onJump(i) });
+      // Only where a pair cannot share its row at all.
+      ellipsizeText(button.label, rects[i].width - NAV_LABEL_INSET - NAV_LABEL_END);
+      this.trackObject(button.inputZone);
+      return button;
+    });
+  }
+
+  /** The version under the jump grid, and Legal with Check for updates at the column's foot. */
+  private buildCompactColumnFoot(layout: ReturnType<typeof compactSettingsLayout>): void {
+    const type = theme.compactType;
+    const column = layout.shell.column;
+    if (!column) return;
+    const style = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: column.width } };
+    const version = this.add.text(column.x, layout.versionY, VERSION_LABEL, style);
+    const status = this.add.text(column.x, version.y + version.height + 4, '', { ...style, fontStyle: theme.weight.w600 });
+    const footTop = Math.min(layout.legal.y, layout.update.y) - COMPACT.gap;
+    const fit = (): void => {
+      // The status line gives way to the foot rather than run under it.
+      status.setVisible(status.y + status.height <= footTop);
+    };
+    this.trackObject(compactButton(this, layout.legal, LEGAL_BUTTON_LABEL, { onTap: () => this.openLegalPanel() }).inputZone);
+    this.trackObject(compactButton(this, layout.update, 'Check for updates', {
+      onTap: () => {
+        status.setText('Checking…').setColor(theme.colors.body);
+        fit();
+        void checkForUpdate().then((result) => {
+          if (!status.active) return;
+          status.setText(result.message).setColor(SettingsScene.updateColor(result));
+          fit();
+        });
+      },
+    }).inputZone);
+  }
+
+  /** A row's label: the compact body size, wrapped to `width`. */
+  private compactLabel(x: number, y: number, text: string, width: number): Phaser.GameObjects.Text {
+    return this.add.text(x, y, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, fontStyle: theme.weight.w600,
+      color: theme.colors.heading, wordWrap: { width },
+    });
+  }
+
+  /** A row's caption: the compact label size, muted, wrapped to `width`. */
+  private compactCaption(x: number, y: number, text: string, width: number): Phaser.GameObjects.Text {
+    return this.add.text(x, y, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, color: theme.colors.muted,
+      wordWrap: { width }, lineSpacing: 2,
+    });
+  }
+
+  /** A zone in the scrolling list, switched off while it is outside the list's viewport. */
+  private compactAdapter(
+    adapters: ThemedButton[],
+    container: Phaser.GameObjects.Container,
+    zone: Phaser.GameObjects.Zone,
+    hit: Rect,
+    enabled: () => boolean = () => true,
+  ): void {
+    adapters.push({
+      container,
+      inputZone: zone,
+      getMeasuredBounds: () => ({ hit }),
+      setEnabled: (on: boolean) => {
+        if (on && enabled()) zone.setInteractive({ useHandCursor: true });
+        else zone.disableInteractive();
+      },
+    } as unknown as ThemedButton);
+  }
+
+  /** Build one setting's row at `at` (its y is the row's top) and return its height. */
+  private buildCompactRow(key: SettingsRowKey, list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[]): number {
+    const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
+    const sw = (label: string, on: () => boolean, toggle: () => void, caption?: string): number =>
+      this.compactSwitchRow(list, at, adapters, label, on, toggle, caption);
+    const seg = <V>(
+      label: string,
+      chips: readonly { value: V; label: string; enabled?: boolean }[],
+      selected: () => V,
+      onPick: (value: V) => void,
+      caption?: string,
+    ): number => this.compactSegmentsRow(list, at, adapters, label, chips, selected, onPick, caption);
+    switch (key) {
+      case 'sfx':
+        return sw('Sound effects', () => settings().sfxOn, () => {
+          settings().sfxOn = !settings().sfxOn;
+          Services.save.touch();
+          if (settings().sfxOn) Sfx.play('click');
+        });
+      case 'volume':
+        return this.compactVolumeRow(list, at, adapters);
+      case 'music':
+        return sw('Music', () => settings().musicOn, () => Music.setEnabled(!Music.enabled));
+      case 'fullScreen':
+        return sw('Full screen', () => isFullScreen(), () => { void toggleFullScreen(); });
+      case 'instantCast':
+        return sw('Instant cast', () => settings().instantCast, () => {
+          settings().instantCast = !settings().instantCast;
+          Services.save.touch();
+        }, `Casts spells on a single ${isTouchDevice() ? 'tap' : 'click'} instead of picking the card up.`);
+      case 'landDrop':
+        return sw('Confirm land drop', () => settings().confirmLandDrop, () => {
+          settings().confirmLandDrop = !settings().confirmLandDrop;
+          Services.save.touch();
+        }, 'Ending your turn with a land still unplayed takes a second press.');
+      case 'autoSkip':
+        return sw('Auto-skip forced turns', () => settings().autoSkip, () => {
+          settings().autoSkip = !settings().autoSkip;
+          Services.save.touch();
+        });
+      case 'confirmDestructive':
+        return sw('Confirm destructive actions', () => settings().confirmDestructive, () => {
+          settings().confirmDestructive = !settings().confirmDestructive;
+          Services.save.touch();
+        });
+      case 'keywordReminders':
+        return sw('Keyword reminders', () => settings().keywordReminders, () => {
+          settings().keywordReminders = !settings().keywordReminders;
+          Services.save.touch();
+        });
+      case 'noBlock':
+        return seg('Confirm no-block', NO_BLOCK_CHIPS, () => settings().confirmNoBlock, (value: ConfirmNoBlockSetting) => {
+          settings().confirmNoBlock = value;
+          Services.save.touch();
+        });
+      case 'textSize':
+        return seg('Text size', TEXT_SIZE_CHIPS, () => normalizeTextScale(settings().textScale), (value) => {
+          if (normalizeTextScale(settings().textScale) === value) return;
+          settings().textScale = value;
+          this.previewAccessibility();
+        }, settingsTextSizeCaption(this.touchCaption));
+      case 'highContrast':
+        return sw('High contrast', () => settings().highContrast, () => {
+          settings().highContrast = !settings().highContrast;
+          this.previewAccessibility();
+        }, 'Brighter text and solid panels. Card art is unchanged.');
+      case 'animations':
+        return seg('Animations', ANIM_CHIPS, () => settings().animations, (value) => {
+          settings().animations = value;
+          Services.save.touch();
+        }, 'Effect changes apply when you next change screens.');
+      case 'renderSize': {
+        const lite = qualityTier() === 'lite';
+        return seg(
+          'Render size',
+          RENDER_CHIPS.map(({ value, label, heavy }) => ({ value, label, enabled: !(lite && heavy) })),
+          () => (lite ? 1 : settings().renderScale),
+          (value) => this.pickRenderScale(value),
+          lite
+            ? 'High resolutions are disabled on this device.'
+            : isTauri()
+              ? 'Resizes the desktop window and reloads to apply.'
+              : 'Higher sizes render sharper in the browser. Reloads to apply.',
+        );
+      }
+      case 'stats':
+        return this.compactPrivacyRow(list, at, adapters);
+      case 'reset':
+        return this.compactResetRow(list, at, adapters);
+    }
+  }
+
+  /** A switch row: label and caption at the left, the switch at the right; the whole row toggles. */
+  private compactSwitchRow(
+    list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[],
+    labelText: string, on: () => boolean, toggle: () => void, captionText?: string,
+  ): number {
+    const C = SETTINGS_COMPACT;
+    const right = at.x + at.width;
+    const sw = compactSwitch(this, right, 0, on());
+    const textW = at.width - sw.width - C.controlGap;
+    const label = this.compactLabel(at.x, 0, labelText, textW);
+    const caption = captionText ? this.compactCaption(at.x, 0, captionText, textW) : null;
+    const block = label.height + (caption ? C.captionGap + caption.height : 0);
+    const height = Math.max(COMPACT.rowPitch, block + C.rowPad * 2);
+    const top = at.y + (height - block) / 2;
+    label.setY(top);
+    caption?.setY(top + label.height + C.captionGap);
+    sw.container.setY(at.y + height / 2);
+    const zone = this.add.zone(at.x + at.width / 2, at.y + height / 2, at.width, height);
+    this.bindCompactTap(zone, () => {
+      toggle();
+      this.refreshToggles();
+    });
+    list.add([label, ...(caption ? [caption] : []), sw.container, zone]);
+    this.compactSwitches.push({ sw, on });
+    this.compactAdapter(adapters, list, zone, { x: at.x, y: at.y, width: at.width, height });
+    return height;
+  }
+
+  /** A choice row: the label, then the segmented bar the row's width, then its caption. */
+  private compactSegmentsRow<V>(
+    list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[],
+    labelText: string, chips: readonly { value: V; label: string; enabled?: boolean }[],
+    selected: () => V, onPick: (value: V) => void, captionText?: string,
+  ): number {
+    const C = SETTINGS_COMPACT;
+    const label = this.compactLabel(at.x, at.y + C.rowPad, labelText, at.width);
+    const barY = label.y + label.height + C.captionGap + 2;
+    const bar = { x: at.x, y: barY, width: at.width, height: COMPACT.touch };
+    const disabled = chips.map((c) => c.enabled === false);
+    const segments = compactSegments(this, bar, chips.map((c) => c.label), chips.findIndex((c) => c.value === selected()),
+      (i) => onPick(chips[i].value), disabled);
+    let bottom = barY + COMPACT.touch;
+    const caption = captionText ? this.compactCaption(at.x, bottom + C.captionGap + 2, captionText, at.width) : null;
+    if (caption) bottom = caption.y + caption.height;
+    list.add([label, segments.container, ...(caption ? [caption] : [])]);
+    const segW = bar.width / chips.length;
+    segments.zones.forEach((zone, i) => {
+      this.compactAdapter(adapters, segments.container, zone, { x: segW * i, y: 0, width: segW, height: bar.height }, () => !disabled[i]);
+    });
+    return bottom + C.rowPad - at.y;
+  }
+
+  /** Master volume: the label, then "−", the bar and "+" beside it or, when narrow, under it. */
+  private compactVolumeRow(list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[]): number {
+    const C = SETTINGS_COMPACT;
+    const touch = COMPACT.touch;
+    const segGap = 4;
+    const segW = 12;
+    const barW = VOLUME_BAR.segments * segW + (VOLUME_BAR.segments - 1) * segGap;
+    const controlsW = touch * 2 + barW + COMPACT.gap * 2;
+    const label = this.compactLabel(at.x, 0, 'Master volume', at.width);
+    const beside = label.width + C.controlGap + controlsW <= at.width;
+    const controlsY = beside ? at.y + C.rowPad / 2 : at.y + C.rowPad + label.height + C.captionGap;
+    label.setY(beside ? controlsY + (touch - label.height) / 2 : at.y + C.rowPad);
+    const left = at.x + at.width - controlsW;
+    const minus = compactButton(this, { x: left, y: controlsY, width: touch, height: touch }, '−', { onTap: () => this.stepVolume(-STEP) });
+    const plus = compactButton(this, { x: at.x + at.width - touch, y: controlsY, width: touch, height: touch }, '+', { onTap: () => this.stepVolume(STEP) });
+    const bar = this.add.graphics({ x: left + touch + COMPACT.gap, y: controlsY + touch / 2 });
+    this.compactVolume = { bar, segW, segGap };
+    const caption = this.compactCaption(at.x, controlsY + touch + C.captionGap, 'Volume is the master level; music follows it too.', at.width);
+    list.add([label, minus.container, bar, plus.container, caption]);
+    for (const b of [minus, plus]) this.compactAdapter(adapters, b.container, b.inputZone, { x: 0, y: 0, width: touch, height: touch });
+    return caption.y + caption.height + C.rowPad - at.y;
+  }
+
+  /** Privacy: the sharing switch, then why (or whether) anything is sent beside "What is sent". */
+  private compactPrivacyRow(list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[]): number {
+    const C = SETTINGS_COMPACT;
+    const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
+    // Always the SAVED choice, even when a browser signal or a dev build is
+    // what is actually stopping the sends; the caption explains that.
+    const switchH = this.compactSwitchRow(list, at, adapters, STATS_ROW_LABEL, () => settings().shareAnonStats,
+      () => {
+        toggleShareAnonStats(settings());
+        Services.save.touch();
+      });
+    const probe = this.add.text(0, 0, STATS_PANEL_BUTTON_LABEL, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, fontStyle: theme.weight.w600,
+    });
+    const buttonW = Math.ceil(probe.width) + 32;
+    probe.destroy();
+    const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
+    const y = at.y + switchH;
+    const caption = this.compactCaption(at.x, y, note, at.width - buttonW - C.controlGap);
+    const height = Math.max(COMPACT.touch, caption.height);
+    caption.setY(y + (height - caption.height) / 2);
+    const button = compactButton(this, { x: at.x + at.width - buttonW, y: y + (height - COMPACT.touch) / 2, width: buttonW, height: COMPACT.touch },
+      STATS_PANEL_BUTTON_LABEL, { onTap: () => this.openStatsPanel() });
+    list.add([caption, button.container]);
+    this.compactAdapter(adapters, button.container, button.inputZone, { x: 0, y: 0, width: buttonW, height: COMPACT.touch });
+    return switchH + height + C.rowPad;
+  }
+
+  /** Reset save: a two-tap danger button (M-SettingsReset), and what it erases. */
+  private compactResetRow(list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[]): number {
+    const C = SETTINGS_COMPACT;
+    const touch = COMPACT.touch;
+    const label = this.compactLabel(at.x, 0, 'Reset save', at.width);
+    const probe = this.add.text(0, 0, 'Click again to erase everything', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, fontStyle: theme.weight.w600,
+    });
+    const armedW = Math.ceil(probe.width) + 32;
+    probe.destroy();
+    const beside = label.width + C.controlGap + armedW <= at.width;
+    const buttonW = beside ? armedW : at.width;
+    const buttonY = beside ? at.y + C.rowPad / 2 : at.y + C.rowPad + label.height + C.captionGap;
+    label.setY(beside ? buttonY + (touch - label.height) / 2 : at.y + C.rowPad);
+    let armed = false;
+    const reset = compactButton(this, { x: at.x + at.width - buttonW, y: buttonY, width: buttonW, height: touch }, 'Reset', {
+      variant: 'danger',
+      onTap: (pointer) => {
+        if (!armed) {
+          armed = true;
+          // The verb follows the press that armed it: Tap on touch, Click with a mouse.
+          reset.setLabel(`${pointer.wasTouch ? 'Tap' : 'Click'} again to erase everything`);
+          this.time.delayedCall(4000, () => {
+            if (reset.container.active && armed) {
+              armed = false;
+              reset.setLabel('Reset');
+            }
+          });
+          return;
+        }
+        Services.save.reset();
+        window.location.reload();
+      },
+    });
+    const caption = this.compactCaption(at.x, buttonY + touch + C.captionGap,
+      'Erases your collection, decks, gold, and progress. Cannot be undone.', at.width);
+    list.add([label, reset.container, caption]);
+    this.compactAdapter(adapters, reset.container, reset.inputZone, { x: 0, y: 0, width: buttonW, height: touch });
+    return caption.y + caption.height + C.rowPad - at.y;
   }
 
   // -------------------------------------------------------------------------
@@ -679,15 +1128,7 @@ export class SettingsScene extends Phaser.Scene {
         status.setText(`${VERSION_LABEL} · Checking…`).setColor(theme.colors.body);
         void checkForUpdate().then((result) => {
           if (!status.active) return;
-          status
-            .setText(`${VERSION_LABEL} · ${result.message}`)
-            .setColor(
-              result.state === 'available'
-                ? theme.colors.gold
-                : result.state === 'error'
-                  ? theme.colors.danger
-                  : theme.colors.success,
-            );
+          status.setText(`${VERSION_LABEL} · ${result.message}`).setColor(SettingsScene.updateColor(result));
         });
       },
     }));
@@ -706,12 +1147,30 @@ export class SettingsScene extends Phaser.Scene {
     legal.container.setX(centers.legalX);
     check.container.setX(centers.updateX);
   }
+  private static updateColor(result: UpdateStatus): string {
+    return result.state === 'available'
+      ? theme.colors.gold
+      : result.state === 'error'
+        ? theme.colors.danger
+        : theme.colors.success;
+  }
   private stepVolume(delta: number): void {
     Sfx.setVolume(Sfx.volume + delta);
     this.refreshVolume();
     Sfx.play('click');
   }
   private refreshVolume(): void {
+    if (this.compactVolume) {
+      const { bar, segW, segGap } = this.compactVolume;
+      const filled = Math.round(Sfx.volume * VOLUME_BAR.segments);
+      const h = 22;
+      bar.clear();
+      for (let i = 0; i < VOLUME_BAR.segments; i++) {
+        bar.fillStyle(i < filled ? colorInt(theme.colors.body) : theme.graphics.panelStroke, i < filled ? 1 : theme.alpha.chrome)
+          .fillRoundedRect(i * (segW + segGap), -h / 2, segW, h, 4);
+      }
+      return;
+    }
     const bar = this.volumeBar;
     if (!bar) return;
     const filled = Math.round(Sfx.volume * VOLUME_BAR.segments);
@@ -728,6 +1187,7 @@ export class SettingsScene extends Phaser.Scene {
     });
   }
   private refreshToggles(): void {
+    for (const { sw, on } of this.compactSwitches) sw.set(on());
     for (const { button, on } of this.toggles) {
       const value = on();
       button.setLabel(value ? 'On' : 'Off');

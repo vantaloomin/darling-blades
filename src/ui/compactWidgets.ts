@@ -31,10 +31,16 @@ export interface CompactButtonOptions {
   /** The label's size; the compact body size by default. */
   fontSize?: number;
   fontFamily?: string;
+  /** With `align: 'left'`, where the icon or label starts; 16 px by default. */
+  inset?: number;
   /** Plate corner radius; rows use the panel radius, buttons the control one. */
   radius?: number;
-  onTap: () => void;
+  onTap: (pointer: Phaser.Input.Pointer) => void;
 }
+
+/** A press that travelled this far (a scroll's drag) is not a tap. */
+export const COMPACT_DRAG_SLOP = 12;
+const dragged = (pointer: Phaser.Input.Pointer): boolean => Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP;
 
 export interface CompactButton {
   container: Phaser.GameObjects.Container;
@@ -43,14 +49,16 @@ export interface CompactButton {
   /** The x, in the container, where the label ends (for a trailing badge). */
   labelRight(): number;
   setLabel(label: string): void;
+  /** Redraw in another variant (a jump list's current section, an armed action). */
+  setVariant(variant: ThemedButtonVariant): void;
 }
 
 const ICON_GAP = 10;
 const ROW_INSET = 16;
 
 export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opts: CompactButtonOptions): CompactButton {
-  const variant = opts.variant ?? 'ghost';
-  const colors = themedButtonColors(variant);
+  let variant = opts.variant ?? 'ghost';
+  let colors = themedButtonColors(variant);
   const radius = opts.radius ?? theme.radius.control;
   const fontSize = opts.fontSize ?? theme.compactType.body;
   const container = scene.add.container(rect.x, rect.y);
@@ -68,7 +76,7 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
   if (icon && opts.icon && uiIconTinted(opts.icon)) icon.setTint(colorInt(colors.fg));
   const place = (): void => {
     const contentW = (icon ? iconSize + (label.text ? ICON_GAP : 0) : 0) + label.width;
-    const left = opts.align === 'left' ? ROW_INSET : Math.round((rect.width - contentW) / 2);
+    const left = opts.align === 'left' ? opts.inset ?? ROW_INSET : Math.round((rect.width - contentW) / 2);
     icon?.setX(left + iconSize / 2);
     label.setX(left + (icon ? iconSize + ICON_GAP : 0));
   };
@@ -86,7 +94,9 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
         hovered ? 1 : theme.alpha.chrome)
       .strokeRoundedRect(0, 0, rect.width, rect.height, radius);
   };
-  bindTapButton(scene, inputZone, () => opts.onTap());
+  bindTapButton(scene, inputZone, (pointer) => {
+    if (!dragged(pointer)) opts.onTap(pointer);
+  });
   inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
     if (pointer.wasTouch) return;
     hovered = true;
@@ -105,6 +115,14 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
     setLabel: (next) => {
       label.setText(next);
       place();
+    },
+    setVariant: (next) => {
+      if (next === variant) return;
+      variant = next;
+      colors = themedButtonColors(variant);
+      label.setColor(colors.fg);
+      if (icon && opts.icon && uiIconTinted(opts.icon)) icon.setTint(colorInt(colors.fg));
+      redraw();
     },
   };
 }
@@ -416,6 +434,8 @@ export function compactSegments(
   labels: readonly string[],
   selected: number,
   onPick: (index: number) => void,
+  /** Segments this device cannot take (M-SettingsGameplay's render sizes): a lock, muted, no tap. */
+  disabled: readonly boolean[] = [],
 ): CompactSegments {
   const type = theme.compactType;
   const container = scene.add.container(rect.x, rect.y);
@@ -427,10 +447,23 @@ export function compactSegments(
   const texts = labels.map((label, i) => scene.add.text(inset + segW * i + segW / 2, rect.height / 2, label, {
     fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
   }).setOrigin(0.5));
+  const lockSize = (size: number): number => Math.round(size * 1.15);
+  const lockRoom = (t: Phaser.GameObjects.Text, i: number): number =>
+    disabled[i] ? lockSize(parseFloat(String(t.style.fontSize))) + 6 : 0;
   // One size for every segment: the label size when any would not fit at body.
-  if (texts.some((t) => t.width > segW - 8)) texts.forEach((t) => t.setFontSize(type.label));
-  texts.forEach((t) => ellipsizeText(t, segW - 8));
+  if (texts.some((t, i) => t.width + lockRoom(t, i) > segW - 8)) texts.forEach((t) => t.setFontSize(type.label));
+  texts.forEach((t, i) => ellipsizeText(t, segW - 8 - lockRoom(t, i)));
   container.add(texts);
+  texts.forEach((t, i) => {
+    if (!disabled[i]) return;
+    const size = lockSize(parseFloat(String(t.style.fontSize)));
+    const cx = t.x;
+    const total = size + 6 + t.width;
+    const lock = scene.add.image(cx - total / 2 + size / 2, rect.height / 2, bakeUiIcon(scene, 'lock'))
+      .setDisplaySize(size, size).setTint(colorInt(theme.colors.muted));
+    t.setX(cx - total / 2 + size + 6 + t.width / 2);
+    container.add(lock);
+  });
   let current = selected;
   const draw = (): void => {
     const ghost = themedButtonColors('ghost');
@@ -447,11 +480,13 @@ export function compactSegments(
         .lineStyle(theme.control.borderWidth, colorInt(chosen.stroke), 1)
         .strokeRoundedRect(x, inset, segW, rect.height - inset * 2, theme.radius.control);
     }
-    texts.forEach((t, i) => t.setColor(i === current ? chosen.fg : ghost.fg));
+    texts.forEach((t, i) => t.setColor(i === current ? chosen.fg : disabled[i] ? theme.colors.muted : ghost.fg));
   };
   const zones = labels.map((_, i) => {
-    const zone = scene.add.zone(inset + segW * i + segW / 2, rect.height / 2, segW, rect.height).setInteractive({ useHandCursor: true });
-    bindTapButton(scene, zone, () => {
+    const zone = scene.add.zone(inset + segW * i + segW / 2, rect.height / 2, segW, rect.height);
+    if (!disabled[i]) zone.setInteractive({ useHandCursor: true });
+    bindTapButton(scene, zone, (pointer) => {
+      if (dragged(pointer)) return;
       current = i;
       draw();
       onPick(i);
@@ -468,4 +503,47 @@ export function compactSegments(
       draw();
     },
   };
+}
+
+export interface CompactSwitch {
+  container: Phaser.GameObjects.Container;
+  /** The drawn width, the On/Off word included, measured from the right edge. */
+  width: number;
+  set(on: boolean): void;
+}
+
+/**
+ * The On/Off switch (M-Settings): the word, then the track, its right edge at
+ * `right` and centred on `centerY`. It draws only; the row it sits in takes
+ * the tap, so the whole row toggles.
+ */
+export function compactSwitch(scene: Phaser.Scene, right: number, centerY: number, on: boolean): CompactSwitch {
+  const type = theme.compactType;
+  const { width: trackW, height: trackH } = COMPACT.switchTrack;
+  const container = scene.add.container(right, centerY);
+  const track = scene.add.graphics();
+  const word = scene.add.text(-trackW - 10, 0, 'Off', {
+    fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.muted,
+  }).setOrigin(1, 0.5);
+  container.add([track, word]);
+  const knob = trackH / 2 - 4;
+  const set = (value: boolean): void => {
+    const ghost = themedButtonColors('ghost');
+    word.setText(value ? 'On' : 'Off').setColor(value ? theme.colors.gold : theme.colors.muted);
+    track.clear();
+    if (value) {
+      track.fillStyle(colorInt(theme.colors.gold), 1).fillRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
+        .fillStyle(colorInt(theme.colors.onGold), 1).fillCircle(-trackH / 2, 0, knob);
+    } else {
+      track.fillStyle(colorInt(ghost.bg), 1).fillRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
+        .lineStyle(theme.control.borderWidth, colorInt(ghost.stroke), 1)
+        .strokeRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
+        .fillStyle(colorInt(theme.colors.body), 1).fillCircle(-trackW + trackH / 2, 0, knob);
+    }
+  };
+  set(on);
+  // The widest word, so a row can leave room whichever is showing.
+  const widest = Math.max(word.width, (word.setText('Off'), word.width), (word.setText('On'), word.width));
+  set(on);
+  return { container, width: trackW + 10 + widest, set };
 }
