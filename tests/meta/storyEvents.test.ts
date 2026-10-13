@@ -329,6 +329,42 @@ describe('storyEvents: resolving a choice', () => {
   });
 });
 
+describe('storyEvents: the fixed choice rule', () => {
+  it('passes over a card reward the heroine cannot cast for the next available choice', () => {
+    // ev-cats-in-the-dark: choice 0 adds a random black Beastkin, choice 1 costs 15 gold.
+    const { story } = atEvent('ev-cats-in-the-dark', GUAN_YU_ID);
+    const run = story.activeRun!;
+    run.gold = 40;
+    const deck = [...run.deck];
+    const resolved = resolveStoryEventByRule(story, CARD_DB);
+    if (!resolved.ok) throw new Error(resolved.reason);
+    expect(resolved.choiceIndex).toBe(1);
+    expect(run.gold).toBe(25);
+    expect(run.deck).toEqual(deck);
+  });
+
+  it('takes an in-colour card reward first, as before', () => {
+    const { story } = atEvent('ev-cats-in-the-dark', PERSEPHONE_ID);
+    story.activeRun!.gold = 40;
+    const resolved = resolveStoryEventByRule(story, CARD_DB);
+    if (!resolved.ok) throw new Error(resolved.reason);
+    expect(resolved.choiceIndex).toBe(0);
+    expect(resolved.outcome.added).toHaveLength(1);
+    expect(CARD_DB[resolved.outcome.added[0]].colors).toContain('B');
+  });
+
+  it('still takes an off-colour reward when it is the only choice left', () => {
+    const { story } = atEvent('ev-cats-in-the-dark', YUTU_ID);
+    const run = story.activeRun!;
+    run.gold = 10;
+    const resolved = resolveStoryEventByRule(story, CARD_DB);
+    if (!resolved.ok) throw new Error(resolved.reason);
+    expect(resolved.choiceIndex).toBe(0);
+    expect(run.gold).toBe(10);
+    expect(CARD_DB[resolved.outcome.added[0]].subtypes).toContain('Beastkin');
+  });
+});
+
 describe('an event with no choice left', () => {
   it('refuses to move on while a choice is open, and lets a broke run at the deck minimum leave with nothing changed', () => {
     const { story } = atEvent('ev-meng-ford-toll');

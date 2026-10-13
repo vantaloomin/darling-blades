@@ -23,7 +23,12 @@ const TOWER_SIMAYI: Avatar = avatarById('simayi');
  * only, plus each elite's own hint cards for Gongsun Zan and Shanjun, with a
  * few themes left out so the list plays its blurb: Gongsun Zan takes no walls,
  * lifegain, sweepers or bodies of power 1 or less; Penthesilea and Shanjun
- * take no sweepers. Every list here passes the validator the Tower avatars
+ * take no sweepers. Owner ruling E1 (2026-10-13) softened two elites a
+ * little so the boss clearly tops them: Gongsun Zan's list trades its six
+ * common fliers and four removal spells (The Court Condemns, Strike Down the
+ * Charge, Stare of the Sun, Prism Deflection) for ground bodies of power 2 or more,
+ * and Penthesilea sends her burn at the face (burnFaceLife 30) rather than
+ * at blockers. Every list here passes the validator the Tower avatars
  * pass (validateDarlingsDeck: 79 singletons in the Darling's colours, no
  * other legendary creature). Strength: the elites are Medium brains, a harder
  * brain than the Easy Tower rungs Act 1's fights draw from, and the boss is a
@@ -61,9 +66,9 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       'cs2-veterans-mark',
       'so-parade-of-heroes',
       'cs2-sworn-defiance',
-      'cs2-court-condemns',
+      'sd-scribe-of-the-second-gate',
       'cs2-muster-militia',
-      'cs2-strike-down-attacker',
+      'yn-white-noise-exorcist',
       'fdc-elder-of-embers-bo',
       'cs2-moon-gate-bell',
       'cs2-signal-drum',
@@ -73,14 +78,14 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       'dd-shore-mother',
       'cs2-sworn-renewal',
       'dt-sunrise-over-the-ballroom',
-      'fd-sun-stare',
+      'rg-shieldwall-maiden',
       'dt-tower-chatelaine',
       'cs2-travelling-shrine',
       'yn-holo-lantern-adept',
       'ac-quest-marker',
       'cf-oak-shield-vow',
       'gm-holy-water-vial',
-      'sb-prism-deflection',
+      'cf-moorland-guide',
       'dt-hearth-blessing',
       'gm-hunters-writ',
       'sd-the-offering-table',
@@ -99,12 +104,12 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       'dd-wharf-watch',
       'gk-hoplite',
       'dd-salt-stair-guard',
-      'rg-dawn-valkyrie',
+      'sd-sand-pawed-guard',
       'tk-wei-pangde',
       'cs2-holstaur-herdswoman',
       'dd-watch-recruit',
-      'rg-valkyrie-scout',
-      'dd-whitecap-rider',
+      'rg-honored-footman',
+      'ac-pennant-carrier',
       'cs2-hare-guard',
       'tk-shu-guansuo',
       'tk-wei-xuhuang',
@@ -118,15 +123,15 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       'ac-novice-squire',
       'sb-lumen-warder',
       'sb-orbit-guard',
-      'gk-eos',
+      'sd-claw-thread-lancer',
       'cs2-mandate-tally-stone',
       'yn-silk-rope-enforcer',
-      'gk-nike',
+      'sd-pridewall-runner',
       'sb-radiant-deckhand',
       'sd-white-crown-sentinel',
       'tk-other-yuanshao',
       'yn-wardlight-broker',
-      'fdc-dawn-crest-fb',
+      'sd-collar-bound-warden',
       'cs2-shield-line-hoplite',
       'fd-nest-guard',
       'cs2-bronze-lantern',
@@ -149,6 +154,7 @@ export const STORY_OPPONENTS: readonly Avatar[] = [
       aggression: 1.4,
       attackThreshold: -1,
       trickRespect: 0.5,
+      burnFaceLife: 30,
       subtypeBias: 1,
       preferredSubtypes: ['Amazon', 'Warrior'],
     }),

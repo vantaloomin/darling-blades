@@ -387,10 +387,30 @@ export function eventOutcomeLines(outcome: EventOutcome, db: CardDb): string[] {
   return lines;
 }
 
+/** Whether a card can sit in this heroine's deck by colour: every colour it has is hers (colourless fits). */
+function fitsHeroineColors(character: StoryCharacter, db: CardDb, id: string): boolean {
+  return (db[id]?.colors ?? []).every((color) => character.colors.includes(color));
+}
+
+/**
+ * Whether a choice's card reward can be in the heroine's colours: false when
+ * some add effect has no in-colour card to give (a random black Beastkin for a
+ * white-red heroine), true for a choice that adds no card.
+ */
+function rewardFitsHeroine(run: StoryRun, event: StoryEvent, choiceIndex: number, db: CardDb): boolean {
+  const character = characterOf(run);
+  return event.choices[choiceIndex].effects.every((effect) =>
+    (effect.kind !== 'add-random' && effect.kind !== 'add-choice')
+    || filterCards(run, effect.filter, db).some((id) => fitsHeroineColors(character, db, id)));
+}
+
 /**
  * The fixed choice rule headless runs and test walks use: the first available
- * choice, the first offered card, and the fewest removals the choice allows
- * (taken from the front of the deck). Deterministic for a given run.
+ * choice whose card reward can be in the heroine's colours (when every
+ * available choice's reward is off-colour, the first available choice), the
+ * first offered card in her colours (else the first offered), and the fewest
+ * removals the choice allows (taken from the front of the deck).
+ * Deterministic for a given run.
  */
 export function resolveStoryEventByRule(
   story: StoryState,
@@ -400,11 +420,15 @@ export function resolveStoryEventByRule(
   const node = openEventNode(run);
   if (!run || !node) return refuse('The run is not at an event.');
   const event = storyEventFor(run, node);
-  for (let choiceIndex = 0; choiceIndex < event.choices.length; choiceIndex++) {
+  const available = event.choices.map((_, i) => i).filter((i) => eventChoiceNeeds(run, node, event, i, db).available);
+  const choiceIndex = available.find((i) => rewardFitsHeroine(run, event, i, db)) ?? available[0];
+  if (choiceIndex !== undefined) {
     const needs = eventChoiceNeeds(run, node, event, choiceIndex, db);
-    if (!needs.available) continue;
+    if (!needs.available) return refuse(needs.reason);
+    const character = characterOf(run);
+    const options = needs.pickOptions;
     const resolved = resolveStoryEvent(story, db, choiceIndex, {
-      pickId: needs.pickOptions?.[0] ?? null,
+      pickId: options ? (options.find((id) => fitsHeroineColors(character, db, id)) ?? options[0]) : null,
       removeIds: run.deck.slice(0, needs.removeAtLeast),
     });
     return resolved.ok ? { ok: true, outcome: resolved.outcome, choiceIndex } : resolved;
