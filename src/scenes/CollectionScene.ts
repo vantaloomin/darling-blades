@@ -51,6 +51,7 @@ import {
   compactDialog,
   compactHeader,
   compactIconButton,
+  compactPurse,
   COMPACT_DRAG_SLOP,
   type CompactButton,
 } from '../ui/compactWidgets';
@@ -1732,7 +1733,7 @@ export class CollectionScene extends Phaser.Scene {
     };
     const header = compactHeader(this, shell, { title: 'Collection', onBack: goBack });
     registerSceneBackNavigation(this, goBack);
-    const purse = this.compactPurse(shell.right.x + shell.right.width, shell.right.y + shell.right.height / 2);
+    const purse = compactPurse(this, shell.right.x + shell.right.width, shell.right.y + shell.right.height / 2, () => this.saveData.gold);
     this.goldBadge = purse.badge;
 
     // The search field takes the top bar between the title and the purse.
@@ -1781,36 +1782,6 @@ export class CollectionScene extends Phaser.Scene {
       if (card) this.showInspect(card, this.fixture.clearedDisplayPin);
     } else if (this.fixture?.openFilter) this.openCompactPicker(this.fixture.openFilter);
     this.data.set('a11yReady', true);
-  }
-
-  /**
-   * The purse at the top bar's right end: the shared gold badge on a pill, so
-   * the shard ritual's count-up and a craft's spend land on it as on desktop.
-   * Returns the pill's left edge (with room for one more digit).
-   */
-  private compactPurse(right: number, centerY: number): { badge: GoldBadge; left: number } {
-    const height = 38;
-    const padX = 14;
-    const badge = goldBadge(this, right - padX, centerY, {
-      fontSize: theme.compactType.h2, flashOnChange: true, getValue: () => this.saveData.gold,
-    });
-    const plate = this.add.graphics();
-    badge.container.addAt(plate, 0);
-    const draw = (): void => {
-      const width = badge.width() + padX * 2;
-      plate.clear()
-        .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
-        .fillRoundedRect(padX - width, -height / 2, width, height, height / 2)
-        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
-        .strokeRoundedRect(padX - width, -height / 2, width, height, height / 2);
-    };
-    draw();
-    const refresh = badge.refresh;
-    const digit = badge.text.width / Math.max(1, badge.text.text.length);
-    return {
-      badge: { ...badge, refresh: (value?: number) => { refresh(value); draw(); } },
-      left: right - badge.width() - padX * 2 - digit,
-    };
   }
 
   /**

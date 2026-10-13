@@ -19,7 +19,7 @@ interface PackOddsMeta {
   setName: string;
 }
 
-interface OddsSection {
+export interface OddsSection {
   heading: string;
   rows: ReadonlyArray<readonly [string, number]>;
   labelFor: (value: string) => string;
@@ -62,17 +62,9 @@ const FULL_ART_LABELS: Record<string, string> = { 'full-art': 'Full Art' };
 const cap = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
 const percent = (weight: number): string => `${weight}%`;
 
-/** Build the shared, SKU-parameterized odds disclosure used by every booster plate. */
-export function createOddsModal(
-  scene: Phaser.Scene,
-  coordinator: OverlayCoordinator,
-  sku: BoosterSku,
-  pool: { poolSize: number; ownedDistinct: number },
-  guardTargets: readonly Phaser.GameObjects.GameObject[],
-  onClose: () => void,
-): ModalShell {
-  const meta = PACK_ODDS_META[sku];
-  const sections: readonly OddsSection[] = [
+/** The four odds tables every booster shares: rarity, frame, holo finish and Full Art. */
+export function oddsSections(): readonly OddsSection[] {
+  return [
     {
       heading: 'RARITY',
       rows: DROPS.tier,
@@ -98,19 +90,55 @@ export function createOddsModal(
       colorFor: () => theme.colors.body,
     },
   ];
+}
+
+/** The odds disclosure's words for one pack: its title, the lead, the pool line, where the pack pulls from, and the notes. */
+export function oddsCopy(sku: BoosterSku, pool: { poolSize: number; ownedDistinct: number }): {
+  title: string;
+  lead: string;
+  pool: string;
+  source: string;
+  notes: readonly string[];
+} {
+  const meta = PACK_ODDS_META[sku];
+  return {
+    title: `${meta.packName} Drop Rates`,
+    lead: 'Per card. Each slot rolls rarity, frame, holo finish, and Full Art independently.',
+    pool: `Pool: ${pool.poolSize} cards · You own ${pool.ownedDistinct} of ${pool.poolSize}`,
+    source: sku === 'base'
+      ? 'Drop rates are the same in every booster. This pack pulls only Base Set cards.'
+      : `Drop rates are the same in every booster. This pack pulls only ${meta.setName} cards.`,
+    notes: [
+      'Super Rare and higher slots only roll cards you own fewer than 4 copies of, until the whole tier is complete.',
+      'If a set has no cards in a rolled tier, the slot falls back to the next lower tier.',
+    ],
+  };
+}
+
+/** Build the shared, SKU-parameterized odds disclosure used by every booster plate. */
+export function createOddsModal(
+  scene: Phaser.Scene,
+  coordinator: OverlayCoordinator,
+  sku: BoosterSku,
+  pool: { poolSize: number; ownedDistinct: number },
+  guardTargets: readonly Phaser.GameObjects.GameObject[],
+  onClose: () => void,
+): ModalShell {
+  const sections = oddsSections();
+  const copy = oddsCopy(sku, pool);
   const measure = scene.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${theme.type.caption}px` });
   const rowHeight = Math.max(theme.space(5), measure.height + theme.space(1));
   measure.destroy();
   const columnGap = theme.space(3);
   const content = { x: 0, y: 0, width: 812, height: theme.design.safeHeight };
   const container = scene.add.container(0, 0);
-  const title = scene.add.text(0, 0, `${meta.packName} Drop Rates`, {
+  const title = scene.add.text(0, 0, copy.title, {
     fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.gold, align: 'center',
   }).setOrigin(0.5);
   fitMenuName(title, 740, 2);
 
   const lead = scene.add
-    .text(content.x, content.y, 'Per card. Each slot rolls rarity, frame, holo finish, and Full Art independently.', {
+    .text(content.x, content.y, copy.lead, {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.body}px`,
       color: theme.colors.body,
@@ -122,7 +150,7 @@ export function createOddsModal(
     .text(
       content.x,
       content.y + lead.height + theme.space(1),
-      `Pool: ${pool.poolSize} cards · You own ${pool.ownedDistinct} of ${pool.poolSize}`,
+      copy.pool,
       {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.body}px`,
@@ -136,9 +164,7 @@ export function createOddsModal(
     .text(
       content.x,
       poolLine.y + poolLine.height + theme.space(1),
-      sku === 'base'
-        ? 'Drop rates are the same in every booster. This pack pulls only Base Set cards.'
-        : `Drop rates are the same in every booster. This pack pulls only ${meta.setName} cards.`,
+      copy.source,
       {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
@@ -217,7 +243,7 @@ export function createOddsModal(
     })
     .setOrigin(0, 0);
   const noteOne = scene.add
-    .text(content.x, notesTop + notesLabel.height + theme.space(1), 'Super Rare and higher slots only roll cards you own fewer than 4 copies of, until the whole tier is complete.', {
+    .text(content.x, notesTop + notesLabel.height + theme.space(1), copy.notes[0], {
       fontFamily: theme.fonts.ui,
       fontSize: `${theme.type.caption}px`,
       color: theme.colors.muted,
@@ -228,7 +254,7 @@ export function createOddsModal(
     .text(
       content.x,
       noteOne.y + noteOne.height + theme.space(1),
-      'If a set has no cards in a rolled tier, the slot falls back to the next lower tier.',
+      copy.notes[1],
       {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
