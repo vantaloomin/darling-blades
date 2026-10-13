@@ -48,6 +48,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | `npx vitest run` | full suite (~16 min at 5,644 tests on 4 workers, measured 2026-10-08; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
+| `npm run check-story` / `npx tsx scripts/balance-matrix.ts --story --seeds 200` | Story Mode content check (script, art, cards, avatars) / seeded Act 1 runs per heroine |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |
 | `npm run sweep-dash` | live metagame-sweep dashboard (:5185; pairs with craft.ts --status-file) |
 | `npm run signals-dash` | local viewer for the anonymous play-stats daily totals (:5186; reads the `signals-data` branch's `rollups/`, set `SIGNALS_ROLLUP_DIR`) |

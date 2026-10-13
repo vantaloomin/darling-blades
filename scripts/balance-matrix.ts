@@ -44,6 +44,12 @@
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
  *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
  *                        (Crimson Muster / Shadow Mandate / Questing Table).
+ *   --story              Story Mode Act 1: --seeds headless runs per
+ *                        character (seeds 1..n, src/meta/story/storyMatrix.ts),
+ *                        reporting clears, survival by floor, duel W-L by node
+ *                        kind, boss win rate, mean turns, deck-outs vs life
+ *                        losses and impossible seeds. Not a gate.
+ *   --character <id>     With --story: one story character only.
  *   --seeds <n>          Games per cell (default 20).
  *   --telemetry          Collect read-only per-game Warchest diagnostic data.
  *   --telemetry-out <p>  Also write full per-deck/per-cell telemetry JSON.
@@ -106,6 +112,9 @@ import {
   type WarchestTuningField,
 } from './reserveMatrixDecks';
 import { MechanicUsageCollector, type UsageBossInfo } from './mechanicUsageCollector';
+import { STORY_CHARACTERS } from '../src/data/story/characters';
+import { ACT1 } from '../src/data/story/act1';
+import { foldStoryMatrix, playStoryMatrixRun, renderStoryMatrix, type StoryMatrixRun } from '../src/meta/story/storyMatrix';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -1952,6 +1961,17 @@ export function runFloorMatrix(
 // CLI
 // ---------------------------------------------------------------------------
 
+/** --story: seeded headless Act 1 runs per character (src/meta/story/storyMatrix.ts). */
+function runStoryMatrix(seeds: number, characterIds: readonly string[]): { table: string } {
+  const runs: StoryMatrixRun[] = [];
+  for (const characterId of characterIds) {
+    const started = Date.now();
+    for (let seed = 1; seed <= seeds; seed++) runs.push(playStoryMatrixRun(characterId, seed, CARD_DB));
+    process.stderr.write(`  story ${characterId}: ${seeds} runs in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  }
+  return { table: renderStoryMatrix(foldStoryMatrix(runs, ACT1.mapTemplate.floors.length), seeds) };
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   const flag = (name: string): boolean => argv.includes(`--${name}`);
@@ -1998,6 +2018,7 @@ function main(): void {
   const wantDarlings = flag('darlings');
   const wantDarlingsPrecons = flag('darlings-precons');
   const wantPlayerDecks = flag('player-decks');
+  const wantStory = flag('story');
   // Reserve avatar ladders (migration stage 2): --avatars-reserve (or the
   // spelled-out --avatars --reserve) and --avatars-darlings.
   const wantAvatarsReserve = flag('avatars-reserve') || (flag('avatars') && flag('reserve'));
@@ -2017,6 +2038,7 @@ function main(): void {
       !wantDarlings &&
       !wantDarlingsPrecons &&
       !wantPlayerDecks &&
+      !wantStory &&
       !wantAvatarsReserve &&
       !wantAvatarsDarlings);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
@@ -2100,6 +2122,21 @@ function main(): void {
   if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
   if (wantPlayerDecks) reports.push(runPlayerDeckMatrix(seeds, ai, telemetry));
+  if (wantStory) {
+    const characterId = opt('character');
+    if (flag('character') && characterId === undefined) {
+      console.error('--character requires a story character id');
+      process.exitCode = 1;
+      return;
+    }
+    const ids = STORY_CHARACTERS.map((character) => character.id);
+    if (characterId !== undefined && !ids.includes(characterId)) {
+      console.error(`--character must be one of ${ids.join(' | ')} (got ${characterId})`);
+      process.exitCode = 1;
+      return;
+    }
+    reports.push(runStoryMatrix(seeds, characterId === undefined ? ids : [characterId]));
+  }
 
   for (const r of reports) {
     console.log('\n' + r.table);
