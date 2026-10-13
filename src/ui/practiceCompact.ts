@@ -119,3 +119,12 @@ export function practiceGridHeight(count: number, columns: number, tileH: number
   const rows = Math.ceil(Math.max(0, count) / Math.max(1, columns));
   return rows > 0 ? rows * tileH + (rows - 1) * PRACTICE_COMPACT.tileGap : 0;
 }
+
+/**
+ * A rival's short name for a grid tile or a tower row: the part before the
+ * comma ("Anubis", not "Anubis, Who Holds the Scale"), as the mocks have it.
+ * Her whole name heads the screen when she is picked.
+ */
+export function rivalShortName(name: string): string {
+  return name.split(',')[0].trim();
+}
