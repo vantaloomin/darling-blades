@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CARD_DB } from '../../src/data/catalog';
 import { ACT1 } from '../../src/data/story/act1';
-import { validateStoryContent } from '../../src/meta/story/storyContent';
+import { missingStoryArt } from '../../scripts/check-story';
+import {
+  checkStoryContent,
+  PLANNED_WAVE3_AVATAR_IDS,
+  SHIPPED_STORY_CONTENT,
+  validateStoryContent,
+} from '../../src/meta/story/storyContent';
 import {
   generateStoryMap,
   isDuelNode,
@@ -29,6 +35,41 @@ function allPaths(map: StoryMap): string[][] {
 describe('story content', () => {
   it('passes the content validator (cards, colours, reserves, unlock chain, avatars)', () => {
     expect(validateStoryContent(CARD_DB)).toEqual([]);
+  });
+
+  it('passes check-story with art on disk: no errors, and warnings only for planned wave 3 avatars', () => {
+    const report = checkStoryContent(CARD_DB, { missingArt: (id) => missingStoryArt(id) });
+    expect(report.errors).toEqual([]);
+    for (const warning of report.warnings) {
+      expect(PLANNED_WAVE3_AVATAR_IDS.some((id) => warning.includes(`avatar ${id} `)), warning).toBe(true);
+    }
+  });
+
+  it('reports broken script data as errors and a planned avatar in act data as a warning', () => {
+    const [first, ...scenes] = SHIPPED_STORY_CONTENT.scenes;
+    const event = SHIPPED_STORY_CONTENT.events[0];
+    const content = {
+      ...SHIPPED_STORY_CONTENT,
+      acts: [{ ...SHIPPED_STORY_CONTENT.acts[0], fightAvatarIds: ['menghuo', 'shanjun', 'no-such-avatar'] }],
+      scenes: [
+        // Guan Yu's opening, now with an unknown speaker and an empty line, and no longer hers.
+        { ...first, characterId: null, lines: [{ speakerId: 'nobody', expression: 'steady', text: 'Hi.' }, { speakerId: null, text: '  ' }] },
+        ...scenes,
+        { ...scenes[0], id: scenes[0].id },
+      ],
+      events: [{ ...event, choices: [{ label: 'Take it.', effects: [{ kind: 'add-random', filter: { source: 'pool', subtype: 'No Such Tribe' } }] }, event.choices[1]] }],
+    } as typeof SHIPPED_STORY_CONTENT;
+    const report = checkStoryContent(CARD_DB, { content, missingArt: (id) => (id === first.backgroundId ? ['story-half'] : []) });
+    const has = (pattern: RegExp): boolean => report.errors.some((error) => pattern.test(error));
+    expect(has(/unknown avatar no-such-avatar/)).toBe(true);
+    expect(report.warnings.some((w) => /act act1 fight: avatar shanjun/.test(w))).toBe(true);
+    expect(has(/unknown speaker nobody/)).toBe(true);
+    expect(has(/line 2: empty text/)).toBe(true);
+    expect(has(/guan-yu: has 0 opening scenes/)).toBe(true);
+    expect(has(new RegExp(`duplicate scene id ${scenes[0].id}`))).toBe(true);
+    expect(has(/scene ev-meng-ford-toll: an event scene with no event/)).toBe(true);
+    expect(has(/matches no card in guan-yu's pool/)).toBe(true);
+    expect(has(new RegExp(`art ${first.backgroundId}: missing from story-half`))).toBe(true);
   });
 });
 

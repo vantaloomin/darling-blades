@@ -116,10 +116,14 @@ function characterOf(run: StoryRun): StoryCharacter {
   return character;
 }
 
-/** Card ids a filter allows, in a stable order (the pool's own order, or by id for the catalog). */
-function filterCards(run: StoryRun, filter: StoryCardFilter, db: CardDb): string[] {
+/**
+ * Card ids an event filter allows for a heroine with this reward pool, in a
+ * stable order (the pool's own order, or by id for the catalog). The content
+ * check (storyContent.ts) uses it too, so it checks the rule events apply.
+ */
+export function storyFilterCards(filter: StoryCardFilter, rewardPool: readonly string[], db: CardDb): string[] {
   const source = filter.source === 'pool'
-    ? [...new Set(characterOf(run).rewardPool)]
+    ? [...new Set(rewardPool)]
     : collectiblePool(Object.values(db)).map((card) => card.id).sort();
   return source.filter((id) => {
     if (!isStoryDeckCard(db, id)) return false;
@@ -129,6 +133,10 @@ function filterCards(run: StoryRun, filter: StoryCardFilter, db: CardDb): string
     if (filter.subtype !== undefined && !card.subtypes.includes(filter.subtype)) return false;
     return true;
   });
+}
+
+function filterCards(run: StoryRun, filter: StoryCardFilter, db: CardDb): string[] {
+  return storyFilterCards(filter, characterOf(run).rewardPool, db);
 }
 
 /** Pool cards a deck card could change into: same rarity, a different id. */
@@ -401,5 +409,7 @@ export function resolveStoryEventByRule(
     });
     return resolved.ok ? { ok: true, outcome: resolved.outcome, choiceIndex } : resolved;
   }
-  return refuse('No choice is available.');
+  // Neither choice can be taken: move on, as the game's event screen offers (choiceIndex -1).
+  const moved = moveOnFromStoryEvent(story, db);
+  return moved.ok ? { ok: true, outcome: { gold: 0, added: [], removed: [], changed: [] }, choiceIndex: -1 } : moved;
 }

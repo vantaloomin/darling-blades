@@ -1,7 +1,9 @@
 /**
- * Story content validation (the core of the planned check-story tooling,
- * docs/plan-story-mode.md "Tooling and invariants"). Pure: it reads the story
- * data, the card db and the avatar roster, and returns problems as strings.
+ * Story content validation: the core of `npm run check-story`
+ * (scripts/check-story.ts; docs/plan-story-mode.md "Tooling and invariants").
+ * Pure: it reads the story data, the card db and the avatar roster, and
+ * returns problems as strings. Art presence is a file question, so the caller
+ * passes a `missingArt` probe (src/meta never touches the file system).
  */
 
 import type { CardDb } from '../../engine/types';
@@ -9,8 +11,19 @@ import { CORE_SET_2_SET } from '../../data/liveness';
 import { AVATARS } from '../../data/opponents';
 import { STORY_BOONS, STORY_ACTS, BOON_OFFER_COUNT } from '../../data/story/act1';
 import { STORY_CHARACTERS, FIRST_STORY_CHARACTER_ID } from '../../data/story/characters';
-import type { StoryCharacter } from '../../data/story/types';
+import { STORY_EVENTS, STORY_SCENES, STORY_SPEAKERS } from '../../data/story/script';
+import type {
+  StoryAct,
+  StoryBoon,
+  StoryCharacter,
+  StoryEvent,
+  StoryScene,
+  StorySceneKind,
+  StorySpeaker,
+} from '../../data/story/types';
+import { collectiblePool } from '../collectionFilter';
 import { isBasicLand, isDualLand, LAND_RESERVE_SIZE, MAX_DUAL_LANDS, reserveColorIdentity } from '../warchest';
+import { storyFilterCards } from './storyEvents';
 import { isStoryDeckCard } from './storyMap';
 
 /** Starter deck size (owner ruling 2026-10-12: 30, up from the planned 15 to 20, which decked out). */
@@ -25,6 +38,8 @@ export const STARTER_DECK_SIZE = 30;
 export function validateStoryCharacter(db: CardDb, character: StoryCharacter): string[] {
   const problems: string[] = [];
   const where = `story character ${character.id}`;
+  const collectible = new Set(collectiblePool(Object.values(db)).map((card) => card.id));
+  if (!character.name.trim()) problems.push(`${where}: empty name`);
   const darling = db[character.darlingId];
   if (!darling) problems.push(`${where}: unknown Darling ${character.darlingId}`);
   else if (!darling.types.includes('creature') || !darling.supertypes?.includes('legendary') || !darling.cost) {
@@ -41,6 +56,7 @@ export function validateStoryCharacter(db: CardDb, character: StoryCharacter): s
       }
       const card = db[id];
       if (card.set === CORE_SET_2_SET) problems.push(`${where}: ${label} card ${id} is from Core Set II, which is not live`);
+      else if (!collectible.has(id)) problems.push(`${where}: ${label} card ${id} is not in the collectible pool`);
       if (card.colors.some((color) => !character.colors.includes(color))) {
         problems.push(`${where}: ${label} card ${id} is outside ${character.colors.join('')}`);
       }
@@ -76,47 +92,254 @@ function colorOrder(a: string, b: string): number {
   return COLOR_ORDER.indexOf(a) - COLOR_ORDER.indexOf(b);
 }
 
-/** Every problem in the shipped story content. An empty list is a pass. */
-export function validateStoryContent(db: CardDb): string[] {
-  const problems: string[] = [];
-  const avatarIds = new Set(AVATARS.map((avatar) => avatar.id));
-  const seen = new Set<string>();
-  STORY_CHARACTERS.forEach((character, index) => {
-    if (!character.id) problems.push('a story character has an empty id');
-    if (seen.has(character.id)) problems.push(`duplicate story character id ${character.id}`);
-    seen.add(character.id);
+/**
+ * Avatars the Act 1 script names that wave 3 builds (the three elite intros).
+ * A reference to one of these is a warning, not an error, until it exists in
+ * src/data/opponents.ts; any other unknown avatar id is an error.
+ */
+export const PLANNED_WAVE3_AVATAR_IDS: readonly string[] = ['gongsunzan', 'penthesilea', 'shanjun'];
+
+/** Where scene art lives (relative to the repo root): full size, then phones. Files are `<art id>.webp`. */
+export const STORY_ART_DIRS: readonly string[] = ['public/assets/art/story', 'public/assets/art/story-half'];
+
+/** Scene kinds every heroine has one of her own. */
+export const PER_HEROINE_SCENE_KINDS: readonly StorySceneKind[] = ['opening', 'boss-intro', 'boss-defeat', 'ending'];
+
+const EM_DASH = '—';
+
+/** Everything the check reads; the shipped data by default (tests pass a broken copy). */
+export interface StoryContentSource {
+  characters: readonly StoryCharacter[];
+  acts: readonly StoryAct[];
+  boons: readonly StoryBoon[];
+  scenes: readonly StoryScene[];
+  speakers: readonly StorySpeaker[];
+  events: readonly StoryEvent[];
+}
+
+export const SHIPPED_STORY_CONTENT: StoryContentSource = {
+  characters: STORY_CHARACTERS,
+  acts: STORY_ACTS,
+  boons: STORY_BOONS,
+  scenes: STORY_SCENES,
+  speakers: STORY_SPEAKERS,
+  events: STORY_EVENTS,
+};
+
+export interface StoryContentOptions {
+  content?: StoryContentSource;
+  /** Avatar ids that exist (default: src/data/opponents.ts). */
+  avatarIds?: readonly string[];
+  /**
+   * The places an art id is missing from (empty when present everywhere). Left
+   * out, art is not checked.
+   */
+  missingArt?: (artId: string) => readonly string[];
+}
+
+export interface StoryContentReport {
+  errors: string[];
+  warnings: string[];
+  /** What was checked, for the summary line. */
+  counts: { characters: number; scenes: number; lines: number; events: number; speakers: number; artIds: number };
+}
+
+/** Every problem in the story content, split into errors (fail the check) and warnings. */
+export function checkStoryContent(db: CardDb, options: StoryContentOptions = {}): StoryContentReport {
+  const content = options.content ?? SHIPPED_STORY_CONTENT;
+  const avatarIds = new Set(options.avatarIds ?? AVATARS.map((avatar) => avatar.id));
+  const planned = new Set(PLANNED_WAVE3_AVATAR_IDS);
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const checkAvatar = (where: string, id: string): void => {
+    if (avatarIds.has(id)) return;
+    if (planned.has(id)) warnings.push(`${where}: avatar ${id} is a planned wave 3 avatar, not built yet`);
+    else errors.push(`${where}: unknown avatar ${id}`);
+  };
+  const checkText = (where: string, text: string): void => {
+    if (!text.trim()) errors.push(`${where}: empty text`);
+    else if (text.includes(EM_DASH)) errors.push(`${where}: em-dash in player-facing text`);
+  };
+  const duplicates = (label: string, ids: readonly string[]): void => {
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (!id.trim()) errors.push(`a ${label} has an empty id`);
+      else if (seen.has(id)) errors.push(`duplicate ${label} id ${id}`);
+      seen.add(id);
+    }
+  };
+
+  // ------------------------------------------------------------ characters
+  const characters = content.characters;
+  duplicates('story character', characters.map((character) => character.id));
+  characters.forEach((character, index) => {
     if (index === 0 && (character.id !== FIRST_STORY_CHARACTER_ID || character.unlock !== null)) {
-      problems.push('the first story character must be the open one');
+      errors.push('the first story character must be the open one');
     }
     if (index > 0) {
-      const previous = STORY_CHARACTERS[index - 1];
+      const previous = characters[index - 1];
       if (!character.unlock || character.unlock.predecessorId !== previous.id) {
-        problems.push(`${character.id} must unlock from ${previous.id} (R10: the character just before her)`);
+        errors.push(`${character.id} must unlock from ${previous.id} (R10: the character just before her)`);
       }
     }
-    problems.push(...validateStoryCharacter(db, character));
+    errors.push(...validateStoryCharacter(db, character));
   });
 
-  for (const act of STORY_ACTS) {
-    for (const id of [...act.fightAvatarIds, ...act.eliteAvatarIds, act.bossAvatarId]) {
-      if (!avatarIds.has(id)) problems.push(`act ${act.id}: unknown avatar ${id}`);
-    }
-    const tierOf = (id: string): number => AVATARS.find((avatar) => avatar.id === id)?.tier ?? 0;
-    const hardestFight = Math.max(...act.fightAvatarIds.map(tierOf));
-    if (act.eliteAvatarIds.some((id) => tierOf(id) <= hardestFight)) {
-      problems.push(`act ${act.id}: every elite must be a stronger avatar than every fight`);
+  // ------------------------------------------------------------------ acts
+  const tierOf = (id: string): number => AVATARS.find((avatar) => avatar.id === id)?.tier ?? 0;
+  for (const act of content.acts) {
+    for (const id of act.fightAvatarIds) checkAvatar(`act ${act.id} fight`, id);
+    for (const id of act.eliteAvatarIds) checkAvatar(`act ${act.id} elite`, id);
+    checkAvatar(`act ${act.id} boss`, act.bossAvatarId);
+    const builtFights = act.fightAvatarIds.filter((id) => avatarIds.has(id));
+    const builtElites = act.eliteAvatarIds.filter((id) => avatarIds.has(id));
+    if (act.fightAvatarIds.length === 0 || act.eliteAvatarIds.length === 0) errors.push(`act ${act.id}: needs fight and elite avatars`);
+    const hardestFight = Math.max(0, ...builtFights.map(tierOf));
+    if (builtElites.some((id) => tierOf(id) <= hardestFight)) {
+      errors.push(`act ${act.id}: every elite must be a stronger avatar than every fight`);
     }
     const floors = act.mapTemplate.floors;
     if (floors.some((floor, i) => floor.floor !== i + 1 || floor.kinds.length === 0)) {
-      problems.push(`act ${act.id}: floors must be numbered from 1 with at least one kind each`);
+      errors.push(`act ${act.id}: floors must be numbered from 1 with at least one kind each`);
     }
     if (!floors[floors.length - 1]?.kinds.includes('boss') || floors.slice(0, -1).some((f) => f.kinds.includes('boss'))) {
-      problems.push(`act ${act.id}: the boss must be the last floor and only there`);
+      errors.push(`act ${act.id}: the boss must be the last floor and only there`);
     }
   }
 
-  const boonIds = new Set(STORY_BOONS.map((boon) => boon.id));
-  if (boonIds.size !== STORY_BOONS.length) problems.push('duplicate boon id');
-  if (STORY_BOONS.length < BOON_OFFER_COUNT) problems.push('fewer boons than a run offers');
-  return problems;
+  // ----------------------------------------------------------------- boons
+  duplicates('boon', content.boons.map((boon) => boon.id));
+  if (content.boons.length < BOON_OFFER_COUNT) errors.push('fewer boons than a run offers');
+  for (const boon of content.boons) {
+    checkText(`boon ${boon.id} name`, boon.name);
+    checkText(`boon ${boon.id} text`, boon.text);
+  }
+
+  // -------------------------------------------------------------- speakers
+  duplicates('speaker', content.speakers.map((speaker) => speaker.id));
+  const speakers = new Map(content.speakers.map((speaker) => [speaker.id, speaker]));
+  const artIds = new Set<string>();
+  for (const speaker of content.speakers) {
+    checkText(`speaker ${speaker.id} name`, speaker.name);
+    if (speaker.expressions[0] === speaker.expressions[1]) errors.push(`speaker ${speaker.id}: two expressions must differ`);
+    for (const expression of speaker.expressions) {
+      if (!expression.trim()) errors.push(`speaker ${speaker.id}: empty expression id`);
+      else artIds.add(`pt-${speaker.id}-${expression}`);
+    }
+  }
+
+  // ---------------------------------------------------------------- scenes
+  duplicates('scene', content.scenes.map((scene) => scene.id));
+  const characterIds = new Set(characters.map((character) => character.id));
+  let lines = 0;
+  for (const scene of content.scenes) {
+    const where = `scene ${scene.id}`;
+    if (scene.title !== null) checkText(`${where} title`, scene.title);
+    if (!scene.backgroundId.trim()) errors.push(`${where}: empty background id`);
+    else artIds.add(scene.backgroundId);
+    const perHeroine = PER_HEROINE_SCENE_KINDS.includes(scene.kind);
+    if (perHeroine && !characterIds.has(scene.characterId ?? '')) {
+      errors.push(`${where}: a ${scene.kind} scene must belong to a story character (has ${String(scene.characterId)})`);
+    }
+    if (!perHeroine && scene.characterId !== null) errors.push(`${where}: a ${scene.kind} scene is shared, so its characterId must be null`);
+    if (scene.kind === 'elite-intro') {
+      if (scene.avatarId === null) errors.push(`${where}: an elite intro needs its elite's avatar id`);
+      else checkAvatar(where, scene.avatarId);
+    } else if (scene.avatarId !== null) {
+      errors.push(`${where}: only an elite intro names an avatar`);
+    }
+    if (scene.lines.length === 0) errors.push(`${where}: no lines`);
+    scene.lines.forEach((line, i) => {
+      lines++;
+      const at = `${where} line ${i + 1}`;
+      checkText(at, line.text);
+      if (line.speakerId === null) {
+        if (line.expression !== undefined) errors.push(`${at}: narration has an expression`);
+        return;
+      }
+      const speaker = speakers.get(line.speakerId);
+      if (!speaker) errors.push(`${at}: unknown speaker ${line.speakerId}`);
+      else if (!line.expression || !speaker.expressions.includes(line.expression)) {
+        errors.push(`${at}: ${line.speakerId} has no expression ${String(line.expression)}`);
+      }
+    });
+  }
+  for (const character of characters) {
+    for (const kind of PER_HEROINE_SCENE_KINDS) {
+      const count = content.scenes.filter((scene) => scene.kind === kind && scene.characterId === character.id).length;
+      if (count !== 1) errors.push(`story character ${character.id}: has ${count} ${kind} scenes (exactly 1)`);
+    }
+  }
+
+  // ---------------------------------------------------------------- events
+  duplicates('event', content.events.map((event) => event.id));
+  const scenesById = new Map(content.scenes.map((scene) => [scene.id, scene]));
+  const eventIds = new Set(content.events.map((event) => event.id));
+  for (const scene of content.scenes) {
+    if (scene.kind === 'event' && !eventIds.has(scene.id)) errors.push(`scene ${scene.id}: an event scene with no event`);
+  }
+  for (const event of content.events) {
+    const where = `event ${event.id}`;
+    const scene = scenesById.get(event.id);
+    if (!scene || scene.kind !== 'event') errors.push(`${where}: no event scene of the same id`);
+    if ((event.reactingSpeakerId === null) !== (event.reactsToChoice === null)) {
+      errors.push(`${where}: a reacting speaker and the choice she reacts to go together`);
+    }
+    if (event.reactingSpeakerId !== null) {
+      if (!scene?.lines.some((line) => line.speakerId === event.reactingSpeakerId)) {
+        errors.push(`${where}: reacting speaker ${event.reactingSpeakerId} does not speak in the scene`);
+      }
+      if (event.reactsToChoice !== 0 && event.reactsToChoice !== 1) errors.push(`${where}: reacts to choice ${String(event.reactsToChoice)}`);
+    }
+    event.choices.forEach((choice, c) => {
+      const at = `${where} choice ${c + 1}`;
+      checkText(`${at} label`, choice.label);
+      if (choice.effects.filter((effect) => effect.kind === 'add-choice').length > 1) errors.push(`${at}: more than one card pick`);
+      if (choice.effects.filter((effect) => effect.kind === 'remove-choice').length > 1) errors.push(`${at}: more than one chosen removal`);
+      for (const effect of choice.effects) {
+        if (effect.kind === 'gold' && effect.amount === 0) errors.push(`${at}: a gold effect of 0`);
+        if (effect.kind === 'remove-choice' && (effect.atLeast < 0 || effect.atLeast > effect.upTo)) {
+          errors.push(`${at}: removal bounds ${effect.atLeast}..${effect.upTo}`);
+        }
+        if (effect.kind === 'add-choice' && effect.options < 1) errors.push(`${at}: offers ${effect.options} cards`);
+        if (effect.kind !== 'add-random' && effect.kind !== 'add-choice') continue;
+        const filter = JSON.stringify(effect.filter);
+        if (effect.filter.source === 'catalog') {
+          if (storyFilterCards(effect.filter, [], db).length === 0) errors.push(`${at}: filter ${filter} matches no catalog card`);
+          continue;
+        }
+        for (const character of characters) {
+          if (storyFilterCards(effect.filter, character.rewardPool, db).length === 0) {
+            errors.push(`${at}: filter ${filter} matches no card in ${character.id}'s pool`);
+          }
+        }
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------- art
+  if (options.missingArt) {
+    for (const id of [...artIds].sort()) {
+      const missing = options.missingArt(id);
+      if (missing.length > 0) errors.push(`art ${id}: missing from ${missing.join(', ')}`);
+    }
+  }
+
+  return {
+    errors,
+    warnings,
+    counts: {
+      characters: characters.length,
+      scenes: content.scenes.length,
+      lines,
+      events: content.events.length,
+      speakers: content.speakers.length,
+      artIds: options.missingArt ? artIds.size : 0,
+    },
+  };
+}
+
+/** Every error in the shipped story content (art not checked). An empty list is a pass. */
+export function validateStoryContent(db: CardDb): string[] {
+  return checkStoryContent(db).errors;
 }

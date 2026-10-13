@@ -1,4 +1,4 @@
-<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts, src/data/story/act1.ts, src/data/story/characters.ts, src/meta/story/storyMap.ts, src/meta/story/storyState.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyContent.ts, src/meta/story/headlessRun.ts, src/meta/SaveCode.ts, public/assets/art/story/, src/scenes/StoryScene.ts, src/meta/story/storyFlow.ts, src/data/story/script.ts, src/meta/story/storyEvents.ts, src/scenes/StoryDialogue.ts, src/ui/storyDialogue.ts · last-verified: 2026-10-13 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: docs/roadmap.md, docs/plan-road-to-2.0.md, docs/plan-core-set-2.md, docs/plan-darlings.md, docs/architecture.md, docs/rules.md, src/engine/Game.ts, src/engine/view.ts, src/meta/SaveManager.ts, src/meta/Replay.ts, src/meta/services.ts, src/meta/Limited.ts, src/meta/gauntletSeed.ts, src/scenes/MainMenuScene.ts, src/scenes/DuelScene.ts, src/data/opponents.ts, src/data/cards/tk-shu.ts, src/data/cards/greek.ts, src/data/cards/beastkin.ts, scripts/balance-matrix.ts, scripts/progression-sim.ts, src/data/story/act1.ts, src/data/story/characters.ts, src/meta/story/storyMap.ts, src/meta/story/storyState.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyContent.ts, src/meta/story/headlessRun.ts, src/meta/story/storyMatrix.ts, scripts/check-story.ts, src/meta/SaveCode.ts, public/assets/art/story/, src/scenes/StoryScene.ts, src/meta/story/storyFlow.ts, src/data/story/script.ts, src/meta/story/storyEvents.ts, src/scenes/StoryDialogue.ts, src/ui/storyDialogue.ts · last-verified: 2026-10-13 · design/plan doc - re-verify when the referenced code changes -->
 
 # Story Mode plan (2.0)
 
@@ -148,7 +148,7 @@ Story duels pick an existing avatar or difficulty. Brains read only the redacted
 
 ### Tooling and invariants
 
-`scripts/check-story.ts` (planned) rejects duplicate IDs, missing links, unreachable nodes, unknown card, avatar or reward IDs, invalid starter decks and empty strings. Tests cover graph validation over many seeds, deterministic run generation, exactly-once rewards across reload and retry, run counting, unlocks, replay, and scene text overflow. Engine, meta and data stay Phaser-free, tests do not import Phaser, and gates only ratchet up.
+`npm run check-story` (`scripts/check-story.ts`, built 2026-10-13, a thin CLI over `src/meta/story/storyContent.ts`) rejects duplicate character, scene, event, speaker and boon IDs; an event without its scene or a scene without its event; unknown speakers or expressions; backgrounds and portraits missing from `public/assets/art/story/` or `story-half/`; a heroine missing her own opening, boss intro, boss defeat or ending; empty strings and em-dashes; unknown avatars in act data and elite intros; starter, reserve and reward cards that are unknown, lands, tokens, outside the heroine's colours, from Core Set II or not collectible; invalid starter decks and reserves; and event filters that match no card for some heroine (pool) or in the catalog. An avatar the script names that wave 3 has not built yet (`gongsunzan`, `penthesilea`, `shanjun`) is a warning, not an error. It exits non-zero on any error. Map reachability is checked by the map validator over many seeds in the tests. Tests cover graph validation over many seeds, deterministic run generation, exactly-once rewards across reload and retry, run counting, unlocks, replay, and scene text overflow. Engine, meta and data stay Phaser-free, tests do not import Phaser, and gates only ratchet up.
 
 ## Save-schema impact
 
@@ -178,10 +178,10 @@ The bump needs a real `migrate()` and a migration test. Migration starts every s
 
 ## AI and balance impact
 
-Every outcome is `TO MEASURE`. `scripts/balance-matrix.ts` has no story mode today; wave 3 adds one (planned) that plays whole seeded runs per character and reports act-by-act survival, boss win rates, turn length and any impossible seed. Keeps and permanent buys go into the canonical progression scenario before lock.
+Every outcome is `TO MEASURE`. `scripts/balance-matrix.ts --story` (built 2026-10-13, `src/meta/story/storyMatrix.ts`) plays N seeded headless Act 1 runs per character (seeds 1 to N, the headless run's fixed choices; `--character <id>` for one heroine) and reports clears, survival by floor, duel W-L overall and by node kind, the boss win rate when reached, mean game turns per duel, life losses against deck-outs, and any impossible seed (a run that threw, or a duel that hit the headless action cap). About 0.2 s a run on one core; it is not a gate. Keeps and permanent buys go into the canonical progression scenario before lock.
 
 ```text
-npx tsx scripts/balance-matrix.ts --story --seeds <N>   # planned, does not exist yet
+npx tsx scripts/balance-matrix.ts --story --seeds <N> [--character <id>]
 npx tsx scripts/balance-matrix.ts --avatars --seeds 40
 npx tsx scripts/balance-matrix.ts --floors --seeds 80
 npx tsx scripts/progression-sim.ts --seeds 8 --days 60
@@ -206,9 +206,27 @@ What landed:
 - **StoryProgress** (`src/meta/story/StoryProgress.ts`): start a run (a locked character is refused), the boon, legal next nodes, entering a node, recording a duel, card rewards, events, shops (run gold only) and rests, abandon, and the keep. A run counts once, when its third fight is recorded (R9), whether it then wins, loses or is abandoned; a loss ends the run. Beating Sima Yi is a win (S4). Unlocks read only the predecessor's wins and counted runs (R4, R10). The keep records `<runId>:act1:keep` in the same mutation that grants the card through `Collection.addCards`, so a second claim, before or after a reload, changes nothing.
 - **Duels**: each duel node compiles to an ordinary Darlings-format `GameConfig` (the run deck, the character's Darling and reserve, against the avatar's own Darlings deck and reserve), with no engine change.
 - **Headless run** (`src/meta/story/headlessRun.ts`): plays a whole Act 1 on a seed with MediumAI for the heroine and each avatar's own brain, by fixed choice rules, and returns a summary and, on request, each duel's replay log.
-- **Content check** (`src/meta/story/storyContent.ts`): the core of the planned `check-story` script, run by the tests; the CLI wrapper is still to do.
+- **Content check** (`src/meta/story/storyContent.ts`): the core of `npm run check-story`, run by the tests; the CLI wrapper landed with wave 3's tooling (2026-10-13).
 
 First measurement, not a gate (200 seeds, the headless run's fixed choices, 2026-10-12): at 20 cards the run deck faced 79-card avatar decks and ran out first. Over the first fight on seeds 1 to 100, Guan Yu lost 54, and 33 of those were an empty deck with life left; 16 Act 1 clears in 200. Owner ruling 2026-10-12: starter decks are 30 cards (data only; the ordinary empty-deck loss stays). Re-measured at 30 on the same seeds: first-fight losses 47, of which 18 were deck-outs; Guan Yu won 270 of 454 duels, and Act 1 clears stayed at 16 in 200. So 30 cards halves the first-fight deck-outs but does not move the clear rate; the per-character bands (avatar picks, starter quality) are still wave 3 tuning. Re-measured 2026-10-13 after the Act 1 script's nine events replaced the generic one (same 200 seeds; the fixed rule now takes each event's first available choice, `resolveStoryEventByRule`, where it used to take a free card): Guan Yu won 265 of 453 duels and Act 1 clears fell from 16 to 12 in 200 (still a measurement, not a gate).
+
+Story matrix, 2026-10-13 (`npx tsx scripts/balance-matrix.ts --story --seeds 200`, seeds 1 to 200 per character, 1,313 duels, 111 s on one core; a measurement, not a gate). Guan Yu's row reproduces the figures above (12 clears, 265 of 453 duels). Persephone's and Yutu's decks are the wave 1 stand-ins, so their rows describe placeholder decks, not the Core Set II starters. Turns count both players' turns.
+
+| Character | Clears | Duels W-L | Fight W-L | Elite W-L | Boss W-L (reached) | Mean turns | Losses: life / deck | Impossible seeds |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Guan Yu | 12 (6.0%) | 265-188 (58.5%) | 229-136 (62.7%) | 24-41 (36.9%) | 12-11 (52.2%) | 24.3 | 135 / 53 | 0 |
+| Persephone (stand-in deck) | 5 (2.5%) | 243-195 (55.5%) | 221-134 (62.3%) | 17-45 (27.4%) | 5-16 (23.8%) | 26.6 | 123 / 72 | 0 |
+| Yutu (stand-in deck) | 12 (6.0%) | 234-188 (55.5%) | 191-150 (56.0%) | 31-31 (50.0%) | 12-7 (63.2%) | 20.7 | 143 / 45 | 0 |
+
+Runs reaching each floor, of 200 (runs lost on that floor in brackets):
+
+| Character | F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 (boss) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Guan Yu | 200 [86] | 114 [15] | 99 [21] | 78 | 78 [37] | 41 | 41 [18] | 23 | 23 [11] |
+| Persephone | 200 [83] | 117 [21] | 96 [21] | 75 | 75 [42] | 33 | 33 [12] | 21 | 21 [16] |
+| Yutu | 200 [86] | 114 [29] | 85 [18] | 67 | 67 [35] | 32 | 32 [13] | 19 | 19 [7] |
+
+The first fight is the biggest cut for all three (about 43% of runs end there), then floor 5, the first floor that can hold an elite; elites win about a third of the time against Guan Yu and Persephone.
 
 ### Wave 2: the run shell
 

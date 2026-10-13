@@ -56,6 +56,8 @@ export interface HeadlessNodeSummary {
   /** Duel nodes: the story player's result and the game's last turn number. */
   result?: 'win' | 'loss';
   turns?: number;
+  /** Duel nodes: how the duel ended (an empty deck is 'deck'). */
+  endReason?: 'life' | 'deck' | 'concede' | 'turnLimit';
   /** Non-duel nodes: what the rule chose. */
   choice?: string;
 }
@@ -211,6 +213,8 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
       }
       summary.result = result;
       summary.turns = game.state.turn;
+      const endReason = game.instanceState.winReason;
+      if (endReason) summary.endReason = endReason;
       duelResults.push(result);
       const recorded = recordFight(story, result);
       if (!recorded.ok) throw new Error(`recordFight: ${recorded.reason}`);
