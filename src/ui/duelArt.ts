@@ -5,7 +5,8 @@ import type { ArtRequestOptions } from '../art/artStore';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { draftPersonaById } from '../data/draftPersonas';
-import { AVATARS, avatarById, type Avatar } from '../data/opponents';
+import { AVATARS, type Avatar } from '../data/opponents';
+import { storyAvatarById } from '../data/story/opponents';
 import { STARTER_DECKS } from '../data/starterDecks';
 import { TUTORIAL_OPPONENT_PORTRAIT } from '../data/tutorial';
 import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
@@ -58,10 +59,13 @@ const TOKEN_CARD_IDS: readonly string[] = Object.values(CARD_DB)
   .filter((d) => d.token === true)
   .map((d) => d.id);
 
-/** An avatar by id, or null for one this build no longer has (an old replay's). */
+/**
+ * An avatar by id (a Tower avatar, or a Story-only opponent from a story duel
+ * or its replay), or null for one this build no longer has (an old replay's).
+ */
 function knownAvatar(id: string): Avatar | null {
   try {
-    return avatarById(id);
+    return storyAvatarById(id);
   } catch {
     return null;
   }

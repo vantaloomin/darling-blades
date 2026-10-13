@@ -4,7 +4,6 @@ import { ACT1 } from '../../src/data/story/act1';
 import { missingStoryArt } from '../../scripts/check-story';
 import {
   checkStoryContent,
-  PLANNED_WAVE3_AVATAR_IDS,
   SHIPPED_STORY_CONTENT,
   validateStoryContent,
 } from '../../src/meta/story/storyContent';
@@ -37,20 +36,18 @@ describe('story content', () => {
     expect(validateStoryContent(CARD_DB)).toEqual([]);
   });
 
-  it('passes check-story with art on disk: no errors, and warnings only for planned wave 3 avatars', () => {
+  it('passes check-story with art on disk: no errors and no warnings', () => {
     const report = checkStoryContent(CARD_DB, { missingArt: (id) => missingStoryArt(id) });
     expect(report.errors).toEqual([]);
-    for (const warning of report.warnings) {
-      expect(PLANNED_WAVE3_AVATAR_IDS.some((id) => warning.includes(`avatar ${id} `)), warning).toBe(true);
-    }
+    expect(report.warnings).toEqual([]);
   });
 
-  it('reports broken script data as errors and a planned avatar in act data as a warning', () => {
+  it('reports broken script data as errors, and a fight as strong as an elite', () => {
     const [first, ...scenes] = SHIPPED_STORY_CONTENT.scenes;
     const event = SHIPPED_STORY_CONTENT.events[0];
     const content = {
       ...SHIPPED_STORY_CONTENT,
-      acts: [{ ...SHIPPED_STORY_CONTENT.acts[0], fightAvatarIds: ['menghuo', 'shanjun', 'no-such-avatar'] }],
+      acts: [{ ...SHIPPED_STORY_CONTENT.acts[0], fightAvatarIds: ['menghuo', 'gongsunzan', 'no-such-avatar'] }],
       scenes: [
         // Guan Yu's opening, now with an unknown speaker and an empty line, and no longer hers.
         { ...first, characterId: null, lines: [{ speakerId: 'nobody', expression: 'steady', text: 'Hi.' }, { speakerId: null, text: '  ' }] },
@@ -62,7 +59,8 @@ describe('story content', () => {
     const report = checkStoryContent(CARD_DB, { content, missingArt: (id) => (id === first.backgroundId ? ['story-half'] : []) });
     const has = (pattern: RegExp): boolean => report.errors.some((error) => pattern.test(error));
     expect(has(/unknown avatar no-such-avatar/)).toBe(true);
-    expect(report.warnings.some((w) => /act act1 fight: avatar shanjun/.test(w))).toBe(true);
+    // Gongsun Zan is a Medium elite; as a fight she is as strong as the other elites.
+    expect(has(/act act1: every elite must be a stronger avatar than every fight/)).toBe(true);
     expect(has(/unknown speaker nobody/)).toBe(true);
     expect(has(/line 2: empty text/)).toBe(true);
     expect(has(/guan-yu: has 0 opening scenes/)).toBe(true);

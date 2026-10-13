@@ -16,9 +16,9 @@ import { ECONOMY } from '../../config/rules';
 import { createRngState, rngShuffle } from '../../engine/rng';
 import type { CardDb } from '../../engine/types';
 import type { GameConfig } from '../../engine/Game';
-import { avatarById } from '../../data/opponents';
 import { BOON_RUN_GOLD } from '../../data/story/act1';
 import { storyCharacterById } from '../../data/story/characters';
+import { storyAvatarById } from '../../data/story/opponents';
 import type { StoryAct, StoryBoonId, StoryCharacter } from '../../data/story/types';
 import { addCards, type AddResult } from '../Collection';
 import { clampSeed, rungSeed } from '../gauntletSeed';
@@ -387,7 +387,7 @@ export function storyDuelSetup(story: StoryState, db: CardDb): StoryResult<{ set
   const node = currentStoryNode(run);
   if (!node || !isDuelNode(node) || run.nodeResolved || !node.avatarId) return refuse('The run is not at a duel.');
   const character = characterOf(run);
-  const avatar = avatarById(node.avatarId);
+  const avatar = storyAvatarById(node.avatarId);
   return {
     ok: true,
     setup: {

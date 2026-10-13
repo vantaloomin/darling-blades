@@ -12,6 +12,7 @@ import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { TUTORIAL_OPPONENT_NAME, TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
+import { storyAvatarById } from '../data/story/opponents';
 import { draftPersonaById, type DraftPersona } from '../data/draftPersonas';
 import { heroById } from '../data/heroes';
 import type {
@@ -813,7 +814,7 @@ export class DuelScene extends Phaser.Scene {
     this.opponent = data.replay?.context.opponentId
       ? this.avatarForReplay(data.replay.context.opponentId)
       : story
-        ? avatarById(story.avatarId)
+        ? storyAvatarById(story.avatarId)
         : data.opponentId
           ? avatarById(data.opponentId)
           : null;
@@ -1852,10 +1853,14 @@ export class DuelScene extends Phaser.Scene {
     return `Practice · vs ${this.difficulty} AI`;
   }
 
-  /** Replay context keeps its recorded display name even if the roster moves. */
+  /**
+   * Replay context keeps its recorded display name even if the roster moves.
+   * A story replay may name a Story-only opponent, so this resolves through
+   * the story resolver, which falls back to the Tower roster.
+   */
   private avatarForReplay(id: string): Avatar | null {
     try {
-      return avatarById(id);
+      return storyAvatarById(id);
     } catch {
       return null;
     }

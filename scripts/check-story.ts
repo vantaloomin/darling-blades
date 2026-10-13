@@ -1,12 +1,13 @@
 /**
  * Story Mode content check (docs/plan-story-mode.md "Tooling and invariants"):
  * a thin CLI over src/meta/story/storyContent.ts. Checks the characters
- * (starter decks, land reserves, reward pools: real, story-legal cards), the
- * acts and elite intros (every avatar exists, or is a planned wave 3 avatar,
- * which warns), the script (unique ids, every event has its scene, every
- * speaker and expression exists, every heroine has her own scenes, no empty
- * text or em-dash), every event filter matches a card for every heroine, and
- * every background and portrait exists as art in story/ and story-half/.
+ * (starter decks, land reserves, reward pools: real, story-legal cards from
+ * Core Set I or II), the acts and elite intros (every avatar resolves, Tower
+ * or Story-only, and every elite is stronger than every fight), the script
+ * (unique ids, every event has its scene, every speaker and expression
+ * exists, every heroine has her own scenes, no empty text or em-dash), every
+ * event filter matches a card for every heroine, and every background and
+ * portrait exists as art in story/ and story-half/.
  * Exits 1 on any error; warnings alone pass. Run via `npm run check-story`.
  */
 import { existsSync } from 'node:fs';
