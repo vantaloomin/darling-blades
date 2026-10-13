@@ -102,7 +102,7 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
       'cs2-shield-line-hoplite', 'cs2-suanni', 'cs2-suanni', 'cs2-tide-seal',
       'cs2-tide-seal', 'cs2-moon-gate-warden', 'cs2-moon-gate-warden', 'fd-woolly-rhinokin',
       'cs2-banished-frontier', 'cs2-court-condemns', 'in-stand-as-one', 'cs2-court-condemns',
-      'cs2-river-current', 'dd-lightkeepers-oath',
+      'cs2-court-condemns', 'dd-lightkeepers-oath',
     ],
     landReserve: [
       'ld-misty-palace-terrace', 'ld-misty-palace-terrace', 'ld-misty-palace-terrace', 'ld-misty-palace-terrace',
