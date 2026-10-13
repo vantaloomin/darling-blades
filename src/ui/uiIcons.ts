@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -605,6 +605,108 @@ const drawWarning: Draw = (ctx, c) => {
   ctx.fill();
 };
 
+/** A clock face whose rim turns back on itself: the duel's history. */
+const drawHistory: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.arc(c, c, 21, Math.PI * 0.95, Math.PI * 2.75);
+  ctx.stroke();
+  // The arrowhead where the rim begins, pointing back the way time ran.
+  const ax = c + Math.cos(Math.PI * 0.95) * 21;
+  const ay = c + Math.sin(Math.PI * 0.95) * 21;
+  ctx.beginPath();
+  ctx.moveTo(ax - 9, ay - 5);
+  ctx.lineTo(ax, ay);
+  ctx.lineTo(ax + 4, ay - 10);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c, c - 12);
+  ctx.lineTo(c, c);
+  ctx.lineTo(c + 9, c + 6);
+  ctx.stroke();
+};
+
+/** A three-quarter turn with its arrowhead: a tapped permanent. */
+const drawTurn: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(c, c + 3, 18, Math.PI * 1.1, Math.PI * 2.35);
+  ctx.stroke();
+  const ax = c + Math.cos(Math.PI * 1.1) * 18;
+  const ay = c + 3 + Math.sin(Math.PI * 1.1) * 18;
+  ctx.beginPath();
+  ctx.moveTo(ax - 8, ay + 9);
+  ctx.lineTo(ax, ay);
+  ctx.lineTo(ax + 10, ay + 5);
+  ctx.stroke();
+};
+
+/** A rounded headstone on its plinth: the graveyard. */
+const drawGrave: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c - 14, c + 18);
+  ctx.lineTo(c - 14, c - 8);
+  ctx.arc(c, c - 8, 14, Math.PI, 0);
+  ctx.lineTo(c + 14, c + 18);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c - 22, c + 22);
+  ctx.lineTo(c + 22, c + 22);
+  ctx.moveTo(c, c - 10);
+  ctx.lineTo(c, c + 6);
+  ctx.moveTo(c - 6, c - 4);
+  ctx.lineTo(c + 6, c - 4);
+  ctx.stroke();
+};
+
+/** An outlined lightning bolt: a Charm, cast at any window. */
+const drawBolt: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(c + 5, c - 26);
+  ctx.lineTo(c - 15, c + 4);
+  ctx.lineTo(c - 1, c + 4);
+  ctx.lineTo(c - 5, c + 26);
+  ctx.lineTo(c + 15, c - 4);
+  ctx.lineTo(c + 1, c - 4);
+  ctx.closePath();
+  ctx.stroke();
+};
+
+/** A scroll with a curled head: a Ritual. */
+const drawScroll: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 4.5;
+  roundRect(ctx, c - 15, c - 20, 30, 38, 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(c - 8, c - 8);
+  ctx.lineTo(c + 8, c - 8);
+  ctx.moveTo(c - 8, c + 1);
+  ctx.lineTo(c + 8, c + 1);
+  ctx.moveTo(c - 8, c + 10);
+  ctx.lineTo(c + 3, c + 10);
+  ctx.stroke();
+};
+
+/** An hourglass: waiting on the other side. */
+const drawHourglass: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c - 16, c - 24);
+  ctx.lineTo(c + 16, c - 24);
+  ctx.moveTo(c - 16, c + 24);
+  ctx.lineTo(c + 16, c + 24);
+  ctx.moveTo(c - 12, c - 24);
+  ctx.lineTo(c + 12, c + 24);
+  ctx.moveTo(c + 12, c - 24);
+  ctx.lineTo(c - 12, c + 24);
+  ctx.stroke();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -640,6 +742,12 @@ const DRAW: Record<UiIconName, Draw> = {
   plus: drawPlus,
   minus: drawMinus,
   warning: drawWarning,
+  history: drawHistory,
+  turn: drawTurn,
+  grave: drawGrave,
+  bolt: drawBolt,
+  scroll: drawScroll,
+  hourglass: drawHourglass,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

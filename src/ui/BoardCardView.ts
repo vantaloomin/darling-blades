@@ -13,6 +13,9 @@ import { currentAccessibility } from './accessibility';
 import { KEYWORD_ICON_KEY, MECHANIC_ICON_KEY } from './KeywordIcons';
 import { ensureNumeralBadgeInk, ensureNumeralPlateInk, INTER_FIGURE_HEIGHT } from './NumeralGlyphs';
 import { colorInt, theme } from './theme';
+import { medallionRim } from './duelCompact';
+import { holdMedallionArt, releaseMedallionArt } from './medallionArt';
+import { bakeUiIcon } from './uiIcons';
 
 /** Chapter numerals for the Quest badge (chapters ship 2-3 deep; 5 is headroom). */
 const ROMAN_CHAPTERS = ['', 'I', 'II', 'III', 'IV', 'V'] as const;
@@ -174,11 +177,38 @@ function ensureSickTexture(scene: Phaser.Scene): void {
   tex.refresh();
 }
 
+/** Light-on-dark P/T colours for the phone medallion's pill. */
+const PILL_STATS_COLORS: Record<StatsMood, string> = {
+  normal: '#f3eefc',
+  damaged: '#ff9a84',
+  buffed: '#ffd88a',
+  weakened: '#ff9a84',
+};
+
+export interface BoardCardViewOptions {
+  /**
+   * Draw a round medallion of this diameter (the phone Duel, M28) instead of
+   * the desktop tile. Badges sit at fixed places around the disc: keyword
+   * top-left, state top-right, Marks right-middle, Overcharge on the left
+   * edge, P/T in a pill on the bottom edge, tapped in the centre.
+   */
+  round?: number;
+}
+
 export class BoardCardView extends Phaser.GameObjects.Container {
   readonly card: CardDef;
+  /** The medallion's diameter, or null for the desktop tile. */
+  readonly round: number | null;
+  private readonly tileW: number;
+  private readonly tileH: number;
   private art: Phaser.GameObjects.Image;
-  private highlightRect: Phaser.GameObjects.Rectangle;
+  private highlightRect: Phaser.GameObjects.Shape;
   private ptPlate: Phaser.GameObjects.Image;
+  /** The medallion's P/T pill (round mode only). */
+  private ptPill: Phaser.GameObjects.Graphics | null = null;
+  /** The medallion's tapped mark: a dimming disc and the turned-arrow glyph (round mode only). */
+  private tapMark: Phaser.GameObjects.Container | null = null;
+  private medallionKey: string | null = null;
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
   private actionBadge: Phaser.GameObjects.Text;
@@ -193,6 +223,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private markPlate: Phaser.GameObjects.Graphics;
   private markDigits: Phaser.GameObjects.Image;
   private keywordIcons: Phaser.GameObjects.Image[] = [];
+  private keywordDisc: Phaser.GameObjects.Arc | null = null;
   private keywordOverflow: Phaser.GameObjects.Text | null = null;
   private sickIcon: Phaser.GameObjects.Image;
   private chapterBadge: Phaser.GameObjects.Text;
@@ -202,7 +233,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private overchargeText: Phaser.GameObjects.Text;
   private overchargeCount = 0;
   private provokedBadge: Phaser.GameObjects.Container;
-  private awakenedRect: Phaser.GameObjects.Rectangle;
+  private awakenedRect: Phaser.GameObjects.Shape;
   private hauntlinkBrokenMark: Phaser.GameObjects.Graphics;
   private chapterLabel: string | null = null;
   private awakenedState = false;
@@ -217,14 +248,23 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   /** The better art texture this tile drew a stand-in (or the half texture) for, if any. */
   private artPendingKey: string | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, card: CardDef) {
+  constructor(scene: Phaser.Scene, x: number, y: number, card: CardDef, opts: BoardCardViewOptions = {}) {
     super(scene, x, y);
     this.card = card;
+    this.round = opts.round ?? null;
+    const round = this.round;
+    this.tileW = round ?? TILE_W;
+    this.tileH = round ?? TILE_H;
+    const r = (round ?? 0) / 2;
 
-    // Base tile: dark plate with the RARITY-tier border.
-    const bg = scene.add
-      .rectangle(0, 0, TILE_W, TILE_H, 0x0d0b16, 1)
-      .setStrokeStyle(2, RARITY_BORDER[card.rarity], 0.95);
+    // Base tile: dark plate with the RARITY-tier border. A medallion's rim is
+    // the card's frame colour instead (the mocks' frameOf).
+    const bg = round
+      ? scene.add.circle(0, 0, r, 0x0d0b16, 1)
+        .setStrokeStyle(round >= 44 ? 3 : 2, colorInt(medallionRim(card.colors, card.types)), 1)
+      : scene.add
+        .rectangle(0, 0, TILE_W, TILE_H, 0x0d0b16, 1)
+        .setStrokeStyle(2, RARITY_BORDER[card.rarity], 0.95);
 
     // Art: cover-cropped into the tall window by applyArt, which also redraws
     // it if the file was still streaming in when this tile was built.
@@ -235,12 +275,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     // the illustration is bright and the art window never bleeds over the tile.
     const artBorder = scene.add
       .rectangle(0, ART_CY, ART_W, ART_H, 0x000000, 0)
-      .setStrokeStyle(2, 0x1a1526, 0.95);
+      .setStrokeStyle(2, 0x1a1526, 0.95)
+      .setVisible(!round);
 
     // Name legibility scrim along the top, then the name centered within it —
     // capped in width so it clears the trait column at top-left and the
     // summoning-sick swirl at top-right, which draw over the scrim.
-    const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, theme.alpha.scrim);
+    const nameScrim = scene.add.rectangle(0, NAME_CY, ART_W, NAME_H, 0x0d0b16, theme.alpha.scrim).setVisible(!round);
     const nameText = scene.add
       .text(0, NAME_CY, card.name, {
         fontFamily: 'Inter, Arial, sans-serif',
@@ -249,7 +290,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         color: '#e8e2f4',
         resolution: 2,
       })
-      .setOrigin(0.5);
+      .setOrigin(0.5)
+      .setVisible(!round);
     // Names render at one fixed size everywhere; overlong ones truncate with an
     // ellipsis instead of shrinking (user-directed 2026-07-10 — mixed sizes
     // read worse than clipped names).
@@ -274,11 +316,16 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       })
       .setOrigin(0.5);
     const isCreature = isType(card, 'creature');
-    this.ptPlate.setVisible(isCreature);
+    this.ptPlate.setVisible(isCreature && !round);
     this.ptText.setVisible(isCreature);
+    if (round) {
+      this.ptPill = scene.add.graphics().setVisible(isCreature);
+      this.ptText.setPosition(0, r - 1).setFontFamily(theme.fonts.ui)
+        .setFontSize(round >= 44 ? 14 : 12).setColor(PILL_STATS_COLORS.normal);
+    }
 
     this.auraBadge = scene.add
-      .text(-TILE_W / 2 + 3, TILE_H / 2 - 3, '', {
+      .text(round ? -r - 2 : -TILE_W / 2 + 3, round ? r - 2 : TILE_H / 2 - 3, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '11px',
         fontStyle: '700',
@@ -291,7 +338,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       .setVisible(false);
 
     this.actionBadge = scene.add
-      .text(0, -TILE_H / 2, '', {
+      .text(0, -this.tileH / 2, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '10px',
         fontStyle: '700',
@@ -310,19 +357,21 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.pickBadge = scene.add.container(0, 0, [this.pickPlate, this.pickDigits])
       .setName('board-pick-badge').setVisible(false);
     this.focusBrackets = scene.add.graphics().setName('board-focus-brackets').setVisible(false);
-    this.statsGlyphs = scene.add.graphics().setPosition(PT_CX + PT_W / 2, PT_CY - PT_H / 2 - 4)
+    this.statsGlyphs = scene.add.graphics().setPosition(round ? r + 6 : PT_CX + PT_W / 2, round ? r - 2 : PT_CY - PT_H / 2 - 4)
       .setName('board-stats-glyphs').setVisible(false);
     // Bottom-centre, its plate's lower edge on the frame margin (setStats
     // draws the plate and sets the numeral).
     this.markPlate = scene.add.graphics();
     this.markDigits = scene.add.image(0, 0, '__DEFAULT');
-    this.markBadge = scene.add.container(0, TILE_H / 2 - FRAME_M, [this.markPlate, this.markDigits])
+    this.markBadge = scene.add.container(round ? r * 0.82 : 0, round ? 6 : TILE_H / 2 - FRAME_M, [this.markPlate, this.markDigits])
       .setName('board-mark-badge').setVisible(false);
 
     // Summoning-sickness badge: top-right corner of the art window, opposite
     // the trait column. Hidden until set.
     ensureSickTexture(scene);
-    const sickBounds = sickSwirlBounds(TILE_W, TILE_H);
+    const sickBounds = round
+      ? { x: r * 0.7 - 9, y: -r * 0.7 - 9, width: 18, height: 18 }
+      : sickSwirlBounds(TILE_W, TILE_H);
     this.sickIcon = scene.add
       .image(sickBounds.x + sickBounds.width / 2, sickBounds.y + sickBounds.height / 2, SICK_TEX)
       .setDisplaySize(sickBounds.width, sickBounds.height)
@@ -332,7 +381,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     // Quest chapter badge: bottom-right corner, mirroring the aura badge's
     // corner-plate look on the opposite side. Hidden until a Quest sets it.
     this.chapterBadge = scene.add
-      .text(TILE_W / 2 - 3, TILE_H / 2 - 3, '', {
+      .text(round ? r + 4 : TILE_W / 2 - 3, round ? r - 14 : TILE_H / 2 - 3, '', {
         fontFamily: 'Inter, Arial, sans-serif',
         fontSize: '11px',
         fontStyle: '700',
@@ -361,7 +410,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       })
       .setOrigin(1, 0.5);
     this.overchargeBadge = scene.add
-      .container(TILE_W / 2 - FRAME_M, 0, [this.overchargePlate, this.overchargeIcon, this.overchargeText])
+      .container(round ? -r + 6 : TILE_W / 2 - FRAME_M, 0, [this.overchargePlate, this.overchargeIcon, this.overchargeText])
       .setVisible(false);
 
     // Spent Provoked badge: the Provoked glyph at the subtle alpha with a
@@ -382,13 +431,14 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     provokedSlash.lineStyle(2, colorInt(theme.colors.heading), 0.95);
     provokedSlash.lineBetween(provokedSide - PROVOKED_PAD, -provokedSide / 2 + PROVOKED_PAD, PROVOKED_PAD, provokedSide / 2 - PROVOKED_PAD);
     this.provokedBadge = scene.add
-      .container(-TILE_W / 2 + FRAME_M, PROVOKED_CY, [provokedPlate, provokedIcon, provokedSlash])
+      .container(round ? r - provokedSide / 2 + 2 : -TILE_W / 2 + FRAME_M, round ? r * 0.55 : PROVOKED_CY, [provokedPlate, provokedIcon, provokedSlash])
       .setVisible(false);
 
     // Champion Awakening: its persistent state survives target choices, but
     // the ring yields there so only legal targets have a perimeter ring.
-    this.awakenedRect = scene.add
-      .rectangle(0, 0, TILE_W + 4, TILE_H + 4, 0x000000, 0)
+    this.awakenedRect = (round
+      ? scene.add.circle(0, 0, r + 2, 0x000000, 0)
+      : scene.add.rectangle(0, 0, TILE_W + 4, TILE_H + 4, 0x000000, 0))
       .setStrokeStyle(2, colorInt(theme.colors.gold), 0.95)
       .setName('board-awakening-ring')
       .setVisible(false);
@@ -397,14 +447,28 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     // the hauntlinkBroken and died events, then fades the departing card.
     this.hauntlinkBrokenMark = scene.add.graphics().setVisible(false);
     this.hauntlinkBrokenMark.lineStyle(3, colorInt(theme.colors.dangerArmed), 0.95);
-    this.hauntlinkBrokenMark.lineBetween(-TILE_W / 2 + 8, -TILE_H / 2 + 8, TILE_W / 2 - 8, TILE_H / 2 - 8);
-    this.hauntlinkBrokenMark.lineBetween(TILE_W / 2 - 8, -TILE_H / 2 + 8, -TILE_W / 2 + 8, TILE_H / 2 - 8);
+    const brokenInset = round ? r * 0.3 : 8;
+    this.hauntlinkBrokenMark.lineBetween(-this.tileW / 2 + brokenInset, -this.tileH / 2 + brokenInset, this.tileW / 2 - brokenInset, this.tileH / 2 - brokenInset);
+    this.hauntlinkBrokenMark.lineBetween(this.tileW / 2 - brokenInset, -this.tileH / 2 + brokenInset, -this.tileW / 2 + brokenInset, this.tileH / 2 - brokenInset);
 
-    this.highlightRect = scene.add
-      .rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0)
+    this.highlightRect = (round
+      ? scene.add.circle(0, 0, r + 3, 0x000000, 0)
+      : scene.add.rectangle(0, 0, TILE_W + 6, TILE_H + 6, 0x000000, 0))
       .setStrokeStyle(3, 0xffffff, 1)
       .setName('board-state-ring')
       .setVisible(false);
+
+    if (round) {
+      // Tapped reads in the centre of the disc (M28): the art dims under a
+      // turned-arrow glyph instead of the tile's quarter turn.
+      const icon = Math.round(Math.min(22, round * 0.42));
+      this.tapMark = scene.add.container(0, 0, [
+        scene.add.circle(0, 0, r - 1, 0x0d0b16, 0.5),
+        scene.add.circle(0, 0, icon * 0.8, 0x0d0b16, 0.85),
+        scene.add.image(0, 0, bakeUiIcon(scene, 'turn')).setDisplaySize(icon, icon).setTint(colorInt(theme.colors.heading)),
+      ]).setName('board-tapped-mark').setVisible(false);
+      this.pickBadge.setPosition(0, 0);
+    }
 
     this.add([
       bg,
@@ -412,7 +476,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       artBorder,
       nameScrim,
       nameText,
+      ...(this.tapMark ? [this.tapMark] : []),
       this.ptPlate,
+      ...(this.ptPill ? [this.ptPill] : []),
       this.ptText,
       this.statsGlyphs,
       this.markBadge,
@@ -436,7 +502,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.auraBadge, this.chapterBadge, this.overchargeText]) {
       text.setData('a11yCueText', true).setData('a11yKeepVisible', true);
     }
-    this.setSize(TILE_W, TILE_H);
+    // A medallion's cue ring would cross its P/T pill; the pill reads on top.
+    if (this.ptPill) this.bringToTop(this.ptPill).bringToTop(this.ptText);
+    this.setSize(this.tileW, this.tileH);
     scene.add.existing(this);
   }
 
@@ -445,7 +513,19 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     if (!this.ptText.visible) return this;
     const cue = typeof input === 'string' ? null : statsCue(input);
     const tone = cue?.tone ?? (typeof input === 'string' ? input : 'normal');
-    this.ptText.setText(`${attack}/${defenseLeft}`).setColor(STATS_COLORS[tone]);
+    this.ptText.setText(`${attack}/${defenseLeft}`).setColor((this.round ? PILL_STATS_COLORS : STATS_COLORS)[tone]);
+    if (this.ptPill && this.round) {
+      const pillH = this.round >= 44 ? 20 : 16;
+      const pillW = Math.max(pillH * 1.6, this.ptText.width + 14);
+      const y = this.ptText.y;
+      this.ptPill.clear()
+        .fillStyle(colorInt(theme.colors.panelFill), 1)
+        .fillRoundedRect(-pillW / 2, y - pillH / 2, pillW, pillH, pillH / 2)
+        .lineStyle(1, colorInt(tone === 'buffed' ? theme.colors.gold : theme.colors.goldHover), tone === 'buffed' ? 1 : 0.4)
+        .strokeRoundedRect(-pillW / 2, y - pillH / 2, pillW, pillH, pillH / 2);
+      // A medallion's glyphs ride beside its pill instead of sitting on the art.
+      this.statsGlyphs.setPosition(pillW / 2 + 2, y);
+    }
     this.setData('a11yStatsCue', cue);
     this.statsGlyphs.clear().setVisible(cue !== null && cue.glyphs.length > 0).setScale(cueCounterScale(tileScale));
     this.markBadge.setVisible(cue !== null && cue.markBadge !== null);
@@ -462,9 +542,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const size = CUE_MIN_SCREEN_PX.statGlyph, gap = 4, pad = 3;
     const width = cue.glyphs.length * size + Math.max(0, cue.glyphs.length - 1) * gap + pad * 2;
     this.statsGlyphs.fillStyle(colorInt(theme.colors.rowFill), 1);
-    this.statsGlyphs.fillRoundedRect(-width, -size - pad * 2, width, size + pad * 2, 3);
+    const left = this.round ? 0 : -width, top = this.round ? -size / 2 - pad : -size - pad * 2;
+    this.statsGlyphs.fillRoundedRect(left, top, width, size + pad * 2, 3);
     cue.glyphs.forEach((glyph, index) => {
-      const x = -width + pad + index * (size + gap), y = -size - pad;
+      const x = left + pad + index * (size + gap), y = top + pad;
       this.statsGlyphs.lineStyle(2, colorInt(glyph === 'damage' || glyph === 'lowered' ? theme.colors.dangerArmed : theme.colors.success), 1);
       if (glyph === 'damage') this.statsGlyphs.lineBetween(x + 2, y + size, x + size - 2, y);
       else {
@@ -495,7 +576,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     if (label !== null) {
       this.actionBadge.setText(label);
       this.actionBadge.setScale(cueCounterScale(tileScale));
-      const bounds = tileChipBounds(TILE_W, TILE_H, this.actionBadge.width, this.actionBadge.height, tileScale);
+      const bounds = tileChipBounds(this.tileW, this.tileH, this.actionBadge.width, this.actionBadge.height, tileScale);
       this.actionBadge.setPosition(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
       this.actionBadge.setData('a11yChipBounds', bounds);
     }
@@ -523,7 +604,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     const show = focused && cueIn('keyboardFocus', 'targeting')?.focusBrackets === true;
     this.focusBrackets.clear().setVisible(show);
     if (show) {
-      const halfW = TILE_W / 2 + 8, halfH = TILE_H / 2 + 8, length = 13;
+      const halfW = this.tileW / 2 + 8, halfH = this.tileH / 2 + 8, length = 13;
       this.focusBrackets.lineStyle(theme.outline.focus, colorInt(theme.colors.heading), 1);
       for (const sx of [-1, 1]) for (const sy of [-1, 1]) {
         this.focusBrackets.beginPath().moveTo(sx * (halfW - length), sy * halfH)
@@ -556,6 +637,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.overchargePlate.fillRoundedRect(-w, -h / 2, w, h, 4);
     this.overchargePlate.lineStyle(1, colorInt(theme.colors.gold), 0.9);
     this.overchargePlate.strokeRoundedRect(-w, -h / 2, w, h, 4);
+    // A medallion carries it on its left edge (M33): the plate runs inward from the rim.
+    if (this.round) this.overchargeBadge.setX(-this.round / 2 + w - 4);
     return this;
   }
 
@@ -604,9 +687,26 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setKeywords(keywords: ReadonlySet<Keyword>): this {
     for (const icon of this.keywordIcons) icon.destroy();
     this.keywordIcons = [];
+    this.keywordDisc?.destroy();
+    this.keywordDisc = null;
     this.keywordOverflow?.destroy();
     this.keywordOverflow = null;
     const traits = [...keywords];
+    if (this.round) {
+      // A medallion shows its first keyword on a disc at the top-left (M28);
+      // the rest are one long press away.
+      if (traits.length === 0) return this;
+      const r = this.round / 2;
+      const size = this.round >= 44 ? 18 : 14;
+      const cx = -r * 0.72, cy = -r * 0.72;
+      const disc = this.scene.add.circle(cx, cy, size / 2, colorInt(theme.colors.panelFill), 0.95)
+        .setStrokeStyle(1, colorInt(theme.colors.goldHover), 0.5);
+      const icon = this.scene.add.image(cx, cy, KEYWORD_ICON_KEY[traits[0]]).setDisplaySize(size * 0.68, size * 0.68);
+      this.keywordIcons.push(icon);
+      this.add([disc, icon]);
+      this.keywordDisc = disc;
+      return this;
+    }
     const visible = traits.length > 4 ? traits.slice(0, 3) : traits;
     const x = -TILE_W / 2 + TRAIT_INSET + TRAIT_SIZE / 2;
     const y0 = -TILE_H / 2 + TRAIT_INSET + TRAIT_SIZE / 2;
@@ -704,6 +804,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setTapped(tapped: boolean, animate = true): void {
     if (this.tappedState === tapped) return;
     this.tappedState = tapped;
+    if (this.tapMark) {
+      this.tapMark.setVisible(tapped);
+      return;
+    }
     const target = tapped ? 90 : 0;
     if (animate) {
       this.scene.tweens.add({ targets: this, angle: target, duration: 180, ease: 'Cubic.easeOut' });
@@ -725,6 +829,20 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    */
   private applyArt(): void {
     const artRef = Art.resolver!.getArt(this.card.id);
+    if (this.round) {
+      const previous = this.medallionKey;
+      this.medallionKey = holdMedallionArt(this.scene, artRef.textureKey, artRef.frameName, this.round);
+      this.art.setTexture(this.medallionKey).setDisplaySize(this.round - 2, this.round - 2).setPosition(0, 0);
+      if (previous) releaseMedallionArt(this.scene, previous);
+      this.cancelArtWait?.();
+      this.artPendingKey = artRef.pending ?? null;
+      this.cancelArtWait = holdArt(this, artRef, () => {
+        this.cancelArtWait = null;
+        this.artPendingKey = null;
+        if (this.art.active) this.applyArt();
+      });
+      return;
+    }
     if (artRef.frameName) this.art.setTexture(artRef.textureKey, artRef.frameName);
     else this.art.setTexture(artRef.textureKey);
     // Read back from the texture: the stand-in, the full file and the
@@ -768,7 +886,10 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    */
   enableInput(): this {
     if (!this.zone) {
-      this.zone = this.scene.add.zone(0, 0, TILE_W, TILE_H);
+      // A medallion's tap target never drops under the 44 px touch floor.
+      this.zone = this.round
+        ? this.scene.add.zone(0, 0, Math.max(44, this.round), Math.max(44, this.round))
+        : this.scene.add.zone(0, 0, TILE_W, TILE_H);
       this.add(this.zone);
       this.zone.setInteractive({ useHandCursor: true });
       for (const ev of ['pointerup', 'pointerdown', 'pointerover', 'pointerout']) {
@@ -801,6 +922,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   destroy(fromScene?: boolean): void {
     this.cancelArtWait?.();
     this.cancelArtWait = null;
+    if (this.medallionKey) {
+      // Release after this frame: the art Image still names the texture until it is destroyed with the container.
+      const key = this.medallionKey;
+      const scene = this.scene;
+      this.medallionKey = null;
+      scene?.time.delayedCall(0, () => releaseMedallionArt(scene, key));
+    }
     this.holo?.destroy();
     this.holo = null;
     this.zone = null; // Container.destroy destroys the child zone itself
