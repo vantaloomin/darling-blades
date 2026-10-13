@@ -249,6 +249,23 @@ function openEventNode(run: StoryRun | null): StoryNode | null {
 }
 
 /**
+ * Leave an event whose every choice is unavailable (no gold to pay, and a deck
+ * already at its minimum), so a run is never stuck there. Refused while any
+ * choice can still be taken. Nothing changes but the node being resolved.
+ */
+export function moveOnFromStoryEvent(story: StoryState, db: CardDb): StoryResult {
+  const run = story.activeRun;
+  const node = openEventNode(run);
+  if (!run || !node) return refuse('The run is not at an event.');
+  const event = storyEventFor(run, node);
+  if (event.choices.some((_, i) => eventChoiceNeeds(run, node, event, i, db).available)) {
+    return refuse('A choice is still open.');
+  }
+  run.nodeResolved = true;
+  return { ok: true };
+}
+
+/**
  * Resolve the current event node with one of its two choices, once. Random
  * adds, removals and changes are seeded from the node. Refused, changing
  * nothing, when the run is not at an unresolved event, the choice does not

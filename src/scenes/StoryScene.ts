@@ -32,6 +32,7 @@ import {
   eventChoiceNeeds,
   eventOutcomeLines,
   openingSceneFor,
+  moveOnFromStoryEvent,
   resolveStoryEvent,
   storyEventFor,
   storySceneById,
@@ -85,6 +86,7 @@ import {
   nextEventStep,
   removeConfirmLabel,
   removeStepCopy,
+  MOVE_ON_LABEL,
   storyEventArtIds,
   storySceneArtIds,
   type EventChoiceProgress,
@@ -808,6 +810,8 @@ export class StoryScene extends Phaser.Scene {
 
   /** Clear the event's current step (everything drawn after its still). */
   private clearStep(): void {
+    // A card zoom open over the step goes with it, not left holding a destroyed card.
+    this.zoom.cancel();
     this.player?.destroy();
     this.player = null;
     this.subtitleLine = null;
@@ -824,13 +828,22 @@ export class StoryScene extends Phaser.Scene {
     ctx.stage.setShade(0);
     const { run, node, event } = ctx;
     const needs = event.choices.map((_, i) => eventChoiceNeeds(run, node, event, i, CARD_DB));
+    const stuck = needs.every((n) => !n.available);
     const panel = drawChoicePanel(this, ctx.stage, ctx.scene ? eventSpeaker(ctx.scene, ctx.heroine) : null,
       `Run gold ${run.gold} · Run deck ${cardCount(run.deck.length)}`,
-      event.choices.map((choice, i) => {
-        const n = needs[i];
-        return { label: choice.label, reason: n.available ? null : n.reason };
-      }),
+      [
+        ...event.choices.map((choice, i) => {
+          const n = needs[i];
+          return { label: choice.label, reason: n.available ? null : n.reason };
+        }),
+        // Neither choice can be taken: offer a way on so the run is never stuck here.
+        ...(stuck ? [{ label: MOVE_ON_LABEL, reason: null }] : []),
+      ],
       (i) => {
+        if (i >= needs.length) {
+          const moved = moveOnFromStoryEvent(this.story, CARD_DB);
+          return moved.ok ? this.commit() : this.eventChoices(ctx, moved.reason);
+        }
         const n = needs[i];
         if (n.available) this.eventStep(ctx, i, n, {});
       });
@@ -1236,7 +1249,8 @@ export class StoryScene extends Phaser.Scene {
     if (!isDuelNode(node)) return this.commit();
     const intro = node.kind === 'boss' ? bossIntroSceneFor(run.characterId)
       : node.kind === 'elite' && node.avatarId ? eliteIntroSceneFor(node.avatarId) : undefined;
-    if (intro) return this.commit({ storyScene: { id: intro.id, then: 'duel' } });
+    // An intro plays once per duel; re-launching the same open duel goes straight in.
+    if (intro && !playedThisSession.has(playedKey(run, intro.id))) return this.commit({ storyScene: { id: intro.id, then: 'duel' } });
     this.launchDuel(run, node);
   }
 }

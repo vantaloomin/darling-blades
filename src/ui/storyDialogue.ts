@@ -391,3 +391,6 @@ export function storyChoicePanelLayout(side: PortraitSide | null, headerHeight: 
     portrait: side === null ? null : storyPortraitRect(side, storyPortraitTop()),
   };
 }
+
+/** The way on from an event whose every choice is unavailable (not script text: it never shows in normal play). */
+export const MOVE_ON_LABEL = 'Move on: nothing changes.';

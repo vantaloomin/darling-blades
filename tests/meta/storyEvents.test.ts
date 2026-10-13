@@ -22,6 +22,7 @@ import {
 import {
   eventChoiceNeeds,
   eventOutcomeLines,
+  moveOnFromStoryEvent,
   resolveStoryEvent,
   resolveStoryEventByRule,
   storyEventFor,
@@ -325,5 +326,21 @@ describe('storyEvents: resolving a choice', () => {
     expect(lines[3]).toContain(CARD_DB[a].name);
     expect(eventOutcomeLines({ gold: 20, added: [], removed: [], changed: [] }, CARD_DB)[0]).toContain('20');
     expect(eventOutcomeLines({ gold: 0, added: [], removed: [], changed: [] }, CARD_DB)).toHaveLength(1);
+  });
+});
+
+describe('an event with no choice left', () => {
+  it('refuses to move on while a choice is open, and lets a broke run at the deck minimum leave with nothing changed', () => {
+    const { story } = atEvent('ev-meng-ford-toll');
+    const run = story.activeRun!;
+    expect(moveOnFromStoryEvent(story, CARD_DB).ok).toBe(false);
+    expect(run.nodeResolved).toBe(false);
+    run.gold = 0;
+    run.deck = run.deck.slice(0, MIN_DECK);
+    const before = structuredClone(run);
+    expect(moveOnFromStoryEvent(story, CARD_DB).ok).toBe(true);
+    expect({ ...run, nodeResolved: false }).toEqual(before);
+    expect(run.nodeResolved).toBe(true);
+    expect(moveOnFromStoryEvent(story, CARD_DB).ok).toBe(false);
   });
 });
