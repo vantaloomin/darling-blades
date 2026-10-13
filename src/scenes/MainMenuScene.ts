@@ -502,7 +502,13 @@ export class MainMenuScene extends Phaser.Scene {
     const sideHeights = rows.map(sideHeight);
     for (const r of rows) { r.name.setWordWrapWidth(fullW); r.description.setWordWrapWidth(fullW); }
     const stackedHeights = rows.map((r) => r.name.height + 2 + r.description.height + 6 + COMPACT_ACTION_H + 2 * 6);
-    const stacked = stackedHeights.some((h, i) => h < sideHeights[i]);
+    // Whichever shape shows more quests before the fold wins (M-MainMenu130
+    // keeps two side by side); on a tie, the shorter list.
+    const shown = (heights: number[]): number => compactDailyPage(listH, heights, 0).quests.length;
+    const sum = (heights: number[]): number => heights.reduce((a, b) => a + b, 0);
+    const stacked = shown(stackedHeights) !== shown(sideHeights)
+      ? shown(stackedHeights) > shown(sideHeights)
+      : sum(stackedHeights) < sum(sideHeights);
     if (!stacked) for (const r of rows) { r.name.setWordWrapWidth(textW); r.description.setWordWrapWidth(textW); }
     rows.forEach((r, i) => { r.height = stacked ? stackedHeights[i] : sideHeights[i]; });
     const page = compactDailyPage(listH, rows.map((r) => r.height), this.dailyPage);
