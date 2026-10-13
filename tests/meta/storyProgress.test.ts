@@ -14,6 +14,8 @@ import {
   keepOptions,
   keepRewardKey,
   legalNextNodes,
+  mapKeyDue,
+  markMapKeySeen,
   recordFight,
   resolveRest,
   resolveShop,
@@ -351,6 +353,19 @@ describe('StoryProgress: the Act 1 keep (R6) is granted exactly once', () => {
     expect(save.collection).toEqual({});
     abandonRun(save.story);
     expect(save.collection).toEqual({});
+  });
+});
+
+describe('the map key flag', () => {
+  it('is due on a fresh record, not after it is marked, and survives normalizing; anything but true reads as unseen', () => {
+    const story = freshStoryState();
+    expect(mapKeyDue(story)).toBe(true);
+    markMapKeySeen(story);
+    expect(mapKeyDue(story)).toBe(false);
+    expect(mapKeyDue(normalizeStoryState(structuredClone(story)))).toBe(false);
+    for (const raw of [undefined, 'true', 1, null]) {
+      expect(normalizeStoryState({ ...freshStoryState(), seenMapKey: raw }).seenMapKey).toBe(false);
+    }
   });
 });
 

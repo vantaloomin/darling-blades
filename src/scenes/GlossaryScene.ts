@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import {
-  GLOSSARY_SECTIONS,
+  glossarySections,
   sectionOfTerm,
   termMatchesQuery,
   type GlossaryIcon,
@@ -33,6 +33,8 @@ import { colorInt, theme } from '../ui/theme';
 import { backButton, panel, registerSceneBackNavigation, type ThemedButton } from '../ui/themeWidgets';
 import { backLabelFor, type BackDestination } from '../ui/navigation';
 import { IS_DEV } from '../platform/env';
+import { currentAccessibility } from '../ui/accessibility';
+import { bakeStopBadge, stopPad } from '../ui/storyMapStops';
 
 /** `null` is the cross-section results view; anything else is one tab. */
 type ActiveTab = GlossarySectionId | null;
@@ -101,6 +103,8 @@ export class GlossaryScene extends Phaser.Scene {
     this.returnTo = data.returnTo ?? { scene: 'MainMenu' };
     this.activeTab = this.focus ? sectionOfTerm(this.focus) ?? 'combat' : 'combat';
     if (this.fixture?.tab) this.activeTab = this.fixture.tab === 'all' ? null : this.fixture.tab;
+    // A tab this build hides (Story Map before Story Mode is live) opens the first tab instead.
+    if (this.activeTab !== null && !glossarySections().some((section) => section.id === this.activeTab)) this.activeTab = 'combat';
     this.tabBeforeSearch = this.activeTab;
     this.query = '';
     this.scrollOffset = 0;
@@ -174,7 +178,7 @@ export class GlossaryScene extends Phaser.Scene {
 
   /** Rows for one tab, or every section's matches in the results view. */
   private rowsFor(tab: ActiveTab): GlossaryRow[] {
-    const sections = tab === null ? GLOSSARY_SECTIONS : [GLOSSARY_SECTIONS.find((s) => s.id === tab)!];
+    const sections = tab === null ? glossarySections() : [glossarySections().find((s) => s.id === tab)!];
     return sections.flatMap((section) =>
       section.terms
         .filter((term) => termMatchesQuery(term, this.query))
@@ -187,7 +191,7 @@ export class GlossaryScene extends Phaser.Scene {
   }
 
   private activeSection(): GlossarySection | null {
-    return this.activeTab === null ? null : GLOSSARY_SECTIONS.find((s) => s.id === this.activeTab) ?? null;
+    return this.activeTab === null ? null : glossarySections().find((s) => s.id === this.activeTab) ?? null;
   }
 
   // -------------------------------------------------------------------------
@@ -195,7 +199,7 @@ export class GlossaryScene extends Phaser.Scene {
   // -------------------------------------------------------------------------
 
   private buildRail(): void {
-    const tabs: ActiveTab[] = [null, ...GLOSSARY_SECTIONS.map((section) => section.id)];
+    const tabs: ActiveTab[] = [null, ...glossarySections().map((section) => section.id)];
     tabs.forEach((id, index) => {
       const y = this.frame.railFirstRowY + index * this.frame.railRowPitch;
       const x = this.frame.rail.x + theme.space(3);
@@ -234,7 +238,7 @@ export class GlossaryScene extends Phaser.Scene {
   }
 
   private sectionTitleFor(id: GlossarySectionId): string {
-    return GLOSSARY_SECTIONS.find((section) => section.id === id)!.title;
+    return glossarySections().find((section) => section.id === id)!.title;
   }
 
   private buildContentChrome(): void {
@@ -470,6 +474,12 @@ export class GlossaryScene extends Phaser.Scene {
       case 'rarity':
         // Base-set symbol in the tier tint, matching what card faces show.
         return this.add.image(x, y, `seticon-base-${icon.key}`).setDisplaySize(26, 26);
+      case 'storyStop': {
+        // The map's own medallion; the display size includes its shadow margin.
+        const d = 24;
+        const size = d + 2 * stopPad(d);
+        return this.add.image(x, y, bakeStopBadge(this, icon.key, d, currentAccessibility().highContrast)).setDisplaySize(size, size);
+      }
       default:
         return null;
     }
@@ -619,7 +629,7 @@ export class GlossaryScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.searchInput?.teardown());
 
     // The tabs under it, two across, each its name over its count.
-    const tabs: ActiveTab[] = [null, ...GLOSSARY_SECTIONS.map((section) => section.id)];
+    const tabs: ActiveTab[] = [null, ...glossarySections().map((section) => section.id)];
     const area = { x: col.x, y: col.y + COMPACT.touch + G.tabsGap, width: col.width, height: 0 };
     area.height = Math.max(0, col.y + col.height - area.y);
     const tileW = (area.width - COMPACT.gap) / 2;

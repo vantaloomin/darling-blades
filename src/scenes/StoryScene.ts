@@ -17,6 +17,8 @@ import {
   enterNode,
   keepOptions,
   legalNextNodes,
+  mapKeyDue,
+  markMapKeySeen,
   markSceneSeen,
   resolveRest,
   resolveShop,
@@ -57,6 +59,10 @@ import {
   cardCount,
   colourWords,
   deckEntries,
+  MAP_KEY_CLOSE,
+  MAP_KEY_NOTE,
+  MAP_KEY_TITLE,
+  mapKeyRows,
   mapStopStanding,
   NODE_KIND_LABEL,
   nodeActionLabel,
@@ -76,6 +82,8 @@ import {
   storyContentBottom,
   storyContentTop,
   storyFooterRow,
+  storyMapKeyLayout,
+  storyMapKeyWidths,
   storyMapLayout,
   storyMapPanelLayout,
   storySelectLayout,
@@ -106,8 +114,8 @@ import {
   StoryStage,
   storyTextureKey,
 } from './StoryDialogue';
-import { bakeUiIcon, uiIconKey } from '../ui/uiIcons';
-import { bakeBossPortraitMedallion, bakeStopGlow, bakeStopMedallion, bossPortraitArtId, reachableNodeIds, STOP_ICON, stopFace, stopPad, trailDots } from '../ui/storyMapStops';
+import { bakeUiIcon } from '../ui/uiIcons';
+import { addStopMedallion, bakeBossPortraitMedallion, bakeStopGlow, bossPortraitArtId, reachableNodeIds, stopFace, trailDots, type StopFace } from '../ui/storyMapStops';
 import {
   backButton,
   modalShell,
@@ -1141,6 +1149,8 @@ export class StoryScene extends Phaser.Scene {
 
     const nodes = storyMapNodes(map);
     const reachable = reachableNodeIds(nodes, run.nodeId);
+    const bossNode = nodes.find((n) => n.kind === 'boss' && n.avatarId);
+    const bossName = bossNode?.avatarId ? storyAvatarById(bossNode.avatarId)?.name ?? null : null;
     const highContrast = currentAccessibility().highContrast;
     // The Next glow breathes only at full animations and without the system's reduce-motion ask.
     const pulse = this.save.settings.animations === 'full' && !prefersReducedMotion();
@@ -1201,24 +1211,10 @@ export class StoryScene extends Phaser.Scene {
           this.tweens.add({ targets: halo, alpha: { from: 0.3, to: 0.85 }, scale: { from: s * 0.9, to: s * 1.08 }, duration: 1100, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
         }
       }
-      const pad = stopPad(d);
       const avatar = node.kind === 'boss' && node.avatarId ? storyAvatarById(node.avatarId) : null;
-      const portraitId = avatar ? bossPortraitArtId(avatar.name) : null;
-      const portraitKey = portraitId ? bakeBossPortraitMedallion(this, storyTextureKey(portraitId), face, d, highContrast) : null;
-      const medallion = this.add.image(c.x, c.y, portraitKey ?? bakeStopMedallion(this, node.kind, face, d, highContrast))
-        .setDisplaySize(d + 2 * pad, d + 2 * pad);
+      const portraitKey = this.bossPortraitKey(avatar?.name ?? null, face, d, highContrast);
       const name = avatar ? `${NODE_KIND_LABEL[node.kind]}: ${avatar.name}` : NODE_KIND_LABEL[node.kind];
-      medallion.setName(name);
-      if (face === 'locked') medallion.setAlpha(0.72);
-      if (!portraitKey) {
-        // The icon, struck into the face: a dark offset under it for depth.
-        const iconKey = bakeUiIcon(this, STOP_ICON[node.kind]);
-        const size = Math.round(d * (node.kind === 'boss' ? 0.5 : 0.52));
-        const ink = face === 'locked' ? theme.colors.muted : node.kind === 'boss' ? theme.colors.goldHover : theme.storyStop.ink;
-        const inkAlpha = face === 'pressed' ? 0.55 : face === 'locked' ? 0.7 : 1;
-        this.add.image(c.x, c.y + (face === 'pressed' ? -1 : 1.5), iconKey).setDisplaySize(size, size).setTint(0x000000).setAlpha(0.5 * inkAlpha);
-        this.add.image(c.x, c.y, uiIconKey(STOP_ICON[node.kind])).setDisplaySize(size, size).setTint(colorInt(ink)).setAlpha(inkAlpha);
-      }
+      addStopMedallion(this, c.x, c.y, node.kind, face, d, highContrast, portraitKey)[0].setName(name);
       rings.set(node.id, this.add.graphics());
       const under = [isLegal ? 'Next' : '', avatar ? avatar.name : ''].filter(Boolean).join(': ');
       if (under) this.text(c.x, r.y + r.height + theme.space(1), under, theme.type.caption, theme.colors.gold).setOrigin(0.5, 0);
@@ -1275,7 +1271,9 @@ export class StoryScene extends Phaser.Scene {
       t.setY(iy);
       iy += t.height + theme.space(1);
     }
-    themedButton(this, p.x + p.width / 2, pl.viewDeckY, 'View Deck', { variant: 'ghost', minWidth: pl.buttonWidth, onTap: () => this.openDeckView(run) });
+    const half = { variant: 'ghost' as const, minWidth: pl.halfButtonWidth, maxTextWidth: pl.halfButtonWidth - theme.space(3) };
+    themedButton(this, pl.viewDeckX, pl.viewDeckY, 'View Deck', { ...half, onTap: () => this.openDeckView(run) });
+    themedButton(this, pl.mapKeyX, pl.viewDeckY, MAP_KEY_TITLE, { ...half, onTap: () => this.openMapKey(bossName) });
     const detailName = this.text(pl.detail.x, pl.detail.y, '', theme.type.label, theme.colors.heading, { bold: true, wrap: pl.detail.width });
     const detailBody = this.text(pl.detail.x, pl.detail.y, '', theme.type.caption, theme.colors.body, { wrap: pl.detail.width });
     const go = themedButton(this, p.x + p.width / 2, pl.primaryY, 'Choose a Stop', {
@@ -1327,6 +1325,71 @@ export class StoryScene extends Phaser.Scene {
       go.setLabel(selected ? nodeActionLabel(selected.kind) : 'Choose a Stop');
     };
     refreshPanel();
+    // The first map the player ever sees opens the key by itself, once.
+    if (mapKeyDue(this.story)) this.openMapKey(bossName, true);
+  }
+
+  /** The boss's portrait medallion for an avatar name, or null (no portrait, or the art is not loaded: the crown shows). */
+  private bossPortraitKey(avatarName: string | null, face: StopFace, d: number, highContrast: boolean): string | null {
+    const portraitId = avatarName ? bossPortraitArtId(avatarName) : null;
+    return portraitId ? bakeBossPortraitMedallion(this, storyTextureKey(portraitId), face, d, highContrast) : null;
+  }
+
+  /**
+   * The map key: every stop kind's medallion (drawn as the map draws it, the
+   * boss with this act's portrait), name and one line. `first` marks it seen
+   * when it closes, so it never opens by itself again.
+   */
+  private openMapKey(bossName: string | null, first = false): void {
+    const highContrast = currentAccessibility().highContrast;
+    const widths = storyMapKeyWidths();
+    const rows = mapKeyRows();
+    // Measure at the wrap widths first, then place from the layout.
+    const note = this.text(0, 0, MAP_KEY_NOTE, theme.type.label, theme.colors.muted, { wrap: widths.note });
+    const texts = rows.map((row) => {
+      const name = this.text(0, 0, row.name, theme.type.label, theme.colors.heading, { bold: true, wrap: widths.text });
+      const body = this.text(0, 0, row.summary, theme.type.caption, theme.colors.body, { wrap: widths.text });
+      return { name, body, height: name.height + theme.space(1) + body.height };
+    });
+    const l = storyMapKeyLayout(note.height, texts.map((t) => t.height));
+    this.guard.open(this.interactiveTargets());
+    const shell = modalShell(this, {
+      width: l.width,
+      height: l.height,
+      titleTrackHeight: Math.max(theme.control.minHitHeight, Math.ceil(theme.type.h1 * 4 / 3)),
+      dismissal: 'dismissible',
+      onClose: () => {
+        this.guard.close();
+        if (first) {
+          markMapKeySeen(this.story);
+          if (!this.fixtureSave) Services.save.flush();
+        }
+      },
+    });
+    const c = shell.container;
+    const title = shell.tracks.titleTrack;
+    c.add(this.text(title.x, title.y + title.height / 2, MAP_KEY_TITLE, theme.type.h1, theme.colors.heading, { display: true }).setOrigin(0, 0.5));
+    c.add(note.setPosition(l.note.x, l.note.y));
+    rows.forEach((row, i) => {
+      const r = l.rows[i];
+      const plate = this.add.graphics()
+        .fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
+        .fillRoundedRect(r.rect.x, r.rect.y, r.rect.width, r.rect.height, theme.radius.control)
+        .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+        .strokeRoundedRect(r.rect.x, r.rect.y, r.rect.width, r.rect.height, theme.radius.control);
+      const portrait = row.kind === 'boss' ? this.bossPortraitKey(bossName, 'live', r.medallion.d, highContrast) : null;
+      const stop = addStopMedallion(this, r.medallion.x, r.medallion.y, row.kind, 'live', r.medallion.d, highContrast, portrait);
+      const { name, body, height } = texts[i];
+      const top = r.rect.y + (r.rect.height - height) / 2;
+      name.setPosition(r.textX, top);
+      body.setPosition(r.textX, top + name.height + theme.space(1));
+      c.add([plate, ...stop, name, body]);
+    });
+    const footer = shell.tracks.footerTrack;
+    const done = themedButton(this, footer.x + footer.width / 2, footer.y + footer.height / 2, MAP_KEY_CLOSE, {
+      variant: 'primary', minWidth: PRIMARY_MIN_W, onTap: () => shell.close(),
+    });
+    c.add(done.container);
   }
 
   /** Enter the chosen node (a duel launches at once) or re-launch the open duel. */

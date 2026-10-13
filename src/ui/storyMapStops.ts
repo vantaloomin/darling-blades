@@ -2,8 +2,8 @@ import type Phaser from 'phaser';
 import type { StoryNodeKind } from '../data/story/types';
 import { STORY_SPEAKERS } from '../data/story/script';
 import { portraitArtId } from './storyDialogue';
-import { theme } from './theme';
-import type { UiIconName } from './uiIcons';
+import { colorInt, theme } from './theme';
+import { bakeUiIcon, uiIconKey, type UiIconName } from './uiIcons';
 
 /**
  * The Story map's stops as struck medallions (owner request 2026-10-13: icons,
@@ -271,6 +271,67 @@ export function bakeStopGlow(scene: Phaser.Scene, diameter: number): string {
   g.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
+  tex.refresh();
+  return key;
+}
+
+/**
+ * Draw one stop at (x, y), `diameter` across: the boss's portrait medallion
+ * when `portraitKey` is a baked one, otherwise the kind's medallion with its
+ * icon struck in. The map and the map key both draw stops through this, so
+ * the key shows exactly what the map does. Returns the medallion first.
+ */
+export function addStopMedallion(
+  scene: Phaser.Scene, x: number, y: number, kind: StoryNodeKind, face: StopFace, diameter: number,
+  highContrast: boolean, portraitKey: string | null = null,
+): Phaser.GameObjects.Image[] {
+  const pad = stopPad(diameter);
+  const medallion = scene.add.image(x, y, portraitKey ?? bakeStopMedallion(scene, kind, face, diameter, highContrast))
+    .setDisplaySize(diameter + 2 * pad, diameter + 2 * pad);
+  if (face === 'locked') medallion.setAlpha(0.72);
+  if (portraitKey) return [medallion];
+  // The icon, struck into the face: a dark offset under it for depth.
+  const iconKey = bakeUiIcon(scene, STOP_ICON[kind]);
+  const size = Math.round(diameter * (kind === 'boss' ? 0.5 : 0.52));
+  const ink = face === 'locked' ? theme.colors.muted : kind === 'boss' ? theme.colors.goldHover : theme.storyStop.ink;
+  const inkAlpha = face === 'pressed' ? 0.55 : face === 'locked' ? 0.7 : 1;
+  const shadow = scene.add.image(x, y + (face === 'pressed' ? -1 : 1.5), iconKey).setDisplaySize(size, size).setTint(0x000000).setAlpha(0.5 * inkAlpha);
+  const icon = scene.add.image(x, y, uiIconKey(STOP_ICON[kind])).setDisplaySize(size, size).setTint(colorInt(ink)).setAlpha(inkAlpha);
+  return [medallion, shadow, icon];
+}
+
+/**
+ * Bake (once) a live stop's medallion with its icon struck in, as one
+ * texture `diameter` px across plus `stopPad` round it (the Glossary's Story
+ * Map rows, which take one image per term). Drawn as `addStopMedallion` draws it.
+ */
+export function bakeStopBadge(scene: Phaser.Scene, kind: StoryNodeKind, diameter: number, highContrast: boolean): string {
+  const key = `story-stop-badge-${kind}-${diameter}${highContrast ? '-hc' : ''}`;
+  if (scene.textures.exists(key)) return key;
+  const base = scene.textures.get(bakeStopMedallion(scene, kind, 'live', diameter, highContrast)).getSourceImage() as HTMLCanvasElement;
+  const glyph = scene.textures.get(bakeUiIcon(scene, STOP_ICON[kind])).getSourceImage() as HTMLCanvasElement;
+  const tex = scene.textures.createCanvas(key, base.width, base.height);
+  if (!tex) return key;
+  const ctx = tex.getContext();
+  ctx.drawImage(base, 0, 0);
+  const size = Math.round(diameter * (kind === 'boss' ? 0.5 : 0.52)) * RES;
+  const c = base.width / 2;
+  // A glyph tinted on a scratch canvas: the alpha of the icon, filled with one colour.
+  const tinted = (colour: string): HTMLCanvasElement => {
+    const t = document.createElement('canvas');
+    t.width = size;
+    t.height = size;
+    const tc = t.getContext('2d')!;
+    tc.drawImage(glyph, 0, 0, size, size);
+    tc.globalCompositeOperation = 'source-in';
+    tc.fillStyle = colour;
+    tc.fillRect(0, 0, size, size);
+    return t;
+  };
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(tinted('#000000'), c - size / 2, c - size / 2 + 1.5 * RES);
+  ctx.globalAlpha = 1;
+  ctx.drawImage(tinted(kind === 'boss' ? theme.colors.goldHover : theme.storyStop.ink), c - size / 2, c - size / 2);
   tex.refresh();
   return key;
 }

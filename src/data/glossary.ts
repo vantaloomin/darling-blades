@@ -1,4 +1,6 @@
+import { FEATURES } from '../config/features';
 import { DROPS, ECONOMY, RULES } from '../config/rules';
+import type { StoryNodeKind } from './story/types';
 import type {
   AbilityDef,
   CardDef,
@@ -388,7 +390,7 @@ export function cardTermNames(d: CardDef): string[] {
 // Glossary sections
 // ---------------------------------------------------------------------------
 
-export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity';
+export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity' | 'storyMap';
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
@@ -408,6 +410,7 @@ export type GlossaryIcon =
   | { kind: 'type'; key: CardType }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
+  | { kind: 'storyStop'; key: StoryNodeKind }
   | { kind: 'none' };
 
 export interface GlossaryTerm {
@@ -429,6 +432,32 @@ export interface GlossarySection {
 }
 
 const KEYWORD_ORDER = Object.keys(KEYWORD_NAMES) as Keyword[];
+
+/**
+ * Story Mode's map stops: each kind's name and what it offers, in one line.
+ * The one source for the map's side panel, the map key and the Glossary's
+ * Story Map tab (house copy rules in src/ui/storyPresentation.ts).
+ */
+export const STORY_STOP_NAMES: Readonly<Record<StoryNodeKind, string>> = {
+  fight: 'Fight',
+  elite: 'Elite',
+  event: 'Event',
+  shop: 'Shop',
+  rest: 'Rest',
+  boss: 'Boss',
+};
+
+export const STORY_STOP_SUMMARY: Readonly<Record<StoryNodeKind, string>> = {
+  fight: 'Win for run gold and a card reward.',
+  elite: 'A harder duel. Win for more run gold and a card reward.',
+  event: 'A stop on the road, and a choice to make.',
+  shop: 'Buy cards for this run with run gold.',
+  rest: 'Rest, and remove a card from your run deck if you like.',
+  boss: 'The last duel of the act. Win it to clear Act 1.',
+};
+
+/** The map key's and the Glossary's reading order. */
+export const STORY_STOP_ORDER: readonly StoryNodeKind[] = ['fight', 'elite', 'event', 'shop', 'rest', 'boss'];
 
 /**
  * Zone and format vocabulary that has no card field behind it. These are looked
@@ -568,7 +597,23 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
       icon: { kind: 'rarity', key } as GlossaryIcon,
     })),
   },
+  {
+    // Shown only while Story Mode is live (`glossarySections`).
+    id: 'storyMap',
+    title: 'Story Map',
+    note: 'The stops on a Story run’s map.',
+    terms: STORY_STOP_ORDER.map((kind) => ({
+      name: STORY_STOP_NAMES[kind],
+      description: STORY_STOP_SUMMARY[kind],
+      icon: { kind: 'storyStop', key: kind } as GlossaryIcon,
+    })),
+  },
 ];
+
+/** The sections the Glossary shows: the Story Map tab only while Story Mode is live (read per call: dev boot flips the switch). */
+export function glossarySections(): readonly GlossarySection[] {
+  return FEATURES.storyLive ? GLOSSARY_SECTIONS : GLOSSARY_SECTIONS.filter((section) => section.id !== 'storyMap');
+}
 
 export function glossarySection(id: GlossarySectionId): GlossarySection {
   const found = GLOSSARY_SECTIONS.find((candidate) => candidate.id === id);
@@ -585,7 +630,7 @@ export function termMatchesQuery(term: GlossaryTerm, query: string): boolean {
 
 /** The section a term name lives in, for the Deck Builder's focus deep links. */
 export function sectionOfTerm(name: string): GlossarySectionId | null {
-  for (const section of GLOSSARY_SECTIONS) {
+  for (const section of glossarySections()) {
     if (section.terms.some((term) => term.name === name)) return section.id;
   }
   return null;

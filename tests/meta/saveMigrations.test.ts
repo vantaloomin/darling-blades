@@ -1602,8 +1602,21 @@ describe('SaveData v38 migration (Story Mode record)', () => {
     expect(first.data.story.unlockedCharacterIds).toEqual(['guan-yu', 'persephone']);
     expect(first.data.story.claimedRewardKeys).toEqual(['run-a:act1:keep']);
     expect(first.data.story.countedRuns).toEqual({ 'guan-yu': 3 });
+    // A v38 record from before the map key flag reads as unseen: the key opens once.
+    expect(first.data.story.seenMapKey).toBe(false);
     first.flush();
     expect(new SaveManager(storage, 789).data.story).toEqual(first.data.story);
+  });
+
+  it('keeps the map key seen across save and reload, in the same v38 record', () => {
+    const storage = fakeStorage();
+    const first = new SaveManager(storage, 456);
+    expect(first.data.story.seenMapKey).toBe(false);
+    first.data.story.seenMapKey = true;
+    first.flush();
+    const again = new SaveManager(storage, 789);
+    expect(again.data.version).toBe(CURRENT_SAVE_VERSION);
+    expect(again.data.story.seenMapKey).toBe(true);
   });
 
   it('carries the story record through a save code', () => {
