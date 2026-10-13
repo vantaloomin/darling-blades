@@ -8,6 +8,7 @@ import { addCard } from './Collection';
 import { generateDeckId } from './DeckStorage';
 import type { OpenDuel, SaveData, SavedDeck } from './SaveManager';
 import type { LimitedDeckStyle } from './Limited';
+import { applyStoryDuelResult } from './story/StoryProgress';
 import { PLAIN_VARIANT } from './variants';
 
 export type Difficulty = 'easy' | 'medium' | 'hard';
@@ -193,9 +194,10 @@ export function applyLimitedMatchResult(
 }
 
 /**
- * Mark a Tower rung or Limited match as begun. Call once the deal exists: the
+ * Mark a Tower rung, Limited match or story duel as begun. Call once the deal exists: the
  * record stays until the result is applied (both apply functions clear it),
  * so a duel left by closing the app is still marked on the next launch.
+ * (A story result clears it in `applyStoryDuelResult`.)
  */
 export function markDuelOpen(save: SaveData, duel: OpenDuel): void {
   save.openDuel = duel;
@@ -203,9 +205,9 @@ export function markDuelOpen(save: SaveData, duel: OpenDuel): void {
 
 /**
  * On launch, record a marked duel that never reached its result as a loss,
- * exactly as a concede would. Both modes deal a fixed seed per rung or match,
- * so without this a player could close a losing duel and replay the same deal
- * with the opponent's cards known. A record that no longer matches the active
+ * exactly as a concede would. Every marked mode deals a fixed seed per rung,
+ * match or story node, so without this a player could close a losing duel and
+ * replay the same deal with the opponent's cards known. A record that no longer matches the active
  * run is dropped without effect. Returns the mode that took the loss, or null.
  */
 export function settleAbandonedDuel(save: SaveData, today: string): OpenDuel['mode'] | null {
@@ -216,6 +218,10 @@ export function settleAbandonedDuel(save: SaveData, today: string): OpenDuel['mo
     if (save.gauntlet.run?.rung !== open.rung) return null;
     applyGauntletResult(save, open.rung, open.difficulty, false, today);
     return 'gauntlet';
+  }
+  if (open.mode === 'story') {
+    // recordFight's loss path; refused (nothing changes) when the mark is stale.
+    return applyStoryDuelResult(save, open, false, open.difficulty, today).ok ? 'story' : null;
   }
   const run = save.limited.activeRun;
   if (!run || run.id !== open.runId || run.status !== 'matches' || run.matchIndex !== open.matchIndex) return null;

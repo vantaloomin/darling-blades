@@ -13,6 +13,12 @@ export const FEATURES = {
    */
   coreSet2Live: false,
   /**
+   * Story Mode (2.0, docs/plan-story-mode.md). Off in the public build until
+   * wave 4 removes it; the dev server turns it on (src/main.ts), like
+   * `coreSet2Live`. Gates the Play screen's Story entry.
+   */
+  storyLive: false,
+  /**
    * 1.6 classic retirement (2026-08-10). Warchest is now THE constructed
    * format: the Tower fields each avatar's `reserveDeck` + `landReserve`,
    * granted decks the player never edited auto-convert to their shipped

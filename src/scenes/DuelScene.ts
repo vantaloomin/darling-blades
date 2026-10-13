@@ -60,8 +60,11 @@ import {
   undoReplayAction,
   type ReplayDraft,
   type ReplayLog,
+  type StoryReplayContext,
 } from '../meta/Replay';
 import { Services } from '../meta/services';
+import { applyStoryDuelResult, storyDuelSetupFor, type StoryDuelRef, type StoryDuelSetup } from '../meta/story/StoryProgress';
+import { storyCharacterById } from '../data/story/characters';
 import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { deckColorStyle, type DeckColorStyle } from '../meta/deckColorIdentity';
 import { signals, type DuelSignalDeck } from '../net/signals';
@@ -142,9 +145,16 @@ import { handDisplayOrder } from '../ui/handSort';
 import { HistoryPanel } from '../ui/HistoryPanel';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
-import { Toast } from '../ui/Toast';
+import { queueToast, Toast } from '../ui/Toast';
 import { VersusBumper } from '../ui/VersusBumper';
-import { combatForecastCopy, concedeConfirmLabel, defeatReasonCopy, resultReasonCopy } from '../ui/duelCopy';
+import {
+  combatForecastCopy,
+  concedeConfirmLabel,
+  defeatReasonCopy,
+  resultReasonCopy,
+  storyDuelUnavailableNotice,
+  storyResultCopy,
+} from '../ui/duelCopy';
 import {
   attackButtonLabel,
   attackDeclaration,
@@ -259,6 +269,8 @@ export interface DuelSceneData {
   aiOverride?: AIPlayer;
   tutorial?: boolean;
   limited?: LimitedDuelData['limited'];
+  /** Story Mode (docs/plan-story-mode.md): the duel at this node of the active run, resolved through `storyDuelSetup`. */
+  story?: { runId: string; nodeId: string };
   replay?: ReplayLog;
   /** Dev-only, with `replay`: trailer footage, no replay chrome (src/dev/showcase.ts). */
   showcase?: { speed: number; deckName: string };
@@ -574,6 +586,12 @@ export class DuelScene extends Phaser.Scene {
    * difficulty ladder picks — never the deck (that's `oppDeckOverride`).
    */
   private limitedPersona: DraftPersona | null = null;
+  /**
+   * Story Mode: the run and node this duel was launched for, and the setup
+   * `storyDuelSetupFor` resolved for it (decks, reserves, Darlings, seed, avatar).
+   */
+  private story: StoryDuelRef | null = null;
+  private storySetup: StoryDuelSetup | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -696,8 +714,61 @@ export class DuelScene extends Phaser.Scene {
     }
     // The gate's lease takes over the prefetch made when this opponent was chosen.
     nextDuelArt.handOver(() =>
-      gateOnArt(this, duelArtIds(data, Services.save.data, FEATURES.reserveFormats), () => this.build(data)),
+      gateOnArt(this, this.duelArtFor(data), () => this.build(data)),
     );
+  }
+
+  /**
+   * The art a launch needs. A story duel's decks come from the run, not the
+   * saved deck `duelArtIds` reads, so it is described to it as overrides.
+   */
+  private duelArtFor(data: DuelSceneData): string[] {
+    const save = Services.save.data;
+    const resolved = data.story && !data.replay ? storyDuelSetupFor(save.story, CARD_DB, data.story) : null;
+    if (!resolved?.ok) return duelArtIds(data, save, FEATURES.reserveFormats);
+    const { config, avatarId } = resolved.setup;
+    const ids = duelArtIds({
+      deckOverride: config.decks[0] as string[],
+      oppDeckOverride: config.decks[1] as string[],
+      opponentId: avatarId,
+      landReserveOverride: config.landReserves as [string[], string[]],
+    }, save, FEATURES.reserveFormats);
+    for (const darling of config.darlings ?? []) if (darling) ids.push(darling);
+    return ids;
+  }
+
+  /**
+   * Resolve a story launch through meta before anything is built. Refused (the
+   * run moved on, or the flag is off): a notice, and back to the Story screen.
+   */
+  private resolveStoryLaunch(data: DuelSceneData): boolean {
+    this.story = null;
+    this.storySetup = null;
+    if (!data.story || data.replay) return true;
+    const resolved = FEATURES.storyLive
+      ? storyDuelSetupFor(Services.save.data.story, CARD_DB, data.story)
+      : null;
+    if (!resolved?.ok) {
+      if (resolved) queueToast(storyDuelUnavailableNotice(resolved.reason));
+      this.scene.start(FEATURES.storyLive ? 'Story' : 'MainMenu');
+      return false;
+    }
+    this.story = { runId: data.story.runId, nodeId: data.story.nodeId };
+    this.storySetup = resolved.setup;
+    return true;
+  }
+
+  /** The replay's story labels, the same fields the headless runner records. */
+  private storyReplayLabels(setup: StoryDuelSetup): StoryReplayContext {
+    const run = Services.save.data.story.activeRun!;
+    return {
+      runId: run.runId,
+      characterId: run.characterId,
+      act: run.act,
+      nodeId: setup.nodeId,
+      nodeKind: setup.nodeKind as StoryReplayContext['nodeKind'],
+      endlessLoop: run.endlessLoop,
+    };
   }
 
   private build(data: DuelSceneData): void {
@@ -721,6 +792,10 @@ export class DuelScene extends Phaser.Scene {
     // override the brain tier while keeping the real deck and temperament.
     this.replayLog = data.replay ?? null;
     this.replayMode = this.replayLog !== null;
+    if (!this.resolveStoryLaunch(data)) return;
+    const story = this.storySetup;
+    // storyDuelSetup builds plain card-id lists (GameConfig types them wider).
+    const storyDecks = story ? [story.config.decks[0] as string[], story.config.decks[1] as string[]] : null;
     this.showcase = import.meta.env.DEV && this.replayMode && data.showcase ? data.showcase : null;
     this.replayCursor = 0;
     this.replayPlaying = false;
@@ -732,21 +807,26 @@ export class DuelScene extends Phaser.Scene {
     this.replayOutcome = null;
     this.replayOutcomeShell = null;
     this.replayGuard = new ModalGuard();
+    // A story duel faces its node's avatar at the avatar's own difficulty and
+    // personality, like a Tower opponent, and is never a rung, Limited match or
+    // tutorial.
     this.opponent = data.replay?.context.opponentId
       ? this.avatarForReplay(data.replay.context.opponentId)
-      : data.opponentId
-        ? avatarById(data.opponentId)
-        : null;
-    this.gauntletRung = data.replay?.context.gauntletRung ?? data.gauntletRung ?? null;
+      : story
+        ? avatarById(story.avatarId)
+        : data.opponentId
+          ? avatarById(data.opponentId)
+          : null;
+    this.gauntletRung = story ? null : data.replay?.context.gauntletRung ?? data.gauntletRung ?? null;
     this.gauntletRosterOrder = null;
     this.difficulty = resolveDuelDifficulty(
       data.replay?.context.difficulty,
-      data.difficulty,
+      story ? undefined : data.difficulty,
       this.opponent?.difficulty,
       this.gauntletRung,
     );
-    this.tutorial = data.tutorial ?? false;
-    this.limited = data.limited ?? null;
+    this.tutorial = story ? false : data.tutorial ?? false;
+    this.limited = story ? null : data.limited ?? null;
     this.limitedPersona = !this.replayMode && this.limited?.opponentPersonaId
       ? draftPersonaById(this.limited.opponentPersonaId)
       : null;
@@ -843,6 +923,9 @@ export class DuelScene extends Phaser.Scene {
       ? null
       : new Toast(this, {
           modalGuard: this.guard,
+          // A notice's scene action ("open the Tower") would leave a live duel
+          // with no result recorded, so the same deal could be dealt again.
+          allowActions: () => this.ended,
           isBlocked: () =>
             this.overlay !== null ||
             this.inspect !== null ||
@@ -898,13 +981,20 @@ export class DuelScene extends Phaser.Scene {
     // Tower (gauntlet) duels derive their seed from the run's fixed seed, so the
     // whole run is one reproducible playthrough (src/meta/gauntletSeed.ts);
     // practice duels stay freshly random each time.
+    // A story duel plays its node's seed (storyDuelSetup), the seed the
+    // headless runner plays.
     const seed =
       data.replay?.seed ??
+      story?.config.seed ??
       data.seedOverride ??
       (this.gauntletRung != null && save.gauntlet.run
         ? rungSeed(save.gauntlet.run.seed, this.gauntletRung)
         : Math.floor(Math.random() * 2 ** 31));
-    const myDeckEntry = activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
+    // A story duel plays the run deck, never a saved deck, so no saved-deck
+    // style, format, hero or legality gate applies to it.
+    const myDeckEntry = story
+      ? null
+      : activeVisibleSavedDeck(save.decks, save.activeDeckId, this.reserveFormatsEnabled);
     // Style follows the deck you brought (v33), falling back to the account
     // pick for decks that never chose. A replay or an overridden deck is not
     // "your deck", so those use the account values.
@@ -914,7 +1004,9 @@ export class DuelScene extends Phaser.Scene {
     this.humanLandStyle = !this.replayMode && data.deckOverride === undefined && myDeckEntry?.landStyle
       ? { ...myDeckEntry.landStyle }
       : null;
-    const myDeck = data.replay?.decks[0].slice() ?? data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
+    const myDeck = data.replay?.decks[0].slice() ??
+      storyDecks?.[0].slice() ??
+      data.deckOverride ?? myDeckEntry?.cards ?? STARTER_DECKS[0].cards;
     this.myDeckColorStyle = deckColorStyle(myDeck, CARD_DB);
     // Gauntlet and Practice: the avatar pilots its themed deck. Tutorial: a
     // fixed deck. Since classic retired (1.6) the Tower is a reserve field
@@ -935,15 +1027,18 @@ export class DuelScene extends Phaser.Scene {
     // names its own format and brings its own two Warchests.
     const tutorialReserveFormat: ReserveFormat | undefined =
       this.tutorial && !this.replayMode && data.landReserveOverride ? 'warchest' : undefined;
+    // Story duels are Darlings duels: both seats' Darlings and Warchests come
+    // from the setup.
+    const storyReserveFormat: ReserveFormat | undefined = story && !this.replayMode ? 'darlings' : undefined;
     const reserveFormat: ReserveFormat | undefined =
-      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat ?? tutorialReserveFormat;
+      data.replay?.format ?? savedReserveFormat ?? limitedReserveFormat ?? tutorialReserveFormat ?? storyReserveFormat;
     // Stage 3 of the 1.6 migration, extended to the Tower by classic
     // retirement: a reserve-format duel fields the selected avatar's own
     // designed deck (Warchest) or Darlings variant. The old player-deck
     // mirror survives only when no avatar is selected (dev overrides);
     // replays keep their recorded seats.
     const aiReserveSide =
-      reserveFormat && !this.replayMode && !data.oppDeckOverride
+      reserveFormat && !this.replayMode && !data.oppDeckOverride && !story
         ? avatarReserveSide(
             this.opponent ?? null,
             reserveFormat,
@@ -954,13 +1049,17 @@ export class DuelScene extends Phaser.Scene {
         : null;
     const aiDeck =
       data.replay?.decks[1].slice() ??
+      storyDecks?.[1].slice() ??
       data.oppDeckOverride ??
       (aiReserveSide
         ? aiReserveSide.deck
         : this.opponent
         ? this.opponent.deck
         : (STARTER_DECKS.find((d) => d.id !== save.activeDeckId)?.cards ?? STARTER_DECKS[1].cards));
-    const landReserves: [string[], string[]] | undefined = reserveFormat
+    const storyReserves = story?.config.landReserves as [string[], string[]] | undefined;
+    const landReserves: [string[], string[]] | undefined = storyReserveFormat && storyReserves
+      ? [[...storyReserves[0]], [...storyReserves[1]]]
+      : reserveFormat
       ? [
           this.replayMode
             ? this.replayReserveAt(data.replay?.landReserves, 0)
@@ -980,7 +1079,9 @@ export class DuelScene extends Phaser.Scene {
                 : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
-    const darlings: [string | null, string | null] | undefined = reserveFormat === 'darlings'
+    const darlings: [string | null, string | null] | undefined = storyReserveFormat && story?.config.darlings
+      ? [story.config.darlings[0], story.config.darlings[1]]
+      : reserveFormat === 'darlings'
       ? this.replayMode
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
         : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
@@ -989,12 +1090,17 @@ export class DuelScene extends Phaser.Scene {
     // saved-deck legality gate does not apply to them; both reserve payloads
     // are still validated.
     const launchIssue = reserveFormat
-      ? (this.replayMode || limitedReserveFormat || tutorialReserveFormat
+      ? (this.replayMode || limitedReserveFormat || tutorialReserveFormat || storyReserveFormat
           ? null
           : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
       : null;
     if (launchIssue) {
+      if (story) {
+        queueToast(storyDuelUnavailableNotice(launchIssue));
+        this.scene.start('Story');
+        return;
+      }
       this.scene.start('Play', { launchNotice: `Duel unavailable: ${launchIssue}` });
       return;
     }
@@ -1029,7 +1135,9 @@ export class DuelScene extends Phaser.Scene {
       ? 'Replay Deck'
       : this.limited
         ? 'Draft Deck'
-        : myDeckEntry?.name ?? STARTER_DECKS[0].name;
+        : story
+          ? 'Run Deck'
+          : myDeckEntry?.name ?? STARTER_DECKS[0].name;
     // A deck-builder star is this specific deck's hero image. Limited/tutorial
     // deck overrides ignore saved-deck art; otherwise fall back to the old
     // premium/default hero behavior, then the active deck's derived face.
@@ -1037,8 +1145,11 @@ export class DuelScene extends Phaser.Scene {
       !data.deckOverride && myDeckEntry?.format === 'darlings'
         ? darlingFaceCardFor({ ...myDeckEntry, cards: myDeck }, CARD_DB)
         : null;
+    // A story duel's face is the character's Darling.
+    const storyHero = story?.config.darlings?.[0] ?? null;
     const deckHero =
       darlingHero ??
+      (storyHero && CARD_DB[storyHero] ? storyHero : null) ??
       (!data.deckOverride && myDeckEntry?.heroCardId && CARD_DB[myDeckEntry.heroCardId] && myDeck.includes(myDeckEntry.heroCardId)
         ? myDeckEntry.heroCardId
         : null);
@@ -1053,10 +1164,12 @@ export class DuelScene extends Phaser.Scene {
     // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
     // Darlings keep 7. Replays always defer to their recorded value, so
     // pre-flip logs (absent field) reconstruct their original 7-card deals.
-    const startingHandSize = resolveDuelStartingHandSize(
-      reserveFormat,
-      this.replayMode ? data.replay ?? null : null,
-    );
+    const startingHandSize = story && !this.replayMode
+      ? story.config.startingHandSize
+      : resolveDuelStartingHandSize(
+          reserveFormat,
+          this.replayMode ? data.replay ?? null : null,
+        );
     this.duel = new Game({
       decks: [myDeck, aiDeck],
       seed,
@@ -1095,15 +1208,28 @@ export class DuelScene extends Phaser.Scene {
           deckStyle: this.myDeckColorStyle,
         });
         Services.save.flush();
+      } else if (this.story) {
+        markDuelOpen(save, {
+          mode: 'story',
+          runId: this.story.runId,
+          nodeId: this.story.nodeId,
+          difficulty: this.difficulty,
+        });
+        Services.save.flush();
       }
     }
-    this.signalDeck = {
+    // A story run deck is neither a saved deck nor a draft, and the digest has
+    // no story format, so story duels send no duel digest (yet).
+    this.signalDeck = story ? null : {
       cards: myDeck.slice(),
       landReserve: landReserves?.[0] ?? null,
       darlingId: darlings?.[0] ?? null,
       savedFormat: myDeckEntry?.format ?? null,
     };
-    const aiSeed = seed ^ 0x5eed;
+    // A story duel seeds its brain with the duel seed itself, exactly as the
+    // headless runner does (headlessRun.ts playStoryDuel), so the same seed and
+    // choices play the same duel in both. Other modes keep their salted seed.
+    const aiSeed = story ? seed : seed ^ 0x5eed;
     const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
     this.ai = data.aiOverride ?? (this.gauntletRung !== null
       ? buildTierAI(floorTier(this.gauntletRung), CARD_DB, aiSeed, personality)
@@ -1120,11 +1246,12 @@ export class DuelScene extends Phaser.Scene {
           decks: [myDeck.slice(), aiDeck.slice()],
           ...(startingHandSize === undefined ? {} : { startingHandSize }),
           context: {
-            mode: this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
+            mode: story ? 'story' : this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
             difficulty: this.difficulty,
             opponentId: this.opponent?.id ?? null,
             opponentName: this.opponent?.name ?? this.limitedPersona?.name ?? `Practice AI (${this.difficulty})`,
             gauntletRung: this.gauntletRung,
+            ...(story ? { story: this.storyReplayLabels(story) } : {}),
           },
           ...(reserveFormat === 'darlings' && landReserves && darlings
             ? { format: reserveFormat, landReserves, darlings }
@@ -1715,6 +1842,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.replayMode && this.replayLog) {
       return `${this.showcase ? '' : 'Replay · '}vs ${this.replayLog.context.opponentName}`;
     }
+    if (this.story && this.opponent) return `Story · vs ${this.opponent.name}`;
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
     }
@@ -9254,6 +9382,10 @@ export class DuelScene extends Phaser.Scene {
         save: Services.save.data,
       });
     }
+    if (this.story) {
+      this.showStoryResults(won, reason);
+      return;
+    }
     if (this.opponent && this.gauntletRung !== null) {
       this.showGauntletResults(won, reason);
       return;
@@ -9464,6 +9596,134 @@ export class DuelScene extends Phaser.Scene {
     }
     fitDuelModal(this, shell, { width: 620, height: 340, rows: [{ y: 268 }, { y: 328, wrapWidth: 540 },
       { y: 378, wrapWidth: 560 }, { y: 414, wrapWidth: 540 }, { y: 456 }] });
+    this.guard.open(this.overlayGuardTargets());
+  }
+
+  /**
+   * Story results: record the duel into the run once (applyStoryDuelResult,
+   * which also clears the open-duel mark), then back to the Story screen,
+   * which reads the run to show the card reward, the keep or the ended run.
+   */
+  private showStoryResults(won: boolean, reason: string): void {
+    const save = Services.save.data;
+    const today = todayString();
+    const applied = applyStoryDuelResult(save, this.story!, won, this.difficulty, today);
+    // The daily streak and achievements follow the result, as for Limited; a
+    // refused apply (already recorded) pays and counts nothing again.
+    const streak = applied.ok && won
+      ? recordDailyWin(save, today)
+      : { advanced: false, count: save.daily.streak.count, gold: 0 };
+    const checkpoint = checkpointAchievements(save, CARD_DB);
+    Services.save.flush();
+    if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
+    Music.duck(1.8);
+    Sfx.play(won ? (applied.ok && applied.act1Cleared ? 'win' : 'rungClear') : 'loss');
+
+    const copy = storyResultCopy({
+      won,
+      alreadyRecorded: !applied.ok,
+      act1Cleared: applied.ok && applied.act1Cleared,
+      unlockedNames: applied.ok
+        ? applied.unlocked.map((id) => storyCharacterById(id)?.name ?? id)
+        : [],
+    });
+    const gold = (applied.ok ? applied.gold : 0) + streak.gold;
+    const rewardCopy = gold > 0
+      ? this.rewardLine(gold, applied.ok && applied.firstWinBonus, streak.advanced ? streak.count : 0)
+      : null;
+    const toStory = (): void => {
+      this.scene.start('Story');
+    };
+
+    const shell = modalShell(this, {
+      width: 620,
+      height: 340,
+      dimAlpha: 0.82,
+      dismissal: 'esc-only',
+      depth: theme.depth.results,
+      onClose: () => {
+        this.guard.close();
+        this.zoom.setSuppressed(false);
+        toStory();
+      },
+    });
+    const c = shell.container;
+    const reasonCopy = resultReasonCopy(won, reason);
+    c.add(
+      this.add
+        .text(640, 262, copy.headline, {
+          fontFamily: theme.fonts.display,
+          fontSize: `${theme.type.display}px`,
+          fontStyle: theme.weight.w700,
+          color: won ? theme.colors.goldHover : theme.colors.danger,
+        })
+        .setOrigin(0.5),
+    );
+    c.add(
+      this.add
+        .text(640, 318, `${copy.runLine}${reasonCopy ? `  ${reasonCopy}` : ''}`, {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.type.body}px`,
+          color: theme.colors.muted,
+          align: 'center',
+          wordWrap: { width: 540 },
+          resolution: 2,
+        })
+        .setOrigin(0.5),
+    );
+    const rows: { y: number; wrapWidth?: number }[] = [{ y: 262 }, { y: 318, wrapWidth: 540 }];
+    if (copy.unlockLine) {
+      c.add(
+        this.add
+          .text(640, 360, copy.unlockLine, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.body}px`,
+            fontStyle: theme.weight.w600,
+            color: theme.colors.goldHover,
+            align: 'center',
+            wordWrap: { width: 540 },
+            resolution: 2,
+          })
+          .setOrigin(0.5),
+      );
+      rows.push({ y: 360, wrapWidth: 540 });
+    }
+    if (rewardCopy) {
+      c.add(
+        this.add
+          .text(640, 398, rewardCopy, {
+            fontFamily: theme.fonts.ui,
+            fontSize: `${theme.type.label}px`,
+            color: theme.colors.gold,
+            align: 'center',
+            wordWrap: { width: 540 },
+            resolution: 2,
+          })
+          .setOrigin(0.5),
+      );
+      rows.push({ y: 398, wrapWidth: 540 });
+    }
+
+    const mk = (x: number, label: string, variant: 'primary' | 'ghost', cb: () => void): void => {
+      const btn = themedButton(this, x, 456, label, {
+        variant,
+        minWidth: 170,
+        onTap: (p) => {
+          if (!p.rightButtonReleased()) cb();
+        },
+      });
+      c.add(btn.container);
+    };
+    // A win continues the run; a loss ended it (recordFight), so the Story
+    // screen or the menu.
+    if (won) {
+      mk(640, 'Continue', 'primary', toStory);
+    } else {
+      mk(510, 'Story', 'primary', toStory);
+      mk(770, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
+    }
+    rows.push({ y: 456 });
+    fitDuelModal(this, shell, { width: 620, height: 340, rows });
     this.guard.open(this.overlayGuardTargets());
   }
 

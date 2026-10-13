@@ -20,7 +20,7 @@ const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> =>
 const save = new SaveManager(
   typeof localStorage !== 'undefined' ? localStorage : memoryStorage(),
 );
-// A Tower or Limited duel left unfinished last session counts as a loss now,
+// A Tower, Limited or Story duel left unfinished last session counts as a loss now,
 // before any scene can offer the same deal again.
 const abandonedDuel = settleAbandonedDuel(save.data, todayString());
 if (abandonedDuel) save.flush();

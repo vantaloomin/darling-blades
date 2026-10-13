@@ -12,6 +12,7 @@
  * is a win in 2.0).
  */
 
+import { ECONOMY } from '../../config/rules';
 import { createRngState, rngShuffle } from '../../engine/rng';
 import type { CardDb } from '../../engine/types';
 import type { GameConfig } from '../../engine/Game';
@@ -423,3 +424,86 @@ export function storyDuelSetup(story: StoryState, db: CardDb): StoryResult<{ set
     },
   };
 }
+
+/** The launch context a story duel carries: which run, which node (DuelScene's `data.story`). */
+export interface StoryDuelRef {
+  runId: string;
+  nodeId: string;
+}
+
+/** Whether `ref` names the active run's current duel node and that duel is not yet recorded. */
+export function isOpenStoryDuel(story: StoryState, ref: StoryDuelRef): boolean {
+  const run = story.activeRun;
+  if (!run || run.runId !== ref.runId || run.nodeId !== ref.nodeId || run.nodeResolved) return false;
+  const node = currentStoryNode(run);
+  return node !== null && isDuelNode(node);
+}
+
+/**
+ * `storyDuelSetup` for a launch context: refused unless `ref` is the active
+ * run's current, unrecorded duel, so a stale launch (another run, a node the
+ * run has left) never builds a game.
+ */
+export function storyDuelSetupFor(
+  story: StoryState,
+  db: CardDb,
+  ref: StoryDuelRef,
+): StoryResult<{ setup: StoryDuelSetup }> {
+  if (!isOpenStoryDuel(story, ref)) return refuse('That duel is no longer waiting.');
+  return storyDuelSetup(story, db);
+}
+
+/** Match difficulty, as the save's stats key it (Economy's `Difficulty`). */
+type StatsDifficulty = keyof SaveData['stats']['byDifficulty'];
+
+export interface StoryDuelOutcome extends FightRecord {
+  /** Save gold paid: only the first-win-of-day bonus, as Limited pays it. */
+  gold: number;
+  firstWinBonus: boolean;
+}
+
+/**
+ * Apply a finished story duel to the save, once: `recordFight` on the run, the
+ * match into the account stats (wins, losses, per difficulty, first win of the
+ * day) the way a Limited match counts, and the open-duel mark cleared. Refused,
+ * changing nothing, unless `ref` is the active run's current unrecorded duel,
+ * so a second apply (a retry, a reload, a crash recovery) never records twice.
+ * The daily streak and achievements stay with the caller, as for Limited.
+ */
+export function applyStoryDuelResult(
+  save: SaveData,
+  ref: StoryDuelRef,
+  won: boolean,
+  difficulty: StatsDifficulty,
+  today: string,
+): StoryResult<StoryDuelOutcome> {
+  if (!isOpenStoryDuel(save.story, ref)) return refuse('That duel is no longer waiting.');
+  const recorded = recordFight(save.story, won ? 'win' : 'loss');
+  if (!recorded.ok) return recorded;
+  if (save.openDuel?.mode === 'story') delete save.openDuel;
+  let gold = 0;
+  let firstWinBonus = false;
+  if (won) {
+    save.stats.wins++;
+    save.stats.byDifficulty[difficulty].w++;
+    if (save.stats.lastWinDay !== today) {
+      save.stats.lastWinDay = today;
+      gold = ECONOMY.firstWinOfDayBonus;
+      firstWinBonus = true;
+    }
+  } else {
+    save.stats.losses++;
+    save.stats.byDifficulty[difficulty].l++;
+  }
+  save.gold += gold;
+  return {
+    ok: true,
+    countedNow: recorded.countedNow,
+    unlocked: recorded.unlocked,
+    runEnded: recorded.runEnded,
+    act1Cleared: recorded.act1Cleared,
+    gold,
+    firstWinBonus,
+  };
+}
+

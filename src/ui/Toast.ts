@@ -18,6 +18,12 @@ export interface ToastOptions {
   isBlocked?: () => boolean;
   /** Holds notices until the owner releases a safe presentation boundary. */
   held?: boolean;
+  /**
+   * Whether a notice's action may leave the scene right now. A duel in
+   * progress answers false: leaving would skip its result and let the same
+   * deal be replayed, so the tap only dismisses the notice.
+   */
+  allowActions?: () => boolean;
 }
 
 interface ToastCard {
@@ -203,7 +209,9 @@ export class Toast {
     bindTapButton(this.scene, input, (pointer) => {
       if (pointer.rightButtonReleased()) return;
       this.dismiss(card, true);
-      if (notice.action) this.scene.scene.start(notice.action.scene, notice.action.data);
+      if (notice.action && (this.opts.allowActions?.() ?? true)) {
+        this.scene.scene.start(notice.action.scene, notice.action.data);
+      }
     });
     container.add([plaque, shine, title, body, ...(detail ? [detail] : []), input]);
     this.visible.push(card);

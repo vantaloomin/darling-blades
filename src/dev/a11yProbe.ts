@@ -68,6 +68,8 @@ import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSu
 import { activeSceneZoom } from '../platform/renderScale';
 import { screenFixtureNamed } from '../platform/screenFixtures';
 import { COMPACT } from '../ui/compactLayout';
+import { chooseBoon, enterNode, legalNextNodes, recordFight, startRun, storyBoonOffers, takeCardReward } from '../meta/story/StoryProgress';
+import { freshStoryState, type StoryState } from '../meta/story/storyState';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -357,6 +359,29 @@ export { WAVE_3B_SCENES } from './wave3PackGlossaryFixtures';
 export { WAVE_3C_SCENES } from './wave3DialogFixtures';
 
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
+/**
+ * Story Mode's run screens (2.0 wave 2), on in-memory story records handed to
+ * the scene as `a11yFixture` (never the save): character select with two
+ * heroines locked and one partly earned, the opening boon, a card reward and
+ * the map mid-run with the main action ready.
+ */
+function storyProbeFixture(stage: 'select' | 'boon' | 'reward' | 'map'): StoryState {
+  const story = freshStoryState();
+  story.countedRuns['guan-yu'] = 2;
+  if (stage === 'select') return story;
+  startRun(story, 'guan-yu', 77, 0);
+  if (stage === 'boon') return story;
+  chooseBoon(story, CARD_DB, storyBoonOffers(77).find((id) => id !== 'trim-two')!);
+  enterNode(story, legalNextNodes(story)[0].id);
+  recordFight(story, 'win');
+  if (stage === 'reward') return story;
+  while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+  return story;
+}
+export const STORY_SCENES: readonly ProbeScene[] = (['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
+  label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
+}));
+
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
 
 export function cellName(cell: ProbeCell): string {
@@ -940,6 +965,7 @@ export const PROBE_RESTARTABLE: readonly string[] = [
   'PracticePicker',
   'Shop',
   'Achievements',
+  'Story',
 ];
 
 /**
