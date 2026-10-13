@@ -10,13 +10,13 @@ import {
   keepOptions,
   legalNextNodes,
   recordFight,
-  resolveEvent,
   resolveRest,
   resolveShop,
   startRun,
   storyBoonOffers,
   takeCardReward,
 } from '../../src/meta/story/StoryProgress';
+import { resolveStoryEventByRule } from '../../src/meta/story/storyEvents';
 import { finishClearedRun, storyRoster, storyScreen, storyUnlockProgress } from '../../src/meta/story/storyFlow';
 import { isDuelNode, type StoryNode } from '../../src/meta/story/storyMap';
 import { freshStoryState, runMap, type StoryState } from '../../src/meta/story/storyState';
@@ -39,9 +39,9 @@ function withBoon(seed = SEED): StoryState {
   return story;
 }
 
-/** Resolve the current non-duel node the cheapest way. */
+/** Resolve the current non-duel node by a fixed rule (events by resolveStoryEventByRule). */
 function settle(story: StoryState, node: StoryNode): void {
-  if (node.kind === 'event') resolveEvent(story, 'gold');
+  if (node.kind === 'event') resolveStoryEventByRule(story, CARD_DB);
   else if (node.kind === 'shop') resolveShop(story, CARD_DB, []);
   else if (node.kind === 'rest') resolveRest(story, null);
 }

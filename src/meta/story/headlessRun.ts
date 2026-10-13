@@ -8,8 +8,9 @@
  *
  * Choice rules: the first offered boon (trim-two removes the deck's last two
  * cards); the legal next node with the smallest id; the first card of each
- * reward; an event's card; a shop's first affordable card; a rest removes
- * nothing; the keep takes the first keep option.
+ * reward; an event's first available choice, its first offered card and its
+ * fewest removals (storyEvents' resolveStoryEventByRule); a shop's first
+ * affordable card; a rest removes nothing; the keep takes the first keep option.
  */
 
 import { MediumAI } from '../../ai/MediumAI';
@@ -37,7 +38,6 @@ import {
   keepOptions,
   legalNextNodes,
   recordFight,
-  resolveEvent,
   resolveRest,
   resolveShop,
   shopStock,
@@ -46,6 +46,7 @@ import {
   storyDuelSetup,
   takeCardReward,
 } from './StoryProgress';
+import { resolveStoryEventByRule, storyEventFor } from './storyEvents';
 
 export interface HeadlessNodeSummary {
   nodeId: string;
@@ -218,9 +219,10 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
     }
 
     if (node.kind === 'event') {
-      const resolved = resolveEvent(story, 'card');
-      if (!resolved.ok) throw new Error(`resolveEvent: ${resolved.reason}`);
-      summary.choice = `card ${active.deck[active.deck.length - 1]}`;
+      const eventId = storyEventFor(active, node).id;
+      const resolved = resolveStoryEventByRule(story, db);
+      if (!resolved.ok) throw new Error(`resolveStoryEvent: ${resolved.reason}`);
+      summary.choice = `${eventId} choice ${resolved.choiceIndex}`;
     } else if (node.kind === 'shop') {
       const buy = shopStock(active, node, db).find((offer) => offer.price <= active.gold);
       const resolved = resolveShop(story, db, buy ? [buy.cardId] : []);

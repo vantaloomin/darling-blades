@@ -148,6 +148,10 @@ const ENROLLED: readonly Enrolled[] = [
     gap: { file: 'tests/ui/storyPresentation.test.ts', tests: ['fits a row of offered cards and their caption band between the content top and the footer, apart', 'stacks the run panel in reading order with room for its text, every action a 44px target, Abandon a destructive gap from the main action'] },
     inset: { file: 'tests/ui/storyPresentation.test.ts', tests: ['pages the run deck grid with every card and caption inside its area, apart, above the pager'] },
   } },
+  { module: 'src/ui/storyDialogue.ts (Story: the dialogue shell and the event choice panel)', rules: {
+    frame: { file: 'tests/ui/storyDialogue.test.ts', tests: ['holds the longest script line, the name plate, title and controls inside the frame and apart, in every accessibility cell'] },
+    gap: { file: 'tests/ui/storyDialogue.test.ts', tests: ['fits the choices of every event, with a refusal reason under each, inside the frame and apart, in every accessibility cell'] },
+  } },
   { module: 'src/ui/playPresentation.ts (PracticePicker)', rules: {
     frame: { here: 'Practice: portrait, name and action tracks' }, gap: { here: 'Practice: portrait, name and action tracks' },
     inset: { here: 'Practice: portrait, name and action tracks' },

@@ -46,7 +46,6 @@ function refuse(reason: string): { ok: false; reason: string } {
 const SR_BOON_SALT = 0x5400;
 const REWARD_SALT = 0x5500;
 const BOON_REWARD_SALT = 0x5600;
-const EVENT_SALT = 0x5700;
 const SHOP_SALT = 0x5800;
 
 function actOf(run: StoryRun): StoryAct {
@@ -277,24 +276,7 @@ function unresolvedNode(run: StoryRun | null, kind: StoryNode['kind']): StoryNod
   return node && node.kind === kind ? node : null;
 }
 
-/** The card an event node offers. */
-export function eventCard(run: StoryRun, node: StoryNode): string {
-  return seededPick(rungSeed(node.seed, EVENT_SALT), characterOf(run).rewardPool, 1)[0];
-}
-
-/**
- * Wave 1 events are one generic vignette: take run gold or the offered card.
- * Authored events with their own choices arrive with the content wave.
- */
-export function resolveEvent(story: StoryState, choice: 'gold' | 'card'): StoryResult {
-  const run = story.activeRun;
-  const node = unresolvedNode(run, 'event');
-  if (!run || !node) return refuse('The run is not at an event.');
-  if (choice === 'gold') run.gold += actOf(run).economy.eventGold;
-  else run.deck.push(eventCard(run, node));
-  run.nodeResolved = true;
-  return { ok: true };
-}
+// Events resolve in storyEvents.ts (resolveStoryEvent): the Act 1 script's nine events.
 
 export interface ShopOffer {
   cardId: string;
@@ -507,3 +489,8 @@ export function applyStoryDuelResult(
   };
 }
 
+
+/** Record that a story scene has been shown (it can still be replayed; this only remembers it was seen). */
+export function markSceneSeen(story: StoryState, sceneId: string): void {
+  if (!story.seenSceneIds.includes(sceneId)) story.seenSceneIds.push(sceneId);
+}

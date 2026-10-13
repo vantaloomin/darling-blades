@@ -6,7 +6,7 @@ import { CARD_DB } from '../data/catalog';
 import { avatarById } from '../data/opponents';
 import { STORY_BOONS } from '../data/story/act1';
 import { storyCharacterById } from '../data/story/characters';
-import type { StoryBoonId, StoryCharacter } from '../data/story/types';
+import type { StoryBoonId, StoryCharacter, StoryEvent, StoryScene as StoryScriptScene } from '../data/story/types';
 import { def, type CardDef } from '../engine/types';
 import type { SaveData } from '../meta/SaveManager';
 import { Services } from '../meta/services';
@@ -15,16 +15,30 @@ import {
   chooseBoon,
   claimKeep,
   enterNode,
-  eventCard,
   keepOptions,
   legalNextNodes,
-  resolveEvent,
+  markSceneSeen,
   resolveRest,
   resolveShop,
   shopStock,
   startRun,
   takeCardReward,
 } from '../meta/story/StoryProgress';
+import {
+  bossDefeatSceneFor,
+  bossIntroSceneFor,
+  eliteIntroSceneFor,
+  endingSceneFor,
+  eventChoiceNeeds,
+  eventOutcomeLines,
+  openingSceneFor,
+  moveOnFromStoryEvent,
+  resolveStoryEvent,
+  storyEventFor,
+  storySceneById,
+  type EventChoiceNeeds,
+  type EventOutcome,
+} from '../meta/story/storyEvents';
 import { finishClearedRun, storyRoster, storyScreen, type StoryScreen } from '../meta/story/storyFlow';
 import { isDuelNode, storyMapNodes, type StoryNode } from '../meta/story/storyMap';
 import { runMap, storyActByNumber, type StoryRun, type StoryState } from '../meta/story/storyState';
@@ -42,8 +56,6 @@ import {
   cardCount,
   colourWords,
   deckEntries,
-  EVENT_LINE,
-  eventGoldLabel,
   NODE_KIND_LABEL,
   nodeActionLabel,
   nodeSummary,
@@ -67,7 +79,28 @@ import {
   storySelectLayout,
   type StoryCardGridLayout,
 } from '../ui/storyLayout';
+import {
+  eventResultPortrait,
+  eventSpeaker,
+  heroineSpeakerId,
+  nextEventStep,
+  removeConfirmLabel,
+  removeStepCopy,
+  MOVE_ON_LABEL,
+  storyEventArtIds,
+  storySceneArtIds,
+  type EventChoiceProgress,
+} from '../ui/storyDialogue';
 import { colorInt, theme } from '../ui/theme';
+import {
+  DEPTH,
+  drawChoicePanel,
+  loadStoryArt,
+  releaseStoryArt,
+  storyArtWaitLabel,
+  StoryDialoguePlayer,
+  StoryStage,
+} from './StoryDialogue';
 import { bakeUiIcon } from '../ui/uiIcons';
 import {
   backButton,
@@ -80,11 +113,32 @@ import {
 } from '../ui/themeWidgets';
 
 export interface StorySceneData {
-  /** Dev only: an in-memory story record shown instead of the save's, never persisted (probe and screenshots). */
-  a11yFixture?: { story: StoryState };
+  /**
+   * Dev only: an in-memory story record shown instead of the save's, never
+   * persisted (probe and screenshots). `at` opens a scene on that line (an
+   * event at or past its last line opens on the choices); `backlog` opens the
+   * backlog at once. Neither survives the next screen.
+   */
+  a11yFixture?: { story: StoryState; at?: number; backlog?: boolean };
   /** The card the keep just granted, named on the cleared summary (this visit only). */
   keptCardId?: string;
+  /** A script scene to play first (this visit only, never saved), then the run's screen or its open duel. */
+  storyScene?: { id: string; then: 'screen' | 'duel' };
 }
+
+/** A scene about to play, and what follows it. */
+interface PendingScene {
+  scene: StoryScriptScene;
+  then: 'screen' | 'duel';
+}
+
+/**
+ * Scenes finished or skipped this page session, by run (`<runId>:<sceneId>`):
+ * the opening and the boss defeat play once per visit to their screen, and a
+ * reload before the run moves on may play them again. Never saved.
+ */
+const playedThisSession = new Set<string>();
+const playedKey = (run: StoryRun, sceneId: string): string => `${run.runId}:${sceneId}`;
 
 /** How long an armed Abandon waits for its second press, as Limited's Retire does. */
 const ABANDON_ARM_MS = 4000;
@@ -112,6 +166,16 @@ export class StoryScene extends Phaser.Scene {
   private zoom!: CardZoomPreview;
   private guard = new ModalGuard();
   private selectedCharacterId: string | null = null;
+  /** Set by a restart onto the next Story screen, which keeps the story art it still needs. */
+  private restarting = false;
+  private fixtureAt: number | null = null;
+  private fixtureBacklog = false;
+  private back: Phaser.GameObjects.Text | null = null;
+  /** The Story backdrop's objects, put away once a scene's own still is up. */
+  private backdrop: Phaser.GameObjects.GameObject[] = [];
+  /** Root objects drawn before an event's first step; a step clears everything after them. */
+  private stepMark: Set<Phaser.GameObjects.GameObject> | null = null;
+  private player: StoryDialoguePlayer | null = null;
 
   constructor() {
     super('Story');
@@ -133,11 +197,52 @@ export class StoryScene extends Phaser.Scene {
     const fixture = IS_DEV ? data.a11yFixture ?? null : null;
     this.fixtureSave = fixture ? { ...structuredClone(Services.save.data), story: structuredClone(fixture.story) } : null;
     this.keptCardId = data.keptCardId ?? null;
+    this.fixtureAt = fixture?.at ?? null;
+    this.fixtureBacklog = fixture?.backlog ?? false;
     // Phaser keeps a start's data for the next start that passes none.
     this.sys.settings.data = {};
     this.guard = new ModalGuard();
+    this.player = null;
+    this.stepMark = null;
+    this.restarting = false;
+    // Story art lives only while Story runs: a restart onto another Story
+    // screen keeps what that screen still draws, anything else frees it all.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (!this.restarting) releaseStoryArt(this.textures);
+    });
     const screen = storyScreen(this.story);
+    const pending = this.pendingScene(screen, data.storyScene ?? null);
+    releaseStoryArt(this.textures, pending ? storySceneArtIds(pending.scene) : this.eventArt(screen));
+    if (pending) {
+      this.buildScenePlay(screen, pending);
+      return;
+    }
     gateOnArt(this, this.artFor(screen), () => this.build(screen));
+  }
+
+  /** The scene this visit plays before its screen: one asked for, the run's opening, or the boss's defeat. */
+  private pendingScene(screen: StoryScreen, requested: StorySceneData['storyScene'] | null): PendingScene | null {
+    if (requested) {
+      const scene = storySceneById(requested.id);
+      return scene ? { scene, then: requested.then } : null;
+    }
+    if (screen.kind === 'map' && screen.run.nodeId === null) {
+      const scene = openingSceneFor(screen.run.characterId);
+      if (scene && !playedThisSession.has(playedKey(screen.run, scene.id))) return { scene, then: 'screen' };
+    }
+    if (screen.kind === 'keep') {
+      const scene = bossDefeatSceneFor(screen.run.characterId);
+      if (scene && !playedThisSession.has(playedKey(screen.run, scene.id))) return { scene, then: 'screen' };
+    }
+    return null;
+  }
+
+  /** The story art an event screen draws (none for any other screen). */
+  private eventArt(screen: StoryScreen): string[] {
+    if (screen.kind !== 'event') return [];
+    const event = storyEventFor(screen.run, screen.node);
+    const scene = storySceneById(event.id);
+    return scene ? storyEventArtIds(event, scene) : [];
   }
 
   /** The card art a screen draws (portraits, thumbs and the run deck for the deck view). */
@@ -152,13 +257,21 @@ export class StoryScene extends Phaser.Scene {
     if (character) ids.add(character.darlingId);
     for (const id of run.deck) ids.add(id);
     if (screen.kind === 'reward') for (const id of screen.options) ids.add(id);
-    if (screen.kind === 'event') ids.add(eventCard(run, screen.node));
+    if (screen.kind === 'event') {
+      const event = storyEventFor(run, screen.node);
+      event.choices.forEach((_, i) => {
+        const needs = eventChoiceNeeds(run, screen.node, event, i, CARD_DB);
+        if (needs.available) for (const id of needs.pickOptions ?? []) ids.add(id);
+      });
+    }
     if (screen.kind === 'shop') for (const offer of shopStock(run, screen.node, CARD_DB)) ids.add(offer.cardId);
     if (this.keptCardId) ids.add(this.keptCardId);
     return [...ids];
   }
 
-  private build(screen: StoryScreen): void {
+  /** The Story backdrop, input sounds, music, zoom and the way back; the title on run screens, not over a scene. */
+  private chrome(title: boolean): void {
+    const before = new Set(this.children.list);
     applyBackdrop(this, 'gauntlet', {
       dim: theme.graphics.dim,
       dimAlpha: 0.55,
@@ -168,6 +281,7 @@ export class StoryScene extends Phaser.Scene {
           .fillRect(0, 0, theme.design.width, theme.design.height);
       },
     });
+    this.backdrop = this.children.list.filter((obj) => !before.has(obj));
     this.input.on('gameobjectover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) Sfx.play('hover');
     });
@@ -176,17 +290,34 @@ export class StoryScene extends Phaser.Scene {
     this.zoom = new CardZoomPreview(this, { scale: 1.12, depth: theme.depth.inspect + 5, delayMs: 250 });
     setStickyHost(this, this.zoom);
 
-    sceneTitle(this, 'Story');
-    backButton(this, 'Play', () => this.leave());
+    if (title) sceneTitle(this, 'Story');
+    this.back = backButton(this, 'Play', () => this.leave()).setDepth(DEPTH.chrome);
+    // Over a scene's still (no Story title) the back label gets a plate, as the scene title does, to read on a bright sky.
+    if (!title) {
+      const b = this.back.getBounds();
+      const padX = theme.space(3);
+      const h = theme.control.minHitHeight;
+      this.add.graphics().setDepth(DEPTH.chrome - 1)
+        .fillStyle(theme.graphics.panelFill, theme.alpha.panel)
+        .fillRoundedRect(b.x - padX, b.centerY - h / 2, b.width + 2 * padX, h, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+        .strokeRoundedRect(b.x - padX, b.centerY - h / 2, b.width + 2 * padX, h, theme.radius.panel);
+    }
     registerSceneBackNavigation(this, () => this.leave());
+  }
 
+  private build(screen: StoryScreen): void {
+    if (screen.kind === 'event') {
+      this.chrome(false);
+      return this.buildEvent(screen.run, screen.node);
+    }
+    this.chrome(true);
     switch (screen.kind) {
       case 'select': return this.buildSelect();
       case 'boon': return this.buildBoon(screen.run, screen.offers);
       case 'reward': return this.buildReward(screen.run, screen.options, screen.waiting);
       case 'keep': return this.buildKeep(screen.run);
       case 'cleared': return this.buildCleared(screen.run);
-      case 'event': return this.buildEvent(screen.run, screen.node);
       case 'shop': return this.buildShop(screen.run, screen.node);
       case 'rest': return this.buildRest(screen.run, screen.node);
       case 'duel':
@@ -203,7 +334,75 @@ export class StoryScene extends Phaser.Scene {
   /** Save the run (never a fixture) and show the screen it is now at. */
   private commit(data: Omit<StorySceneData, 'a11yFixture'> = {}): void {
     if (!this.fixtureSave) Services.save.flush();
+    this.restarting = true;
     this.scene.restart(this.fixtureSave ? { ...data, a11yFixture: { story: this.story } } : data);
+  }
+
+  /** Start the run's open duel (a fixture shows the screen instead: probes never start duels). */
+  private launchDuel(run: StoryRun, node: StoryNode): void {
+    if (this.fixtureSave) return this.commit();
+    // Saved at the node boundary first, so the run resumes here if the duel never starts.
+    Services.save.flush();
+    this.scene.start('Duel', { story: { runId: run.runId, nodeId: node.id } });
+  }
+
+  /** The back button's hit band, which a scene title centres clear of. */
+  private backHit(): { x: number; y: number; width: number; height: number } {
+    const b = this.back?.getBounds();
+    const w = Math.max(b?.width ?? 0, theme.control.minHitWidth);
+    return { x: theme.design.safeLeft, y: theme.design.safeTop, width: w, height: theme.control.minHitHeight };
+  }
+
+  /** The run's heroine as a script speaker (she stands on the left). */
+  private heroine(run: StoryRun): string | null {
+    return heroineSpeakerId(storyCharacterById(run.characterId));
+  }
+
+  /** Put the Story backdrop away under a scene's own still. */
+  private hideBackdrop(): void {
+    for (const obj of this.backdrop) obj.destroy();
+    this.backdrop = [];
+  }
+
+  /** Mark a scene seen and save it (never a fixture). */
+  private sceneSeen(sceneId: string): void {
+    markSceneSeen(this.story, sceneId);
+    if (!this.fixtureSave) Services.save.flush();
+  }
+
+  // ------------------------------------------------------------------ script scenes
+
+  /**
+   * Play a script scene over its still, then go on: to the run's screen (a
+   * restart, which no longer plays it this session) or into the open duel.
+   */
+  private buildScenePlay(screen: StoryScreen, pending: PendingScene): void {
+    this.chrome(false);
+    const run = screen.kind === 'select' ? null : screen.run;
+    const stage = new StoryStage(this);
+    const wait = storyArtWaitLabel(this);
+    loadStoryArt(this, storySceneArtIds(pending.scene), () => {
+      wait.destroy();
+      if (stage.setBackground(pending.scene.backgroundId)) this.hideBackdrop();
+      const done = (): void => {
+        this.sceneSeen(pending.scene.id);
+        if (run) playedThisSession.add(playedKey(run, pending.scene.id));
+        if (pending.then === 'duel' && screen.kind === 'duel') return this.launchDuel(screen.run, screen.node);
+        this.commit(this.keptCardId ? { keptCardId: this.keptCardId } : {});
+      };
+      if (pending.scene.lines.length === 0) return done();
+      this.player = new StoryDialoguePlayer(this, stage, {
+        lines: pending.scene.lines,
+        heroineId: run ? this.heroine(run) : null,
+        title: pending.scene.title,
+        backHit: this.backHit(),
+        startAt: this.fixtureAt ?? 0,
+        extras: true,
+        finalLabel: pending.then === 'duel' ? 'Fight' : 'Continue',
+        openBacklog: this.fixtureBacklog,
+        onDone: done,
+      });
+    });
   }
 
   /** A refused meta call is shown, never worked around. */
@@ -529,7 +728,8 @@ export class StoryScene extends Phaser.Scene {
       if (!id) return;
       const result = claimKeep(this.save, CARD_DB, id);
       if (!result.ok) return this.refused(result.reason);
-      this.commit({ keptCardId: id });
+      const ending = endingSceneFor(run.characterId);
+      this.commit({ keptCardId: id, ...(ending ? { storyScene: { id: ending.id, then: 'screen' as const } } : {}) });
     }, false);
     const area = { x: theme.design.safeLeft, y: top, width: theme.design.safeWidth, height: storyContentBottom() - top };
     this.cardGrid(area, keepOptions(run).map((id) => ({ id, count: 1 })), pick, () => {
@@ -574,48 +774,144 @@ export class StoryScene extends Phaser.Scene {
 
   // ------------------------------------------------------------------ event, shop, rest
 
+  /**
+   * An event: its scene's lines, then the two choices over the same still
+   * with the event's speaker beside them; a card pick or a removal when the
+   * choice asks for one; then what it did, with the reacting speaker's second
+   * expression where the script gives one, and Continue back to the map.
+   */
   private buildEvent(run: StoryRun, node: StoryNode): void {
-    const act = storyActByNumber(run.act)!;
-    const top = this.subtitle(`${EVENT_LINE} Take the gold or the card.`);
-    const cardId = eventCard(run, node);
-    const band = storyCaptionBand(1);
-    const scale = storyCardRowScale(2, rowTop(top), band, 0.6);
-    const size = cardSize(scale);
-    const rects = storyChoiceRow(2, size.width, size.height + band, rowTop(top));
-    let choice: 'gold' | 'card' | null = null;
-    const frame = this.selectionFrame();
-    const take = this.button('Choose One', 'primary', () => {
-      if (!choice) return;
-      const result = resolveEvent(this.story, choice);
-      if (!result.ok) return this.refused(result.reason);
-      this.commit();
+    const event = storyEventFor(run, node);
+    const scene = storySceneById(event.id) ?? null;
+    const stage = new StoryStage(this);
+    const wait = storyArtWaitLabel(this);
+    loadStoryArt(this, scene ? storyEventArtIds(event, scene) : [], () => {
+      wait.destroy();
+      if (scene && stage.setBackground(scene.backgroundId)) this.hideBackdrop();
+      this.stepMark = new Set(this.children.list);
+      const ctx: EventCtx = { run, node, event, scene, stage, heroine: this.heroine(run) };
+      const at = this.fixtureAt ?? 0;
+      if (!scene || scene.lines.length === 0 || at >= scene.lines.length) return this.eventChoices(ctx);
+      this.player = new StoryDialoguePlayer(this, stage, {
+        lines: scene.lines,
+        heroineId: ctx.heroine,
+        title: scene.title,
+        backHit: this.backHit(),
+        startAt: at,
+        extras: true,
+        openBacklog: this.fixtureBacklog,
+        onDone: () => {
+          this.sceneSeen(scene.id);
+          this.eventChoices(ctx);
+        },
+      });
+    });
+  }
+
+  /** Clear the event's current step (everything drawn after its still). */
+  private clearStep(): void {
+    // A card zoom open over the step goes with it, not left holding a destroyed card.
+    this.zoom.cancel();
+    this.player?.destroy();
+    this.player = null;
+    this.subtitleLine = null;
+    const mark = this.stepMark;
+    if (!mark) return;
+    for (const obj of [...this.children.list]) {
+      const depth = (obj as unknown as { depth?: number }).depth ?? 0;
+      if (!mark.has(obj) && depth >= 0) obj.destroy();
+    }
+  }
+
+  private eventChoices(ctx: EventCtx, refusal: string | null = null): void {
+    this.clearStep();
+    ctx.stage.setShade(0);
+    const { run, node, event } = ctx;
+    const needs = event.choices.map((_, i) => eventChoiceNeeds(run, node, event, i, CARD_DB));
+    const stuck = needs.every((n) => !n.available);
+    const panel = drawChoicePanel(this, ctx.stage, ctx.scene ? eventSpeaker(ctx.scene, ctx.heroine) : null,
+      `Run gold ${run.gold} · Run deck ${cardCount(run.deck.length)}`,
+      [
+        ...event.choices.map((choice, i) => {
+          const n = needs[i];
+          return { label: choice.label, reason: n.available ? null : n.reason };
+        }),
+        // Neither choice can be taken: offer a way on so the run is never stuck here.
+        ...(stuck ? [{ label: MOVE_ON_LABEL, reason: null }] : []),
+      ],
+      (i) => {
+        if (i >= needs.length) {
+          const moved = moveOnFromStoryEvent(this.story, CARD_DB);
+          return moved.ok ? this.commit() : this.eventChoices(ctx, moved.reason);
+        }
+        const n = needs[i];
+        if (n.available) this.eventStep(ctx, i, n, {});
+      });
+    this.subtitleLine = panel.prompt;
+    if (refusal) this.refused(refusal);
+  }
+
+  /** Walk a choice's steps (pick, remove), then resolve it. */
+  private eventStep(ctx: EventCtx, choiceIndex: number, needs: Extract<EventChoiceNeeds, { available: true }>, progress: EventChoiceProgress): void {
+    const step = nextEventStep(choiceIndex, needs, progress);
+    if (step.kind === 'pick') {
+      return this.eventPick(ctx, step.options, (pickId) => this.eventStep(ctx, choiceIndex, needs, { ...progress, pickId }));
+    }
+    if (step.kind === 'remove') {
+      const copy = removeStepCopy(step.upTo, step.atLeast);
+      this.openDeckPicker(ctx.run, {
+        title: copy.title,
+        note: copy.note,
+        limit: step.upTo,
+        min: step.atLeast,
+        confirm: (ids) => removeConfirmLabel(ids.length, step.upTo, step.atLeast),
+        onConfirm: (ids) => this.eventStep(ctx, choiceIndex, needs, { ...progress, removeIds: ids }),
+      });
+      return;
+    }
+    const result = resolveStoryEvent(this.story, CARD_DB, choiceIndex, { pickId: step.pickId, removeIds: step.removeIds });
+    if (!result.ok) return this.eventChoices(ctx, result.reason);
+    if (!this.fixtureSave) Services.save.flush();
+    this.eventResult(ctx, choiceIndex, result.outcome);
+  }
+
+  /** "Add a card of your choice": the offered cards in a row over the shaded still, with Back to the choices. */
+  private eventPick(ctx: EventCtx, options: readonly string[], onTake: (id: string) => void): void {
+    this.clearStep();
+    ctx.stage.setPortrait(null, null);
+    ctx.stage.setShade(0.78);
+    sceneTitle(this, ctx.scene?.title ?? 'Story');
+    const top = this.subtitle('Choose a card to add to your run deck.');
+    let selected: string | null = null;
+    const take = this.button('Choose a Card', 'primary', () => {
+      if (selected) onTake(selected);
     }, false);
-    const goldLabel = eventGoldLabel(act.economy);
-    const captions = [
-      this.text(rects[0].x + size.width / 2, rects[0].y + size.height + theme.space(2), '', theme.type.caption, theme.colors.gold).setOrigin(0.5, 0),
-      this.text(rects[1].x + size.width / 2, rects[1].y + size.height + theme.space(2), '', theme.type.caption, theme.colors.gold).setOrigin(0.5, 0),
-    ];
-    const pickChoice = (next: 'gold' | 'card'): void => {
-      choice = choice === next ? null : next;
-      const i = choice === 'gold' ? 0 : choice === 'card' ? 1 : -1;
-      frame.show(i >= 0 ? { ...rects[i], height: size.height } : null);
-      captions[0].setText(choice === 'gold' ? 'Selected' : '');
-      captions[1].setText(choice === 'card' ? 'Selected' : '');
-      take.setEnabled(choice !== null);
-      take.setLabel(choice === 'gold' ? `Take ${goldLabel}` : choice === 'card' ? `Take ${def(CARD_DB, cardId).name}` : 'Choose One');
-      this.placeFooter([take]);
-    };
-    // The gold: a plate the size of the card beside it.
-    const g = rects[0];
-    panel(this, g.x, g.y, size.width, size.height);
-    this.add.image(g.x + size.width / 2, g.y + size.height / 2 - 24, bakeUiIcon(this, 'gold')).setDisplaySize(56, 56);
-    this.text(g.x + size.width / 2, g.y + size.height / 2 + 24, goldLabel, theme.type.h2, theme.colors.gold, { display: true, wrap: size.width - 24 }).setOrigin(0.5, 0).setAlign('center');
-    const goldZone = this.add.zone(g.x + size.width / 2, g.y + size.height / 2, size.width, size.height).setInteractive({ useHandCursor: true });
-    bindTapButton(this, goldZone, () => pickChoice('gold'));
-    this.cardThumb(rects[1].x + size.width / 2, rects[1].y + size.height / 2, def(CARD_DB, cardId), scale, () => pickChoice('card'));
-    this.children.bringToTop(frame.frame);
-    this.deckLine(run, top);
-    this.placeFooter([take]);
+    const back = this.button('Back', 'ghost', () => this.eventChoices(ctx));
+    this.cardRow(options, top, (id) => {
+      selected = selected === id ? null : id;
+      take.setEnabled(selected !== null);
+      take.setLabel(selected ? `Take ${def(CARD_DB, selected).name}` : 'Choose a Card');
+      this.placeFooter([back, take]);
+      return selected;
+    });
+    this.deckLine(ctx.run, top);
+    this.placeFooter([back, take]);
+  }
+
+  /** What the choice did, as a line under the still, then Continue to the map. */
+  private eventResult(ctx: EventCtx, choiceIndex: number, outcome: EventOutcome): void {
+    this.clearStep();
+    ctx.stage.setShade(0);
+    const portrait = ctx.scene ? eventResultPortrait(ctx.event, ctx.scene, choiceIndex, ctx.heroine) : null;
+    this.player = new StoryDialoguePlayer(this, ctx.stage, {
+      lines: [{ speakerId: null, text: eventOutcomeLines(outcome, CARD_DB).join('\n') }],
+      heroineId: ctx.heroine,
+      title: null,
+      backHit: this.backHit(),
+      extras: false,
+      portraitFor: () => portrait,
+      onDone: () => this.commit(),
+    });
   }
 
   private buildShop(run: StoryRun, node: StoryNode): void {
@@ -752,8 +1048,10 @@ export class StoryScene extends Phaser.Scene {
     this.openDeckPicker(run, { title: 'Run Deck', note: `${cardCount(run.deck.length)}. Hover or hold a card to read it.`, limit: 0 });
   }
 
-  /** The run deck in a modal; with a limit above 0, pick exactly that many and confirm. */
-  private openDeckPicker(run: StoryRun, opts: { title: string; note: string; limit: number; confirm?: (ids: string[]) => string; onConfirm?: (ids: string[]) => void }): void {
+  /** The run deck in a modal; with a limit above 0, pick between `min` (default: the limit) and `limit` cards and confirm. */
+  private openDeckPicker(run: StoryRun, opts: { title: string; note: string; limit: number; min?: number; confirm?: (ids: string[]) => string; onConfirm?: (ids: string[]) => void }): void {
+    const min = Math.min(opts.limit, opts.min ?? opts.limit);
+    const ready = (n: number): boolean => n >= min && n <= opts.limit;
     const width = theme.design.safeWidth - theme.space(8);
     const height = theme.design.safeHeight;
     this.guard.open(this.interactiveTargets());
@@ -778,13 +1076,13 @@ export class StoryScene extends Phaser.Scene {
     let confirm: ThemedButton | null = null;
     this.cardGrid(gridArea, deckEntries(run.deck), pick, () => {
       if (!confirm || !opts.confirm) return;
-      confirm.setEnabled(pick.picked.length === opts.limit);
+      confirm.setEnabled(ready(pick.picked.length));
       confirm.setLabel(opts.confirm(pick.picked));
     }, run.deck, c);
     if (opts.limit > 0 && opts.onConfirm) {
       const footer = shell.tracks.footerTrack;
       confirm = themedButton(this, footer.x + footer.width / 2, footer.y + footer.height / 2, opts.confirm?.([]) ?? 'Confirm', {
-        variant: 'primary', minWidth: PRIMARY_MIN_W, enabled: false,
+        variant: 'primary', minWidth: PRIMARY_MIN_W, enabled: ready(0),
         onTap: () => {
           const ids = [...pick.picked];
           shell.close();
@@ -949,11 +1247,22 @@ export class StoryScene extends Phaser.Scene {
       if (!result.ok) return this.refused(result.reason);
     }
     if (!isDuelNode(node)) return this.commit();
-    if (this.fixtureSave) return this.commit();
-    // Saved at the node boundary first, so the run resumes here if the duel never starts.
-    Services.save.flush();
-    this.scene.start('Duel', { story: { runId: run.runId, nodeId: node.id } });
+    const intro = node.kind === 'boss' ? bossIntroSceneFor(run.characterId)
+      : node.kind === 'elite' && node.avatarId ? eliteIntroSceneFor(node.avatarId) : undefined;
+    // An intro plays once per duel; re-launching the same open duel goes straight in.
+    if (intro && !playedThisSession.has(playedKey(run, intro.id))) return this.commit({ storyScene: { id: intro.id, then: 'duel' } });
+    this.launchDuel(run, node);
   }
+}
+
+/** One event's run, node, script and still, passed between its steps. */
+interface EventCtx {
+  run: StoryRun;
+  node: StoryNode;
+  event: StoryEvent;
+  scene: StoryScriptScene | null;
+  stage: StoryStage;
+  heroine: string | null;
 }
 
 /** A card row starts under the content band's first line (the deck line, the shop's gold line). */
