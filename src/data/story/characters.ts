@@ -69,7 +69,7 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
       'cs2-altar-of-hades', 'cs2-heavens-edict', 'cs2-heavens-edict', 'gk-thanatos',
       'in-doom-bolt', 'cs2-judgment-of-hades', 'in-doom-bolt', 'cs2-hydra-venom',
       'cs2-hydra-venom', 'cs2-hydra-venom', 'cs2-hydra-venom', 'cs2-asphodel-garden',
-      'gk-nyx', 'cs2-styx-oathsworn',
+      'gk-nyx', 'in-reapers-due',
     ],
     landReserve: [
       'ld-asphodel-meadow', 'ld-asphodel-meadow', 'ld-asphodel-meadow', 'ld-asphodel-meadow',
@@ -102,7 +102,7 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
       'cs2-shield-line-hoplite', 'cs2-suanni', 'cs2-suanni', 'cs2-tide-seal',
       'cs2-tide-seal', 'cs2-moon-gate-warden', 'cs2-moon-gate-warden', 'fd-woolly-rhinokin',
       'cs2-banished-frontier', 'cs2-court-condemns', 'in-stand-as-one', 'cs2-court-condemns',
-      'cs2-court-condemns', 'dd-lightkeepers-oath',
+      'cs2-river-current', 'dd-lightkeepers-oath',
     ],
     landReserve: [
       'ld-misty-palace-terrace', 'ld-misty-palace-terrace', 'ld-misty-palace-terrace', 'ld-misty-palace-terrace',

@@ -8,8 +8,9 @@
  *
  * Choice rules: the first offered boon (trim-two removes the deck's last two
  * cards); the legal next node with the smallest id; the first card of each
- * reward; an event's first available choice, its first offered card and its
- * fewest removals (storyEvents' resolveStoryEventByRule); a shop's first
+ * reward; an event's first available choice whose card reward can be in the
+ * heroine's colours, its first in-colour offered card and its fewest removals
+ * (storyEvents' resolveStoryEventByRule); a shop's first
  * affordable card; a rest removes nothing; the keep takes the first keep option.
  */
 
