@@ -4218,20 +4218,28 @@ export class DeckBuilderScene extends Phaser.Scene {
     const probe = this.add.text(0, 0, '0', small);
     const capH = probe.height;
     probe.destroy();
-    const curveH = capH * 2 + (ui.largeText ? 28 : 22);
+    // A count wider than a bar's pitch (three digits at the largest text) would touch its neighbour's,
+    // so the counts then sit on two tiers, alternate bars on the upper one, and the curve grows by a tier.
+    const probeXs = curveLayout({ x: 0, y: 0, width, height: 1 }, 0, 0).xs;
+    const widest = Math.max(0, ...s.curve.filter((n) => n > 0).map((n) => {
+      const t = this.add.text(0, 0, `${n}`, small);
+      const w = t.width;
+      t.destroy();
+      return w;
+    }));
+    const tiers = widest + 2 > probeXs[1] - probeXs[0] ? 2 : 1;
+    const curveH = capH * (1 + tiers) + (ui.largeText ? 28 : 22);
     const rect = { x: 0, y: counts.height + 4, width, height: curveH };
-    const curve = curveLayout(rect, capH, capH);
-    let lastCount: Phaser.GameObjects.Text | null = null;
+    const curve = curveLayout(rect, capH * tiers, capH);
     for (const bar of curveBars(s.curve, { firstX: curve.xs[0], pitch: curve.xs[1] - curve.xs[0], maxHeight: curve.maxBarH })) {
       c.add(this.add.rectangle(bar.x, curve.baseY, curve.barW, bar.height,
         bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
       if (bar.count > 0) {
         const label = this.add.text(bar.x, curve.baseY - bar.height - 1, `${bar.count}`, { ...small, color: theme.colors.body }).setOrigin(0.5, 1);
-        // Three-digit counts at the largest text are wider than a bar's pitch: a count that would touch its neighbour's rises over it.
-        if (lastCount && label.x - label.width / 2 < lastCount.x + lastCount.width / 2 + 2) label.setY(Math.min(label.y, lastCount.y - lastCount.height));
-        lastCount = label;
+        // Two tiers sit in fixed rows over the tallest bar, so neighbours never meet whatever their bars' heights.
+        if (tiers === 2) label.setY(curve.baseY - curve.maxBarH - 1 - (bar.mv % 2) * capH);
         c.add(label);
-      } else lastCount = null;
+      }
       c.add(this.add.text(bar.x, curve.baseY + 2, bar.label, { ...small, color: theme.colors.muted }).setOrigin(0.5, 0));
     }
     // The colour pips, as many as the lane holds, each over its count.
