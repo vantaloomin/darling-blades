@@ -44,6 +44,7 @@ import type { BackLabel } from './navigation';
 import { formatCount } from './goldFormat';
 import { splitIconLabel } from './iconLabel';
 import { bakeUiIcon, uiIconSize, uiIconTinted } from './uiIcons';
+import { sceneStage } from './SceneBackdrop';
 
 export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
@@ -754,22 +755,28 @@ export function registerSceneBackNavigation(
 
 /** Standardized modal chrome; callers retain ownership of ModalGuard lists. */
 export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalShell {
-  const x = opts.x ?? theme.design.centerX;
-  const y = opts.y ?? theme.design.centerY;
+  // The scene's own stage: the 1280×720 window, or a phone's design space when
+  // the scene draws its compact composition. A dialog never outgrows the
+  // stage's content box, and the dim covers the whole stage.
+  const stage = sceneStage(scene);
+  const width = Math.min(opts.width, stage.content.width);
+  const height = Math.min(opts.height, stage.content.height);
+  const x = opts.x ?? (stage.compact ? stage.content.x + stage.content.width / 2 : theme.design.centerX);
+  const y = opts.y ?? (stage.compact ? stage.content.y + stage.content.height / 2 : theme.design.centerY);
   const dim = scene.add.rectangle(
-    theme.design.centerX,
-    theme.design.centerY,
-    theme.design.width,
-    theme.design.height,
+    stage.width / 2,
+    stage.height / 2,
+    stage.width,
+    stage.height,
     theme.graphics.dim,
     modalDimAlpha(opts.dimAlpha, theme.alpha.overlayDim),
   );
   const chrome = panel(
     scene,
-    x - opts.width / 2,
-    y - opts.height / 2,
-    opts.width,
-    opts.height,
+    x - width / 2,
+    y - height / 2,
+    width,
+    height,
     { alpha: 1 },
   );
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
@@ -834,8 +841,8 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     height: theme.control.minHitHeight,
   };
   const layout = modalShellLayout({
-    width: opts.width,
-    height: opts.height,
+    width,
+    height,
     x,
     y,
     panelPadding: opts.panelPadding,

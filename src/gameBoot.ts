@@ -14,7 +14,9 @@ import {
   type RenderK,
   setActiveRenderScale,
   setActiveSceneZoom,
+  textRasterResolution,
 } from './platform/renderScale';
+import { setActiveCompactMetrics } from './platform/compactScenes';
 import { onFullScreenChange } from './platform/fullscreen';
 import {
   compactFit,
@@ -128,8 +130,11 @@ setActiveSceneZoom(fit ? sceneZoom : null, fit?.widthShare ?? 1);
 // Text rasterizes at the scene's zoom (canvas px per design px), never below
 // 1: on desktop that is k, as before. Under the compact profile a text drawn
 // at k and then shrunk by a fractional zoom smeared, measured on the Android
-// emulator 2026-10-10; at the zoom it lands on the canvas about 1:1.
-let textResolution = Math.max(1, sceneZoom);
+// emulator 2026-10-10; at the zoom it lands on the canvas about 1:1. A scene
+// with its own compact composition has its own zoom (src/platform/
+// compactScenes.ts), which SceneBackdrop records as the scene starts, so
+// `textRasterResolution` follows whichever scene is building its Texts.
+setActiveCompactMetrics(compact);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
 // (1280·k × 720·k, clamped to the screen). Fire-and-forget and a hard no-op in
@@ -147,7 +152,7 @@ void applyDesktopWindowSize(k);
 // per-Text resolutions (none in this repo today) are respected. Object
 // width/height stay in logical units (Text.js divides by resolution), so
 // layout and inflated hit areas are unaffected.
-if (textResolution > 1 || compact) {
+if (textRasterResolution() > 1 || compact) {
   type TextStyleLike = { resolution: number };
   type SetStyleFn = (
     this: TextStyleLike,
@@ -161,7 +166,7 @@ if (textResolution > 1 || compact) {
     const explicit =
       !!style && ((style as { resolution?: number }).resolution ?? 0) > 0;
     const out = origSetStyle.call(this, style, updateText, setDefaults);
-    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = textResolution;
+    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = textRasterResolution();
     return out;
   };
 }
@@ -290,9 +295,9 @@ if (compact && !compactFixture) {
       && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
     document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
     setActiveSceneZoom(next.zoom, next.widthShare);
-    textResolution = Math.max(1, next.zoom);
+    setActiveCompactMetrics(m);
     game.scale.resize(next.canvas.width, next.canvas.height);
-    for (const scene of game.scene.getScenes(true)) applySceneSettings(scene);
+    for (const scene of game.scene.getScenes(true)) applySceneSettings(scene, { refit: true });
   };
   const schedule = (): void => {
     if (pending !== undefined) window.clearTimeout(pending);
