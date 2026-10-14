@@ -15,6 +15,7 @@ import {
   type ZoneCount,
 } from './duelCompact';
 import { CardView } from './CardView';
+import { COIN_FLIP_FACE_TEXTURES } from './coinFlipLayout';
 import { dutyRowPips } from './duelPresentation';
 import { renderManaText } from './ManaText';
 import { ellipsizeText } from './textFit';
@@ -206,8 +207,16 @@ export interface PhoneChoiceOption {
   enabled: boolean;
   /** A radio (pick one) or a box (pick several), filled when chosen; omitted for a plain button row. */
   mark?: { kind: 'radio' | 'box'; on: boolean };
-  /** A card row instead (W-HauntWindow): its art, the label as its name, this line under it, the price at the right. */
-  card?: { def: CardDef; detail: string };
+  /**
+   * A card row instead (W-HauntWindow, T-02a): its art, the label as its name,
+   * this line under it (gold unless muted, after a chip such as "Bottom"), the
+   * price at the right. A dimmed row has been set aside.
+   */
+  card?: { def: CardDef; detail: string; muted?: boolean; chip?: string; dim?: boolean };
+  /** A gold outline: the row the board or centre is showing. */
+  selected?: boolean;
+  /** A red row (Concede). */
+  danger?: boolean;
   onTap: () => void;
 }
 
@@ -237,7 +246,20 @@ export interface PhoneChoicePanel {
   options: readonly PhoneChoiceOption[];
 }
 
-export type PhonePanel = PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/**
+ * The coin flip in the column (T-01a, T-01b): the call as two coin tiles,
+ * then what the coin showed and, for the winner, what play and draw mean.
+ */
+export interface PhoneCoinPanel {
+  kind: 'coin';
+  text: string;
+  /** Heads and Tails as tiles while the call is open. */
+  call: ((side: 'heads' | 'tails') => void) | null;
+  /** The two lines on what playing or drawing first means. */
+  explain: boolean;
+}
+
+export type PhonePanel = PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -623,6 +645,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'summary') this.drawSummaryPanel(panel);
     else if (panel.kind === 'zone') this.drawZonePanel(panel);
     else if (panel.kind === 'choice') this.drawChoicePanel(panel);
+    else if (panel.kind === 'coin') this.drawCoinPanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -1101,6 +1124,60 @@ export class DuelPhoneChrome {
     }
   }
 
+  private drawCoinPanel(panel: PhoneCoinPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const heading = scene.add.text(x, pane.y, 'Coin Flip', {
+      fontFamily: theme.fonts.display, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    }).setDepth(theme.depth.hand);
+    const text = scene.add.text(x, heading.y + heading.height + 6, panel.text, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.body,
+      wordWrap: { width, useAdvancedWrap: true }, lineSpacing: 2,
+    }).setDepth(theme.depth.hand);
+    this.handObjects.push(heading, text);
+    const call = panel.call;
+    if (call) {
+      // Two coin tiles fill the lower column and the foot, under the thumb.
+      const top = Math.max(text.y + text.height + 12, pane.y + pane.height * 0.45);
+      const bottom = this.L.foot.y + this.L.foot.height;
+      const gap = 10;
+      const tileW = (pane.width - gap) / 2;
+      (['heads', 'tails'] as const).forEach((side, i) => {
+        const rect = { x: pane.x + i * (tileW + gap), y: top, width: tileW, height: bottom - top };
+        this.rowPlate(rect, theme.colors.panelStroke, 1);
+        const label = scene.add.text(rect.x + tileW / 2, rect.y + rect.height - 10, side === 'heads' ? 'Heads' : 'Tails', {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+        }).setOrigin(0.5, 1).setDepth(theme.depth.hand);
+        const size = Math.min(tileW - 24, label.y - label.height - rect.y - 16);
+        const coin = scene.add.image(rect.x + tileW / 2, rect.y + (label.y - label.height - rect.y) / 2, COIN_FLIP_FACE_TEXTURES[side])
+          .setDisplaySize(size, size).setDepth(theme.depth.hand);
+        this.handObjects.push(label, coin);
+        this.rowZone(rect, () => call(side)).setName(`coin:${side}`);
+      });
+      return;
+    }
+    if (!panel.explain) return;
+    // What the choice means, over the foot (T-01b).
+    let y = this.L.foot.y - 8;
+    for (const [term, meaning] of [['Draw first:', 'you draw on your first turn.'], ['Play first:', 'you skip your first draw.']] as const) {
+      const rest = scene.add.text(0, y, meaning, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
+      }).setOrigin(0, 1).setDepth(theme.depth.hand);
+      const bold = scene.add.text(x, y, term, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setOrigin(0, 1).setDepth(theme.depth.hand);
+      rest.setX(x + bold.width + 6);
+      ellipsizeText(rest, width - bold.width - 6);
+      this.handObjects.push(bold, rest);
+      y -= bold.height + 6;
+    }
+    const g = scene.add.graphics().setDepth(theme.depth.hand);
+    g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
+    this.handObjects.push(g);
+  }
+
   private drawChoicePanel(panel: PhoneChoicePanel): void {
     const scene = this.scene;
     const pane = this.L.hand;
@@ -1197,11 +1274,18 @@ export class DuelPhoneChrome {
     // Marked rows (a mode, a Duty) follow the card; plain rows (another way to cast) wait over the foot.
     const marked = panel.options.filter((option) => option.mark || option.card);
     const plain = panel.options.filter((option) => !option.mark && !option.card);
+    // Card rows (a whole opening hand) tighten to fit over the plain rows, down to a touch target.
+    const plainH = plain.reduce((sum, option) => sum + this.choiceRowHeight(option, width) + 8, 0);
+    const cards = marked.filter((option) => option.card).length;
+    const gap = cards > 5 ? 4 : 8;
+    const markedH = marked.reduce((sum, option) => sum + this.choiceRowHeight(option, width) + gap, 0);
+    const squeeze = cards > 0 && markedH > bottom - plainH - y
+      ? Math.max(Math.round(COMPACT.touch * 0.8), Math.floor((bottom - plainH - y - marked.length * gap) / marked.length)) : null;
     for (const option of marked) {
-      const h = this.choiceRowHeight(option, width);
+      const h = squeeze !== null && option.card ? squeeze : this.choiceRowHeight(option, width);
       if (y + h > bottom) break;
       this.drawChoiceRow({ x: pane.x, y, width: pane.width, height: h }, option);
-      y += h + 8;
+      y += h + gap;
     }
     let py = bottom;
     for (const option of [...plain].reverse()) {
@@ -1225,9 +1309,9 @@ export class DuelPhoneChrome {
 
   private drawChoiceRow(rect: { x: number; y: number; width: number; height: number }, option: PhoneChoiceOption): void {
     const scene = this.scene;
-    const on = option.mark?.on === true;
-    const alpha = option.enabled ? 1 : 0.45;
-    this.rowPlate(rect, on ? theme.colors.gold : theme.colors.panelStroke, 1).setAlpha(alpha);
+    const on = option.mark?.on === true || option.selected === true;
+    const alpha = !option.enabled ? 0.45 : option.card?.dim ? 0.6 : 1;
+    this.rowPlate(rect, on ? theme.colors.gold : option.danger ? theme.colors.danger : theme.colors.panelStroke, 1).setAlpha(alpha);
     if (on) {
       const g = scene.add.graphics().setDepth(theme.depth.hand);
       g.lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
@@ -1237,21 +1321,43 @@ export class DuelPhoneChrome {
     let x = rect.x + 16;
     if (option.card) {
       // Art, name and what it would do, the price at the right (W-HauntWindow).
-      const thumb = rect.height - 14;
-      this.thumbArt(option.card.def, rect.x + 7 + thumb / 2, cy, thumb);
+      // A row tightened to fit a whole hand keeps one line: the name, any chip, the price.
+      const twoLines = rect.height >= COMPACT.touch;
+      const thumb = rect.height - (twoLines ? 14 : 8);
+      this.thumbArt(option.card.def, rect.x + 6 + thumb / 2, cy, thumb);
       const pip = 18;
       // The price sits on the name's line so the line under it can run the row's width.
-      const right = option.cost ? this.costPips(option.cost, rect.x + rect.width - 10, cy - 1 - this.type.body * 0.6, pip) : rect.x + rect.width - 10;
-      const tx = rect.x + thumb + 16;
-      const name = scene.add.text(tx, cy - 1, option.label, {
+      const nameY = twoLines ? cy - 1 - this.type.body * 0.6 : cy;
+      let right = option.cost ? this.costPips(option.cost, rect.x + rect.width - 10, nameY, pip) : rect.x + rect.width - 10;
+      const tx = rect.x + thumb + 14;
+      const chipAt = (cx: number, cyChip: number, alignRight: boolean): number => {
+        const chip = scene.add.text(cx, cyChip, option.card!.chip!, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.danger,
+          padding: { x: 8, y: 0 },
+        }).setOrigin(alignRight ? 1 : 0, 0.5).setDepth(theme.depth.hand + 1);
+        const g = scene.add.graphics().setDepth(theme.depth.hand);
+        const left = chip.x - (alignRight ? chip.width : 0);
+        g.fillStyle(colorInt(theme.colors.dangerBg), 1).fillRoundedRect(left, chip.y - chip.height / 2, chip.width, chip.height, chip.height / 2);
+        g.lineStyle(1, colorInt(theme.colors.danger), 0.9).strokeRoundedRect(left, chip.y - chip.height / 2, chip.width, chip.height, chip.height / 2);
+        this.handObjects.push(chip, g);
+        return chip.width;
+      };
+      if (!twoLines && option.card.chip) right -= chipAt(right - 6, cy, true) + 12;
+      const name = scene.add.text(tx, twoLines ? cy - 1 : cy, option.label, {
         fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
-      }).setOrigin(0, 1).setDepth(theme.depth.hand).setAlpha(alpha);
+      }).setOrigin(0, twoLines ? 1 : 0.5).setDepth(theme.depth.hand).setAlpha(alpha);
       ellipsizeText(name, right - 8 - tx);
-      const detail = scene.add.text(tx, cy + 3, option.card.detail, {
-        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: option.enabled ? theme.colors.gold : theme.colors.muted,
-      }).setDepth(theme.depth.hand).setAlpha(alpha);
-      ellipsizeText(detail, rect.x + rect.width - 10 - tx);
-      this.handObjects.push(name, detail);
+      this.handObjects.push(name);
+      if (twoLines) {
+        let dx = tx;
+        if (option.card.chip) dx += chipAt(tx, cy + 3 + this.type.label * 0.65, false) + 8;
+        const detail = scene.add.text(dx, cy + 3, option.card.detail, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`,
+          color: option.enabled && !option.card.muted ? theme.colors.gold : theme.colors.muted,
+        }).setDepth(theme.depth.hand).setAlpha(alpha);
+        ellipsizeText(detail, rect.x + rect.width - 10 - dx);
+        this.handObjects.push(detail);
+      }
     } else if (option.mark) {
       // A ring for "pick one", a box for "pick several"; filled when chosen. Shape and word, never colour alone.
       const r = Math.round(this.type.body * 0.75);
@@ -1271,7 +1377,7 @@ export class DuelPhoneChrome {
     } else {
       // Label, price and why it is off, centred together (W-Empower, W-TitheHow).
       const label = scene.add.text(0, cy, option.label, {
-        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: option.danger ? theme.colors.danger : theme.colors.heading,
       }).setOrigin(0, 0.5).setDepth(theme.depth.hand).setAlpha(alpha);
       const pip = Math.round(this.type.h2 * 1.05);
       const pipsW = option.cost ? pipsFor(option.cost).length * (pip + 2) + 8 : 0;

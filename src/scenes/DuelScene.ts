@@ -93,6 +93,8 @@ import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
 import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
+import { compactButton } from '../ui/compactWidgets';
+import { COMPACT } from '../ui/compactLayout';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
 import { planCombat, sequencedBatchRoutes, type CombatHit, type CombatStep } from '../ui/combatSequence';
@@ -226,6 +228,7 @@ import {
 } from '../ui/castIntentPresentation';
 import {
   bottomingTitle,
+  cardsLabel,
   discardTitle,
   dragMoved,
   libraryStackPlates,
@@ -242,7 +245,7 @@ import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoicePanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -500,6 +503,12 @@ export class DuelScene extends Phaser.Scene {
   private phoneZone: { player: PlayerId; tab: PhoneZoneTab; pick: number } | null = null;
   /** A cast or Duty question in the phone's column (W-TitheHow, W-Empower, W-DutyPick), in place of the desktop chooser. */
   private phoneChoice: { panel: PhoneChoicePanel; foot: PhoneFoot } | null = null;
+  /** The coin flip while it asks in the phone's column (T-01a, T-01b). */
+  private phoneCoin: { panel: PhoneCoinPanel; foot: PhoneFoot } | null = null;
+  /** The opening hand on the phone (T-02a, T-02b): the card shown large, and which decision it is. */
+  private phoneMullFocus: number | null = null;
+  private phoneMullStage: string | null = null;
+  private phoneConcedeArmed = false;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1843,6 +1852,10 @@ export class DuelScene extends Phaser.Scene {
     this.phoneRecap = null;
     this.phoneZone = null;
     this.phoneChoice = null;
+    this.phoneCoin = null;
+    this.phoneMullFocus = null;
+    this.phoneMullStage = null;
+    this.phoneConcedeArmed = false;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -4216,7 +4229,9 @@ export class DuelScene extends Phaser.Scene {
     // HistoryPanel is the sole log surface; card-linked rows remain tappable.
     this.history?.push(msg, cardId);
     // T-10: on the foe's turn the phone banner carries the latest line.
-    if (this.phoneChrome && !this.ended && this.duel.state.activePlayer === AI) {
+    // The opening (coin flip, mulligans) is nobody's turn yet.
+    const opening = ['choosePlayDraw', 'mulligan', 'bottomCards'].includes(this.duel.awaiting.kind);
+    if (this.phoneChrome && !this.ended && !opening && this.duel.state.activePlayer === AI) {
       this.phoneChrome.setBanner(`${this.opponentShortName()}'s turn`, plainHistoryLine(msg));
     }
   }
@@ -6323,6 +6338,9 @@ export class DuelScene extends Phaser.Scene {
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
     }
+    if (this.phoneCoin) return this.phoneCoin;
+    const mulligan = this.phoneMulliganPrompt();
+    if (mulligan) return mulligan;
     if (this.phoneChoice) return this.phoneChoice;
     if (this.phoneZone) return this.phoneZonePrompt(this.phoneZone);
     const sacrifice = this.phoneSacrificePrompt();
@@ -9992,6 +10010,11 @@ export class DuelScene extends Phaser.Scene {
     this.guard.close(); // restore before rebuild; no-op when nothing is guarded
     this.overlay?.destroy();
     this.overlay = null;
+    if (this.phoneCoin) {
+      this.phoneCoin = null;
+      this.syncHand();
+      this.syncButton();
+    }
     if (this.ended) {
       // showResults ran before this sync recreated the hand; re-deaden the board
       this.guard.open(this.overlayGuardTargets());
@@ -10003,6 +10026,10 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     if (!('player' in a) || a.player !== HUMAN) return;
+    if (this.phone && this.phoneChrome && (a.kind === 'mulligan' || a.kind === 'bottomCards')) {
+      this.drawPhoneMulligan(this.phone.main, this.phoneChrome);
+      return;
+    }
     if (this.phoneChrome && (a.kind === 'foresee' || a.kind === 'discardToHandSize')) {
       this.foreseeBottomPicks.clear();
       this.discardPicks.clear();
@@ -10058,8 +10085,87 @@ export class DuelScene extends Phaser.Scene {
     return coin;
   }
 
+  /**
+   * The phone's coin flip (T-01a, T-01b): the call as two coin tiles in the
+   * column, the coin over the empty board, then Draw first and Play first in
+   * the foot. The engine's winner decides the revealed side, as on desktop.
+   */
+  private buildPhoneCoinFlip(winner: PlayerId, main: { x: number; y: number; width: number; height: number }, chrome: DuelPhoneChrome): void {
+    const c = this.add.container(0, 0).setDepth(theme.depth.overlay);
+    const ask = (text: string, call: PhoneCoinPanel['call'], explain: boolean, foot: PhoneFoot | null): void => {
+      this.phoneCoin = { panel: { kind: 'coin', text, call, explain }, foot: foot ?? { left: null, primary: null } };
+      this.syncHand();
+      this.syncButton();
+    };
+    let called = false;
+    const callFlip = (calledSide: CoinFlipSide): void => {
+      if (called || !c.active) return;
+      called = true;
+      const revealedSide: CoinFlipSide = winner === HUMAN ? calledSide : calledSide === 'heads' ? 'tails' : 'heads';
+      ask('Flipping...', null, false, null);
+      const size = Math.round(Math.min(main.width * 0.5, main.height * 0.62));
+      const cx = main.x + main.width / 2;
+      const cy = main.y + main.height / 2 - size * 0.14;
+      const coin = this.add.container(cx, cy);
+      coin.add(this.add.image(0, 0, COIN_FLIP_FACE_TEXTURES[revealedSide]).setDisplaySize(size, size));
+      c.add(coin);
+      let revealed = false;
+      const reveal = (): void => {
+        if (revealed || !c.active || !coin.active) return;
+        revealed = true;
+        coin.setAngle(0).setScale(1);
+        Sfx.play('coin');
+        const sideLabel = revealedSide === 'heads' ? 'Heads' : 'Tails';
+        c.add(this.add.text(cx, cy + size / 2 + 10, sideLabel, {
+          fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+        }).setOrigin(0.5, 0));
+        this.log(`${sideLabel} · ${winner === HUMAN ? 'you' : 'opponent'} won the flip`);
+        if (winner === HUMAN) {
+          const choose = (play: boolean): void => {
+            const awaiting = this.duel.awaiting;
+            if (!c.active || awaiting.kind !== 'choosePlayDraw' || awaiting.player !== HUMAN) return;
+            this.act({ type: 'choosePlayDraw', play });
+          };
+          ask(`${sideLabel}. You won the flip. Choose whether to play or draw.`, null, true, {
+            left: { label: 'Draw first', onTap: () => choose(false) },
+            primary: { label: 'Play first', onTap: () => choose(true) },
+          });
+          return;
+        }
+        const legal = this.duel.legalActions(AI);
+        const proposed = this.ai.chooseAction(this.duel.viewFor(AI), legal);
+        const choice = proposed.type === 'choosePlayDraw' ? proposed : ({ type: 'choosePlayDraw', play: true } as const);
+        ask(`${sideLabel}. ${this.opponentShortName()} won and chose to ${choice.play ? 'play' : 'draw'} first.`, null, false, null);
+        this.coinChoiceTimer = this.time.delayedCall(900, () => {
+          this.coinChoiceTimer = null;
+          if (!c.active) return;
+          const awaiting = this.duel.awaiting;
+          if (awaiting.kind !== 'choosePlayDraw' || awaiting.player !== AI) return;
+          this.processEvents(this.duel.submit(AI, choice));
+          this.afterEvents();
+        });
+      };
+      if (this.motionLevel() === 'full') {
+        Sfx.play('flip');
+        this.tweens.add({
+          targets: coin, angle: 720, scaleX: 0.15, duration: theme.motion.slow, ease: 'Sine.easeInOut', yoyo: true, repeat: 1, onComplete: reveal,
+        });
+      } else {
+        reveal();
+      }
+    };
+    ask('Call heads or tails.', callFlip, false, null);
+    this.overlay = c;
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.guard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
   /** Call first, then reveal. Full motion flips; reduced/off reveals immediately. */
   private buildCoinFlipOverlay(winner: PlayerId): void {
+    if (this.phone && this.phoneChrome) {
+      this.buildPhoneCoinFlip(winner, this.phone.main, this.phoneChrome);
+      return;
+    }
     const shell = modalShell(this, {
       width: 560,
       height: 410,
@@ -10449,6 +10555,184 @@ export class DuelScene extends Phaser.Scene {
     });
     this.guard.open(this.overlayGuardTargets());
     this.overlay = c;
+  }
+
+  /** A new opening-hand decision starts with no picks and its first card shown. */
+  private settlePhoneMulligan(): void {
+    const stage = this.phoneMulliganStage();
+    if (stage !== this.phoneMullStage) {
+      this.phoneMullStage = stage;
+      this.phoneMullFocus = null;
+      if (stage) this.discardPicks.clear();
+    }
+    const hand = this.duel.state.players[HUMAN].hand;
+    if (stage && (this.phoneMullFocus === null || this.phoneMullFocus >= hand.length)) {
+      this.phoneMullFocus = handDisplayOrder(hand, CARD_DB)[0] ?? null;
+    }
+  }
+
+  /** Which opening-hand decision is up ("mulligan:1", "bottomCards:2"); picks and focus reset when it changes. */
+  private phoneMulliganStage(): string | null {
+    const a = this.duel.awaiting;
+    if (!this.phoneChrome || !('player' in a) || a.player !== HUMAN || (a.kind !== 'mulligan' && a.kind !== 'bottomCards')) return null;
+    return `${a.kind}:${this.duel.state.players[HUMAN].mulligans}`;
+  }
+
+  /**
+   * T-02a, T-02b: the opening hand over the board. The tapped card stands
+   * large beside the library; while bottoming, the cards set aside tuck
+   * behind the stack.
+   */
+  private drawPhoneMulligan(main: { x: number; y: number; width: number; height: number }, chrome: DuelPhoneChrome): void {
+    const st = this.duel.state;
+    const a = this.duel.awaiting;
+    this.settlePhoneMulligan();
+    const hand = st.players[HUMAN].hand;
+    const mulligans = st.players[HUMAN].mulligans;
+    const left = RULES.maxMulligans - mulligans;
+    const bottoming = a.kind === 'bottomCards' ? a.count : 0;
+    const title = bottoming > 0 ? bottomingTitle(bottoming) : 'Keep this hand?';
+    const sub = bottoming > 0
+      ? `Mulligan ${mulligans} of ${RULES.maxMulligans} · you keep ${cardsLabel(hand.length - bottoming)}`
+      : left > 0 ? `${left} mulligan${left === 1 ? '' : 's'} left` : 'No mulligans left';
+    const c = this.add.container(0, 0).setDepth(theme.depth.overlay);
+    const cx = main.x + main.width / 2;
+    const heading = this.add.text(cx, main.y + 8, title, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      align: 'center', wordWrap: { width: main.width - 24 },
+    }).setOrigin(0.5, 0);
+    const subtitle = this.add.text(cx, heading.y + heading.height + 2, sub, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.muted,
+    }).setOrigin(0.5, 0);
+    c.add([heading, subtitle]);
+    const top = subtitle.y + subtitle.height + 12;
+    const avail = main.y + main.height - top - 10;
+    const scale = Math.min(avail / CARD_H, (main.width * 0.46) / CARD_W);
+    const cardW = CARD_W * scale;
+    const cardX = main.x + main.width * 0.36;
+    const cardY = top + (CARD_H * scale) / 2;
+    // The library: the deck's own back, its count under it.
+    const backKey = this.textures.exists(this.humanCardBackKey) ? this.humanCardBackKey : 'cardback';
+    const stackW = cardW * 0.6;
+    const stackH = stackW * (172 / 124);
+    const stackX = Math.min(main.x + main.width - stackW / 2 - 16, cardX + cardW / 2 + stackW * 0.9);
+    const stackY = cardY - 10;
+    // Cards set aside lean out from behind the stack.
+    [...this.discardPicks].forEach((handIdx, i) => {
+      const d = def(CARD_DB, hand[handIdx]);
+      const tucked = new CardView(this, stackX - stackW * 0.42 - i * 10, stackY + 8).setScale((stackW * 0.9) / CARD_W).setAngle(-8);
+      tucked.setCard(d, { fx: 'none', variant: displayVariantFor(Services.save.data, d.id), landStyle: this.humanLandStyleFor(d.id) });
+      c.add(tucked);
+    });
+    const ratio = stackW / 124;
+    for (const { dx, dy } of libraryStackPlates(st.players[HUMAN].deck.length)) {
+      c.add(this.add.image(stackX + dx * ratio, stackY + dy * ratio, backKey).setDisplaySize(stackW, stackH));
+    }
+    c.add(this.add.text(stackX, stackY + stackH / 2 + 14, `Library · ${st.players[HUMAN].deck.length}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.type.label}px`, color: theme.colors.muted,
+    }).setOrigin(0.5, 0));
+    const focus = this.phoneMullFocus;
+    if (focus !== null) {
+      const d = def(CARD_DB, hand[focus]);
+      const variant = displayVariantFor(Services.save.data, d.id);
+      const landStyle = this.humanLandStyleFor(d.id);
+      const view = new CardView(this, cardX, cardY).setScale(scale);
+      view.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt, landStyle });
+      c.add(view);
+      view.enableInput();
+      this.zoom.attach(view, d, variant, landStyle);
+    }
+    if (a.kind === 'mulligan' && hand.length > 5) {
+      // Under the library, clear of the card.
+      const label = this.phoneConcedeArmed ? concedeConfirmLabel(true) : 'Concede';
+      const width = Math.min(160, main.x + main.width - 12 - (cardX + cardW / 2 + 12));
+      const button = compactButton(this, { x: stackX - width / 2, y: main.y + main.height - 10 - COMPACT.touch, width, height: COMPACT.touch }, label, {
+        variant: 'danger', onTap: () => this.phoneConcede(),
+      });
+      c.add(button.container);
+    }
+    this.overlay = c;
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.guard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
+  /** Concede from the opening hand: two taps when "confirm destructive actions" is on. */
+  private phoneConcede(): void {
+    const redraw = (): void => {
+      this.syncOverlay();
+      this.syncHand();
+      this.syncButton();
+    };
+    if (Services.save.data.settings.confirmDestructive && !this.phoneConcedeArmed) {
+      this.phoneConcedeArmed = true;
+      redraw();
+      this.time.delayedCall(CONCEDE_ARM_MS, () => {
+        if (!this.phoneConcedeArmed || !this.sys.isActive()) return;
+        this.phoneConcedeArmed = false;
+        if (this.phoneMulliganStage()) redraw();
+      });
+      return;
+    }
+    this.phoneConcedeArmed = false;
+    this.act({ type: 'concede' });
+  }
+
+  /** The opening hand's column (T-02a, T-02b): the hand as rows, Concede, and Keep or Confirm in the foot. */
+  private phoneMulliganPrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
+    const a = this.duel.awaiting;
+    if (!this.phoneMulliganStage() || (a.kind !== 'mulligan' && a.kind !== 'bottomCards')) return null;
+    this.settlePhoneMulligan();
+    const hand = this.duel.state.players[HUMAN].hand;
+    const bottoming = a.kind === 'bottomCards' ? a.count : 0;
+    const redraw = (): void => {
+      this.syncOverlay();
+      this.syncHand();
+      this.syncButton();
+    };
+    const concede = (): void => this.phoneConcede();
+    const concedeLabel = this.phoneConcedeArmed ? concedeConfirmLabel(true) : 'Concede';
+    const rows: PhoneChoiceOption[] = handDisplayOrder(hand, CARD_DB).map((handIdx) => {
+      const d = def(CARD_DB, hand[handIdx]);
+      const picked = this.discardPicks.has(handIdx);
+      const detail = isType(d, 'creature') ? `${d.attack ?? 0}/${d.defense ?? 0} · ${d.subtypes.join(' ') || typeLine(d)}` : typeLine(d);
+      return {
+        label: d.name, cost: d.cost ?? null, note: null, enabled: true,
+        card: { def: d, detail, muted: true, ...(picked ? { chip: 'Bottom', dim: true } : {}) },
+        selected: this.phoneMullFocus === handIdx,
+        onTap: () => {
+          if (bottoming > 0) {
+            if (picked) this.discardPicks.delete(handIdx);
+            else if (this.discardPicks.size < bottoming) this.discardPicks.add(handIdx);
+          }
+          this.phoneMullFocus = handIdx;
+          redraw();
+        },
+      };
+    });
+    // Concede sits under the hand when it fits (T-02a); a fuller hand puts it over the board instead.
+    if (bottoming === 0 && hand.length <= 5) {
+      rows.push({ label: concedeLabel, cost: null, note: null, enabled: true, danger: true, onTap: concede });
+    }
+    const left = RULES.maxMulligans - this.duel.state.players[HUMAN].mulligans;
+    const foot: PhoneFoot = bottoming > 0
+      ? {
+        left: { label: concedeLabel, danger: true, onTap: concede },
+        primary: {
+          label: 'Confirm', enabled: this.discardPicks.size === bottoming,
+          onTap: () => {
+            const now = this.duel.awaiting;
+            if (now.kind === 'bottomCards' && this.discardPicks.size === now.count) this.act({ type: 'bottomCards', handIndices: [...this.discardPicks] });
+          },
+        },
+      }
+      : {
+        left: left > 0 ? { label: 'Mulligan', onTap: () => this.act({ type: 'mulligan' }) } : null,
+        primary: { label: 'Keep', onTap: () => this.act({ type: 'keepHand' }) },
+      };
+    return {
+      panel: { kind: 'choice', heading: null, source: null, text: null, box: null, caption: null, count: null, price: null, hint: null, options: rows },
+      foot,
+    };
   }
 
   /**
