@@ -11981,7 +11981,7 @@ export class DuelScene extends Phaser.Scene {
         }),
         note: nextPersona ? (knowsTheme ? `Next: ${nextPersona.name}, ${nextPersona.title}` : `Next: ${nextPersona.name}`) : null,
         ...(!reward.runOver && nextRun
-          ? { left: { label: 'Draft', onTap: toDraft }, primary: { label: 'Next Match', onTap: () => this.restartDuel(limitedDuelData(nextRun)) } }
+          ? { left: { label: 'Draft', onTap: toDraft }, primary: { label: 'Next match', onTap: () => this.restartDuel(limitedDuelData(nextRun)) } }
           : { left: { label: 'Menu', onTap: () => this.scene.start('MainMenu') }, primary: { label: 'Draft', onTap: toDraft } }),
         leave: toDraft,
       });
