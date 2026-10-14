@@ -20,12 +20,13 @@ import { enableDevCompactScene, disableDesktopCompactScenes, setActiveCompactMet
 import { onFullScreenChange } from './platform/fullscreen';
 import {
   compactFit,
+  compactLayoutAllowed,
   compactLayoutRequested,
   resolveScreenMetrics,
   type ScreenMetrics,
 } from './platform/screenMetrics';
 import { screenFixtureNamed } from './platform/screenFixtures';
-import { applySceneSettings, CANVAS_CLEAR } from './ui/SceneBackdrop';
+import { applySceneSettings, CANVAS_CLEAR, sceneStage } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -73,11 +74,11 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
   ? ([1, 1.5, 2] as const satisfies readonly RenderK[])
     .find((s) => s === Number(new URLSearchParams(window.location.search).get('scale') ?? 1.5)) ?? 1.5
   : null;
-// The compact profile (docs/plan-mobile-overhaul.md C1, C2), behind its
-// `?layout=compact` switch until the camera fit is proven on a real phone. On
+// The compact profile (docs/plan-mobile-overhaul.md C1, C2), on for every
+// phone and tablet; `?layout=desktop` keeps the desktop profile for a load. On
 // a touch screen it sizes the canvas to the screen at the device's own pixel
-// ratio (capped at 2), and every scene, none of them migrated yet, fits its
-// 1280×720 design window inside by camera zoom. The `layout-compact` class
+// ratio (capped at 2); a scene with a compact composition draws in the
+// content box, and any other fits its 1280×720 design window by camera zoom. The `layout-compact` class
 // drops index.html's browser-bar reserve first (the 100dvh page already
 // leaves out a visible bar), so the #app box read here is the screen less
 // only its safe areas, and the insets read as zero. The profile is worked out
@@ -106,7 +107,7 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('desk
 const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)
   ? screenFixtureNamed(window.location.search) : null;
 const compact: ScreenMetrics | null = (() => {
-  if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
+  if (showcaseScale !== null || !compactLayoutAllowed(window.location.search)) return null;
   const app = document.getElementById('app');
   const fixture = compactFixture;
   if (fixture) {
@@ -289,20 +290,33 @@ signals.start();
 // the canvas stayed at its load size), turning the device, or a browser bar
 // coming or going. Each running scene re-fits its camera to the new window;
 // texts drawn from then on rasterize at the new zoom.
+// A phone held upright shows the rotate screen over the game, so a refit to an
+// upright screen is skipped: the scenes keep the landscape layout they will be
+// seen in. A page loaded upright built its first scenes for the upright screen;
+// the first landscape refit restarts them in the landscape content box (the
+// owner's iPhone, 2026-10-14, kept a portrait-width main menu after turning).
 if (compact && !compactFixture) {
   let pending: number | undefined;
+  let builtUpright = compact.presentation === 'rotate';
   const refit = (): void => {
     pending = undefined;
     const m = readCompactScreen();
-    if (!m) return;
+    if (!m || m.presentation === 'rotate') return;
     const next = compactFit(m);
     if (next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
       && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
     document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
     setActiveSceneZoom(next.zoom, next.widthShare);
     setActiveCompactMetrics(m);
-    game.scale.resize(next.canvas.width, next.canvas.height);
-    for (const scene of game.scene.getScenes(true)) applySceneSettings(scene, { refit: true });
+    // setGameSize, not resize: under FIT, resize keeps the load's aspect ratio, so
+    // a turn from upright drew the canvas at portrait width in a landscape window.
+    game.scale.setGameSize(next.canvas.width, next.canvas.height);
+    const restart = builtUpright;
+    builtUpright = false;
+    for (const scene of game.scene.getScenes(true)) {
+      if (restart && sceneStage(scene).compact) scene.scene.restart();
+      else applySceneSettings(scene, { refit: true });
+    }
   };
   const schedule = (): void => {
     if (pending !== undefined) window.clearTimeout(pending);

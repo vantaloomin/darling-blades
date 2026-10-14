@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BACKING_STORE_BUDGET,
   compactCanvasSize,
+  compactLayoutAllowed,
   compactLayoutRequested,
   compactRenderK,
   designWindowViewport,
@@ -165,11 +166,16 @@ describe('the compact canvas and the design-window fit (C2)', () => {
     expect(designWindowZoom(0, 720)).toBe(1);
   });
 
-  it('only ?layout=compact turns the compact profile on', () => {
-    expect(compactLayoutRequested('?layout=compact')).toBe(true);
+  it('allows the compact profile unless ?layout=desktop asks for the desktop one', () => {
+    expect(compactLayoutAllowed('')).toBe(true);
+    expect(compactLayoutAllowed('?layout=compact')).toBe(true);
+    expect(compactLayoutAllowed('?layout=desktop')).toBe(false);
+    expect(compactLayoutAllowed('?showcase=x&layout=desktop')).toBe(false);
+  });
+
+  it('names a fixture screen only with ?layout=compact', () => {
     expect(compactLayoutRequested('?showcase=x&layout=compact')).toBe(true);
     expect(compactLayoutRequested('')).toBe(false);
-    expect(compactLayoutRequested('?layout=wide')).toBe(false);
   });
 });
 

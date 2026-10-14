@@ -1461,6 +1461,7 @@ export class DuelScene extends Phaser.Scene {
           label: this.myDeckName,
         },
         opponent: { cardId: this.oppFaceCardId, label: opponentName },
+        ...(sceneStage(this).compact ? { stage: sceneStage(this) } : {}),
         onComplete: () => {
           if (!this.sys.isActive()) return;
           this.versusBumper = null;
@@ -8688,7 +8689,8 @@ export class DuelScene extends Phaser.Scene {
         tabs,
         card,
         detail: card ? `${typeLine(card)}${stats}` : '',
-        text: card ? rulesText(card) || null : null,
+        // A land says the mana it makes first (W-Reserves), as its face's tap row does.
+        text: card ? [landManaLine(card), rulesText(card)].filter(Boolean).join('\n') || null : null,
         deadline: entry?.deadline ?? null,
         actions: rest.map((action) => ({ label: action.label, cost: action.cost ?? null, enabled: action.enabled !== false, onTap: run(action) })),
         note: zone.tab === 'reserves' ? WARCHEST_NOTE : null,
@@ -12630,4 +12632,10 @@ export class DuelScene extends Phaser.Scene {
     const plate = this.add.rectangle(x, name.y + name.height / 2, name.width + 4, name.height, theme.graphics.panelFill);
     names.add([plate, name]);
   }
+}
+
+/** "{T}: Add {R} or {U}." for a land with a mana ability; null for anything else. */
+function landManaLine(card: CardDef): string | null {
+  const colors = isType(card, 'land') ? card.manaAbility ?? [] : [];
+  return colors.length > 0 ? `{T}: Add ${colors.map((c) => `{${c}}`).join(' or ')}.` : null;
 }

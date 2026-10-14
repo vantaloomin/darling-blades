@@ -177,6 +177,15 @@ function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
       list.add(scene.add.image(px + pip / 2, art.y + 3 + pip / 2, key).setDisplaySize(pip, pip));
       px += pip + 1;
     }
+    // A land shows the mana it makes there instead (W-Reserves): a dual's two colours side by side.
+    if (tile.card.types.includes('land')) {
+      for (const color of tile.card.manaAbility ?? []) {
+        const key = `pip-${color}`;
+        if (!scene.textures.exists(key) || px + pip > art.x + art.width - pip - 4) break;
+        list.add(scene.add.image(px + pip / 2, art.y + 3 + pip / 2, key).setDisplaySize(pip, pip));
+        px += pip + 1;
+      }
+    }
     const glyph = !costs ? null : tile.card.types.includes('charm') ? 'bolt' : tile.card.types.includes('ritual') ? 'scroll' : null;
     if (glyph) {
       const gx = art.x + art.width - 3 - pip / 2;

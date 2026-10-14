@@ -298,14 +298,26 @@ export function designWindowViewport(canvasWidth: number, canvasHeight: number, 
 }
 
 /**
- * The compact profile ships behind a switch until wave 1's camera fit is
- * proven on a real phone (M6): `?layout=compact` in the page address turns it
- * on for that load. Without it, every device boots as it does today.
+ * A dev load's fixture screen asks for the compact profile by name:
+ * `?layout=compact&viewport=<fixture>` (src/platform/screenFixtures.ts).
  */
 export function compactLayoutRequested(search: string): boolean {
+  return layoutParam(search) === 'compact';
+}
+
+/**
+ * The compact profile is on for every phone and tablet (a coarse pointer on a
+ * compact screen); `?layout=desktop` in the page address keeps the desktop
+ * profile for that load, for comparisons.
+ */
+export function compactLayoutAllowed(search: string): boolean {
+  return layoutParam(search) !== 'desktop';
+}
+
+function layoutParam(search: string): string | null {
   try {
-    return new URLSearchParams(search).get('layout') === 'compact';
+    return new URLSearchParams(search).get('layout');
   } catch {
-    return false;
+    return null;
   }
 }

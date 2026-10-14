@@ -211,7 +211,7 @@ always-running art loader scene sets its own camera. If the camera approach
 fails, the fallback is Phaser's `setGameSize` at scene start, which the
 Forge already uses (`src/forge/scene.ts`).
 
-**Built in wave 1, behind `?layout=compact`:** the canvas is the screen
+**Built in wave 1, behind `?layout=compact` until 2026-10-14, now on for every phone and tablet** (`?layout=desktop` keeps the desktop profile for a load, for comparisons; the owner's iPhone over LAN showed the plain address still booting the desktop profile): the canvas is the screen
 times the render factor, and every scene's base zoom is the one that fits
 1280x720 inside it (`activeSceneZoom` in `src/platform/renderScale.ts`,
 which PackOpening's zoom escalation now composes with). The art loader
@@ -468,7 +468,7 @@ word.
   2026-10-10:** 29 frames (N1-N21 Duel, N30-N38 Story), approved with
   M30-M34.
 - The upright-tablet letterbox (M11) and the rotate screen's scene image
-  (M12), both ruled. **Built in wave 1** (under `?layout=compact`): an
+  (M12), both ruled. **Built in wave 1**: an
   upright tablet never gets the rotate screen; its 1280x720 window fits
   96% of the width, and the game clears to transparent outside it so the
   main menu's vista fills the bands (`layout-letterbox` in `index.html`;
@@ -715,3 +715,4 @@ recommendation on each except M16, which takes the owner's variant.
   (the first draft wrongly said it was lost), ruled M5 to M29, and reported that the desktop composition was unreadable on the
   Galaxy Tab A8, which moved touch tablets to the compact profile.
 - **2026-10-13:** the owner noted the phone build was still the desktop menus, smaller. Mobile wave 2 started: the per-scene switch and the compact Main menu.
+- **2026-10-14:** the owner's iPhone over LAN booted every screen in the desktop layout: the compact profile was still behind wave 1's `?layout=compact`. It is now on by default for coarse-pointer compact screens, with `?layout=desktop` as the opt-out.

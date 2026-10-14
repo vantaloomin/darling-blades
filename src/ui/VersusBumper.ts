@@ -57,6 +57,12 @@ export interface VersusBumperOptions {
   player: VersusIdentity;
   opponent: VersusIdentity;
   onComplete: () => void;
+  /**
+   * The scene's design space when it is not the 1280x720 window (the phone
+   * Duel's compact stage): the bumper is scaled to fit inside it, centred,
+   * over a dim that fills the rest.
+   */
+  stage?: { width: number; height: number };
 }
 
 /**
@@ -72,6 +78,7 @@ export class VersusBumper {
   private readonly maskGraphics: Phaser.GameObjects.Graphics[] = [];
   private readonly masks: Phaser.Display.Masks.GeometryMask[] = [];
   private continueTimer: Phaser.Time.TimerEvent | null = null;
+  private stageCurtain: Phaser.GameObjects.Rectangle | null = null;
   private exiting = false;
   private finished = false;
 
@@ -181,9 +188,25 @@ export class VersusBumper {
       ease,
     });
 
+    if (options.stage && (options.stage.width !== WIDTH || options.stage.height !== HEIGHT)) this.fitStage(options.stage);
+
     this.continueTimer = scene.time.delayedCall(motion.entranceMs + motion.holdMs, this.finish, [], this);
     scene.input.keyboard?.on('keydown', this.onAnyKey, this);
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, this.destroy, this);
+  }
+
+  /** Scales the 1280x720 lockup into a compact stage; its masks take the same transform. */
+  private fitStage(stage: { width: number; height: number }): void {
+    const scale = Math.min(stage.width / WIDTH, stage.height / HEIGHT);
+    const x = (stage.width - WIDTH * scale) / 2;
+    const y = (stage.height - HEIGHT * scale) / 2;
+    this.root.setPosition(x, y).setScale(scale);
+    for (const graphics of this.maskGraphics) graphics.setPosition(x, y).setScale(scale);
+    this.stageCurtain = this.scene.add
+      .rectangle(stage.width / 2, stage.height / 2, stage.width, stage.height, theme.graphics.dim, 1)
+      .setDepth(this.root.depth - 1)
+      .setInteractive({ useHandCursor: true });
+    this.stageCurtain.on('pointerdown', this.finish, this);
   }
 
   private makeMask(points: Phaser.Types.Math.Vector2Like[]): Phaser.Display.Masks.GeometryMask {
@@ -291,7 +314,7 @@ export class VersusBumper {
     this.continueTimer?.remove();
     this.continueTimer = null;
     this.scene.tweens.add({
-      targets: this.root,
+      targets: [this.root, ...(this.stageCurtain ? [this.stageCurtain] : [])],
       alpha: 0,
       duration: versusBumperMotion(this.options.animations).exitMs,
       ease: theme.motion.easeOut,
@@ -321,12 +344,15 @@ export class VersusBumper {
     this.continueTimer = null;
     this.scene.tweens.killTweensOf([
       this.root,
+      ...(this.stageCurtain ? [this.stageCurtain] : []),
       this.leftPanel,
       this.rightPanel,
       this.centerLockup,
       ...this.root.list,
     ]);
     if (this.root.active) this.root.destroy(true);
+    if (this.stageCurtain?.active) this.stageCurtain.destroy();
+    this.stageCurtain = null;
     for (const mask of this.masks) mask.destroy();
     this.masks.length = 0;
     for (const graphics of this.maskGraphics) {
