@@ -557,6 +557,11 @@ phone and at 130%; replay mode has no side effects; the avatar and floor
 matrices unchanged; full Vitest; and longer real-device sessions by the
 owner, including a full tower climb on a phone.
 
+**Pack opening (mocks S-Pack-Tear, S-Pack-Reveal, S-Pack-Spotlight, S-Pack-Inspect, S-Pack-Results; `src/ui/packCompact.ts`, `src/ui/PackTile.ts`).** Built in parts behind `?phone=PackOpening` on the dev server, one composition for the phone and the desktop: every size is the mock's times the content box over the reference phone (718x356), up to 1.6.
+
+- Single pack (part 1): the pack centred over "Tap to tear it open", the back chevron at the top left. The Commons and Rares deal into one to three rows of art tiles (cost top left, stats over the name, rim in the rolled frame's colour or the card's), with "★ New", "★ New variant" or the melted duplicate's "+5" in a pill above; a melted duplicate is dimmed. The specials wait face down in the column with their tier tab and glow, Skip in the foot; the column widens into the main area when three or more specials would otherwise shrink. The best card's spotlight shows the full card centred over a dim, its New chip at the corner, its tier and finish beside it, "tap to skip" under it. Face up, each special keeps its tab and shows its New pill and finish under it; the foot becomes Menu and Open another with its price (faded when short). A tapped pull opens full size over the main area with its pull details at the top of the column and Previous, Next and Close in the foot.
+- Still to come: the ten-pack summary and the runway (part 2), then the switch on for phones and the desktop.
+
 ### Mobile wave 4 (2.0 wave 4): spectacle, Limited, hardening
 
 Pack Opening and the Limited scenes; reward reveals and the rarer overlays;

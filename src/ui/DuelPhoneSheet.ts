@@ -350,7 +350,7 @@ function drawMandate(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body:
  * A tile's name over the scrim, broken only between words: the type steps
  * down until the longest word fits, and a third line is cut to two.
  */
-function tileName(scene: Phaser.Scene, art: Rect, text: string): Phaser.GameObjects.Text {
+export function tileName(scene: Phaser.Scene, art: Rect, text: string): Phaser.GameObjects.Text {
   const base = theme.compactType.label;
   const room = art.width - 8;
   const name = scene.add.text(art.x + 5, art.y + art.height - 4, text, {
