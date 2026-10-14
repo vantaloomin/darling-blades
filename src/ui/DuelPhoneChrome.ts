@@ -61,6 +61,8 @@ export interface PhoneFootButton {
   enabled?: boolean;
   /** A plain button in the primary's slot (Close). */
   ghost?: boolean;
+  /** Mana symbols after the label on the wide button ("Whisper for {R}"). */
+  cost?: ManaCost;
 }
 
 export interface PhoneFoot {
@@ -160,7 +162,36 @@ export interface PhoneSummaryPanel {
   note: { name: string; reminder: string } | null;
 }
 
-export type PhonePanel = PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/** An action in a zone's column beside the foot's, with its price. */
+export interface PhoneZoneAction {
+  label: string;
+  cost: ManaCost | null;
+  enabled: boolean;
+  onTap: () => void;
+}
+
+/**
+ * A zone beside its sheet (W-GraveYours, W-GraveFoe, W-Severed, W-Reserves):
+ * the zone's tabs, then the picked card's name, type, cost and text, and
+ * what it can do from here.
+ */
+export interface PhoneZonePanel {
+  kind: 'zone';
+  /** "Graveyard · 6" and "Severed · 2", or "Active · 6" and "Reserves · 4". */
+  tabs: readonly { label: string; active: boolean; onTap: () => void }[];
+  card: CardDef | null;
+  detail: string;
+  /** The card's rules, with mana symbols. */
+  text: string | null;
+  /** "Whispers: next Dawn". */
+  deadline: string | null;
+  /** Actions beyond the foot's ("Whisper + Tithe", "Preserve"). */
+  actions: readonly PhoneZoneAction[];
+  /** How the zone works, under a rule (the Warchest's land drop). */
+  note: string | null;
+}
+
+export type PhonePanel = PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -192,6 +223,7 @@ export class DuelPhoneChrome {
   private footPrimary: PhoneFootButton | null = null;
   private stage: Phaser.GameObjects.Container | null = null;
   private handZones: Phaser.GameObjects.Zone[] = [];
+  private footPips: Phaser.GameObjects.Image[] = [];
   private readonly endTurnButton: CompactButton;
   private readonly primaryButton: CompactButton;
   private readonly wideButton: CompactButton;
@@ -475,6 +507,28 @@ export class DuelPhoneChrome {
     show(this.endTurnButton, this.footLeft, 'ghost');
     show(this.primaryButton, wide ? null : this.footPrimary, 'primary');
     show(this.wideButton, wide ? this.footPrimary : null, 'primary');
+    this.footCost(wide ? this.footPrimary?.cost ?? null : null);
+  }
+
+  /** The wide button's price after its label, the pair centred together. */
+  private footCost(cost: ManaCost | null): void {
+    for (const o of this.footPips) o.destroy();
+    this.footPips = [];
+    const button = this.wideButton;
+    const specs = cost ? pipsFor(cost) : [];
+    const pip = Math.round(this.type.h2 * 1.05);
+    const pipsW = specs.length ? 8 + specs.length * (pip + 2) - 2 : 0;
+    const label = button.label;
+    label.setX(Math.round((this.L.foot.width - label.width - pipsW) / 2));
+    let px = label.x + label.width + 8 + pip / 2;
+    for (const spec of specs) {
+      const key = spec.number !== undefined ? ensureNumeralPip(this.scene, spec.number) : spec.texture;
+      if (!this.scene.textures.exists(key)) continue;
+      const image = this.scene.add.image(px, this.L.foot.height / 2, key).setDisplaySize(pip, pip);
+      button.container.addAt(image, button.container.getIndex(button.inputZone));
+      this.footPips.push(image);
+      px += pip + 2;
+    }
   }
 
   /**
@@ -498,6 +552,11 @@ export class DuelPhoneChrome {
     return [this.endTurnButton.inputZone, this.primaryButton.inputZone, this.wideButton.inputZone];
   }
 
+  /** The column's own taps (a zone's tabs and actions), for a guard that leaves them live. */
+  columnTargets(): Phaser.GameObjects.GameObject[] {
+    return [...this.handZones];
+  }
+
   /** The stage's tap target, for a guard that leaves it live. */
   stageTargets(): Phaser.GameObjects.GameObject[] {
     return this.stage ? [this.stage.list[0] as Phaser.GameObjects.GameObject] : [];
@@ -511,6 +570,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'combat') this.drawCombatPanel(panel);
     else if (panel.kind === 'recap') this.drawRecapPanel(panel);
     else if (panel.kind === 'summary') this.drawSummaryPanel(panel);
+    else if (panel.kind === 'zone') this.drawZonePanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -978,6 +1038,113 @@ export class DuelPhoneChrome {
         fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body, lineSpacing: 1,
       }, width);
       if (box.getBounds().bottom > bottom) box.destroy();
+    }
+  }
+
+  private drawZonePanel(panel: PhoneZonePanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const bottom = pane.y + pane.height;
+    let y = pane.y;
+    if (panel.tabs.length) {
+      // The zone's tabs as one segmented control, the open one gold (W-GraveYours).
+      const h = Math.max(COMPACT.touch, Math.round(this.type.body * 2.2));
+      const frame = { x: pane.x, y, width: pane.width, height: h };
+      this.rowPlate(frame, theme.colors.panelStroke, 1);
+      const w = (frame.width - 8) / panel.tabs.length;
+      panel.tabs.forEach((tab, i) => {
+        const rect = { x: frame.x + 4 + i * w, y: frame.y + 4, width: w, height: h - 8 };
+        if (tab.active) {
+          const g = scene.add.graphics().setDepth(theme.depth.hand);
+          g.fillStyle(colorInt(theme.colors.btnPrimaryBg), 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.control);
+          this.handObjects.push(g);
+        }
+        const label = scene.add.text(rect.x + rect.width / 2, rect.y + rect.height / 2, tab.label, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600,
+          color: tab.active ? theme.colors.onGold : theme.colors.body,
+        }).setOrigin(0.5).setDepth(theme.depth.hand + 1);
+        for (let size = this.type.body; label.width > rect.width - 8 && size > this.type.body * 0.75;) label.setFontSize(--size);
+        ellipsizeText(label, rect.width - 8);
+        this.handObjects.push(label);
+        if (!tab.active) this.rowZone(rect, tab.onTap).setName(`zone-tab:${i}`);
+      });
+      y += h + 10;
+    }
+    if (!panel.card) return;
+    const card = panel.card;
+    const thumb = Math.max(40, this.L.handRowH + 6);
+    this.thumbArt(card, x + thumb / 2, y + thumb / 2, thumb);
+    const tx = x + thumb + 10;
+    const name = scene.add.text(tx, y, card.name, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      wordWrap: { width: x + width - tx }, lineSpacing: -2,
+    }).setDepth(theme.depth.hand);
+    this.handObjects.push(name);
+    const detail = scene.add.text(tx, name.y + name.height, panel.detail, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted,
+    }).setDepth(theme.depth.hand);
+    ellipsizeText(detail, x + width - tx);
+    this.handObjects.push(detail);
+    let textTop = detail.y + detail.height;
+    if (card.cost) {
+      // The cost after the type, or on its own line when the type fills it.
+      const pip = 16;
+      const pipsW = pipsFor(card.cost).length * (pip + 2);
+      const fits = detail.x + detail.width + 8 + pipsW <= x + width;
+      const cy = fits ? detail.y + detail.height / 2 : textTop + pip / 2 + 2;
+      this.costPips(card.cost, (fits ? detail.x + detail.width + 8 : tx) + pipsW, cy, pip);
+      if (!fits) textTop += pip + 4;
+    }
+    y = Math.max(y + thumb, textTop) + 8;
+    if (panel.text) {
+      const box = this.panelText(x, y, panel.text, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.body, lineSpacing: 2 }, width);
+      y += box.getBounds().height + 8;
+    }
+    if (panel.deadline && y + this.type.body * 2 < bottom) {
+      // "Whispers: next Dawn" in a gold outline with the turn glyph.
+      const text = scene.add.text(0, 0, panel.deadline, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      }).setDepth(theme.depth.hand + 1);
+      const icon = Math.round(this.type.label * 1.05);
+      const h = text.height + 8;
+      const w = Math.min(width, 12 + icon + 6 + text.width + 12);
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(1.5, colorInt(theme.colors.gold), 0.9).strokeRoundedRect(x, y, w, h, h / 2);
+      this.handObjects.push(g);
+      this.handObjects.push(scene.add.image(x + 12 + icon / 2, y + h / 2, bakeUiIcon(scene, 'history')).setDisplaySize(icon, icon)
+        .setTint(colorInt(theme.colors.gold)).setDepth(theme.depth.hand + 1));
+      text.setPosition(x + 12 + icon + 6, y + 4);
+      ellipsizeText(text, x + w - 12 - text.x);
+      this.handObjects.push(text);
+      y += h + 10;
+    }
+    const rowH = Math.max(COMPACT.touch, this.L.handRowH);
+    for (const action of panel.actions) {
+      if (y + rowH > bottom) break;
+      const rect = { x: pane.x, y, width: pane.width, height: rowH };
+      this.rowPlate(rect, theme.colors.gold, 0.9).setAlpha(action.enabled ? 1 : 0.45);
+      const cy = y + rowH / 2;
+      const right = action.cost ? this.costPips(action.cost, rect.x + rect.width - 10, cy, 18) : rect.x + rect.width - 10;
+      const label = scene.add.text(rect.x + 12, cy, action.label, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+      }).setOrigin(0, 0.5).setAlpha(action.enabled ? 1 : 0.45).setDepth(theme.depth.hand);
+      ellipsizeText(label, right - 8 - label.x);
+      this.handObjects.push(label);
+      if (action.enabled) this.rowZone(rect, action.onTap).setName(`zone-action:${action.label}`);
+      y += rowH + 6;
+    }
+    if (panel.note && y + this.type.body * 2 < bottom) {
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
+      this.handObjects.push(g);
+      y += 10;
+      const note = scene.add.text(x, y, panel.note, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted, lineSpacing: 2,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(note);
     }
   }
 

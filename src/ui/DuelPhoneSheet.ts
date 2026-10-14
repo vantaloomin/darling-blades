@@ -8,11 +8,14 @@ import { medallionRim, sheetGrid } from './duelCompact';
 import type { Rect } from './layout';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { addPortraitArt } from './portraitArt';
+import { renderManaText } from './ManaText';
+import { ellipsizeText } from './textFit';
 import { colorInt, theme } from './theme';
 import { bakeUiIcon } from './uiIcons';
 
 /**
- * The phone Duel's windows (mocks W-Foresee, W-Loot, W-HandSize): a sheet
+ * The phone Duel's windows (mocks W-Foresee, W-Loot, W-HandSize, and the
+ * zones W-GraveYours, W-GraveFoe, W-Severed, W-Reserves): a sheet
  * over the left column and the centre, with a heading, a line on what to do,
  * and the cards. The command column beside it keeps the summary and the
  * Confirm; DuelScene draws that through DuelPhoneChrome. Geometry comes from
@@ -28,8 +31,20 @@ interface SheetCard {
   onTap: () => void;
 }
 
+/** What a zone tile adds (W-GraveYours, W-Reserves): its place or count, what it can do, and the pick. */
+export interface SheetTileMarks {
+  /** The corner chip: "Top", "x2"; omitted for none. */
+  badge?: string | null;
+  /** Over the name: what the card can do from here, gold while it can ("Whispers", "Retell"). */
+  chip?: { label: string; live: boolean } | null;
+  /** The card the column is showing: a gold rim and a check. */
+  selected?: boolean;
+  /** Cost pips and the spell glyph at the top (W-Loot); a zone tile leaves them out. */
+  costs?: boolean;
+}
+
 /** A card shown as its art (W-Loot, W-HandSize): cost, type, name. */
-export type SheetArtTile = SheetCard;
+export type SheetArtTile = SheetCard & SheetTileMarks;
 
 /** A card shown as its whole face, with its place above it (W-Foresee). */
 export interface SheetFace extends SheetCard {
@@ -44,6 +59,8 @@ export interface DuelSheetSpec {
   onClose?: () => void;
   tiles?: readonly SheetArtTile[];
   faces?: readonly SheetFace[];
+  /** Shown in place of the cards when there are none. */
+  empty?: string;
 }
 
 /** Art tiles are a little taller than wide, as in the mocks. */
@@ -62,20 +79,41 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
   const title = scene.add.text(rect.x + PAD, rect.y + 10, spec.title, {
     fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
   });
-  const subtitle = scene.add.text(rect.x + PAD, title.y + title.height, spec.subtitle, {
+  // The title stops short of the close button; a long one steps down, then ends in an ellipsis.
+  const titleRoom = rect.width - 2 * PAD - (spec.onClose ? 44 : 0);
+  for (let size = type.h1; title.width > titleRoom && size > type.h1 * 0.75;) title.setFontSize(--size);
+  ellipsizeText(title, titleRoom);
+  const subStyle = {
     fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
     wordWrap: { width: rect.width - 2 * PAD, useAdvancedWrap: true },
-  });
-  c.add([title, subtitle]);
+  };
+  const subY = title.y + title.height;
+  let subH: number;
+  if (spec.subtitle.includes('{')) {
+    // A mana line ("Untapped mana · {R} 3/4") draws its symbols.
+    const box = scene.add.container(0, 0);
+    renderManaText(scene, box, rect.x + PAD, subY, spec.subtitle, subStyle).reflow();
+    subH = spec.subtitle ? box.getBounds().height : 0;
+    c.add([title, box]);
+  } else {
+    const subtitle = scene.add.text(rect.x + PAD, subY, spec.subtitle, subStyle);
+    subH = spec.subtitle ? subtitle.height : 0;
+    c.add([title, subtitle]);
+  }
   if (spec.onClose) {
     const size = 36;
     const close = compactIconButton(scene, { x: rect.x + rect.width - size - 8, y: rect.y + 8, width: size, height: size }, 'close', spec.onClose);
     c.add(close.container);
   }
-  const top = subtitle.y + subtitle.height + 10;
+  const top = subY + subH + 10;
   const body: Rect = { x: rect.x + PAD, y: top, width: rect.width - 2 * PAD, height: rect.y + rect.height - PAD + 4 - top };
   if (spec.faces) drawFaces(scene, c, body, spec.faces);
-  if (spec.tiles) drawTiles(scene, c, body, spec.tiles);
+  if (spec.tiles?.length) drawTiles(scene, c, body, spec.tiles);
+  else if (spec.empty) {
+    c.add(scene.add.text(body.x + body.width / 2, body.y + body.height / 3, spec.empty, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+    }).setOrigin(0.5));
+  }
   return c;
 }
 
@@ -99,14 +137,15 @@ function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
     c.add(compactScrim(scene, art, 0.5));
     // Cost at the top left, generic first; the type's glyph at the top right.
     const pip = Math.round(type.label * 1.3);
+    const costs = tile.costs !== false;
     let px = art.x + 3;
-    for (const spec of tile.card.cost ? pipsFor(tile.card.cost) : []) {
+    for (const spec of costs && tile.card.cost ? pipsFor(tile.card.cost) : []) {
       const key = spec.number !== undefined ? ensureNumeralPip(scene, spec.number) : spec.texture;
       if (!scene.textures.exists(key) || px + pip > art.x + art.width - pip - 4) break;
       c.add(scene.add.image(px + pip / 2, art.y + 3 + pip / 2, key).setDisplaySize(pip, pip));
       px += pip + 1;
     }
-    const glyph = tile.card.types.includes('charm') ? 'bolt' : tile.card.types.includes('ritual') ? 'scroll' : null;
+    const glyph = !costs ? null : tile.card.types.includes('charm') ? 'bolt' : tile.card.types.includes('ritual') ? 'scroll' : null;
     if (glyph) {
       const gx = art.x + art.width - 3 - pip / 2;
       const gy = art.y + 3 + pip / 2;
@@ -114,13 +153,25 @@ function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
         .lineStyle(1, colorInt(theme.colors.gold), 0.9).strokeCircle(gx, gy, pip / 2 + 1));
       c.add(scene.add.image(gx, gy, bakeUiIcon(scene, glyph)).setDisplaySize(pip * 0.7, pip * 0.7).setTint(colorInt(theme.colors.gold)));
     }
-    c.add(tileName(scene, art, tile.card.name));
+    const name = tileName(scene, art, tile.card.name);
+    c.add(name);
+    if (tile.chip) c.add(actionChip(scene, art.x + 5, name.y - name.height - 4, tile.chip.label, tile.chip.live, art.width - 10));
+    if (tile.badge) c.add(cornerBadge(scene, art.x + art.width - 3, art.y + 3, tile.badge));
     if (picked) {
       c.add(scene.add.graphics().fillStyle(theme.graphics.dim, 0.62).fillRect(art.x, art.y, art.width, art.height));
       c.add(pill(scene, cell.x + cell.width / 2, cell.y + cell.height * 0.42, tile.pill!, cell.width - 8));
     }
-    c.add(scene.add.graphics().lineStyle(2.5, picked ? colorInt(theme.colors.dangerArmed) : rim, picked ? 0.7 : 1)
+    const selected = tile.selected === true;
+    const stroke = picked ? colorInt(theme.colors.dangerArmed) : selected ? colorInt(theme.colors.gold) : rim;
+    c.add(scene.add.graphics().lineStyle(selected ? 3.5 : 2.5, stroke, picked ? 0.7 : 1)
       .strokeRoundedRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2, r));
+    if (selected) {
+      const d = Math.round(Math.min(type.label * 1.9, art.width * 0.3));
+      const cx = art.x + 4 + d / 2;
+      const cy = art.y + 4 + d / 2;
+      c.add(scene.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, d / 2));
+      c.add(scene.add.image(cx, cy, bakeUiIcon(scene, 'check')).setDisplaySize(d * 0.6, d * 0.6).setTint(colorInt(theme.colors.onGold)));
+    }
     c.add(tapZone(scene, cell, tile));
   });
 }
@@ -171,6 +222,38 @@ function tileName(scene: Phaser.Scene, art: Rect, text: string): Phaser.GameObje
     ellipsizeLast(name, room);
   }
   return name;
+}
+
+/** "Whispers", "Retell": what a card can do from the zone, gold while it can, else muted. */
+function actionChip(scene: Phaser.Scene, x: number, bottom: number, text: string, live: boolean, maxW: number): Phaser.GameObjects.Container {
+  const base = theme.compactType.label;
+  const label = scene.add.text(0, 0, text, {
+    fontFamily: theme.fonts.ui, fontSize: `${base}px`, fontStyle: theme.weight.w700,
+    color: live ? theme.colors.onGold : theme.colors.muted,
+  }).setOrigin(0.5);
+  for (let size = base; label.width + 20 > maxW && size > base * 0.75;) label.setFontSize(--size);
+  const w = Math.min(maxW, label.width + 20);
+  const h = label.height + 6;
+  const plate = scene.add.graphics();
+  if (live) plate.fillStyle(colorInt(theme.colors.btnPrimaryBg), 1).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+  else {
+    plate.fillStyle(theme.graphics.panelFill, 0.9).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2)
+      .lineStyle(1.5, colorInt(theme.colors.muted), 0.8).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+  }
+  return scene.add.container(x + w / 2, bottom - h / 2, [plate, label]);
+}
+
+/** The corner chip: a graveyard's "Top", a Warchest stack's "x2". */
+function cornerBadge(scene: Phaser.Scene, right: number, top: number, text: string): Phaser.GameObjects.Container {
+  const label = scene.add.text(0, 0, text, {
+    fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+  }).setOrigin(0.5);
+  const w = label.width + 12;
+  const h = label.height + 4;
+  const plate = scene.add.graphics()
+    .fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 6)
+    .lineStyle(1.5, colorInt(theme.colors.gold), 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 6);
+  return scene.add.container(right - w / 2, top + h / 2, [plate, label]);
 }
 
 function ellipsizeLast(text: Phaser.GameObjects.Text, room: number): void {
