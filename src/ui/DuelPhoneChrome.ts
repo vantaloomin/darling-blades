@@ -107,7 +107,39 @@ export interface PhoneInspectPanel {
   guide: readonly { name: string; reminder: string }[];
 }
 
-export type PhonePanel = PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel;
+/** One creature in a combat list: an attacker you declared, or one attacking you. */
+export interface PhoneCombatRow {
+  card: CardDef;
+  /** "7/3 · Twin Blades, Rage". */
+  detail: string;
+  /** At the right: × to take it back, a lock (Rage), its blockers, or "Takes 4". */
+  right: { kind: 'remove'; onTap: () => void } | { kind: 'lock' } | { kind: 'blockers'; cards: readonly CardDef[] } | { kind: 'chip'; text: string } | null;
+  /** Lit while the picked blocker can block it; dimmed while it cannot. */
+  look?: 'lit' | 'dim';
+  onTap?: () => void;
+}
+
+/** Declaring attackers (T-07) or blockers (T-08) in the column. */
+export interface PhoneCombatPanel {
+  kind: 'combat';
+  /** The gold caption: "YOUR COMBAT", "HESTIA ATTACKS WITH 4". */
+  heading: string;
+  /** The foe's face beside the caption while she attacks. */
+  face: CardDef | null;
+  title: string;
+  forecast: { text: string; danger: boolean } | null;
+  rows: readonly PhoneCombatRow[];
+}
+
+/** The combat damage recap (T-09): each step's blows, then the life it cost. */
+export interface PhoneRecapPanel {
+  kind: 'recap';
+  sections: readonly { title: string | null; lines: readonly { cards: readonly CardDef[]; text: string; deaths: string | null }[] }[];
+  life: readonly { label: string; from: number; to: number }[];
+  onDismiss: () => void;
+}
+
+export type PhonePanel = PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -329,7 +361,7 @@ export class DuelPhoneChrome {
     const spot = (r: { y: number; height: number }) => ({ x: thumbX, y: r.y + r.height / 2 });
     if (list.more > 0) {
       const last = list.rows[list.rows.length - 1];
-      this.drawMoreRow(last.visual, list.more);
+      this.drawMoreRow(last.visual, `${list.more} more in hand`);
     }
     return rows.map((_, i) => {
       const row = list.rows[Math.min(i, list.rows.length - 1)];
@@ -400,7 +432,17 @@ export class DuelPhoneChrome {
         button.inputZone.input!.enabled = false;
         return;
       }
-      if (button.label.text !== spec.label) button.setLabel(spec.label);
+      if (button.label.text !== spec.label) {
+        button.setLabel(spec.label);
+        // A long label ("Confirm blocks (3)") steps its type down to fit the button.
+        const base = Number(button.label.getData('baseFontSize') ?? parseFloat(String(button.label.style.fontSize)));
+        button.label.setData('baseFontSize', base);
+        const room = (button === this.primaryButton ? this.L.primary : this.L.endTurn).width - 16;
+        let size = base;
+        button.label.setFontSize(size);
+        while (button.label.width > room && size > base * 0.7) button.label.setFontSize(--size);
+        button.setLabel(spec.label); // re-centres at the new width
+      }
       button.setVariant(spec.danger ? 'danger' : spec.ghost ? 'ghost' : variant);
       button.setEnabled(spec.enabled !== false);
     };
@@ -439,6 +481,8 @@ export class DuelPhoneChrome {
     this.clearColumn();
     if (panel.kind === 'focus') this.drawFocusPanel(panel);
     else if (panel.kind === 'target') this.drawTargetPanel(panel);
+    else if (panel.kind === 'combat') this.drawCombatPanel(panel);
+    else if (panel.kind === 'recap') this.drawRecapPanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -611,6 +655,188 @@ export class DuelPhoneChrome {
     }
   }
 
+  /** A small gold caption over a column panel ("YOUR COMBAT"). */
+  private caption(x: number, y: number, text: string): Phaser.GameObjects.Text {
+    const label = this.scene.add.text(x, y, text.toUpperCase(), {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.caption}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    }).setLetterSpacing(1).setDepth(theme.depth.hand);
+    this.handObjects.push(label);
+    return label;
+  }
+
+  private drawCombatPanel(panel: PhoneCombatPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    let y = pane.y;
+    let tx = x;
+    const faceSize = 30;
+    if (panel.face) {
+      this.discArt(panel.face, x + faceSize / 2, y + faceSize / 2 + 2, faceSize);
+      tx = x + faceSize + 8;
+    }
+    const head = this.caption(tx, y, panel.heading);
+    ellipsizeText(head, x + width - tx);
+    const title = scene.add.text(tx, head.y + head.height + 1, panel.title, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+      wordWrap: { width: x + width - tx, useAdvancedWrap: true },
+    }).setDepth(theme.depth.hand);
+    this.handObjects.push(title);
+    y = Math.max(title.y + title.height, panel.face ? y + faceSize + 4 : 0) + 6;
+    if (panel.forecast) {
+      const tone = panel.forecast.danger ? theme.colors.dangerArmed : theme.colors.body;
+      const icon = scene.add.image(x + 9, 0, bakeUiIcon(scene, panel.forecast.danger ? 'warning' : 'sword')).setDisplaySize(16, 16)
+        .setTint(colorInt(tone)).setDepth(theme.depth.hand);
+      const text = scene.add.text(x + 24, y, panel.forecast.text, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: tone,
+        wordWrap: { width: width - 24, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      icon.setY(y + Math.min(text.height, this.type.body * 1.3) / 2);
+      this.handObjects.push(icon, text);
+      y += text.height + 6;
+    }
+    const rowH = this.L.handRowH + 2;
+    const gap = 4;
+    const fit = Math.max(0, Math.floor((pane.y + pane.height - y + gap) / (rowH + gap)));
+    const shown = panel.rows.length > fit ? Math.max(0, fit - 1) : panel.rows.length;
+    for (const row of panel.rows.slice(0, shown)) {
+      this.drawCombatRow({ x: pane.x, y, width: pane.width, height: rowH }, row);
+      y += rowH + gap;
+    }
+    if (shown < panel.rows.length && fit > 0) {
+      this.drawMoreRow({ x: pane.x, y, width: pane.width, height: rowH }, `${panel.rows.length - shown} more`);
+    }
+  }
+
+  private drawCombatRow(rect: { x: number; y: number; width: number; height: number }, row: PhoneCombatRow): void {
+    const scene = this.scene;
+    const alpha = row.look === 'dim' ? 0.5 : 1;
+    this.rowPlate(rect, row.look === 'lit' ? theme.colors.gold : theme.colors.panelStroke, row.look === 'lit' ? 0.95 : 1).setAlpha(alpha);
+    const cy = rect.y + rect.height / 2;
+    const thumb = Math.min(34, rect.height - 10);
+    this.thumbArt(row.card, rect.x + 6 + thumb / 2, cy, thumb).setAlpha(alpha);
+    let right = rect.x + rect.width - 8;
+    const r = row.right;
+    if (r?.kind === 'remove' || r?.kind === 'lock') {
+      const size = Math.min(COMPACT.touch, rect.height);
+      const icon = scene.add.image(right - size / 2, cy, bakeUiIcon(scene, r.kind === 'lock' ? 'lock' : 'close')).setDisplaySize(16, 16)
+        .setTint(colorInt(r.kind === 'lock' ? theme.colors.gold : theme.colors.muted)).setDepth(theme.depth.hand + 1);
+      this.handObjects.push(icon);
+      if (r.kind === 'lock') {
+        const ring = scene.add.graphics().setDepth(theme.depth.hand);
+        ring.lineStyle(1.5, colorInt(theme.colors.gold), 0.9).strokeCircle(icon.x, cy, 14);
+        this.handObjects.push(ring);
+      }
+      right -= size;
+    } else if (r?.kind === 'blockers') {
+      const d = Math.min(28, thumb);
+      for (const card of [...r.cards].reverse()) {
+        this.discArt(card, right - d / 2, cy, d);
+        right -= d + 4;
+      }
+    } else if (r?.kind === 'chip') {
+      const chip = scene.add.text(0, rect.y + 8, r.text, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.dangerArmed,
+        padding: { x: 7, y: 1 },
+      }).setOrigin(1, 0).setDepth(theme.depth.hand + 1);
+      chip.setX(right);
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.fillStyle(colorInt(theme.colors.dangerArmed), 0.18).fillRoundedRect(chip.x - chip.width, chip.y, chip.width, chip.height, chip.height / 2);
+      g.lineStyle(1, colorInt(theme.colors.dangerArmed), 0.9).strokeRoundedRect(chip.x - chip.width, chip.y, chip.width, chip.height, chip.height / 2);
+      this.handObjects.push(g, chip);
+      // The chip rides the name line; the detail line keeps the full width.
+    }
+    const textX = rect.x + thumb + 12;
+    const chipW = r?.kind === 'chip' ? (this.handObjects[this.handObjects.length - 1] as Phaser.GameObjects.Text).width + 6 : 0;
+    const name = scene.add.text(textX, cy - 1, row.card.name, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+    }).setOrigin(0, 1).setAlpha(alpha).setDepth(theme.depth.hand);
+    ellipsizeText(name, right - textX - 6 - chipW);
+    const detail = scene.add.text(textX, cy + 3, row.detail, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
+    }).setAlpha(alpha).setDepth(theme.depth.hand);
+    ellipsizeText(detail, right - textX - 6);
+    this.handObjects.push(name, detail);
+    if (r?.kind === 'remove') {
+      // × is the row's whole tap: the row is the creature taken out of the attack.
+      this.rowZone(rect, r.onTap, row.card).setName(`combat-row:${row.card.id}`);
+    } else if (row.onTap) {
+      this.rowZone(rect, row.onTap, row.card).setName(`combat-row:${row.card.id}`);
+    }
+  }
+
+  /** A creature's round art disc, as on the board, for blocker and recap thumbs. */
+  private discArt(card: CardDef, cx: number, cy: number, d: number): void {
+    const img = this.thumbArt(card, cx, cy, d);
+    const mask = this.scene.make.graphics({}, false).fillCircle(cx, cy, d / 2);
+    const geo = mask.createGeometryMask();
+    img.setMask(geo);
+    const ring = this.scene.add.graphics().setDepth(theme.depth.hand + 1);
+    ring.lineStyle(1.5, colorInt(theme.colors.panelStroke), 1).strokeCircle(cx, cy, d / 2);
+    this.handObjects.push(ring);
+    img.once('destroy', () => { geo.destroy(); mask.destroy(); });
+  }
+
+  private drawRecapPanel(panel: PhoneRecapPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    let y = pane.y;
+    y += this.caption(x, y, 'Combat damage').height + 6;
+    const lifeH = panel.life.length > 0 ? Math.max(COMPACT.touch, Math.round(this.type.h2 * 2.2)) : 0;
+    const bottom = pane.y + pane.height - (lifeH > 0 ? lifeH * panel.life.length + 8 : 0);
+    const d = Math.round(this.type.body * 1.9);
+    outer: for (const section of panel.sections) {
+      if (section.title) {
+        if (y + this.type.body * 1.4 > bottom) break;
+        const title = scene.add.text(x, y, section.title, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+        }).setDepth(theme.depth.hand);
+        this.handObjects.push(title);
+        y += title.height + 4;
+      }
+      for (const line of section.lines) {
+        const thumbs = Math.min(line.cards.length, 2);
+        const textX = x + d + (thumbs - 1) * (d * 0.6) + 8;
+        const text = scene.add.text(textX, y, line.text, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body, lineSpacing: 1,
+          wordWrap: { width: x + width - textX, useAdvancedWrap: true },
+        }).setDepth(theme.depth.hand);
+        // The deaths read on their own line in the danger colour, after the blows.
+        const deaths = line.deaths ? scene.add.text(textX, text.y + text.height + 1, line.deaths, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.dangerArmed,
+        }).setDepth(theme.depth.hand) : null;
+        const h = Math.max(d, text.height + (deaths ? deaths.height + 1 : 0));
+        if (y + h > bottom) { text.destroy(); deaths?.destroy(); break outer; }
+        this.handObjects.push(text);
+        if (deaths) this.handObjects.push(deaths);
+        line.cards.slice(0, 2).forEach((card, i) => this.discArt(card, x + d / 2 + i * d * 0.6, y + d / 2, d));
+        y += h + 8;
+      }
+    }
+    let ly = pane.y + pane.height - lifeH * panel.life.length - 6 * (panel.life.length - 1);
+    for (const life of panel.life) {
+      const rect = { x: pane.x, y: ly, width: pane.width, height: lifeH };
+      const loss = life.to < life.from;
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.fillStyle(colorInt(loss ? theme.colors.dangerArmed : theme.colors.gold), 0.14).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+      g.lineStyle(1.5, colorInt(loss ? theme.colors.dangerArmed : theme.colors.gold), 0.9).strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+      const label = scene.add.text(rect.x + 12, rect.y + rect.height / 2, life.label, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+      }).setOrigin(0, 0.5).setDepth(theme.depth.hand);
+      const value = scene.add.text(rect.x + rect.width - 12, label.y, `${life.from} → ${life.to}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: loss ? theme.colors.dangerArmed : theme.colors.gold,
+      }).setOrigin(1, 0.5).setDepth(theme.depth.hand);
+      ellipsizeText(label, value.x - value.width - 8 - label.x);
+      this.handObjects.push(g, label, value);
+      ly += lifeH + 6;
+    }
+    // A tap anywhere on the recap puts the hand back.
+    this.rowZone({ x: pane.x, y: pane.y, width: pane.width, height: pane.height }, panel.onDismiss).setName('recap:dismiss');
+  }
+
   private drawInspectPanel(panel: PhoneInspectPanel): void {
     const scene = this.scene;
     const pane = this.L.hand;
@@ -769,9 +995,9 @@ export class DuelPhoneChrome {
     this.rowZone({ x: rect.x, y: rect.y - 2, width: rect.width, height: rect.height + 4 }, row.onTap).setName(`hand-row:${row.icon}`);
   }
 
-  private drawMoreRow(rect: { x: number; y: number; width: number; height: number }, more: number): void {
+  private drawMoreRow(rect: { x: number; y: number; width: number; height: number }, label: string): void {
     this.rowPlate(rect, theme.colors.muted, 0.7, true);
-    const text = this.scene.add.text(rect.x + rect.width / 2, rect.y + rect.height / 2, `${more} more in hand`, {
+    const text = this.scene.add.text(rect.x + rect.width / 2, rect.y + rect.height / 2, label, {
       fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
     }).setOrigin(0.5).setDepth(theme.depth.hand);
     this.handObjects.push(text);

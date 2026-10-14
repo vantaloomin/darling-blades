@@ -274,6 +274,109 @@ export function undoToastDetail(actionType: Action['type'], cardName: string | n
   }
 }
 
+// ------------------------------------------------------------------ combat (T-07 to T-09)
+
+/** "Incoming 12 · Life 14 → 2": what the blocks as set leave you (T-08). */
+export function blockForecastLine(incoming: number, life: number): string {
+  return `Incoming ${incoming} · Life ${life} → ${life - incoming}`;
+}
+
+/** One blow of a combat damage step, as the engine's combatDamage event lists it. */
+export interface RecapHit {
+  source: number;
+  target: { kind: 'player'; player: number } | { kind: 'permanent'; iid: number } | { kind: string };
+  amount: number;
+}
+
+export interface RecapLine {
+  /** The creatures dealing the damage, for the row's thumbnails. */
+  sources: number[];
+  text: string;
+  /** "Both die." or "Gaia dies.", drawn in the danger colour after the text. */
+  deaths: string | null;
+}
+
+export interface RecapSection {
+  /** "First Blade step" or "Damage step"; null when combat had one step. */
+  title: string | null;
+  lines: RecapLine[];
+}
+
+const andList = (names: readonly string[]): string =>
+  names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+/**
+ * The combat damage recap (T-09): each step's blows in plain sentences. Two
+ * creatures that only hit each other "trade hits"; creatures that all hit one
+ * target are named together; a creature that hits several targets lists them
+ * ("Gaia deals 3 to Lu Bu and 6 to you"). A creature that died is named after
+ * the line holding its last blow.
+ */
+export function combatRecap(
+  rounds: readonly { hits: readonly RecapHit[]; firstStrike: boolean }[],
+  died: ReadonlySet<number>,
+  creatureName: (iid: number) => string,
+  playerName: (player: number) => string,
+): RecapSection[] {
+  const permOf = (hit: RecapHit): number | null => hit.target.kind === 'permanent' ? (hit.target as { iid: number }).iid : null;
+  // The round each dead creature took its last blow in, so it dies once.
+  const lastHit = new Map<number, number>();
+  rounds.forEach((round, r) => round.hits.forEach((hit) => {
+    const iid = permOf(hit);
+    if (iid !== null && hit.amount > 0) lastHit.set(iid, r);
+  }));
+  const targetName = (hit: RecapHit): string => {
+    const iid = permOf(hit);
+    if (iid !== null) return creatureName(iid);
+    return hit.target.kind === 'player' ? playerName((hit.target as { player: number }).player) : 'a target';
+  };
+  const deathsOf = (iids: readonly number[], r: number, both: boolean): string | null => {
+    const dead = iids.filter((iid, i) => iids.indexOf(iid) === i && died.has(iid) && lastHit.get(iid) === r);
+    if (dead.length === 0) return null;
+    if (both && dead.length === 2) return 'Both die.';
+    return `${andList(dead.map(creatureName))} ${dead.length === 1 ? 'dies' : 'die'}.`;
+  };
+  return rounds.map((round, r) => {
+    const bySource = new Map<number, RecapHit[]>();
+    for (const hit of round.hits) {
+      if (hit.amount <= 0) continue;
+      bySource.set(hit.source, [...(bySource.get(hit.source) ?? []), hit]);
+    }
+    const lines: RecapLine[] = [];
+    const done = new Set<number>();
+    const soleTarget = (source: number): number | null => {
+      const hits = bySource.get(source) ?? [];
+      return hits.length === 1 ? permOf(hits[0]) : null;
+    };
+    for (const source of bySource.keys()) {
+      if (done.has(source)) continue;
+      const target = soleTarget(source);
+      // Two creatures that only hit each other trade hits.
+      if (target !== null && !done.has(target) && soleTarget(target) === source) {
+        done.add(source).add(target);
+        lines.push({ sources: [source, target], text: `${creatureName(source)} and ${creatureName(target)} trade hits.`, deaths: deathsOf([source, target], r, true) });
+        continue;
+      }
+      // Creatures whose only blow lands on the same creature are named together.
+      const partners = target === null ? [source] : [...bySource.keys()].filter((other) => !done.has(other) && soleTarget(other) === target
+        && soleTarget(target) !== other);
+      if (partners.length > 1) {
+        partners.forEach((other) => done.add(other));
+        const total = partners.reduce((sum, other) => sum + bySource.get(other)![0].amount, 0);
+        lines.push({ sources: partners, text: `${andList(partners.map(creatureName))} deal ${total} to ${creatureName(target!)}.`, deaths: deathsOf([target!], r, false) });
+        continue;
+      }
+      done.add(source);
+      const hits = bySource.get(source)!;
+      const blows = hits.map((hit) => `${hit.amount} to ${targetName(hit)}`);
+      const hitIids = hits.map(permOf).filter((iid): iid is number => iid !== null);
+      lines.push({ sources: [source], text: `${creatureName(source)} deals ${andList(blows)}.`, deaths: deathsOf(hitIids, r, false) });
+    }
+    const title = rounds.length > 1 ? (round.firstStrike ? 'First Blade step' : 'Damage step') : null;
+    return { title, lines };
+  }).filter((section) => section.lines.length > 0);
+}
+
 // ------------------------------------------------------------------ the left column
 
 /** The life total's plate, centred on the portrait's lower edge (T-03a). */

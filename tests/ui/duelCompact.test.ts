@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   castLeavesLine,
+  combatRecap,
   DUEL_PHONE,
   duelPhoneLayout,
   duelPhoneReadback,
@@ -141,6 +142,32 @@ describe('the phone Duel (mocks T-03a, T-03b, T-10, T-13a)', () => {
     expect(undoToastDetail('castSpell', 'Kicked Door')).toBe('Cast Kicked Door');
     expect(undoToastDetail('playLand', 'Mountain')).toBe('Played Mountain');
     expect(undoToastDetail('declareAttackers', null)).toBe('Your attack');
+  });
+
+  it('tells the combat damage in plain sentences, step by step (T-09)', () => {
+    const names: Record<number, string> = { 1: 'Lu Bu', 2: 'Gaia', 3: 'Shieldmaiden', 4: 'Lu Lingqi', 5: 'Guan Yinping', 6: 'Dragonmaid Ember', 7: 'Eos', 8: 'Ashwood Ranger' };
+    const perm = (iid: number) => ({ kind: 'permanent', iid });
+    const you = { kind: 'player', player: 0 };
+    const recap = combatRecap([
+      { firstStrike: true, hits: [{ source: 1, target: perm(2), amount: 7 }, { source: 3, target: perm(5), amount: 2 }, { source: 4, target: perm(5), amount: 2 }] },
+      { firstStrike: false, hits: [
+        { source: 2, target: perm(1), amount: 3 }, { source: 2, target: you, amount: 6 },
+        { source: 6, target: perm(7), amount: 4 }, { source: 7, target: perm(6), amount: 2 },
+        { source: 8, target: you, amount: 4 },
+      ] },
+    ], new Set([5, 7]), (iid) => names[iid], (p) => (p === 0 ? 'you' : 'Hestia'));
+    expect(recap.map((section) => section.title)).toEqual(['First Blade step', 'Damage step']);
+    expect(recap[0].lines.map((l) => [l.text, l.deaths])).toEqual([
+      ['Lu Bu deals 7 to Gaia.', null],
+      ['Shieldmaiden and Lu Lingqi deal 4 to Guan Yinping.', 'Guan Yinping dies.'],
+    ]);
+    expect(recap[1].lines.map((l) => [l.text, l.deaths])).toEqual([
+      ['Gaia deals 3 to Lu Bu and 6 to you.', null],
+      ['Dragonmaid Ember and Eos trade hits.', 'Eos dies.'],
+      ['Ashwood Ranger deals 4 to you.', null],
+    ]);
+    // One step needs no step names.
+    expect(combatRecap([{ firstStrike: false, hits: [{ source: 8, target: you, amount: 4 }] }], new Set(), (iid) => names[iid], () => 'you')[0].title).toBeNull();
   });
 
   it('reads the animations\' anchors back from the phone regions', () => {
