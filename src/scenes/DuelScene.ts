@@ -93,7 +93,7 @@ import { darlingFaceCardFor, faceCardFor } from '../meta/deckFace';
 import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
 import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
-import { compactButton } from '../ui/compactWidgets';
+import { compactButton, compactDialog } from '../ui/compactWidgets';
 import { COMPACT } from '../ui/compactLayout';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
@@ -245,7 +245,7 @@ import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -509,6 +509,8 @@ export class DuelScene extends Phaser.Scene {
   private phoneMullFocus: number | null = null;
   private phoneMullStage: string | null = null;
   private phoneConcedeArmed = false;
+  /** The duel's menu is open in the phone's column (T-12a). */
+  private phoneMenu = false;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1856,6 +1858,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneMullFocus = null;
     this.phoneMullStage = null;
     this.phoneConcedeArmed = false;
+    this.phoneMenu = false;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -6335,6 +6338,7 @@ export class DuelScene extends Phaser.Scene {
    * waiting on its target (T-06). Each brings its own foot.
    */
   private phonePrompt(): { panel: PhonePanel; foot: PhoneFoot | null } | null {
+    if (this.phoneMenu) return this.phoneMenuPrompt();
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
     }
@@ -8818,6 +8822,10 @@ export class DuelScene extends Phaser.Scene {
     this.concedeArmed = false;
     // The tutorial's coach cue must not sit over the menu; Resume restores it.
     this.coach?.setCueSuppressed(true);
+    if (this.phoneChrome) {
+      this.openPhoneMenu(this.phoneChrome);
+      return;
+    }
     const onOff = (v: boolean): string => (v ? 'On' : 'Off');
     const s = Services.save.data.settings;
 
@@ -8959,6 +8967,105 @@ export class DuelScene extends Phaser.Scene {
   }
 
   /**
+   * The phone's menu (T-12a) takes the column, with Resume in the foot. The
+   * board stays in view but deaf; the pause holds the same as the desktop's.
+   */
+  private openPhoneMenu(chrome: DuelPhoneChrome): void {
+    this.phoneMenu = true;
+    this.pauseOverlay = this.add.container(0, 0);
+    this.syncHand();
+    this.syncButton();
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.pauseGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
+  private closePhoneMenu(): void {
+    if (!this.phoneMenu) return;
+    const overlay = this.pauseOverlay;
+    this.phoneMenu = false;
+    this.closePauseMenu();
+    overlay?.destroy();
+    this.syncHand();
+    this.syncButton();
+  }
+
+  private phoneMenuPrompt(): { panel: PhoneMenuPanel; foot: PhoneFoot } {
+    const s = Services.save.data.settings;
+    const redraw = (): void => {
+      this.syncHand();
+      this.syncButton();
+    };
+    const tutorial = this.tutorial || this.a11yTutorialChrome;
+    return {
+      panel: {
+        kind: 'menu',
+        sub: this.matchupLabel(),
+        toggles: [
+          {
+            label: 'Auto-skip', sub: 'Auto-skip forced turns', on: s.autoSkip,
+            onTap: () => {
+              s.autoSkip = !s.autoSkip;
+              Services.save.touch();
+              redraw();
+            },
+          },
+          {
+            label: 'Sound', sub: null, on: s.sfxOn,
+            onTap: () => {
+              s.sfxOn = !s.sfxOn;
+              Services.save.touch();
+              if (s.sfxOn) Sfx.play('click');
+              redraw();
+            },
+          },
+          {
+            label: 'Music', sub: null, on: Music.enabled,
+            onTap: () => {
+              Music.setEnabled(!Music.enabled);
+              redraw();
+            },
+          },
+        ],
+        // Leaving the lesson loses nothing, so it is a quiet, single-tap exit.
+        exit: tutorial
+          ? { label: 'Leave Tutorial', danger: false, onTap: () => this.leaveTutorial() }
+          : { label: 'Concede', danger: true, onTap: () => this.phoneMenuConcede() },
+      },
+      foot: { left: null, primary: { label: 'Resume', onTap: () => this.closePhoneMenu() }, wide: true },
+    };
+  }
+
+  /** Concede from the phone's menu: a confirm (T-12b) when "confirm destructive actions" is on. */
+  private phoneMenuConcede(): void {
+    if (this.ended || !this.isHumanTurnDecision()) return;
+    const concede = (): void => {
+      if (this.ended || !this.isHumanTurnDecision()) return;
+      this.tearDownPauseMenu();
+      this.act({ type: 'concede' });
+    };
+    if (!Services.save.data.settings.confirmDestructive) {
+      concede();
+      return;
+    }
+    compactDialog(this, {
+      title: 'Concede?',
+      message: this.gauntletRung
+        ? 'The duel ends now and counts as a loss. A loss ends this gauntlet run.'
+        : 'The duel ends now and counts as a loss.',
+      secondary: { label: 'Keep playing', onTap: (close) => close() },
+      primary: {
+        label: 'Concede', variant: 'danger',
+        onTap: (close) => {
+          close();
+          concede();
+        },
+      },
+      dismissal: 'esc-only',
+      onClose: () => undefined,
+    });
+  }
+
+  /**
    * First press on an opening-overlay Concede (plain Text buttons, rebuilt
    * with each overlay): name the consequence in the armed red, then stand down
    * after CONCEDE_ARM_MS unanswered. A rebuilt overlay has destroyed `btn`,
@@ -8980,6 +9087,7 @@ export class DuelScene extends Phaser.Scene {
     if (!this.pauseOverlay) return;
     const overlay = this.pauseOverlay;
     this.pauseOverlay = null;
+    this.phoneMenu = false;
     this.pauseGuard.close();
     this.concedeArmed = false;
     this.coach?.setCueSuppressed(false);
