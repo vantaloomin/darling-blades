@@ -2813,7 +2813,7 @@ export class ShopScene extends Phaser.Scene {
     const skus = visibleBoosterSkus();
     const labelStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body };
     const probe = this.add.text(0, 0, 'Ag', labelStyle);
-    const strip = packStrip(main, skus.length, ui.pack, probe.height);
+    const strip = packStrip(main, skus.length, ui.pack, probe.height, { desktop: isDesktopStage(sceneStage(this)) });
     probe.destroy();
     ui.strip = strip;
     ui.stripOffset = focus
@@ -3152,8 +3152,9 @@ export class ShopScene extends Phaser.Scene {
     // From the top down: the name, the blurb, Drop rates, and the shortfall.
     const room = caption.y - COMPACT.gap - col.y - 2 * this.columnTextPadY();
     const ink = this.columnTextRect();
+    // Gold, like the chosen pack's outline, so the column reads as that pack's.
     const name = this.add.text(ink.x, col.y, sku.label, {
-      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
       wordWrap: { width: ink.width },
     });
     const blurb = this.add.text(ink.x, 0, SET_BLURBS[sku.sku], {
