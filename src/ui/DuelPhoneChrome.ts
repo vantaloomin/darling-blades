@@ -345,6 +345,8 @@ export class DuelPhoneChrome {
   private readonly blockZones: Phaser.GameObjects.Zone[] = [];
   private readonly lineText: Phaser.GameObjects.Text;
   private readonly lineArt: Phaser.GameObjects.Graphics;
+  /** The two board halves' frames. */
+  private readonly halves: Phaser.GameObjects.Graphics;
   private handObjects: Phaser.GameObjects.GameObject[] = [];
   private footLeft: PhoneFootButton | null = null;
   private footPrimary: PhoneFootButton | null = null;
@@ -367,12 +369,13 @@ export class DuelPhoneChrome {
     this.L = L;
     this.cb = cb;
     const g = scene.add.graphics().setDepth(1);
-    const panel = (r: { x: number; y: number; width: number; height: number }, alpha = 0.55): void => {
-      g.fillStyle(theme.graphics.panelFill, alpha).fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
-      g.lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
+    const panel = (r: { x: number; y: number; width: number; height: number }, alpha = 0.55, art = g): void => {
+      art.fillStyle(theme.graphics.panelFill, alpha).fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
+      art.lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
     };
-    panel(L.oppHalf);
-    panel(L.myHalf);
+    this.halves = scene.add.graphics().setDepth(1);
+    panel(L.oppHalf, 0.55, this.halves);
+    panel(L.myHalf, 0.55, this.halves);
     // The short variant's blocks are the mana alone, unframed under each portrait (P3).
     if (!L.short) {
       panel(L.oppBlock, 0.9);
@@ -535,6 +538,12 @@ export class DuelPhoneChrome {
       g.fillStyle(i === phase ? accent : colorInt(theme.colors.muted), i === phase ? 1 : 0.6);
       g.fillCircle(dx0 + i * DOT_GAP, cy, DOT_R);
     }
+  }
+
+  /** The opening (the coin flip, mulligans) has no board yet: its frames and the turn line step aside. */
+  setBoardVisible(visible: boolean): void {
+    this.halves.setVisible(visible);
+    this.setTurnLineVisible(visible);
   }
 
   /** The turn line steps aside under the result band, which takes the board's middle. */

@@ -4901,7 +4901,7 @@ export class DuelScene extends Phaser.Scene {
         row === null ? null : PHASE_TRACK_ROWS.indexOf(row),
         yours,
       );
-      this.phoneChrome.setTurnLineVisible(this.phoneResult === null);
+      this.phoneChrome.setTurnLineVisible(this.phoneResult === null && !this.phoneOpening());
       if (yours || this.ended) this.phoneChrome.setBanner(null, '');
     }
     this.syncTurnPill(st.turn, yours);
@@ -6214,9 +6214,15 @@ export class DuelScene extends Phaser.Scene {
     view.add([plate, mark, text]);
   }
 
+  /** The coin flip and the mulligans: nobody's board yet, so the phone shows no empty board frames. */
+  private phoneOpening(): boolean {
+    return this.phoneCoin !== null || ['choosePlayDraw', 'mulligan', 'bottomCards'].includes(this.duel.awaiting.kind);
+  }
+
   private syncHand(): void {
     this.clearManaPlanPreview();
     if (this.phoneChrome) {
+      this.phoneChrome.setBoardVisible(!this.phoneOpening());
       this.syncPhoneHand(this.phoneChrome);
       return;
     }
