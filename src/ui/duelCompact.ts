@@ -274,6 +274,51 @@ export function undoToastDetail(actionType: Action['type'], cardName: string | n
   }
 }
 
+// ------------------------------------------------------------------ windows (W-*)
+
+/** The sheet the duel's windows open over the left column and the centre (W-Foresee, W-Loot, W-Grave*); the column stays beside it. */
+export function duelSheet(L: DuelPhoneLayout): Rect {
+  return { x: L.left.x, y: L.content.y, width: L.main.x + L.main.width - L.left.x, height: L.content.height };
+}
+
+export interface SheetGrid {
+  cells: Rect[];
+  /** The cells' total height, which can pass the body's (the caller scrolls). */
+  contentH: number;
+}
+
+/**
+ * Lay `count` cards of one aspect (height over width) in rows inside `body`,
+ * as large as `maxW` allows while every row still fits; past `minW` the
+ * rows run on below and the caller scrolls. Rows start at the left (W-Loot).
+ */
+export function sheetGrid(body: Rect, count: number, aspect: number, maxW: number, minW = maxW * 0.6, gap = 8): SheetGrid {
+  let best: { cols: number; w: number } | null = null;
+  for (let cols = 1; cols <= Math.max(1, count); cols++) {
+    const w = Math.min(maxW, (body.width - (cols - 1) * gap) / cols);
+    if (w < minW) break;
+    const rows = Math.ceil(count / cols);
+    if (rows * w * aspect + (rows - 1) * gap <= body.height + 1e-6 && (!best || w > best.w)) best = { cols, w };
+  }
+  const cols = best?.cols ?? Math.max(1, Math.floor((body.width + gap) / (minW + gap)));
+  const w = best?.w ?? Math.min(maxW, (body.width - (cols - 1) * gap) / cols);
+  const h = w * aspect;
+  const cells = Array.from({ length: count }, (_, i) => ({
+    x: body.x + (i % cols) * (w + gap), y: body.y + Math.floor(i / cols) * (h + gap), width: w, height: h,
+  }));
+  const rows = Math.ceil(count / cols);
+  return { cells, contentH: rows > 0 ? rows * h + (rows - 1) * gap : 0 };
+}
+
+/** "Top", "2nd", "3rd", "4th": a Foresee card's place in the library (W-Foresee). */
+export function foreseeRank(index: number): string {
+  if (index === 0) return 'Top';
+  const n = index + 1;
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? 'th' : n % 10 === 1 ? 'st' : n % 10 === 2 ? 'nd' : n % 10 === 3 ? 'rd' : 'th';
+  return `${n}${suffix}`;
+}
+
 // ------------------------------------------------------------------ combat (T-07 to T-09)
 
 /** "Incoming 12 · Life 14 → 2": what the blocks as set leave you (T-08). */

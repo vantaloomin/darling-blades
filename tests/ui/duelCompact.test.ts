@@ -5,13 +5,16 @@ import {
   DUEL_PHONE,
   duelPhoneLayout,
   duelPhoneReadback,
+  duelSheet,
   focusCard,
+  foreseeRank,
   handList,
   handRowLook,
   lifePlate,
   medallionRows,
   phoneActionLabel,
   plainHistoryLine,
+  sheetGrid,
   sideBoard,
   turnLineLabel,
   undoToastDetail,
@@ -200,5 +203,35 @@ describe('the phone Duel (mocks T-03a, T-03b, T-10, T-13a)', () => {
     expect(phoneActionLabel('Confirm Blocks (2)')).toBe('Confirm blocks (2)');
     expect(phoneActionLabel('Pass ▶')).toBe('Pass');
     expect(plainHistoryLine('[Sanctum of Many Masks] linked to [Gaia]')).toBe('Sanctum of Many Masks linked to Gaia');
+  });
+
+  it('lays a window\'s cards as large as fit, rows from the left, inside the sheet beside the column (W-Loot, W-HandSize)', () => {
+    for (const { name, m } of landscape) {
+      for (const largeText of [false, true]) {
+        const L = duelPhoneLayout(m.content, { largeText });
+        const sheet = duelSheet(L);
+        const tag = `${name}${largeText ? ' 130%' : ''}`;
+        expect(inside(sheet, m.content), tag).toBe(true);
+        expect(overlap(sheet, L.column), tag).toBe(false);
+        const body = { x: sheet.x + 16, y: sheet.y + 70, width: sheet.width - 32, height: sheet.height - 82 };
+        for (const count of [1, 8, 9, 12]) {
+          const grid = sheetGrid(body, count, 1.22, 120, 48);
+          for (const cell of grid.cells) expect(inside(cell, body), `${tag} ${count}`).toBe(true);
+          disjoint(grid.cells, `${tag} ${count}`);
+        }
+      }
+    }
+    // The island phone's eight-card hand: two rows of four, as W-Loot draws it.
+    const sheet = duelSheet(duelPhoneLayout(island));
+    const grid = sheetGrid({ x: sheet.x + 16, y: sheet.y + 70, width: sheet.width - 32, height: sheet.height - 82 }, 8, 1.22, 120, 48);
+    const rows = [...new Set(grid.cells.map((c) => c.y))];
+    expect(rows).toHaveLength(2);
+    expect(grid.cells.filter((c) => c.y === rows[0])).toHaveLength(4);
+    // More than fit at the smallest size run on below; the caller has to scroll.
+    expect(sheetGrid({ x: 0, y: 0, width: 200, height: 100 }, 12, 1.22, 120, 48).contentH).toBeGreaterThan(100);
+  });
+
+  it('names a Foresee card\'s place in the library (W-Foresee)', () => {
+    expect([0, 1, 2, 3, 10, 11, 12, 20].map(foreseeRank)).toEqual(['Top', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st']);
   });
 });

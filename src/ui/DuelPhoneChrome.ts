@@ -70,6 +70,8 @@ export interface PhoneFoot {
   primary: PhoneFootButton | null;
   /** In place of both buttons: a waiting line (the foe's turn, T-10). */
   status?: string | null;
+  /** The primary alone, across the whole foot (a window's Confirm, W-Foresee). */
+  wide?: boolean;
 }
 
 /** A card opened from the hand (T-04, T-13b): the column asks Cast or Empower. */
@@ -139,7 +141,26 @@ export interface PhoneRecapPanel {
   onDismiss: () => void;
 }
 
-export type PhonePanel = PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel;
+/** A window's summary beside its sheet (W-Foresee, W-Loot, W-HandSize): what it is for and what is picked. */
+export interface PhoneSummaryPanel {
+  kind: 'summary';
+  /** The card that opened the window, its type line, and its cost. */
+  source: { card: CardDef; detail: string; cost: ManaCost | null } | null;
+  /** The source's rules, with mana symbols. */
+  text: string | null;
+  heading: string | null;
+  sub: string | null;
+  /** "1 remaining". */
+  count: string | null;
+  /** "Stays on top" (numbered), "Goes to the bottom". */
+  sections: readonly { title: string; numbered: boolean; lines: readonly string[] }[];
+  /** The cards picked so far, each with what happens to it. */
+  picks: readonly { card: CardDef; detail: string }[];
+  /** A keyword the last pick brings along ("Whispers: ..."). */
+  note: { name: string; reminder: string } | null;
+}
+
+export type PhonePanel = PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -173,6 +194,7 @@ export class DuelPhoneChrome {
   private handZones: Phaser.GameObjects.Zone[] = [];
   private readonly endTurnButton: CompactButton;
   private readonly primaryButton: CompactButton;
+  private readonly wideButton: CompactButton;
   private readonly status: Phaser.GameObjects.Container;
   private readonly statusText: Phaser.GameObjects.Text;
   private readonly banner: Phaser.GameObjects.Container;
@@ -235,8 +257,10 @@ export class DuelPhoneChrome {
     // The foot.
     this.endTurnButton = compactButton(scene, L.endTurn, 'End turn', { onTap: () => this.footLeft?.onTap(), fontSize: this.type.body });
     this.primaryButton = compactButton(scene, L.primary, '', { variant: 'primary', onTap: () => this.footPrimary?.onTap(), fontSize: this.type.h2 });
+    this.wideButton = compactButton(scene, L.foot, '', { variant: 'primary', onTap: () => this.footPrimary?.onTap(), fontSize: this.type.h2 });
     this.endTurnButton.container.setDepth(theme.depth.hud);
     this.primaryButton.container.setDepth(theme.depth.hud);
+    this.wideButton.container.setDepth(theme.depth.hud).setVisible(false);
     const foot = L.foot;
     const statusPlate = scene.add.graphics();
     statusPlate.lineStyle(1, colorInt(theme.colors.muted), 0.7);
@@ -267,7 +291,7 @@ export class DuelPhoneChrome {
   inputTargets(): Phaser.GameObjects.GameObject[] {
     return [
       ...this.blockZones, ...this.handZones, this.history.inputZone, this.menu.inputZone,
-      this.endTurnButton.inputZone, this.primaryButton.inputZone,
+      this.endTurnButton.inputZone, this.primaryButton.inputZone, this.wideButton.inputZone,
     ];
   }
 
@@ -424,20 +448,20 @@ export class DuelPhoneChrome {
       const left = this.statusText.x - this.statusText.width / 2 - 14 - 2 * 9;
       dots.forEach((d, i) => d.setX(left + i * 9));
     }
-    this.footLeft = status === null ? foot.left : null;
+    const wide = status === null && foot.wide === true;
+    this.footLeft = status === null && !wide ? foot.left : null;
     this.footPrimary = status === null ? foot.primary : null;
     const show = (button: CompactButton, spec: PhoneFootButton | null, variant: 'ghost' | 'primary'): void => {
+      // A hidden button takes no taps (Phaser skips what does not render); its
+      // input stays enabled so it answers again once shown.
       button.container.setVisible(spec !== null);
-      if (spec === null) {
-        button.inputZone.input!.enabled = false;
-        return;
-      }
+      if (spec === null) return;
       if (button.label.text !== spec.label) {
         button.setLabel(spec.label);
         // A long label ("Confirm blocks (3)") steps its type down to fit the button.
         const base = Number(button.label.getData('baseFontSize') ?? parseFloat(String(button.label.style.fontSize)));
         button.label.setData('baseFontSize', base);
-        const room = (button === this.primaryButton ? this.L.primary : this.L.endTurn).width - 16;
+        const room = (button === this.primaryButton ? this.L.primary : button === this.wideButton ? this.L.foot : this.L.endTurn).width - 16;
         let size = base;
         button.label.setFontSize(size);
         while (button.label.width > room && size > base * 0.7) button.label.setFontSize(--size);
@@ -447,7 +471,8 @@ export class DuelPhoneChrome {
       button.setEnabled(spec.enabled !== false);
     };
     show(this.endTurnButton, this.footLeft, 'ghost');
-    show(this.primaryButton, this.footPrimary, 'primary');
+    show(this.primaryButton, wide ? null : this.footPrimary, 'primary');
+    show(this.wideButton, wide ? this.footPrimary : null, 'primary');
   }
 
   /**
@@ -468,7 +493,7 @@ export class DuelPhoneChrome {
 
   /** The foot's buttons, for a guard that leaves them live (Close under an inspect). */
   footTargets(): Phaser.GameObjects.GameObject[] {
-    return [this.endTurnButton.inputZone, this.primaryButton.inputZone];
+    return [this.endTurnButton.inputZone, this.primaryButton.inputZone, this.wideButton.inputZone];
   }
 
   /** The stage's tap target, for a guard that leaves it live. */
@@ -483,6 +508,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'target') this.drawTargetPanel(panel);
     else if (panel.kind === 'combat') this.drawCombatPanel(panel);
     else if (panel.kind === 'recap') this.drawRecapPanel(panel);
+    else if (panel.kind === 'summary') this.drawSummaryPanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -835,6 +861,122 @@ export class DuelPhoneChrome {
     }
     // A tap anywhere on the recap puts the hand back.
     this.rowZone({ x: pane.x, y: pane.y, width: pane.width, height: pane.height }, panel.onDismiss).setName('recap:dismiss');
+  }
+
+  private drawSummaryPanel(panel: PhoneSummaryPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const bottom = pane.y + pane.height;
+    let y = pane.y;
+    const rule = (): void => {
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
+      this.handObjects.push(g);
+      y += 8;
+    };
+    if (panel.source) {
+      // The card that opened the window: its art, name, type and cost (W-Foresee, W-Loot).
+      const thumb = Math.max(36, this.L.handRowH);
+      this.thumbArt(panel.source.card, x + thumb / 2, y + thumb / 2, thumb);
+      const tx = x + thumb + 10;
+      const name = scene.add.text(tx, y, panel.source.card.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(name, x + width - tx);
+      this.handObjects.push(name);
+      const detail = scene.add.text(tx, name.y + name.height, panel.source.detail, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(detail);
+      if (panel.source.cost) {
+        const pip = 16;
+        const pips = pipsFor(panel.source.cost).length;
+        this.costPips(panel.source.cost, detail.x + detail.width + 8 + pips * (pip + 2), detail.y + detail.height / 2, pip);
+      }
+      y += Math.max(thumb, detail.y + detail.height - y) + 6;
+    }
+    if (panel.text) {
+      const box = this.panelText(x, y, panel.text, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.heading, lineSpacing: 2 }, width);
+      y += box.getBounds().height + 8;
+    }
+    if (panel.source || panel.text) rule();
+    if (panel.heading) {
+      const heading = scene.add.text(x, y, panel.heading, {
+        fontFamily: theme.fonts.display, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(heading);
+      y += heading.height + 4;
+    }
+    if (panel.sub) {
+      const sub = scene.add.text(x, y, panel.sub, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(sub);
+      y += sub.height + 6;
+    }
+    if (panel.count) {
+      const count = scene.add.text(x, y, panel.count, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(count);
+      y += count.height + 8;
+    }
+    for (const section of panel.sections) {
+      if (y + this.type.body > bottom) break;
+      const title = scene.add.text(x, y, section.title.toUpperCase(), {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+      }).setLetterSpacing(1).setDepth(theme.depth.hand);
+      this.handObjects.push(title);
+      y += title.height + 4;
+      section.lines.forEach((line, i) => {
+        if (y + this.type.body > bottom) return;
+        let lx = x;
+        if (section.numbered) {
+          const n = scene.add.text(x, y, `${i + 1}`, {
+            fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+          }).setDepth(theme.depth.hand);
+          this.handObjects.push(n);
+          lx = x + Math.max(n.width, this.type.body * 0.7) + 10;
+        }
+        const text = scene.add.text(lx, y, line, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.heading,
+        }).setDepth(theme.depth.hand);
+        ellipsizeText(text, x + width - lx);
+        this.handObjects.push(text);
+        y += text.height + 4;
+      });
+      y += 4;
+    }
+    const rowH = this.L.handRowH + 8;
+    for (const pick of panel.picks) {
+      if (y + rowH > bottom) break;
+      const rect = { x: pane.x, y, width: pane.width, height: rowH };
+      this.rowPlate(rect, theme.colors.dangerArmed, 0.55);
+      const thumb = rowH - 12;
+      this.thumbArt(pick.card, rect.x + 6 + thumb / 2, y + rowH / 2, thumb);
+      const right = pick.card.cost ? this.costPips(pick.card.cost, rect.x + rect.width - 8, y + rowH / 2, 18) : rect.x + rect.width - 8;
+      const tx = rect.x + thumb + 14;
+      const name = scene.add.text(tx, y + rowH / 2 - 1, pick.card.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+      }).setOrigin(0, 1).setDepth(theme.depth.hand);
+      ellipsizeText(name, right - 6 - tx);
+      const detail = scene.add.text(tx, y + rowH / 2 + 3, pick.detail, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.dangerArmed,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(name, detail);
+      y += rowH + 6;
+    }
+    if (panel.note && y + this.type.body < bottom) {
+      y += 2;
+      const box = this.panelText(x, y, `${panel.note.name}: ${panel.note.reminder}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body, lineSpacing: 1,
+      }, width);
+      if (box.getBounds().bottom > bottom) box.destroy();
+    }
   }
 
   private drawInspectPanel(panel: PhoneInspectPanel): void {
