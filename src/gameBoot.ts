@@ -20,6 +20,7 @@ import { enableDevCompactScene, disableDesktopCompactScenes, setActiveCompactMet
 import { onFullScreenChange } from './platform/fullscreen';
 import {
   compactFit,
+  compactLayoutAllowed,
   compactLayoutRequested,
   resolveScreenMetrics,
   type ScreenMetrics,
@@ -73,11 +74,11 @@ const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location
   ? ([1, 1.5, 2] as const satisfies readonly RenderK[])
     .find((s) => s === Number(new URLSearchParams(window.location.search).get('scale') ?? 1.5)) ?? 1.5
   : null;
-// The compact profile (docs/plan-mobile-overhaul.md C1, C2), behind its
-// `?layout=compact` switch until the camera fit is proven on a real phone. On
+// The compact profile (docs/plan-mobile-overhaul.md C1, C2), on for every
+// phone and tablet; `?layout=desktop` keeps the desktop profile for a load. On
 // a touch screen it sizes the canvas to the screen at the device's own pixel
-// ratio (capped at 2), and every scene, none of them migrated yet, fits its
-// 1280×720 design window inside by camera zoom. The `layout-compact` class
+// ratio (capped at 2); a scene with a compact composition draws in the
+// content box, and any other fits its 1280×720 design window by camera zoom. The `layout-compact` class
 // drops index.html's browser-bar reserve first (the 100dvh page already
 // leaves out a visible bar), so the #app box read here is the screen less
 // only its safe areas, and the insets read as zero. The profile is worked out
@@ -106,7 +107,7 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('desk
 const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)
   ? screenFixtureNamed(window.location.search) : null;
 const compact: ScreenMetrics | null = (() => {
-  if (showcaseScale !== null || !compactLayoutRequested(window.location.search)) return null;
+  if (showcaseScale !== null || !compactLayoutAllowed(window.location.search)) return null;
   const app = document.getElementById('app');
   const fixture = compactFixture;
   if (fixture) {
