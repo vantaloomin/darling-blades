@@ -212,6 +212,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
   private actionBadge: Phaser.GameObjects.Text;
+  /** Round mode: the "Attack" and "Blocks" chips as a sword or shield disc at top right (T-07, T-08). */
+  private roleBadge: Phaser.GameObjects.Container | null = null;
+  private roleIcon: Phaser.GameObjects.Image | null = null;
   private pickBadge: Phaser.GameObjects.Container;
   /** The pick order as vector numerals ("1", repeated picks "1, 2"). */
   private pickDigits: Phaser.GameObjects.Image;
@@ -468,6 +471,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         scene.add.image(0, 0, bakeUiIcon(scene, 'turn')).setDisplaySize(icon, icon).setTint(colorInt(theme.colors.heading)),
       ]).setName('board-tapped-mark').setVisible(false);
       this.pickBadge.setPosition(0, 0);
+      const side = 20;
+      this.roleIcon = scene.add.image(0, 0, bakeUiIcon(scene, 'sword')).setDisplaySize(12, 12).setTint(colorInt(theme.colors.onGold));
+      this.roleBadge = scene.add.container(r * 0.7, -r * 0.7, [
+        scene.add.circle(0, 0, side / 2, colorInt(theme.colors.gold)).setStrokeStyle(1.5, colorInt(theme.colors.onGold), 0.8),
+        this.roleIcon,
+      ]).setName('board-role-badge').setVisible(false);
     }
 
     this.add([
@@ -493,6 +502,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       // A top-edge tab crosses the rim. Draw its opaque plate and glyphs
       // after the rings so the upper letters cannot be painted over.
       this.actionBadge,
+      ...(this.roleBadge ? [this.roleBadge] : []),
       this.pickBadge,
       this.focusBrackets,
     ]);
@@ -572,6 +582,18 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    * where it would otherwise print at 5-6px.
    */
   setActionLabel(label: string | null, tileScale = 1): this {
+    if (this.roleBadge && this.roleIcon) {
+      // A medallion has no top edge for a word: attacking and blocking read as a sword or shield disc.
+      const role = label === 'Attack' ? 'sword' : label === 'Blocks' ? 'shield' : null;
+      this.roleBadge.setVisible(role !== null);
+      if (role) this.roleIcon.setTexture(bakeUiIcon(this.scene, role));
+      this.sickIcon.setVisible(this.sick && role === null);
+      if (role) {
+        this.actionBadge.setVisible(false);
+        this.setData('a11yChip', label);
+        return this;
+      }
+    }
     this.actionBadge.setVisible(label !== null);
     if (label !== null) {
       this.actionBadge.setText(label);
@@ -762,7 +784,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   setSummoningSick(sick: boolean): this {
     if (this.sick === sick) return this;
     this.sick = sick;
-    this.sickIcon.setVisible(sick);
+    this.sickIcon.setVisible(sick && !this.roleBadge?.visible);
     this.art.setAlpha(sick ? SICK_ART_ALPHA : 1);
     return this;
   }

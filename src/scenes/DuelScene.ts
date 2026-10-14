@@ -214,7 +214,7 @@ import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionSte
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { cardGlossaryEntries, empowerText, manaCostText, romanNumeral, rulesText, typeLine } from '../ui/rulesText';
+import { cardGlossaryEntries, empowerText, KEYWORD_NAMES, manaCostText, romanNumeral, rulesText, typeLine } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
@@ -240,8 +240,8 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { castLeavesLine, DUEL_PHONE, duelPhoneLayout, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
-import { DuelPhoneChrome, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneTargetPanel } from '../ui/DuelPhoneChrome';
+import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneTargetPanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -339,6 +339,8 @@ const DESKTOP_FX: DuelStageFx = {
   bannerY: 74,
 };
 const TARGET_SNAP_R = 60;
+/** How long the phone's combat recap (T-09) stays after the last strike lands. */
+const PHONE_RECAP_HOLD_MS = 2500;
 const TARGET_ARROW_COLOR = 0xffd166;
 /** Releasing a carried cast below this line returns it to the hand instead of casting. */
 const CARRY_HAND_TOP_Y = 560;
@@ -487,6 +489,8 @@ export class DuelScene extends Phaser.Scene {
   /** A card read in full on the phone (T-05): the column's keyword guide. */
   private phoneInspect: PhoneInspectPanel | null = null;
   /** What the phone's Undo toast takes back (M20). */
+  /** The phone's combat damage recap (T-09), shown through the strikes and a moment after. */
+  private phoneRecap: PhoneRecapPanel | null = null;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1827,6 +1831,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneHistoryOpen = false;
     this.phoneFocus = null;
     this.phoneInspect = null;
+    this.phoneRecap = null;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -3130,7 +3135,8 @@ export class DuelScene extends Phaser.Scene {
         lethal,
       }))
       .setColor(lethal ? theme.colors.dangerArmed : theme.colors.body)
-      .setVisible(true);
+      // The phone puts the forecast in the command column (T-08).
+      .setVisible(!this.phone);
     if (lethal && !this.forecastWasLethal && this.motionLevel() !== 'off') {
       this.tweens.killTweensOf(this.combatPreviewText);
       this.combatPreviewText.setScale(1);
@@ -3535,6 +3541,7 @@ export class DuelScene extends Phaser.Scene {
       if (progress.changed) Services.save.touch();
     }
     this.huntDrawn = huntDrawnDamage(events, (iid) => this.huntPlaced(iid));
+    if (this.phoneChrome) this.openPhoneRecap(events);
     const sequence =
       Services.save.data.settings.animations === 'full' &&
       !this.animatingCombat &&
@@ -5101,7 +5108,8 @@ export class DuelScene extends Phaser.Scene {
 
   private creatureY(iid: number, base: number): number {
     const perm = this.duel.state.battlefield.find(p => p.iid === iid);
-    return perm && this.tilePresentation(perm).lifted ? base - (this.phone ? 6 : 12) : base;
+    // The phone's front row sits against the turn line; its sword and shield badges mark the role instead.
+    return perm && !this.phone && this.tilePresentation(perm).lifted ? base - 12 : base;
   }
 
   private syncTileCue(view: BoardCardView, perm: Permanent, scale: number): void {
@@ -6226,7 +6234,7 @@ export class DuelScene extends Phaser.Scene {
     this.hud.button.setVisible(false);
     this.endTurnBtn.setVisible(false);
     const prompt = this.phonePrompt();
-    if (prompt) {
+    if (prompt?.foot) {
       chrome.setFoot(prompt.foot);
       return;
     }
@@ -6246,7 +6254,7 @@ export class DuelScene extends Phaser.Scene {
    * hand: a card read in full (T-05), a hand card opened (T-04), or a spell
    * waiting on its target (T-06). Each brings its own foot.
    */
-  private phonePrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
+  private phonePrompt(): { panel: PhonePanel; foot: PhoneFoot | null } | null {
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
     }
@@ -6254,7 +6262,156 @@ export class DuelScene extends Phaser.Scene {
       const focus = this.phoneFocusPrompt(this.phoneFocus);
       if (focus) return focus;
     }
-    return this.phoneTargetPrompt();
+    const target = this.phoneTargetPrompt();
+    if (target) return target;
+    if (this.phoneRecap) return { panel: this.phoneRecap, foot: null };
+    return this.phoneCombatPrompt();
+  }
+
+  /**
+   * Your attack (T-07) or your blocks (T-08) in the column: who is in it, and
+   * while you defend, what each attacker meets and what the blocks leave you.
+   */
+  private phoneCombatPrompt(): { panel: PhonePanel; foot: PhoneFoot | null } | null {
+    const st = this.duel.state;
+    const a = this.duel.awaiting;
+    if (this.ended || !('player' in a) || a.player !== HUMAN) return null;
+    if (a.kind === 'declareAttackers') {
+      const rage = this.rageAttackers();
+      const declared = attackDeclaration(this.selectedAttackers, rage);
+      const rows = declared.map((iid) => this.phoneCombatRow(iid, rage.includes(iid)
+        ? { kind: 'lock' }
+        : { kind: 'remove', onTap: () => this.onBattlefieldClick(iid) }));
+      return {
+        panel: { kind: 'combat', heading: 'Your combat', face: null, title: 'Tap a creature to attack.', forecast: null, rows },
+        foot: {
+          left: {
+            label: 'Clear',
+            enabled: declared.length > rage.length,
+            onTap: () => {
+              this.selectedAttackers.clear();
+              this.sync();
+            },
+          },
+          primary: { label: phoneActionLabel(attackButtonLabel(declared)), onTap: () => this.onButton() },
+        },
+      };
+    }
+    if (a.kind === 'declareBlockers' && st.combat) {
+      const opts = blockOptions(st, CARD_DB, HUMAN, st.combat);
+      const pick = this.pendingBlocker === null ? null : opts.find((o) => o.blocker === this.pendingBlocker) ?? null;
+      const incoming = -previewCombat(st, CARD_DB, this.blockAssignments).lifeDelta[HUMAN];
+      const life = st.players[HUMAN].life;
+      const rows = st.combat.attackers.map((iid) => {
+        const blockers = this.blockAssignments.filter((b) => b.attacker === iid)
+          .map((b) => st.battlefield.find((perm) => perm.iid === b.blocker))
+          .filter((perm): perm is NonNullable<typeof perm> => perm !== undefined)
+          .map((perm) => def(CARD_DB, perm.cardId));
+        const attack = getEffectiveStats(st, CARD_DB, iid).attack;
+        const canTake = pick?.canBlock.includes(iid) ?? false;
+        return {
+          ...this.phoneCombatRow(iid, blockers.length > 0 ? { kind: 'blockers', cards: blockers } : { kind: 'chip', text: `Takes ${attack}` }),
+          look: pick ? (canTake ? 'lit' : 'dim') : undefined,
+          onTap: canTake ? () => this.onBattlefieldClick(iid) : undefined,
+        } satisfies PhoneCombatRow;
+      });
+      const name = this.opponentShortName();
+      const faceId = this.oppFaceCardId;
+      return {
+        panel: {
+          kind: 'combat',
+          heading: `${name} attacks with ${st.combat.attackers.length}`,
+          face: faceId && CARD_DB[faceId] ? def(CARD_DB, faceId) : null,
+          title: pick ? 'Now tap the attacker.' : 'Tap a creature to block.',
+          forecast: { text: blockForecastLine(incoming, life), danger: incoming >= life },
+          rows,
+        },
+        foot: {
+          left: {
+            label: 'Clear',
+            enabled: this.blockAssignments.length > 0 || this.pendingBlocker !== null,
+            onTap: () => {
+              this.blockAssignments = [];
+              this.pendingBlocker = null;
+              this.sync();
+            },
+          },
+          primary: { label: phoneActionLabel(this.hud.button.text), danger: this.smartDanger, onTap: () => this.onButton() },
+        },
+      };
+    }
+    return null;
+  }
+
+  /**
+   * T-09: a batch with combat damage puts its recap in the column. It stays
+   * through the strikes and a moment after (a tap puts the hand back early).
+   */
+  private openPhoneRecap(events: readonly GameEvent[]): void {
+    const rounds = events.flatMap((e) => e.e === 'combatDamage' && e.hits.length > 0 ? [{ hits: e.hits, firstStrike: e.firstStrike }] : []);
+    if (rounds.length === 0) return;
+    const st = this.duel.state;
+    // Creatures that died are gone from the board by now; their events and tiles still name them.
+    const cards = new Map<number, string>();
+    for (const [iid, view] of this.views) cards.set(iid, view.card.id);
+    for (const perm of st.battlefield) cards.set(perm.iid, perm.cardId);
+    for (const e of events) if (e.e === 'died') cards.set(e.iid, e.cardId);
+    const cardOf = (iid: number): CardDef | null => {
+      const id = cards.get(iid);
+      return id && CARD_DB[id] ? def(CARD_DB, id) : null;
+    };
+    const died = new Set(events.flatMap((e) => e.e === 'died' ? [e.iid] : []));
+    // Legends go by their name alone ("Guan Xing", not her whole title) so a sentence fits the column.
+    const shortName = (iid: number): string => cardOf(iid)?.name.split(', ')[0] ?? 'A creature';
+    const sections = combatRecap(rounds, died, shortName,
+      (player) => player === HUMAN ? 'you' : this.opponentShortName());
+    const life = ([HUMAN, AI] as const).flatMap((player) => {
+      const delta = events.reduce((sum, e) => sum + (e.e === 'lifeChanged' && e.player === player ? e.delta : 0), 0);
+      if (delta === 0) return [];
+      const now = st.players[player].life;
+      return [{ label: player === HUMAN ? 'Your life' : `${this.opponentShortName()}'s life`, from: now - delta, to: now }];
+    });
+    const recap: PhoneRecapPanel = {
+      kind: 'recap',
+      sections: sections.map((section) => ({
+        title: section.title,
+        lines: section.lines.map((line) => ({
+          cards: line.sources.map(cardOf).filter((card): card is CardDef => card !== null),
+          text: line.text,
+          deaths: line.deaths,
+        })),
+      })),
+      life,
+      onDismiss: () => this.closePhoneRecap(recap),
+    };
+    this.phoneRecap = recap;
+    const settle = (): void => {
+      if (this.phoneRecap !== recap) return;
+      if (this.animatingCombat) {
+        this.time.delayedCall(250, settle);
+        return;
+      }
+      this.time.delayedCall(PHONE_RECAP_HOLD_MS, () => this.closePhoneRecap(recap));
+    };
+    this.time.delayedCall(0, settle);
+  }
+
+  private closePhoneRecap(recap: PhoneRecapPanel): void {
+    if (this.phoneRecap !== recap) return;
+    this.phoneRecap = null;
+    if (!this.ended) {
+      this.syncHand();
+      this.syncButton();
+    }
+  }
+
+  /** A creature's row in a combat list: its art, name, live stats and keywords. */
+  private phoneCombatRow(iid: number, right: PhoneCombatRow['right']): PhoneCombatRow {
+    const perm = this.duel.state.battlefield.find((entry) => entry.iid === iid)!;
+    const d = def(CARD_DB, perm.cardId);
+    const stats = getEffectiveStats(this.duel.state, CARD_DB, iid);
+    const keywords = [...stats.keywords].map((k) => KEYWORD_NAMES[k]).join(', ');
+    return { card: d, detail: `${stats.attack}/${stats.defense - perm.damage}${keywords ? ` · ${keywords}` : ''}`, right };
   }
 
   /** T-04: the opened hand card's question, its mana, and Cast (or Empower). */

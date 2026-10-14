@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass', 'shield'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -707,6 +707,20 @@ const drawHourglass: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+/** A heater shield: a creature blocking. */
+const drawShield: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c, c - 24);
+  ctx.lineTo(c + 20, c - 16);
+  ctx.lineTo(c + 18, c + 4);
+  ctx.quadraticCurveTo(c + 14, c + 18, c, c + 26);
+  ctx.quadraticCurveTo(c - 14, c + 18, c - 18, c + 4);
+  ctx.lineTo(c - 20, c - 16);
+  ctx.closePath();
+  ctx.stroke();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -748,6 +762,7 @@ const DRAW: Record<UiIconName, Draw> = {
   bolt: drawBolt,
   scroll: drawScroll,
   hourglass: drawHourglass,
+  shield: drawShield,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {
