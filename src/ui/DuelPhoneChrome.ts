@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { SwornChip } from './swornPresentation';
 import { Art } from '../art/ArtResolver';
 import { holdArt } from '../art/artWatch';
 import type { CardDef, ManaCost } from '../engine/types';
@@ -43,6 +44,8 @@ export interface PhoneManaSlot {
 export interface PhoneHandRow {
   card: CardDef;
   look: HandRowLook;
+  /** "Sworn on" or "Sworn off" before the second line (N-19), with a check or an open ring. */
+  sworn?: SwornChip | null;
   onTap: () => void;
   /** Right-click: the card read in full (a long press opens the sticky preview). */
   onInspect: () => void;
@@ -295,7 +298,13 @@ export interface PhoneResultPanel {
   balance: number;
 }
 
-export type PhonePanel = PhoneResultPanel | PhoneMenuPanel | PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/** The Mandate's claims beside its sheet (N-04), newest first. */
+export interface PhoneClaimsPanel {
+  kind: 'claims';
+  rows: readonly { title: string; detail: string; combat: boolean }[];
+}
+
+export type PhonePanel = PhoneClaimsPanel | PhoneResultPanel | PhoneMenuPanel | PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -683,6 +692,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'choice') this.drawChoicePanel(panel);
     else if (panel.kind === 'coin') this.drawCoinPanel(panel);
     else if (panel.kind === 'menu') this.drawMenuPanel(panel);
+    else if (panel.kind === 'claims') this.drawClaimsPanel(panel);
     else if (panel.kind === 'result') this.drawResultPanel(panel);
     else this.drawInspectPanel(panel);
   }
@@ -1275,6 +1285,53 @@ export class DuelPhoneChrome {
     }
   }
 
+  private drawClaimsPanel(panel: PhoneClaimsPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const caption = scene.add.text(x, pane.y, 'CLAIMS THIS DUEL', {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    }).setDepth(theme.depth.hand);
+    this.handObjects.push(caption);
+    const bottom = pane.y + pane.height;
+    let y = caption.y + caption.height + 6;
+    const titleStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading };
+    const detailStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted };
+    const icon = Math.round(this.type.body * 1.2);
+    for (const [i, row] of panel.rows.entries()) {
+      const title = scene.add.text(0, 0, row.title, titleStyle).setDepth(theme.depth.hand);
+      const detail = scene.add.text(0, 0, row.detail, detailStyle).setDepth(theme.depth.hand);
+      const h = Math.max(COMPACT.touch, title.height + detail.height + 12);
+      // A claim that would not fit says how many more there are instead.
+      const left = panel.rows.length - i;
+      if (y + h > bottom && left > 0) {
+        title.destroy();
+        detail.destroy();
+        const more = scene.add.text(x, y, `+${left} earlier`, detailStyle).setDepth(theme.depth.hand);
+        if (more.y + more.height > bottom) more.destroy();
+        else this.handObjects.push(more);
+        break;
+      }
+      const g = scene.add.graphics().setDepth(theme.depth.hand - 1);
+      g.fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(x, y, width, h, theme.radius.control)
+        .lineStyle(1, colorInt(theme.colors.panelStroke), 1).strokeRoundedRect(x, y, width, h, theme.radius.control);
+      const glyph = scene.add.image(x + 10 + icon / 2, y + h / 2, bakeUiIcon(scene, row.combat ? 'sword' : 'bolt'))
+        .setDisplaySize(icon, icon).setTint(colorInt(theme.colors.gold)).setDepth(theme.depth.hand);
+      const tx = glyph.x + icon / 2 + 10;
+      title.setPosition(tx, y + h / 2).setOrigin(0, 1);
+      detail.setPosition(tx, y + h / 2).setOrigin(0, 0);
+      ellipsizeText(title, x + width - 8 - tx);
+      ellipsizeText(detail, x + width - 8 - tx);
+      this.handObjects.push(g, glyph, title, detail);
+      y += h + 8;
+    }
+    if (panel.rows.length === 0) {
+      const none = scene.add.text(x, y, 'No claims yet.', detailStyle).setDepth(theme.depth.hand);
+      this.handObjects.push(none);
+    }
+  }
+
   private drawMenuPanel(panel: PhoneMenuPanel): void {
     const scene = this.scene;
     const pane = this.L.hand;
@@ -1791,6 +1848,26 @@ export class DuelPhoneChrome {
     name.setData('a11yReleaseFullText', row.card.name);
     const toneColor = row.look.tone === 'gold' ? theme.colors.gold : row.look.tone === 'danger' ? theme.colors.dangerArmed : theme.colors.muted;
     let dx = textX;
+    if (row.sworn) {
+      // N-19: the mark and the word, never colour alone; the usual line follows after a dot.
+      const on = row.sworn.active;
+      const size = Math.round(this.type.label * 0.95);
+      const my = cy + 2 + this.type.label * 0.65;
+      if (on) {
+        this.handObjects.push(scene.add.image(dx + size / 2, my, bakeUiIcon(scene, 'check'))
+          .setDisplaySize(size, size).setTint(colorInt(theme.colors.gold)).setAlpha(alpha).setDepth(theme.depth.hand));
+      } else {
+        this.handObjects.push(scene.add.graphics().lineStyle(1.5, colorInt(theme.colors.muted), 1)
+          .strokeCircle(dx + size / 2, my, size / 2 - 1).setAlpha(alpha).setDepth(theme.depth.hand));
+      }
+      dx += size + 4;
+      const chip = scene.add.text(dx, cy + 2, `${row.sworn.label} · `, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w600,
+        color: on ? theme.colors.gold : theme.colors.muted,
+      }).setOrigin(0, 0).setAlpha(alpha).setDepth(theme.depth.hand);
+      this.handObjects.push(chip);
+      dx += chip.width;
+    }
     if (row.look.icon) {
       const size = Math.round(this.type.label * 1.1);
       this.handObjects.push(scene.add.image(dx + size / 2, cy + 2 + this.type.label * 0.65, bakeUiIcon(scene, row.look.icon))

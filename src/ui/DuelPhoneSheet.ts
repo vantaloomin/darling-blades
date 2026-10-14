@@ -53,6 +53,25 @@ export interface SheetFace extends SheetCard {
   lead: boolean;
 }
 
+/** A card on the Mandate sheet (N-04): whose it is, its Mandate sentence, and whether that holds now. */
+export interface SheetMandateRow {
+  card: CardDef;
+  /** The card's name up to its title ("Jia Nanfeng"). */
+  name: string;
+  /** "yours", "Hestia's". */
+  whose: string;
+  line: string;
+  /** On or off (icon and words); null for a card with no condition. */
+  active: boolean | null;
+  onTap: () => void;
+}
+
+/** The Mandate sheet's body (N-04): the seal and its reminder, then the cards that care. */
+export interface SheetMandate {
+  reminder: string;
+  rows: readonly SheetMandateRow[];
+}
+
 export interface DuelSheetSpec {
   title: string;
   subtitle: string;
@@ -61,6 +80,7 @@ export interface DuelSheetSpec {
   faces?: readonly SheetFace[];
   /** Shown in place of the cards when there are none. */
   empty?: string;
+  mandate?: SheetMandate;
 }
 
 /** Art tiles are a little taller than wide, as in the mocks. */
@@ -107,6 +127,7 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
   }
   const top = subY + subH + 10;
   const body: Rect = { x: rect.x + PAD, y: top, width: rect.width - 2 * PAD, height: rect.y + rect.height - PAD + 4 - top };
+  if (spec.mandate) drawMandate(scene, c, body, spec.mandate);
   if (spec.faces) drawFaces(scene, c, body, spec.faces);
   if (spec.tiles?.length) drawTiles(scene, c, body, spec.tiles);
   else if (spec.empty) {
@@ -200,6 +221,115 @@ function drawFaces(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
     if (face.pill !== null) c.add(pill(scene, cx, cell.y + h + pillH / 2 + 2, face.pill));
     c.add(tapZone(scene, cell, face));
   });
+}
+
+/** The seal's star on a unit radius, as MandateSeal draws it. */
+const SEAL_STAR = Array.from({ length: 10 }, (_, i) => {
+  const r = i % 2 === 0 ? 0.66 : 0.27;
+  const a = -Math.PI / 2 + (i * Math.PI) / 5;
+  return { x: r * Math.cos(a), y: 0.05 + r * Math.sin(a) };
+});
+
+function drawMandate(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, mandate: SheetMandate): void {
+  const type = theme.compactType;
+  // The seal, then the reminder beside it.
+  const seal = Math.round(type.body * 2.6);
+  const sx = body.x + seal / 2;
+  const sy = body.y + seal / 2;
+  const star = SEAL_STAR.map((p) => new Phaser.Math.Vector2(sx + p.x * seal / 2, sy + p.y * seal / 2));
+  c.add(scene.add.graphics()
+    .fillStyle(colorInt(theme.colors.gold), 1).fillCircle(sx, sy, seal / 2)
+    .lineStyle(1, theme.graphics.panelFill, 0.8).strokeCircle(sx, sy, seal / 2 - 3)
+    .fillStyle(theme.graphics.panelFill, 1).fillPoints(star, true, true));
+  const tx = body.x + seal + 12;
+  const reminder = scene.add.text(tx, body.y, mandate.reminder, {
+    fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.heading,
+    wordWrap: { width: body.x + body.width - tx, useAdvancedWrap: true }, lineSpacing: 2,
+  });
+  // Past three lines (a narrow phone at Largest text) the reminder steps down so the cards keep their room.
+  if (reminder.height > type.body * 4.5) reminder.setFontSize(type.label);
+  c.add(reminder);
+  let y = body.y + Math.max(seal, reminder.height) + 10;
+  const heading = scene.add.text(body.x, y, 'Cards that care', {
+    fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+  });
+  c.add(heading);
+  y += heading.height + 4;
+  c.add(scene.add.graphics().lineStyle(1, theme.graphics.panelStroke, 1).lineBetween(body.x, y, body.x + body.width, y));
+  y += 8;
+  const bottom = body.y + body.height;
+  if (mandate.rows.length === 0) {
+    c.add(scene.add.text(body.x, y, 'No card on the board reads the Mandate.', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+    }));
+    return;
+  }
+  const nameStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading };
+  const lineStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body };
+  const probe = scene.add.text(0, 0, 'Ag', nameStyle);
+  const lineProbe = scene.add.text(0, 0, 'Ag', lineStyle);
+  const rowH = Math.max(48, probe.height + lineProbe.height + 14);
+  probe.destroy();
+  lineProbe.destroy();
+  for (const [i, row] of mandate.rows.entries()) {
+    const left = mandate.rows.length - i;
+    // A row that would not fit says how many more there are instead, and leaves that line room.
+    const moreH = left > 1 ? type.label * 1.5 : 0;
+    if (y + rowH + moreH > bottom) {
+      c.add(scene.add.text(body.x, y, `+${left} more`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+      }));
+      break;
+    }
+    const r = theme.radius.control;
+    c.add(scene.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(body.x, y, body.width, rowH, r)
+      .lineStyle(1.5, theme.graphics.panelStroke, 1).strokeRoundedRect(body.x, y, body.width, rowH, r));
+    const thumb = rowH - 12;
+    const art: Rect = { x: body.x + 8, y: y + 6, width: thumb, height: thumb };
+    try {
+      const image = addPortraitArt(scene, art.x + thumb / 2, art.y + thumb / 2, row.card.id, (img) => coverFitImage(img, art, 0.1), 'half');
+      if (image) c.add(image);
+    } catch {
+      // No art: the row reads as its name.
+    }
+    c.add(scene.add.graphics().lineStyle(2, colorInt(medallionRim(row.card.colors, row.card.types)), 1)
+      .strokeRoundedRect(art.x, art.y, thumb, thumb, 6));
+    const tx = art.x + thumb + 10;
+    const chevron = Math.round(type.body);
+    const room = body.x + body.width - 12 - chevron - 8 - tx;
+    const whose = scene.add.text(0, y + rowH / 2, ` · ${row.whose}`, { ...nameStyle, fontStyle: 'normal', color: theme.colors.muted }).setOrigin(0, 1);
+    const name = scene.add.text(tx, y + rowH / 2, row.name, nameStyle).setOrigin(0, 1);
+    ellipsizeText(name, Math.max(40, room - whose.width));
+    whose.setX(name.x + name.width);
+    c.add([name, whose]);
+    // On or off as an icon and words, never colour alone.
+    let lx = tx;
+    const ly = y + rowH / 2 + 2;
+    if (row.active !== null) {
+      const d = Math.round(type.label);
+      const cy = ly + d / 2 + 2;
+      if (row.active) {
+        c.add(scene.add.image(lx + d / 2, cy, bakeUiIcon(scene, 'check')).setDisplaySize(d, d).setTint(colorInt(theme.colors.success)));
+      } else {
+        c.add(scene.add.graphics().lineStyle(1.5, colorInt(theme.colors.muted), 1).strokeCircle(lx + d / 2, cy, d / 2 - 1));
+      }
+      lx += d + 6;
+    }
+    const prefix = row.active === null ? '' : row.active ? 'Active: ' : 'Not active: ';
+    const line = scene.add.text(lx, ly, `${prefix}${row.line}`, {
+      ...lineStyle, color: row.active ? theme.colors.success : row.active === false ? theme.colors.muted : theme.colors.body,
+    });
+    ellipsizeText(line, tx + room - lx);
+    c.add(line);
+    c.add(scene.add.image(body.x + body.width - 12 - chevron / 2, y + rowH / 2, bakeUiIcon(scene, 'chevron'))
+      .setDisplaySize(chevron, chevron).setTint(colorInt(theme.colors.muted)));
+    const zone = scene.add.zone(body.x + body.width / 2, y + rowH / 2, body.width, rowH).setInteractive({ useHandCursor: true });
+    zone.setName(`mandate:${row.card.id}`);
+    bindTapButton(scene, zone, (p) => { if (!p.rightButtonReleased()) row.onTap(); }, { card: row.card });
+    c.add(zone);
+    y += rowH + 8;
+  }
 }
 
 /**
