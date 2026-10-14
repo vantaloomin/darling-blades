@@ -299,3 +299,17 @@ export function hallPlinthLayout(frame: WingFrame, m: HallPlinthMeasure): HallPl
     statusTop,
   };
 }
+
+/**
+ * The hall's "Closest to unlocking" picks (desktop): locked achievements with
+ * some progress, nearest first by share done, then by fewest steps left.
+ */
+export function closestToUnlock<T extends { def: { id: string }; unlocked: boolean; current: number; target: number; percent: number }>(
+  statuses: readonly T[],
+  count = 3,
+): T[] {
+  return statuses
+    .filter((status) => !status.unlocked && status.percent > 0)
+    .sort((a, b) => b.percent - a.percent || (a.target - a.current) - (b.target - b.current) || a.def.id.localeCompare(b.def.id))
+    .slice(0, count);
+}
