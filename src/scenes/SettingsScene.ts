@@ -20,6 +20,7 @@ import { COMPACT, isDesktopStage } from '../ui/compactLayout';
 import {
   compactButton,
   compactHeader,
+  compactRowHover,
   compactSegments,
   compactSwitch,
   COMPACT_DRAG_SLOP,
@@ -571,6 +572,8 @@ export class SettingsScene extends Phaser.Scene {
       this.refreshToggles();
     });
     list.add([label, ...(caption ? [caption] : []), sw.container, zone]);
+    compactRowHover(this, zone, { x: at.x - 6, y: at.y + 2, width: at.width + 12, height: height - 4 }, list);
+    sw.bindHover(zone);
     this.compactSwitches.push({ sw, on });
     this.compactAdapter(adapters, list, zone, { x: at.x, y: at.y, width: at.width, height });
     return height;
@@ -667,7 +670,8 @@ export class SettingsScene extends Phaser.Scene {
     label.setY(beside ? buttonY + (touch - label.height) / 2 : at.y + C.rowPad);
     let armed = false;
     const reset = compactButton(this, { x: at.x + at.width - buttonW, y: buttonY, width: buttonW, height: touch }, 'Reset', {
-      variant: 'danger',
+      // Desktop: outlined, so it never competes with a gold action.
+      variant: isDesktopStage(sceneStage(this)) ? 'dangerOutline' : 'danger',
       onTap: (pointer) => {
         if (!armed) {
           armed = true;

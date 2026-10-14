@@ -34,14 +34,15 @@ afterEach(() => {
   setAccessibility({ textScale: 1, highContrast: false });
 });
 
-const VARIANTS: readonly ThemedButtonVariant[] = ['primary', 'emphasis', 'ghost', 'danger', 'selected'];
+/** The variants release/1.9 shipped (the golden fixture below); dangerOutline joined 2026-10-14. */
+const VARIANTS: readonly Exclude<ThemedButtonVariant, 'dangerOutline'>[] = ['primary', 'emphasis', 'ghost', 'danger', 'selected'];
 const SIZES: readonly ControlSize[] = ['sm', 'md'];
 
 /**
  * Golden compatibility fixture: `themeWidgets`' BUTTON_STYLE as release/1.9
  * built it at import. At standard contrast every button keeps these colours.
  */
-const RELEASE_1_9_BUTTON_STYLE: Record<ThemedButtonVariant, { bg: string; fg: string; stroke: string; hoverStroke: string }> = {
+const RELEASE_1_9_BUTTON_STYLE: Record<Exclude<ThemedButtonVariant, 'dangerOutline'>, { bg: string; fg: string; stroke: string; hoverStroke: string }> = {
   primary: { bg: '#ffd88a', fg: '#1a1426', stroke: '#ffd700', hoverStroke: '#f0e6ff' },
   emphasis: { bg: '#2c2344', fg: '#ffd88a', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
   ghost: { bg: '#241d3a', fg: '#c9bde0', stroke: '#4a3f6e', hoverStroke: '#ffd700' },
@@ -64,6 +65,21 @@ describe('the shared button colours', () => {
     expect(themedButtonColors('danger').stroke).toBe('#f29d9d');
     setAccessibility({ textScale: 1, highContrast: false });
     expect(themedButtonColors('ghost').stroke).toBe(RELEASE_1_9_BUTTON_STYLE.ghost.stroke);
+  });
+});
+
+describe('the quiet destructive style', () => {
+  it('drops the red fill of danger for the panel plate, keeping a red border and label', () => {
+    forEachA11yCell(() => {
+      const outline = themedButtonColors('dangerOutline');
+      const danger = themedButtonColors('danger');
+      expect(outline.bg).not.toBe(danger.bg);
+      expect(outline.bg).toBe(theme.colors.panelFill);
+      expect(outline.stroke).toBe(theme.colors.dangerArmed);
+      expect(outline.fg).toBe(theme.colors.dangerArmed);
+      expect(outline.hoverStroke).not.toBe(outline.stroke);
+      expect(controlStrokeWidth(true, 'dangerOutline')).toBe(controlStrokeWidth(true, 'danger'));
+    });
   });
 });
 

@@ -47,6 +47,7 @@ import {
   compactPurse,
   compactSegments,
   COMPACT_DRAG_SLOP,
+  desktopTextPanel,
   type CompactButton,
 } from '../ui/compactWidgets';
 import {
@@ -2927,8 +2928,10 @@ export class ShopScene extends Phaser.Scene {
     const pip = Math.round(type.body * 1.3);
     const probeName = this.add.text(0, 0, 'Ag', nameStyle);
     const probeLine = this.add.text(0, 0, 'Ag', lineStyle);
+    // The desktop's short lists (the Darling decks) grow their art to fill the pane.
+    const desktop = isDesktopStage(sceneStage(this));
     const grid = deckGrid(main.width, probeName.height, Math.max(pip, probeLine.height), currentAccessibility().textScale >= 1.3,
-      isDesktopStage(sceneStage(this)) ? DESKTOP_GRID.shopDeckMinW : undefined);
+      desktop ? DESKTOP_GRID.shopDeckMinW : undefined, desktop ? { paneH: main.height, count: skus.length } : undefined);
     probeName.destroy();
     probeLine.destroy();
     const S = SHOP_COMPACT;
@@ -3168,11 +3171,24 @@ export class ShopScene extends Phaser.Scene {
     const rowY = (blurb.visible ? blurb.y + blurb.height : name.y + name.height) + COMPACT.gap;
     rowLayer.setY(rowY);
     layer.add([name, blurb, rowLayer]);
+    let bottom = rowY + rowH;
     if (short) {
       const shift = rowY + rowH + COMPACT.gap;
       for (const object of short.objects) (object as Phaser.GameObjects.Image).y += shift;
       layer.add(short.objects);
+      bottom = shift + short.height;
     }
+    this.addColumnTextPanel(layer, col.y, bottom);
+  }
+
+  /**
+   * Desktop pass: the faded panel behind the column's running text, from `top`
+   * to `bottom`, so it reads over the backdrop's art. Phones keep the bare text.
+   */
+  private addColumnTextPanel(layer: Phaser.GameObjects.Container, top: number, bottom: number): void {
+    if (!isDesktopStage(sceneStage(this)) || bottom <= top) return;
+    const col = this.compactUi!.column;
+    layer.addAt(desktopTextPanel(this, { x: col.x, y: top, width: col.width, height: bottom - top }, COMPACT.gap), 0);
   }
 
   /** The decks column (S-Shop-Decks, S-Shop-Darlings): the tabs, the chosen deck, Preview deck and its action. */
@@ -3263,7 +3279,9 @@ export class ShopScene extends Phaser.Scene {
     if (note) {
       for (const object of note.objects) (object as Phaser.GameObjects.Image).y += y + COMPACT.gap;
       layer.add(note.objects);
+      y += COMPACT.gap + note.height;
     }
+    this.addColumnTextPanel(layer, top, y);
   }
 
   /** A deck's colours as pips, then `text`, on one line from (x, y). */
@@ -3669,6 +3687,7 @@ export class ShopScene extends Phaser.Scene {
     const contentH = y - 4;
     const view = { x: col.x, y: col.y, width: col.width, height: Math.max(0, footY - COMPACT.gap - col.y) };
     block.setY(col.y);
+    this.addColumnTextPanel(layer, col.y, col.y + Math.min(contentH, view.height));
     if (contentH > view.height) bindMenuScroll(this, block, view, contentH, () => this.inspect !== null, [], 0);
 
     // Clone Deck keeps the preview open, so its line is the feedback and counts the copies.

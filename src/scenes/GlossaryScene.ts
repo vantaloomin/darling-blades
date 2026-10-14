@@ -21,9 +21,9 @@ import {
 } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { COMPACT, compactShell } from '../ui/compactLayout';
-import { compactHeader, COMPACT_DRAG_SLOP } from '../ui/compactWidgets';
-import { GLOSSARY_COMPACT, glossaryRowColumns, glossaryTabTiles } from '../ui/glossaryCompact';
+import { COMPACT, compactShell, isDesktopStage } from '../ui/compactLayout';
+import { compactHeader, compactRowHover, COMPACT_DRAG_SLOP } from '../ui/compactWidgets';
+import { GLOSSARY_COMPACT, glossaryListColumns, glossaryRowColumns, glossaryTabTiles } from '../ui/glossaryCompact';
 import type { Rect } from '../ui/layout';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { bindTapButton } from '../platform/gestures';
@@ -654,6 +654,8 @@ export class GlossaryScene extends Phaser.Scene {
         this.renderCompact(shell.main, 0);
       });
       tile.add([plate, label, count, zone]);
+      // Desktop: the pointer's wash over the tile (a no-op on touch).
+      compactRowHover(this, zone, { x: 0, y: 0, width: rect.width, height: rect.height }, tile, theme.radius.control);
       grid.add(tile);
       adapters.push({
         container: grid, inputZone: zone,
@@ -732,14 +734,17 @@ export class GlossaryScene extends Phaser.Scene {
     const nameNeed = Math.max(...rows.map((row) => measure(row.term.name, nameStyle)));
     const badgeNeed = showBadge ? Math.max(...rows.map((row) => measure(row.section.title, badgeStyle))) : 0;
     let focusTop: number | null = null;
-    const build = (rowW: number): { list: Phaser.GameObjects.Container; height: number } => {
+    const desktop = isDesktopStage(sceneStage(this));
+    const build = (listW: number): { list: Phaser.GameObjects.Container; height: number } => {
+      // One column of full rows on a phone; two on a desktop pane, each pair of rows as tall as its taller.
+      const across = glossaryListColumns(listW, { desktop });
+      const rowW = across.width;
       const cols = glossaryRowColumns(rowW, hasIcons, nameNeed, badgeNeed);
       const list = this.add.container(0, view.y);
-      let y = 0;
       focusTop = null;
-      for (const row of rows) {
+      const made = rows.map((row) => {
         const compactRow = row.section.compact === true;
-        const r = this.add.container(view.x, y);
+        const r = this.add.container(0, 0);
         const name = this.add.text(cols.nameX, 0, row.term.name, {
           ...nameStyle, color: theme.colors.heading, wordWrap: { width: cols.nameWidth },
         });
@@ -750,35 +755,48 @@ export class GlossaryScene extends Phaser.Scene {
         const badge = showBadge
           ? this.add.text(cols.badgeX, 0, row.section.title, { ...badgeStyle, color: theme.colors.muted, ...(cols.stacked ? { wordWrap: { width: cols.descriptionWidth } } : {}) })
           : null;
-        let h: number;
-        if (cols.stacked) {
-          const block = name.height + 2 + (description.text ? description.height : 0) + (badge ? 2 + badge.height : 0);
-          h = Math.max(COMPACT.touch + 12, block + G.rowPadY * 2);
-          name.setY((h - block) / 2);
-          description.setY(name.y + name.height + 2);
-          badge?.setY((description.text ? description.y + description.height : name.y + name.height) + 2);
-        } else {
-          h = Math.max(COMPACT.touch + 12, name.height + G.rowPadY * 2, description.height + G.rowPadY * 2, (badge?.height ?? 0) + G.rowPadY * 2);
-          name.setY((h - name.height) / 2);
-          description.setY((h - description.height) / 2);
-          badge?.setOrigin(1, 0).setY((h - badge.height) / 2);
-        }
-        const focused = this.focus !== null && row.term.name === this.focus;
-        const plate = this.add.graphics()
-          .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(0, 0, rowW, h, theme.radius.control)
-          .lineStyle(focused ? 2 : theme.control.borderWidth, focused ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, focused ? 1 : theme.alpha.chrome)
-          .strokeRoundedRect(0, 0, rowW, h, theme.radius.control);
-        r.add([plate, name, description, ...(badge ? [badge] : [])]);
-        if (cols.iconX !== null) {
-          const disc = this.add.graphics()
-            .fillStyle(theme.graphics.panelFill, 1).fillCircle(cols.iconX, h / 2, G.disc / 2)
-            .lineStyle(2, colorInt(theme.colors.gold), 0.9).strokeCircle(cols.iconX, h / 2, G.disc / 2);
-          r.add(disc);
-          const icon = this.iconImage(row.term.icon, cols.iconX, h / 2);
-          if (icon) r.add(icon.setDisplaySize(Math.min(icon.displayWidth, G.disc - 12), Math.min(icon.displayHeight, G.disc - 12)));
-        }
-        if (focused) focusTop = y;
-        list.add(r);
+        const block = name.height + 2 + (description.text ? description.height : 0) + (badge ? 2 + badge.height : 0);
+        const need = cols.stacked
+          ? Math.max(COMPACT.touch + 12, block + G.rowPadY * 2)
+          : Math.max(COMPACT.touch + 12, name.height + G.rowPadY * 2, description.height + G.rowPadY * 2, (badge?.height ?? 0) + G.rowPadY * 2);
+        // Places the row's words and draws its plate at its final height (its pair's, on desktop).
+        const place = (h: number): void => {
+          if (cols.stacked) {
+            name.setY((h - block) / 2);
+            description.setY(name.y + name.height + 2);
+            badge?.setY((description.text ? description.y + description.height : name.y + name.height) + 2);
+          } else {
+            name.setY((h - name.height) / 2);
+            description.setY((h - description.height) / 2);
+            badge?.setOrigin(1, 0).setY((h - badge.height) / 2);
+          }
+          const focused = this.focus !== null && row.term.name === this.focus;
+          const plate = this.add.graphics()
+            .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(0, 0, rowW, h, theme.radius.control)
+            .lineStyle(focused ? 2 : theme.control.borderWidth, focused ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, focused ? 1 : theme.alpha.chrome)
+            .strokeRoundedRect(0, 0, rowW, h, theme.radius.control);
+          r.add([plate, name, description, ...(badge ? [badge] : [])]);
+          if (cols.iconX !== null) {
+            const disc = this.add.graphics()
+              .fillStyle(theme.graphics.panelFill, 1).fillCircle(cols.iconX, h / 2, G.disc / 2)
+              .lineStyle(2, colorInt(theme.colors.gold), 0.9).strokeCircle(cols.iconX, h / 2, G.disc / 2);
+            r.add(disc);
+            const icon = this.iconImage(row.term.icon, cols.iconX, h / 2);
+            if (icon) r.add(icon.setDisplaySize(Math.min(icon.displayWidth, G.disc - 12), Math.min(icon.displayHeight, G.disc - 12)));
+          }
+        };
+        return { row, r, need, place };
+      });
+      let y = 0;
+      for (let i = 0; i < made.length; i += across.count) {
+        const line = made.slice(i, i + across.count);
+        const h = Math.max(...line.map((m) => m.need));
+        line.forEach((m, k) => {
+          m.place(h);
+          m.r.setPosition(view.x + k * across.pitch, y);
+          if (this.focus !== null && m.row.term.name === this.focus) focusTop = y;
+          list.add(m.r);
+        });
         y += h + G.rowGap;
       }
       return { list, height: Math.max(0, y - G.rowGap) };

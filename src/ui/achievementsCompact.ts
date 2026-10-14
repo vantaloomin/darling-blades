@@ -66,11 +66,18 @@ export function compactAchievementsLayout(content: Rect): CompactAchievementsLay
  * the bottom, as in M-Achievements. `rowHeights` are what each row's cards
  * need; a row takes at least its share of the pane, so the hall fills it,
  * and grows past it (the hall then scrolls) when larger text needs more.
- * Rects are relative to the pane's top-left.
+ * On desktop (`desktop`) a row takes only what its cards need, so a wing with
+ * nothing on its plinth is a short card, not half the pane. Rects are relative
+ * to the pane's top-left.
  */
-export function achievementHallFrames(width: number, paneHeight: number, rowHeights: readonly [number, number]): { frames: Rect[]; height: number } {
+export function achievementHallFrames(
+  width: number,
+  paneHeight: number,
+  rowHeights: readonly [number, number],
+  opts: { desktop?: boolean } = {},
+): { frames: Rect[]; height: number } {
   const gap = ACHIEVEMENTS_COMPACT.wingGap;
-  const share = Math.max(0, (paneHeight - gap) / 2);
+  const share = opts.desktop ? 0 : Math.max(0, (paneHeight - gap) / 2);
   const top = Math.max(share, rowHeights[0]);
   const bottom = Math.max(share, rowHeights[1]);
   const across = (count: number, y: number, h: number): Rect[] => {

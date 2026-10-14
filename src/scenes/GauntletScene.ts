@@ -35,7 +35,7 @@ import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { COMPACT, isDesktopStage } from '../ui/compactLayout';
-import { compactButton, compactDialog, compactHeader, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { compactButton, compactDialog, compactHeader, coverFitImage, desktopTextPanel, type CompactButton } from '../ui/compactWidgets';
 import {
   compactGauntletLayout,
   GAUNTLET_COMPACT,
@@ -583,18 +583,26 @@ export class GauntletScene extends Phaser.Scene {
     const starsWidth = starW.width;
     starW.destroy();
     this.compactRows = [];
+    // When any rung's name would be shortened, every row drops the word "Rung", so the rows read alike.
+    const rowW = tower.width - 6;
+    const labelX = 16 + 14;
+    const labelW = rowW - labelX - 12 - starsWidth - 10;
+    const fullText = (rung: number): string => `Rung ${rung} · ${rivalShortName(this.avatarForFloor(rung).name)}`;
+    const probe = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700 });
+    let short = false;
+    for (let rung = 1; rung <= rungs && !short; rung++) short = probe.setText(fullText(rung)).width > labelW;
+    probe.destroy();
     for (let rung = rungs; rung >= 1; rung--) {
       const top = gauntletRowTop(rung, rungs);
       const row = this.add.container(tower.x, top);
       const plate = this.add.graphics();
       const mark = this.add.graphics();
       const markX = 16;
-      const label = this.add.text(markX + 14, rowH / 2, `Rung ${rung} · ${rivalShortName(this.avatarForFloor(rung).name)}`, {
+      const label = this.add.text(markX + 14, rowH / 2, short ? `${rung} · ${rivalShortName(this.avatarForFloor(rung).name)}` : fullText(rung), {
         fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
       }).setOrigin(0, 0.5);
       // The row's width less the scroll thumb's lane, the mark and the stars.
-      const rowW = tower.width - 6;
-      ellipsizeText(label, rowW - label.x - 12 - starsWidth - 10);
+      ellipsizeText(label, labelW);
       const stars = this.add.text(rowW - 12, rowH / 2, '★'.repeat(floorDifficultyPips(rung)), {
         fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.gold,
       }).setOrigin(1, 0.5);
@@ -784,13 +792,19 @@ export class GauntletScene extends Phaser.Scene {
 
     // The run's own actions at the centre's foot (under the text on desktop), well away from Fight.
     const actions = { ...layout.actions, y: layout.actions.y - stack.lift };
+    if (layout.infoPanel) {
+      const p = layout.infoPanel;
+      const bottom = actions.y + actions.height + GAUNTLET_COMPACT.desktopInfoPad;
+      const backing = desktopTextPanel(this, { ...p, height: bottom - p.y }, 0);
+      c.addAt(backing, 0);
+    }
     if (active) {
       const armedText = 'Tap again to abandon';
       const measure = this.add.text(0, 0, armedText, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
       const abandonW = Math.min(actions.width, Math.max(150, Math.ceil(measure.width) + 40));
       measure.destroy();
       const abandon = compactButton(this, { ...actions, width: abandonW }, 'Abandon run', {
-        variant: 'danger', onTap: () => this.onCompactAbandon(),
+        variant: isDesktopStage(sceneStage(this)) ? 'dangerOutline' : 'danger', onTap: () => this.onCompactAbandon(),
       });
       c.add(abandon.container);
       // What the second tap loses, over the record and the seed while armed.

@@ -11,7 +11,8 @@ import {
   SHOP_COMPACT,
   shopSheet,
 } from '../../src/ui/shopCompact';
-import { COMPACT, compactShell } from '../../src/ui/compactLayout';
+import { COMPACT, compactShell, DESKTOP_GRID } from '../../src/ui/compactLayout';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
 import type { Rect } from '../../src/ui/layout';
@@ -96,5 +97,24 @@ describe('the compact Shop (mocks S-Shop-Packs, S-Shop-Decks, S-Shop-DeckConfirm
       // The column beside a sheet is the one the screen beneath it uses.
       expect(sheet.column, name).toEqual(shell.column);
     }
+  });
+
+  it('on desktop a short deck list grows its art to fill the pane, capped; phones and long lists keep the phone art', () => {
+    const main = compactShell(desktopCompactMetrics().content).main;
+    const S = SHOP_COMPACT;
+    const phone = deckGrid(main.width, 18, 20, false, DESKTOP_GRID.shopDeckMinW);
+    const filled = deckGrid(main.width, 18, 20, false, DESKTOP_GRID.shopDeckMinW, { paneH: main.height, count: 5 });
+    expect(filled.columns).toBe(phone.columns);
+    expect(filled.tileW).toBe(phone.tileW);
+    expect(filled.artH).toBeGreaterThan(phone.artH);
+    expect(filled.artH).toBeLessThanOrEqual(Math.round((filled.tileW - 2 * S.deckPad) * S.deckArtAspectMax));
+    // The two rows sit inside the pane, and leave less than a gap per row unfilled unless the cap stopped them.
+    const height = deckGridHeight(filled, 5);
+    expect(height).toBeLessThanOrEqual(main.height);
+    const capped = filled.artH === Math.round((filled.tileW - 2 * S.deckPad) * S.deckArtAspectMax);
+    if (!capped) expect(main.height - height).toBeLessThanOrEqual(2 * S.deckGap);
+    expect(filled.lineY + 10 + S.deckPad).toBeLessThanOrEqual(filled.tileH);
+    // A list that already scrolls keeps the phone's art.
+    expect(deckGrid(main.width, 18, 20, false, DESKTOP_GRID.shopDeckMinW, { paneH: main.height, count: 15 })).toEqual(phone);
   });
 });

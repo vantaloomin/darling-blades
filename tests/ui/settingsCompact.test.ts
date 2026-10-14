@@ -71,6 +71,8 @@ describe('the compact Settings (mock M-Settings)', () => {
     expect(l.versionY).toBeLessThan(Math.min(l.legal.y, l.update.y));
     expect(l.listPanel).not.toBeNull();
     expect(inside(l.list, l.listPanel!)).toBe(true);
+    expect(l.rowW).toBeLessThanOrEqual(640);
+    expect(inside(l.listPanel!, l.shell.main)).toBe(true);
     expect(compactSettingsLayout(m.content, 6, { legal: 64, update: 149 }).listPanel).toBeNull();
   });
 

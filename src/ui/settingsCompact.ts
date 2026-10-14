@@ -31,6 +31,8 @@ export const SETTINGS_COMPACT = {
   navColumns: 2,
   /** Desktop: the list sits on a panel, its rows this far inside the panel's edge. */
   desktopPanelPad: 14,
+  /** Desktop: rows stop at this width so a label stays near its control (the panel centres in the pane). */
+  desktopRowMaxW: 640,
 } as const;
 
 export type SettingsCompactSectionKey = 'audio' | 'yourTurn' | 'gameplay' | 'accessibility' | 'privacy' | 'saveData';
@@ -149,9 +151,12 @@ export function compactSettingsLayout(
     update = { x: column.x, y: footY, width: column.width, height: touch };
     legal = { x: column.x, y: footY - gap - touch, width: column.width, height: touch };
   }
-  const pad = opts.desktop ? C.desktopPanelPad : 0;
-  const list = { x: main.x + pad, y: main.y + pad, width: Math.max(0, main.width - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
-  return { shell, list, listPanel: opts.desktop ? main : null, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
+  if (!opts.desktop) return { shell, list: main, listPanel: null, rowW: Math.max(0, main.width - C.thumbLane), nav, versionY, legal, update };
+  const pad = C.desktopPanelPad;
+  const panelW = Math.min(main.width, C.desktopRowMaxW + C.thumbLane + 2 * pad);
+  const listPanel = { x: main.x + Math.round((main.width - panelW) / 2), y: main.y, width: panelW, height: main.height };
+  const list = { x: listPanel.x + pad, y: main.y + pad, width: Math.max(0, panelW - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
+  return { shell, list, listPanel, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
 }
 
 /**

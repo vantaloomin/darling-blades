@@ -35,7 +35,31 @@ export const GLOSSARY_COMPACT = {
   tilePadX: 8,
   tilePadY: 6,
   tabsGap: 12,
+  /** Desktop: the narrowest a term column may be before the list keeps one column, and the gap between two. */
+  desktopColumnMin: 320,
+  columnGap: 12,
 } as const;
+
+export interface GlossaryListColumns {
+  /** How many term columns sit side by side: 1 on a phone, 2 on a desktop pane wide enough. */
+  count: 1 | 2;
+  /** One column's width, and the step from one column's left edge to the next. */
+  width: number;
+  pitch: number;
+}
+
+/**
+ * The term list's columns across `width`. A phone keeps one column of full
+ * rows; on desktop (`desktop`) a pane that can hold two columns of at least
+ * `desktopColumnMin` sets the terms two across, so a short line does not run
+ * the width of the window.
+ */
+export function glossaryListColumns(width: number, opts: { desktop?: boolean } = {}): GlossaryListColumns {
+  const G = GLOSSARY_COMPACT;
+  const half = (width - G.columnGap) / 2;
+  if (opts.desktop && half >= G.desktopColumnMin) return { count: 2, width: half, pitch: half + G.columnGap };
+  return { count: 1, width, pitch: width };
+}
 
 export interface GlossaryRowColumns {
   /** The icon disc's centre x, or null in a section without icons. */

@@ -18,8 +18,12 @@ export function controlFontSize(size: ControlSize): number {
  * `selected` is the on state of a toggle, segment or tab (the selection
  * language ruled 2026-10-08): a filled plate with a gold border and label,
  * never the gold fill, which belongs to a screen's one primary action.
+ *
+ * `dangerOutline` is the quieter destructive style (Delete deck, Reset save
+ * as a secondary action): the faint panel plate, a red border and red label,
+ * where `danger` fills the plate red.
  */
-export type ThemedButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger' | 'selected';
+export type ThemedButtonVariant = 'primary' | 'emphasis' | 'ghost' | 'danger' | 'dangerOutline' | 'selected';
 
 export interface ThemedButtonColors {
   bg: string;
@@ -44,6 +48,8 @@ export function themedButtonColors(variant: ThemedButtonVariant): ThemedButtonCo
       return { bg: c.btnGhostBg, fg: c.body, stroke: c.panelStroke, hoverStroke: c.goldHover };
     case 'danger':
       return { bg: c.dangerBg, fg: c.danger, stroke: c.dangerArmed, hoverStroke: c.danger };
+    case 'dangerOutline':
+      return { bg: c.panelFill, fg: c.dangerArmed, stroke: c.dangerArmed, hoverStroke: c.danger };
     case 'selected':
       return { bg: c.rowFillActive, fg: c.gold, stroke: c.gold, hoverStroke: c.heading };
   }
@@ -51,12 +57,14 @@ export function themedButtonColors(variant: ThemedButtonVariant): ThemedButtonCo
 
 /**
  * A shared control's border width, idle or hovered/pressed. In standard
- * contrast primary and danger also thicken on hover (A9); the other variants
+ * contrast primary and both danger styles also thicken on hover (A9); the other variants
  * keep their colour/alpha step. Idle borders stay unchanged in both palettes.
  */
 export function controlStrokeWidth(active: boolean, variant?: ThemedButtonVariant): number {
   const base = theme.control.borderWidth;
-  return active && (currentAccessibility().highContrast || variant === 'primary' || variant === 'danger') ? base + 1 : base;
+  return active && (currentAccessibility().highContrast || variant === 'primary' || variant === 'danger' || variant === 'dangerOutline')
+    ? base + 1
+    : base;
 }
 
 /**
