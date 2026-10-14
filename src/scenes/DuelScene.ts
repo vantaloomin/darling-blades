@@ -3275,7 +3275,7 @@ export class DuelScene extends Phaser.Scene {
     const lethal = preview.defenderLethal;
     this.combatPreviewText
       .setText(combatForecastCopy({
-        attackers: st.combat.attackers.length,
+        attackers: st.combat.attackers.filter((iid) => st.battlefield.some((perm) => perm.iid === iid)).length,
         damage: dmg,
         lifeBefore: st.players[HUMAN].life,
         lifeAfter: st.players[HUMAN].life - dmg,
@@ -6726,7 +6726,9 @@ export class DuelScene extends Phaser.Scene {
       const pick = this.pendingBlocker === null ? null : opts.find((o) => o.blocker === this.pendingBlocker) ?? null;
       const incoming = -previewCombat(st, CARD_DB, this.blockAssignments).lifeDelta[HUMAN];
       const life = st.players[HUMAN].life;
-      const rows = st.combat.attackers.map((iid) => {
+      // An attacker bounced or killed mid-combat stays in the engine's list; the panel lists the ones still here.
+      const attackers = st.combat.attackers.filter((iid) => st.battlefield.some((perm) => perm.iid === iid));
+      const rows = attackers.map((iid) => {
         const blockers = this.blockAssignments.filter((b) => b.attacker === iid)
           .map((b) => st.battlefield.find((perm) => perm.iid === b.blocker))
           .filter((perm): perm is NonNullable<typeof perm> => perm !== undefined)
@@ -6744,7 +6746,7 @@ export class DuelScene extends Phaser.Scene {
       return {
         panel: {
           kind: 'combat',
-          heading: `${name} attacks with ${st.combat.attackers.length}`,
+          heading: `${name} attacks with ${attackers.length}`,
           face: faceId && CARD_DB[faceId] ? def(CARD_DB, faceId) : null,
           title: pick ? 'Now tap the attacker.' : 'Tap a creature to block.',
           forecast: { text: blockForecastLine(incoming, life), danger: incoming >= life },
