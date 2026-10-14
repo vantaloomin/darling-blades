@@ -545,12 +545,13 @@ export function duelPhoneReadback(L: DuelPhoneLayout): DuelLayoutShape {
     darlingZone: {
       human: {
         x: darlingX(L.myHalf), y: myDarlingY, labelX: darlingX(L.myHalf), labelY: myDarlingY - 30,
-        taxX: darlingX(L.myHalf) - 26, taxY: myDarlingY - 18, taxOriginX: 1,
+        // The tax sits on the thumbnail's top edge, clear of the medallions beside it.
+        taxX: darlingX(L.myHalf), taxY: myDarlingY - DUEL_PHONE.stripD / 2 - 2, taxOriginX: 0.5,
         castX: darlingX(L.myHalf), castY: myDarlingY - 34, payDownX: darlingX(L.myHalf) - 90, payDownY: myDarlingY,
       },
       opponent: {
         x: darlingX(L.oppHalf), y: oppDarlingY, labelX: darlingX(L.oppHalf), labelY: oppDarlingY + 30,
-        taxX: darlingX(L.oppHalf) - 26, taxY: oppDarlingY + 18, taxOriginX: 1,
+        taxX: darlingX(L.oppHalf), taxY: oppDarlingY + DUEL_PHONE.stripD / 2 + 2, taxOriginX: 0.5,
         castX: darlingX(L.oppHalf), castY: 0, payDownX: 0, payDownY: 0,
       },
     },

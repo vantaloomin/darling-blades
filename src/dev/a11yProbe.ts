@@ -994,11 +994,13 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
       throw new Error(`${spec.label}: pointer fixture must identify a legal target`);
     }
     const canvas = game.canvas, rect = canvas.getBoundingClientRect();
-    // Duel renders a 1280x720 design window at any renderScale. Let Phaser's
-    // mouse manager perform its own canvas/camera conversion and redraw.
+    // World to canvas through the camera (the desktop's 1280x720 design window
+    // at any renderScale, or the phone's compact camera); Phaser's mouse
+    // manager then performs its own conversion back and redraws.
+    const cam = scene.cameras.main;
     canvas.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
-      clientX: rect.left + target.x / theme.design.width * rect.width,
-      clientY: rect.top + target.y / theme.design.height * rect.height }));
+      clientX: rect.left + (target.x - cam.worldView.x) * cam.zoom / game.scale.width * rect.width,
+      clientY: rect.top + (target.y - cam.worldView.y) * cam.zoom / game.scale.height * rect.height }));
     await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
     const pointer = scene.input.activePointer;
     if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > 1) {

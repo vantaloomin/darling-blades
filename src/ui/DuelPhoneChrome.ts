@@ -308,7 +308,8 @@ export interface PhoneResultPanel {
   total: string | null;
   /** Under the rewards ("Next: Mira", "No reward: the match ended too early."). */
   note: string | null;
-  balance: number;
+  /** Your gold over the foot; null for a replay's end, which pays nothing. */
+  balance: number | null;
 }
 
 /** The Mandate's claims beside its sheet (N-04), newest first. */
@@ -536,6 +537,12 @@ export class DuelPhoneChrome {
     }
   }
 
+  /** The turn line steps aside under the result band, which takes the board's middle. */
+  setTurnLineVisible(visible: boolean): void {
+    this.lineText.setVisible(visible);
+    this.lineArt.setVisible(visible);
+  }
+
   /**
    * The command column's hand list, rebuilt on each sync (a few rows).
    * Returns each row's thumbnail centre, in `rows` order; a row folded into
@@ -555,7 +562,7 @@ export class DuelPhoneChrome {
       const last = list.rows[list.rows.length - 1];
       this.drawMoreRow(last.visual, `${list.more} more in hand`);
       // The cards that did not fit open with the whole hand on the sheet.
-      if (onMore) this.rowZone(last.hit, onMore);
+      if (onMore) this.rowZone(last.hit, onMore).setName('hand-more');
     }
     return rows.map((_, i) => {
       const row = list.rows[Math.min(i, list.rows.length - 1)];
@@ -600,6 +607,17 @@ export class DuelPhoneChrome {
       rule.lineStyle(1, theme.graphics.panelStroke, 0.6).lineBetween(pane.x + 4, y - 5, pane.x + pane.width - 4, y - 5);
       this.handObjects.push(rule);
     }
+  }
+
+  /** A column row's tap zone by name ("hand-row:<card id>", "hand-row:deck", "hand-more"), for the tutorial's spotlight. */
+  columnZone(name: string): Phaser.GameObjects.Zone | null {
+    return this.handZones.find((zone) => zone.active && zone.name === name) ?? null;
+  }
+
+  /** The foot's primary button while it shows, for the tutorial's spotlight. */
+  primaryTarget(): Phaser.GameObjects.Zone | null {
+    const button = this.wideButton.container.visible ? this.wideButton : this.primaryButton.container.visible ? this.primaryButton : null;
+    return button?.inputZone ?? null;
   }
 
   private clearColumn(): void {
@@ -1059,11 +1077,13 @@ export class DuelPhoneChrome {
     }).setAlpha(alpha).setDepth(theme.depth.hand);
     ellipsizeText(detail, right - textX - 6);
     this.handObjects.push(name, detail);
+    // The tap reaches into half of each 4 px gap, as a pinned row's does, so a row meets the 44 px minimum.
+    const hit = { x: rect.x, y: rect.y - 2, width: rect.width, height: rect.height + 4 };
     if (r?.kind === 'remove') {
       // × is the row's whole tap: the row is the creature taken out of the attack.
-      this.rowZone(rect, r.onTap, row.card).setName(`combat-row:${row.card.id}`);
+      this.rowZone(hit, r.onTap, row.card).setName(`combat-row:${row.card.id}`);
     } else if (row.onTap) {
-      this.rowZone(rect, row.onTap, row.card).setName(`combat-row:${row.card.id}`);
+      this.rowZone(hit, row.onTap, row.card).setName(`combat-row:${row.card.id}`);
     }
   }
 
@@ -1319,20 +1339,23 @@ export class DuelPhoneChrome {
     ellipsizeText(sub, width);
     this.handObjects.push(sub);
     // Your gold sits over the foot, right-aligned (T-11a).
-    const pillH = Math.max(COMPACT.touch, this.type.h2 + 20);
-    const coin = scene.add.image(0, 0, bakeUiIcon(scene, 'gold')).setDisplaySize(this.type.h2, this.type.h2).setDepth(theme.depth.hand + 1);
-    const amount = scene.add.text(0, 0, formatCount(panel.balance), {
-      fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
-    }).setOrigin(0, 0.5).setDepth(theme.depth.hand + 1);
-    const pillW = Math.min(pane.width, 20 + coin.displayWidth + 10 + amount.width + 22);
-    const pill = { x: pane.x + pane.width - pillW, y: pane.y + pane.height - pillH, width: pillW, height: pillH };
-    const g = scene.add.graphics().setDepth(theme.depth.hand);
-    g.fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2)
-      .lineStyle(1, colorInt(theme.colors.panelStroke), 1).strokeRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2);
-    coin.setPosition(pill.x + 20 + coin.displayWidth / 2, pill.y + pillH / 2);
-    amount.setPosition(coin.x + coin.displayWidth / 2 + 10, pill.y + pillH / 2);
-    this.handObjects.push(g, coin, amount);
-    const bottom = pill.y - 8;
+    let bottom = pane.y + pane.height;
+    if (panel.balance !== null) {
+      const pillH = Math.max(COMPACT.touch, this.type.h2 + 20);
+      const coin = scene.add.image(0, 0, bakeUiIcon(scene, 'gold')).setDisplaySize(this.type.h2, this.type.h2).setDepth(theme.depth.hand + 1);
+      const amount = scene.add.text(0, 0, formatCount(panel.balance), {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setOrigin(0, 0.5).setDepth(theme.depth.hand + 1);
+      const pillW = Math.min(pane.width, 20 + coin.displayWidth + 10 + amount.width + 22);
+      const pill = { x: pane.x + pane.width - pillW, y: pane.y + pane.height - pillH, width: pillW, height: pillH };
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2)
+        .lineStyle(1, colorInt(theme.colors.panelStroke), 1).strokeRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2);
+      coin.setPosition(pill.x + 20 + coin.displayWidth / 2, pill.y + pillH / 2);
+      amount.setPosition(coin.x + coin.displayWidth / 2 + 10, pill.y + pillH / 2);
+      this.handObjects.push(g, coin, amount);
+      bottom = pill.y - 8;
+    }
     let y = sub.y + sub.height + 6;
     if (panel.rows.length > 0) {
       const caption = scene.add.text(x, y, 'REWARDS', {
@@ -1996,6 +2019,8 @@ export class DuelPhoneChrome {
     const name = scene.add.text(textX, cy - 1, row.card.name, {
       fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
     }).setOrigin(0, 1).setAlpha(alpha).setDepth(theme.depth.hand);
+    // A long name steps down a little before it ends in an ellipsis, as the sheet's title does.
+    for (let size = this.type.body; name.width > textW && size > Math.ceil(this.type.body * 0.85);) name.setFontSize(--size);
     ellipsizeText(name, textW);
     name.setData('a11yReleaseFullText', row.card.name);
     const toneColor = row.look.tone === 'gold' ? theme.colors.gold : row.look.tone === 'danger' ? theme.colors.dangerArmed : theme.colors.muted;

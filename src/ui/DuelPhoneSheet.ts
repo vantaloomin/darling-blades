@@ -123,6 +123,8 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
   if (spec.onClose) {
     const size = 36;
     const close = compactIconButton(scene, { x: rect.x + rect.width - size - 8, y: rect.y + 8, width: size, height: size }, 'close', spec.onClose);
+    // Drawn at 36 px to sit beside the title; its tap area is the 44 px touch minimum.
+    close.inputZone.setSize(44, 44);
     c.add(close.container);
   }
   const top = subY + subH + 10;
