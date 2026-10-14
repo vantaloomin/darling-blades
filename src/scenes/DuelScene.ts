@@ -5275,7 +5275,11 @@ export class DuelScene extends Phaser.Scene {
     const cue = this.tilePresentation(perm);
     view.setCue(cue.state, this.cueContext());
     if (this.cueContext() === 'targeting') view.list.filter(child => child.name === 'duel-duty-flash').forEach(child => child.destroy());
-    view.setActionLabel(cue.chip, scale);
+    // The phone's sword disc stands in for the desktop's lift, so an attacker keeps it while a
+    // target is picked, when the word chips step aside.
+    const keepsSword = this.phone !== null && cue.chip === null && cue.lifted
+      && (this.duel.state.combat?.attackers.includes(perm.iid) ?? false);
+    view.setActionLabel(keepsSword ? 'Attack' : cue.chip, scale);
     const rowDepth = view.getData('rowDepth') as number | undefined;
     if (this.phone?.short && rowDepth !== undefined) view.setDepth(rowDepth + (view.wordChipShown ? 1 : 0));
     const sacrifice = this.pendingSacrifice?.selected ?? this.edictPicks;

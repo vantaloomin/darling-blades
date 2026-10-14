@@ -358,9 +358,15 @@ function tileName(scene: Phaser.Scene, art: Rect, text: string): Phaser.GameObje
   for (let size = base; !fits() && size > base * 0.75;) name.setFontSize(--size);
   if (!fits()) {
     const lines = name.getWrappedText(text);
-    name.setText(`${lines[0]}\n${lines.slice(1).join(' ')}`);
     name.setWordWrapWidth(null);
-    ellipsizeLast(name, room);
+    // A word longer than the tile ("Spear-Thrower") never wraps: cut the first line too.
+    name.setText(lines[0]);
+    ellipsizeText(name, room);
+    const rest = lines.slice(1).join(' ');
+    if (rest) {
+      name.setText(`${name.text}\n${rest}`);
+      ellipsizeLast(name, room);
+    }
   }
   return name;
 }

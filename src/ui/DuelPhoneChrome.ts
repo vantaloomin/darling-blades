@@ -1817,7 +1817,8 @@ export class DuelPhoneChrome {
         for (let size = this.type.body; label.width > rect.width - 8 && size > this.type.body * 0.75;) label.setFontSize(--size);
         ellipsizeText(label, rect.width - 8);
         this.handObjects.push(label);
-        if (!tab.active) this.rowZone(rect, tab.onTap).setName(`zone-tab:${i}`);
+        // The tap covers the whole control's height, not just the inset segment.
+        if (!tab.active) this.rowZone({ ...rect, y: frame.y, height: h }, tab.onTap).setName(`zone-tab:${i}`);
       });
       y += h + 10;
     }
