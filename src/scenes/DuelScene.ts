@@ -368,7 +368,7 @@ const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
 const PERMANENT_BAND_MAX_SPACING = 98;
 type ViewableZone = 'deck' | 'graveyard' | 'severed';
 /** The phone's zone sheet tabs: a graveyard beside its severed pile, the Active Warchest beside its Reserves. */
-type PhoneZoneTab = ViewableZone | 'lands' | 'reserves';
+type PhoneZoneTab = ViewableZone | 'lands' | 'reserves' | 'hand';
 type DarlingCastAction = Extract<Action, { type: 'castDarling' }>;
 type PendingCastAction = Extract<Action, { type: 'castSpell' }> | DarlingCastAction;
 type LinkHauntAction = Extract<Action, { type: 'linkHaunt' }>;
@@ -7133,6 +7133,12 @@ export class DuelScene extends Phaser.Scene {
       this.phoneFocus = null;
       chrome.setStage(null);
     }
+    if (this.phoneZone?.tab === 'hand' && this.previousHand?.join() !== hand.join()) {
+      // The hand changed under its sheet (a discard on the foe's turn): redraw the tiles.
+      this.previousHand = [...hand];
+      this.drawPhoneZone();
+      return;
+    }
     const prompt = this.phonePrompt();
     if (prompt) {
       chrome.setPanel(prompt.panel);
@@ -7188,7 +7194,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.isReserveDuel() && this.landDropAvailable() && reserve.length > 0) {
       pinned.push({ title: `Warchest Reserves · ${reserve.length}`, detail: 'One land each turn', icon: 'deck', onTap: () => this.showReserveModal(HUMAN) });
     }
-    const spots = chrome.setHand(rows, pinned, this.phoneWindowCaption());
+    const spots = chrome.setHand(rows, pinned, this.phoneWindowCaption(), () => this.openPhoneZone(HUMAN, 'hand'));
     // Played cards leave from their row (the travel animations read these).
     order.forEach((handIdx, i) => {
       const spot = spots[i];
@@ -8458,6 +8464,7 @@ export class DuelScene extends Phaser.Scene {
     if (tab === 'graveyard') return this.graveyardEntries(this.duel.state.players[player].graveyard, player);
     if (tab === 'severed') return this.zoneEntries(side.severed, player === HUMAN);
     if (tab === 'deck') return this.zoneEntries(this.duel.state.players[HUMAN].deck, true);
+    if (tab === 'hand') return this.handZoneEntries();
     if (tab === 'reserves') return this.reserveZoneEntries(side.landReserve ?? [], player);
     return this.landZoneEntries(this.battlefieldLands(player), player === HUMAN);
   }
@@ -8474,6 +8481,7 @@ export class DuelScene extends Phaser.Scene {
       case 'graveyard': return `${owner} Graveyard · ${count}${count > 1 ? ' · newest first' : ''}`;
       case 'severed': return `${owner} Severed · ${count}`;
       case 'deck': return `Your Deck · ${count} cards left`;
+      case 'hand': return `Your Hand · ${count}`;
       case 'reserves': return `${owner} Warchest Reserves · ${count}`;
       case 'lands': {
         const lands = this.battlefieldLands(zone.player);
@@ -8507,7 +8515,8 @@ export class DuelScene extends Phaser.Scene {
         variant: entry.variant,
         landStyle: entry.landStyle,
         pill: null,
-        costs: false,
+        // The hand's tiles carry their costs, as its rows do.
+        costs: zone.tab === 'hand',
         // A Warchest stack always says how many; elsewhere only a pile of copies does.
         badge: entry.badge !== undefined ? entry.badge : zone.tab === 'reserves' || entry.count > 1 ? `x${entry.count}` : null,
         chip,
@@ -8525,6 +8534,7 @@ export class DuelScene extends Phaser.Scene {
       onClose: () => this.closePhoneZone(),
       tiles,
       empty: zone.tab === 'deck' ? 'No cards left.' : zone.tab === 'severed' ? 'No cards severed.'
+        : zone.tab === 'hand' ? 'No cards in hand.'
         : zone.tab === 'reserves' ? 'No lands in the Warchest Reserves.' : zone.tab === 'lands' ? 'No lands yet.' : 'No cards here.',
     });
     this.zoneModal = { container: sheet, close: () => this.closePhoneZone(), showPage: () => {} };
@@ -8543,7 +8553,7 @@ export class DuelScene extends Phaser.Scene {
       this.drawPhoneZone();
     };
     const grave = zone.tab === 'graveyard' || zone.tab === 'severed';
-    const tabs = zone.tab === 'deck' ? [] : grave
+    const tabs = zone.tab === 'deck' || zone.tab === 'hand' ? [] : grave
       ? [
           { label: `Graveyard · ${this.duel.state.players[zone.player].graveyard.length}`, active: zone.tab === 'graveyard', onTap: swap('graveyard') },
           ...(SEVER_ENABLED ? [{ label: `Severed · ${side.severed.length}`, active: zone.tab === 'severed', onTap: swap('severed') }] : []),
@@ -8853,6 +8863,22 @@ export class DuelScene extends Phaser.Scene {
           : {}),
       };
     });
+  }
+
+  /**
+   * The whole hand on the sheet, opened from "N more in hand" when the column
+   * cannot list every card: one tile per card in the column's order, and Open
+   * takes the picked card to its focus as a tap on its row would.
+   */
+  private handZoneEntries(): ZoneContentsEntry[] {
+    const hand = this.duel.state.players[HUMAN].hand;
+    return handDisplayOrder(hand, CARD_DB).map((handIdx) => ({
+      card: def(CARD_DB, hand[handIdx]),
+      count: 1,
+      landStyle: this.humanLandStyleFor(hand[handIdx]),
+      variant: displayVariantFor(Services.save.data, hand[handIdx]),
+      action: { label: 'Open', onSelect: () => this.onHandClick(handIdx) },
+    }));
   }
 
   private zoneEntries(cardIds: readonly string[], styled: boolean): ZoneContentsEntry[] {

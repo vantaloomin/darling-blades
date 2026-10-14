@@ -541,7 +541,7 @@ export class DuelPhoneChrome {
    * Returns each row's thumbnail centre, in `rows` order; a row folded into
    * "N more in hand" reports that row's centre.
    */
-  setHand(rows: readonly PhoneHandRow[], pinned: readonly PhonePinnedRow[], caption: string | null = null): { x: number; y: number }[] {
+  setHand(rows: readonly PhoneHandRow[], pinned: readonly PhonePinnedRow[], caption: string | null = null, onMore?: () => void): { x: number; y: number }[] {
     this.clearColumn();
     // A response window names itself over the hand ("Your response", W-Stack).
     const head = caption ? this.caption(this.L.hand.x + 2, this.L.hand.y, caption) : null;
@@ -554,6 +554,8 @@ export class DuelPhoneChrome {
     if (list.more > 0) {
       const last = list.rows[list.rows.length - 1];
       this.drawMoreRow(last.visual, `${list.more} more in hand`);
+      // The cards that did not fit open with the whole hand on the sheet.
+      if (onMore) this.rowZone(last.hit, onMore);
     }
     return rows.map((_, i) => {
       const row = list.rows[Math.min(i, list.rows.length - 1)];
