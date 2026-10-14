@@ -33,6 +33,7 @@ import {
   achievementCascadeDuration,
   achievementClaimMotion,
   achievementClaimPitch,
+  closestToUnlock,
   hallWingFrames,
   HALL_BUCKETS,
   togglePin,
@@ -1148,6 +1149,7 @@ export class AchievementsScene extends Phaser.Scene {
         bindTapButton(this, zone, () => openWing(i));
         compactRowHover(this, zone, f, content);
       });
+      this.drawClosestStrip(statuses, { x: main.x, y: main.y + built.height + C.wingGap * 2, width: main.width, height: main.height - built.height - C.wingGap * 2 });
       return;
     }
     // One tap target over the pane, fixed while the hall scrolls under it: the wing is the card under the tap,
@@ -1294,6 +1296,62 @@ export class AchievementsScene extends Phaser.Scene {
       const y = claim.target.y - scroll.offset();
       if (y >= 0 && y <= main.height) claimTargets.set(claim.id, { x: claim.target.x, y: main.y + y });
     }
+  }
+
+  /**
+   * Desktop hall, under the wings: up to three locked achievements nearest to
+   * unlocking, side by side, each opening its wing's In Progress list. Left
+   * out when nothing has progress or the pane has no room for it.
+   */
+  private drawClosestStrip(statuses: readonly AchievementStatus[], area: Rect): void {
+    const C = ACHIEVEMENTS_COMPACT;
+    const type = theme.compactType;
+    const picks = closestToUnlock(statuses);
+    if (picks.length === 0) return;
+    const heading = this.add.text(area.x, area.y, 'Closest to unlocking', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    const top = area.y + heading.height + C.wingInnerGap;
+    const w = achievementHallNarrowWidth(area.width);
+    const ringLane = C.gaugeLane;
+    const textW = Math.max(0, w - ringLane - C.wingPad);
+    const tiles = picks.map((status) => {
+      const title = this.add.text(0, 0, status.def.title, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      });
+      ellipsizeText(title, textW);
+      const count = this.add.text(0, 0, `${Math.min(status.current, status.target)}/${status.target} · ${progressPercentLabel(status.percent)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: theme.colors.muted,
+      });
+      ellipsizeText(count, textW);
+      return { status, title, count };
+    });
+    const h = Math.max(COMPACT.touch + C.rowPadY, ...tiles.map((t) => t.title.height + t.count.height + C.rowPadY * 2));
+    if (top + h > area.y + area.height) {
+      heading.destroy();
+      tiles.forEach((t) => { t.title.destroy(); t.count.destroy(); });
+      return;
+    }
+    tiles.forEach(({ status, title, count }, i) => {
+      const f = { x: area.x + i * (w + C.wingGap), y: top, width: w, height: h };
+      const bg = this.add.graphics()
+        .fillStyle(theme.graphics.panelFill, theme.alpha.panel).fillRoundedRect(f.x, f.y, f.width, f.height, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, colorInt(theme.colors.panelStroke), theme.alpha.chrome)
+        .strokeRoundedRect(f.x, f.y, f.width, f.height, theme.radius.panel);
+      const midY = f.y + f.height / 2;
+      const gauge = this.compactGauge(status, f.x + ringLane / 2, midY);
+      const block = title.height + count.height;
+      title.setPosition(f.x + ringLane, midY - block / 2);
+      count.setPosition(f.x + ringLane, title.y + title.height);
+      this.children.moveBelow(bg as Phaser.GameObjects.GameObject, gauge as Phaser.GameObjects.GameObject);
+      this.children.bringToTop(title);
+      this.children.bringToTop(count);
+      const zone = this.add.zone(f.x + f.width / 2, midY, f.width, f.height).setInteractive({ useHandCursor: true });
+      bindTapButton(this, zone, () => {
+        this.restartAt({ page: 0, filter: 'in-progress', view: 'list', bucket: status.def.bucket as HallBucket, scroll: 0 });
+      });
+      compactRowHover(this, zone, f);
+    });
   }
 
   /** A list row's progress ring (M-AchievementsList): the share done, gold, round its lane. */
