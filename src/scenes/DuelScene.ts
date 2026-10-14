@@ -209,7 +209,7 @@ import { shouldPlayVersusBumper, versusLeitmotifPitch } from '../ui/versusBumper
 import { activeVisibleSavedDeck } from '../ui/deckBuilderHelpers';
 import { ModalGuard } from '../ui/Modal';
 import { castActionCost, handCastChoices, sacrificeCandidates, sacrificeSelection, toggleSacrifice, whispersDeadline, type HandCastAction } from '../ui/castSacrifice';
-import { confirmDeferredTarget, deferredTargetPrompt, dutyChoices, edictSacrificeSelection, lootDiscardSelection } from '../ui/drownedDeepChoices';
+import { confirmDeferredTarget, deferredTargetPrompt, dutyChoices, edictSacrificeSelection, lootDiscardSelection, toggleLootDiscard } from '../ui/drownedDeepChoices';
 import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionStep, toggleTargetSelection, type TargetSelectionAction } from '../ui/targetSelection';
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
@@ -240,7 +240,8 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { drawDuelSheet } from '../ui/DuelPhoneSheet';
 import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneTargetPanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
@@ -6262,10 +6263,148 @@ export class DuelScene extends Phaser.Scene {
       const focus = this.phoneFocusPrompt(this.phoneFocus);
       if (focus) return focus;
     }
+    const window = this.phoneWindowPrompt();
+    if (window) return window;
     const target = this.phoneTargetPrompt();
     if (target) return target;
     if (this.phoneRecap) return { panel: this.phoneRecap, foot: null };
     return this.phoneCombatPrompt();
+  }
+
+  /**
+   * A window's summary beside its sheet: what Foresee leaves on top and sends
+   * to the bottom (W-Foresee), or what you are discarding and why (W-Loot,
+   * W-HandSize). Confirm takes the whole foot.
+   */
+  private phoneWindowPrompt(): { panel: PhonePanel; foot: PhoneFoot | null } | null {
+    const st = this.duel.state;
+    const a = this.duel.awaiting;
+    if (this.ended || !('player' in a) || a.player !== HUMAN) return null;
+    if (a.kind === 'foresee') {
+      const pending = st.pendingDecisions[0];
+      const sourceId = pending?.kind === 'foresee' ? pending.thenContext?.sourceCardId : undefined;
+      const source = sourceId ? def(CARD_DB, sourceId) : null;
+      const names = a.cards.map((entry) => def(CARD_DB, cardIdOf(entry)).name);
+      const stays = names.filter((_, i) => !this.foreseeBottomPicks.has(i));
+      const bottom = names.filter((_, i) => this.foreseeBottomPicks.has(i));
+      return {
+        panel: {
+          kind: 'summary',
+          source: source ? { card: source, detail: typeLine(source), cost: source.cost ?? null } : null,
+          text: source ? rulesText(source) : null,
+          heading: source ? null : `Foresee ${names.length}`,
+          sub: null,
+          count: null,
+          sections: [
+            ...(stays.length ? [{ title: 'Stays on top', numbered: true, lines: stays }] : []),
+            ...(bottom.length ? [{ title: 'Goes to the bottom', numbered: false, lines: bottom }] : []),
+          ],
+          picks: [],
+          note: null,
+        },
+        foot: { left: null, primary: { label: 'Confirm', onTap: () => this.confirmForeseeOverlay() }, wide: true },
+      };
+    }
+    if (a.kind === 'discardToHandSize') {
+      const hand = st.players[HUMAN].hand;
+      const loot = a.decision === 'discard';
+      const picked = [...this.discardPicks];
+      const ready = loot
+        ? lootDiscardSelection(this.duel.instanceState, CARD_DB, HUMAN, picked)?.action != null
+        : picked.length === a.count;
+      const last = picked.length ? def(CARD_DB, hand[picked[picked.length - 1]]) : null;
+      // A discarded card that works from the graveyard says so (W-Loot).
+      const note = last ? cardGlossaryEntries(last).find((entry) => entry.name === 'Whispers' || entry.name === 'Retell') ?? null : null;
+      return {
+        panel: {
+          kind: 'summary',
+          source: null,
+          text: null,
+          heading: loot ? `Discard ${a.count}` : discardTitle(a.count),
+          sub: loot ? null : `Your hand is over ${RULES.maxHandSize} at the end of your turn.`,
+          count: `${Math.max(0, a.count - picked.length)} remaining`,
+          sections: [],
+          picks: picked.map((i) => ({ card: def(CARD_DB, hand[i]), detail: 'Discard' })),
+          note,
+        },
+        foot: {
+          left: null,
+          primary: { label: 'Confirm', enabled: ready, onTap: () => this.confirmPhoneDiscard() },
+          wide: true,
+        },
+      };
+    }
+    return null;
+  }
+
+  private confirmPhoneDiscard(): void {
+    const a = this.duel.awaiting;
+    if (!('player' in a) || a.player !== HUMAN || a.kind !== 'discardToHandSize') return;
+    const picked = [...this.discardPicks];
+    if (a.decision === 'discard') {
+      const action = lootDiscardSelection(this.duel.instanceState, CARD_DB, HUMAN, picked)?.action;
+      if (action) this.act(action);
+    } else if (picked.length === a.count) {
+      this.act({ type: 'discard', handIndices: picked });
+    }
+  }
+
+  /**
+   * The phone's window sheet over the left column and the centre (W-Foresee,
+   * W-Loot, W-HandSize). A tap picks or unpicks a card, then the sheet and
+   * the column redraw; the foot's Confirm stays live under the guard.
+   */
+  private drawPhoneWindow(chrome: DuelPhoneChrome): void {
+    const a = this.duel.awaiting;
+    if (!('player' in a) || a.player !== HUMAN) return;
+    const redraw = (): void => {
+      if (this.overlay !== sheet) return;
+      this.guard.close();
+      sheet.destroy();
+      this.overlay = null;
+      this.drawPhoneWindow(chrome);
+    };
+    const look = (cardId: string) => ({
+      card: def(CARD_DB, cardId), variant: displayVariantFor(Services.save.data, cardId), landStyle: this.humanLandStyleFor(cardId),
+    });
+    let sheet: Phaser.GameObjects.Container;
+    if (a.kind === 'foresee') {
+      sheet = drawDuelSheet(this, duelSheet(this.phone!), {
+        title: `Foresee ${a.cards.length}`,
+        subtitle: 'Leftmost is top of deck. Select any cards to bottom.',
+        faces: a.cards.map((entry, i) => ({
+          ...look(cardIdOf(entry)),
+          label: foreseeRank(i),
+          lead: i === 0,
+          pill: this.foreseeBottomPicks.has(i) ? 'Bottom' : null,
+          onTap: () => {
+            if (!this.foreseeBottomPicks.delete(i)) this.foreseeBottomPicks.add(i);
+            redraw();
+          },
+        })),
+      });
+    } else if (a.kind === 'discardToHandSize') {
+      const hand = this.duel.state.players[HUMAN].hand;
+      const order = handDisplayOrder(hand, CARD_DB);
+      sheet = drawDuelSheet(this, duelSheet(this.phone!), {
+        title: `Your hand · ${hand.length}`,
+        subtitle: 'Tap a card to discard it. Hold to read it.',
+        tiles: order.map((i) => ({
+          ...look(hand[i]),
+          pill: this.discardPicks.has(i) ? 'Discard' : null,
+          onTap: () => {
+            const next = toggleLootDiscard([...this.discardPicks], i, hand.map((_, k) => k), a.count);
+            this.discardPicks = new Set(next);
+            redraw();
+          },
+        })),
+      });
+    } else return;
+    this.overlay = sheet;
+    this.syncPhoneHand(chrome);
+    this.syncPhoneFoot(chrome);
+    const keep = new Set<Phaser.GameObjects.GameObject>(chrome.footTargets());
+    this.guard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
   }
 
   /**
@@ -9352,6 +9491,12 @@ export class DuelScene extends Phaser.Scene {
       return;
     }
     if (!('player' in a) || a.player !== HUMAN) return;
+    if (this.phoneChrome && (a.kind === 'foresee' || a.kind === 'discardToHandSize')) {
+      this.foreseeBottomPicks.clear();
+      this.discardPicks.clear();
+      this.drawPhoneWindow(this.phoneChrome);
+      return;
+    }
     if (a.kind === 'mulligan') {
       // Cap-aware mulligan overlay: show how many mulligans remain, drop the
       // Mulligan button at the cap, and always offer Concede — the corner
