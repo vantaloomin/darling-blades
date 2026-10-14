@@ -24,8 +24,8 @@ import { inactiveGap, inflateHitRect, type Rect } from './layout';
  * 34 design px is 40 px at a 1280 window, Material's dense desktop size
  * (owner ruling R1 A, 2026-10-14; review in docs/plan-mobile-overhaul.md).
  */
-const TOUCH_TIER = { touch: 44, topBarH: 44, rowPitch: 48, switchTrack: { width: 52, height: 32 } } as const;
-const POINTER_TIER = { touch: 34, topBarH: 44, rowPitch: 38, switchTrack: { width: 37, height: 20 } } as const;
+const TOUCH_TIER = { touch: 44, primaryH: 44, topBarH: 44, rowPitch: 48, switchTrack: { width: 52, height: 32 } } as const;
+const POINTER_TIER = { touch: 34, primaryH: 40, topBarH: 44, rowPitch: 38, switchTrack: { width: 37, height: 20 } } as const;
 export type CompactTier = 'touch' | 'pointer';
 let tier: typeof TOUCH_TIER | typeof POINTER_TIER = TOUCH_TIER;
 
@@ -42,6 +42,8 @@ export function compactTier(): CompactTier {
 export const COMPACT = {
   /** The control floor: every control's hit area is at least this square (44 touch, 34 pointer). */
   get touch(): number { return tier.touch; },
+  /** The screen's one gold action at the column's foot: the floor on a phone, a step above it for a mouse (48 px at 1280). */
+  get primaryH(): number { return tier.primaryH; },
   /** The minimum clear space between two controls' hit areas, unless they touch by design. */
   gap: 8,
   /** The command column's width on every screen. */
@@ -138,7 +140,7 @@ export function compactShell(content: Rect, opts: CompactShellOptions = {}): Com
     right: { x: content.x + content.width - rightW, y: content.y, width: rightW, height: topBarH },
     main: { x: content.x, y: top, width: Math.max(0, mainRight - content.x), height: Math.max(0, bottom - top) },
     column,
-    primary: column ? control({ x: column.x, y: bottom - touch, width: column.width, height: touch }) : null,
+    primary: column ? control({ x: column.x, y: bottom - COMPACT.primaryH, width: column.width, height: COMPACT.primaryH }) : null,
   };
 }
 

@@ -31,6 +31,7 @@ import type { Rect } from '../ui/layout';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { loadStoryArt, storyTextureKey } from './StoryDialogue';
 import {
   activeVisibleSavedDeck,
   builderFormatForDeck,
@@ -73,8 +74,10 @@ const COMPACT_TILE_COPY: Record<string, { title: string; line: string }> = {
 };
 
 /** The phone tiles' paintings (manifest scene keys); Practice shows a rival instead. */
+/** The Story tile's still: Act 1's backdrop (src/scenes/StoryScene.ts). */
+const STORY_TILE_ART = 'bg-mandate-sky';
+
 const COMPACT_TILE_ART: Record<string, string> = {
-  Story: 'scene-duel',
   Gauntlet: 'scene-gauntlet',
   Limited: 'pack-art',
   PracticePicker: 'scene-duel',
@@ -237,9 +240,20 @@ export class PlayScene extends Phaser.Scene {
       ? formatGauntletUnavailableCopy(builderFormatForDeck(deck, this.reserveFormatsEnabled), this.classicRetired)
       : null;
     const run = entry.scene === 'Gauntlet' ? this.save.gauntlet.run : null;
-    this.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
-    const art = this.compactTileArt(entry.scene, rect);
-    if (art && blocked) art.setAlpha(0.3);
+    const plate = this.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+    if (entry.scene === 'Story') {
+      // Story's own still (the Mandate sky, Act 1's backdrop), loaded on demand like the Story scene loads it.
+      loadStoryArt(this, [STORY_TILE_ART], () => {
+        if (!plate.active || !this.textures.exists(storyTextureKey(STORY_TILE_ART))) return;
+        const image = this.add.image(0, 0, storyTextureKey(STORY_TILE_ART));
+        coverFitImage(image, rect, 0);
+        // Straight above the plate, under the scrim and the words (moveAbove keeps an object already above).
+        this.children.moveTo(image, this.children.getIndex(plate) + 1);
+      });
+    } else {
+      const art = this.compactTileArt(entry.scene, rect);
+      if (art && blocked) art.setAlpha(0.3);
+    }
     compactScrim(this, rect, 0.45);
     this.add.graphics()
       .lineStyle(theme.control.borderWidth, blocked ? theme.graphics.panelStroke : colorInt(theme.colors.gold), blocked ? theme.alpha.chrome : 0.55)

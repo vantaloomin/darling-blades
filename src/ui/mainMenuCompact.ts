@@ -81,7 +81,7 @@ export function compactMainMenuLayout(content: Rect, opts: CompactMainMenuOption
   const dailyX = content.x + leftW + gap;
   const daily = { x: dailyX, y: top, width: Math.max(0, column.x - gap - dailyX), height: Math.max(0, bottom - top) };
 
-  const play = { x: column.x, y: bottom - touch, width: columnW, height: touch };
+  const play = { x: column.x, y: bottom - COMPACT.primaryH, width: columnW, height: COMPACT.primaryH };
   const n = Math.max(0, Math.floor(opts.navCount));
   // The rows take the room above Play less one gap, at the mock's 52 px when
   // it fits and never under the touch floor (a short phone, M21).
