@@ -16,7 +16,7 @@ import {
   setActiveSceneZoom,
   textRasterResolution,
 } from './platform/renderScale';
-import { enableDevCompactScene, disableDesktopCompactScenes, setActiveCompactMetrics } from './platform/compactScenes';
+import { designOutgrown, enableDevCompactScene, disableDesktopCompactScenes, RELAYOUT_SCENES, setActiveCompactMetrics } from './platform/compactScenes';
 import { onFullScreenChange } from './platform/fullscreen';
 import {
   compactFit,
@@ -292,9 +292,13 @@ signals.start();
 // texts drawn from then on rasterize at the new zoom.
 // A phone held upright shows the rotate screen over the game, so a refit to an
 // upright screen is skipped: the scenes keep the landscape layout they will be
-// seen in. A page loaded upright built its first scenes for the upright screen;
-// the first landscape refit restarts them in the landscape content box (the
-// owner's iPhone, 2026-10-14, kept a portrait-width main menu after turning).
+// seen in. A compact scene lays itself out once, in the content box it was
+// built for, so a scene built for a different screen is restarted: every
+// compact scene after a page loaded upright, and a menu scene whose design
+// space changed by more than a few percent (the owner's iPhone, 2026-10-14,
+// kept a narrow main menu after turning, and again after a landscape refresh,
+// where Safari can report the old size while the page loads). Scenes holding
+// a game in progress keep their layout and only re-fit the camera.
 if (compact && !compactFixture) {
   let pending: number | undefined;
   let builtUpright = compact.presentation === 'rotate';
@@ -303,7 +307,12 @@ if (compact && !compactFixture) {
     const m = readCompactScreen();
     if (!m || m.presentation === 'rotate') return;
     const next = compactFit(m);
-    if (next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
+    const restartAll = builtUpright;
+    const outgrown = game.scene.getScenes(true).filter((scene) => {
+      const stage = sceneStage(scene);
+      return stage.compact && (restartAll || (RELAYOUT_SCENES.has(scene.sys.settings.key) && designOutgrown(stage, m)));
+    });
+    if (outgrown.length === 0 && next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
       && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
     document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
     setActiveSceneZoom(next.zoom, next.widthShare);
@@ -311,10 +320,9 @@ if (compact && !compactFixture) {
     // setGameSize, not resize: under FIT, resize keeps the load's aspect ratio, so
     // a turn from upright drew the canvas at portrait width in a landscape window.
     game.scale.setGameSize(next.canvas.width, next.canvas.height);
-    const restart = builtUpright;
     builtUpright = false;
     for (const scene of game.scene.getScenes(true)) {
-      if (restart && sceneStage(scene).compact) scene.scene.restart();
+      if (outgrown.includes(scene)) scene.scene.restart();
       else applySceneSettings(scene, { refit: true });
     }
   };
@@ -323,7 +331,11 @@ if (compact && !compactFixture) {
     pending = window.setTimeout(refit, 150);
   };
   window.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
+  window.visualViewport?.addEventListener('resize', schedule);
   onFullScreenChange(schedule);
+  // Safari can settle the window's size after load without a resize event.
+  for (const ms of [500, 1500]) window.setTimeout(schedule, ms);
 }
 
 // Dev-tool access (scene jumps, state inspection from the console).

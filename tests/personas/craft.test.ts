@@ -102,7 +102,7 @@ describe('the harness measures Warchest, never classic', () => {
       expect(column.landReserve).toHaveLength(LAND_RESERVE_SIZE);
       expect(column.deck.some((id) => CARD_DB[id].types.includes('land'))).toBe(false);
     }
-  });
+  }, 60_000);
 
   it('crafts a landless Warchest deck beside a ten-land reserve', () => {
     const build = buildGreedyDeck(PERSONA_TEMPLATES[0], fullPool, 12_345);

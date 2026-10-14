@@ -5,11 +5,12 @@ import {
   compactCamera,
   compactSceneMetrics,
   DESKTOP_DENSITY,
+  designOutgrown,
   desktopCompactMetrics,
   setActiveCompactMetrics,
 } from '../../src/platform/compactScenes';
 import { compactCanvasSize, resolveScreenMetrics } from '../../src/platform/screenMetrics';
-import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { SCREEN_FIXTURES, SHORT_SCREEN_FIXTURE } from '../../src/platform/screenFixtures';
 
 const phone = resolveScreenMetrics(SCREEN_FIXTURES.find((f) => f.name === 'phone-island')!);
 const desktop = resolveScreenMetrics({ viewportWidth: 1920, viewportHeight: 1080, coarsePointer: false });
@@ -71,5 +72,15 @@ describe('compactCamera', () => {
     const cam = compactCamera(phone.design, { width: 852 * 2, height: 330 * 2 });
     expect(cam.zoom * phone.design.height).toBeLessThanOrEqual(330 * 2 + 1e-9);
     expect(cam.zoom * phone.design.width).toBeLessThanOrEqual(852 * 2 + 1e-9);
+  });
+});
+
+describe('when a refit lays a menu out again', () => {
+  const island = SCREEN_FIXTURES.find((f) => f.name === 'phone-island')!;
+  it('after the screen turns or Safari’s bars change the height, not for a few pixels', () => {
+    const upright = resolveScreenMetrics({ ...island, viewportWidth: 393, viewportHeight: 852 });
+    expect(designOutgrown(upright.design, phone)).toBe(true);
+    expect(designOutgrown(phone.design, resolveScreenMetrics(SHORT_SCREEN_FIXTURE))).toBe(true);
+    expect(designOutgrown(phone.design, resolveScreenMetrics({ ...island, viewportHeight: 388 }))).toBe(false);
   });
 });

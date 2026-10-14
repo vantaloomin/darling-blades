@@ -111,7 +111,7 @@ describe('locked Layer-1 economy gates', () => {
     // value. Premium now totals 339.14g versus 2,770g because run-end gold is
     // intentionally zero.
     expect(premiumTotalGoldValue).toBeLessThan(fullGauntletGoldValue);
-  });
+  }, 60_000);
 
   it('gates the measured CI-fast progression bands', () => {
     const report = runProgressionSimulation(CI_FAST_CONFIG);

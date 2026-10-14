@@ -119,3 +119,20 @@ export function compactCamera(design: { width: number; height: number }, canvas:
   const zoom = Math.min(canvas.width / w, canvas.height / h);
   return { zoom: zoom > 0 && Number.isFinite(zoom) ? zoom : 1, centerX: w / 2, centerY: h / 2 };
 }
+
+/**
+ * Compact scenes that hold no game in progress, so a refit may restart them
+ * in the new screen's layout (src/gameBoot.ts). The rest keep the layout they
+ * were built with and only re-fit the camera.
+ */
+export const RELAYOUT_SCENES: ReadonlySet<string> = new Set(['MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'Limited']);
+
+/**
+ * True when a scene built for one design space no longer fits the screen: a
+ * side changed by more than 10%, as when Safari reported the upright size at
+ * load or its bars came or went. A few pixels of jitter keep the layout.
+ */
+export function designOutgrown(built: { width: number; height: number }, now: ScreenMetrics): boolean {
+  const off = (a: number, b: number): boolean => Math.abs(a - b) > 0.1 * Math.max(a, b);
+  return off(built.width, now.design.width) || off(built.height, now.design.height);
+}
