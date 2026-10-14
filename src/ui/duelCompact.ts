@@ -575,6 +575,11 @@ const SHORT_REASONS: Record<string, string> = {
  * itself refuses says why. On the foe's turn the Charms stay lit (they can
  * answer the moment a window opens) and everything else fades.
  */
+/** The two-word form of why a card cannot be cast ("Board full"), or null when there is none. */
+export function shortReason(reason: string | null): string | null {
+  return reason ? SHORT_REASONS[reason] ?? null : null;
+}
+
 export function handRowLook(
   card: { types: readonly string[]; subtypes: readonly string[]; attack?: number; defense?: number },
   opts: { playable: boolean; reason: string | null; yourDecision: boolean },

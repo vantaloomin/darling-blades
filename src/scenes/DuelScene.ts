@@ -79,7 +79,7 @@ import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
 import { getEffectiveStats, isSummoningSick, isSwornActive } from '../engine/statics';
-import type { CardDef, Color, ManaColor, PlayerId, Permanent, TargetRef } from '../engine/types';
+import type { CardDef, Color, ManaColor, ManaCost, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue, markCostOf } from '../engine/types';
 import { graveRefCard, sameGraveCard } from '../engine/graveyard';
 import {
@@ -214,7 +214,7 @@ import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionSte
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { cardGlossaryEntries, empowerText, KEYWORD_NAMES, manaCostText, romanNumeral, rulesText, typeLine } from '../ui/rulesText';
+import { activatedText, cardGlossaryEntries, empowerText, KEYWORD_NAMES, manaCostText, romanNumeral, rulesText, typeLine } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
@@ -240,9 +240,9 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoicePanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -498,6 +498,8 @@ export class DuelScene extends Phaser.Scene {
   private phoneRecap: PhoneRecapPanel | null = null;
   /** A zone open on the phone (W-GraveYours, W-Reserves): whose, which tab, and the card the column shows. */
   private phoneZone: { player: PlayerId; tab: PhoneZoneTab; pick: number } | null = null;
+  /** A cast or Duty question in the phone's column (W-TitheHow, W-Empower, W-DutyPick), in place of the desktop chooser. */
+  private phoneChoice: { panel: PhoneChoicePanel; foot: PhoneFoot } | null = null;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1840,6 +1842,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneInspect = null;
     this.phoneRecap = null;
     this.phoneZone = null;
+    this.phoneChoice = null;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -3033,6 +3036,8 @@ export class DuelScene extends Phaser.Scene {
 
   /** The existing board target prompt also hosts the purely visual sacrifice choice. */
   private syncSacrificePrompt(): void {
+    // The phone asks in its command column (phoneSacrificePrompt); the board keeps its rings.
+    if (this.phone) return;
     const pick = this.pendingSacrifice;
     const edict = edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
     if (!pick && !edict) return;
@@ -5256,6 +5261,10 @@ export class DuelScene extends Phaser.Scene {
       // A picker of greyed rows explains nothing: with no usable Duty, fall
       // through to the same blocked-reason notice a single-Duty permanent gets.
       if (!dutyChoices(card, iid, this.duel.legalActions(HUMAN)).some((choice) => choice.enabled)) return false;
+      if (this.phoneChrome) {
+        this.showPhoneDutyPick(card, iid, null, false);
+        return true;
+      }
       this.dutyPicker = showDutyPicker(this, {
         card, touch: this.touch, choices: () => dutyChoices(card, iid, this.duel.legalActions(HUMAN)),
         choose: abilityIndex => {
@@ -5274,6 +5283,36 @@ export class DuelScene extends Phaser.Scene {
     if (actions.length === 0) return false;
     this.beginDutyActions(card, actions);
     return true;
+  }
+
+  /** W-DutyPick: each Duty as a radio row under the card; the foot performs the picked one. */
+  private showPhoneDutyPick(card: CardDef, iid: number, picked: number | null, redraw: boolean): void {
+    const choices = dutyChoices(card, iid, this.duel.legalActions(HUMAN));
+    const index = picked ?? choices.find((choice) => choice.enabled)?.abilityIndex ?? 0;
+    const perform = () => {
+      const choice = dutyChoices(card, iid, this.duel.legalActions(HUMAN))[index];
+      if (!choice?.enabled) return;
+      this.closeEmpowerChooser();
+      this.beginDutyActions(card, choice.actions);
+    };
+    this.phoneChoice = {
+      panel: {
+        kind: 'choice', heading: 'Choose a Duty', source: this.phoneChoiceSource(card), text: null, box: null,
+        caption: null, count: null, price: null, hint: null,
+        options: choices.map((choice) => ({
+          label: choice.line, cost: null, note: null, enabled: choice.enabled,
+          mark: { kind: 'radio' as const, on: choice.abilityIndex === index },
+          onTap: () => this.showPhoneDutyPick(card, iid, choice.abilityIndex, true),
+        })),
+      },
+      foot: {
+        left: { label: DUTY_CANCEL_LABEL, onTap: () => this.closeEmpowerChooser() },
+        primary: { label: dutyActionLabel(activatedAbilitiesOf(card)[index]), enabled: choices[index]?.enabled ?? false, onTap: perform },
+      },
+    };
+    this.showPhoneChoice(redraw);
+    // Enter performs the picked Duty, as it confirms the desktop picker.
+    this.dutyConfirm = perform;
   }
 
   private beginDutyActions(card: CardDef, actions: DutyAction[]): void {
@@ -6278,7 +6317,10 @@ export class DuelScene extends Phaser.Scene {
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
     }
+    if (this.phoneChoice) return this.phoneChoice;
     if (this.phoneZone) return this.phoneZonePrompt(this.phoneZone);
+    const sacrifice = this.phoneSacrificePrompt();
+    if (sacrifice) return sacrifice;
     if (this.phoneFocus) {
       const focus = this.phoneFocusPrompt(this.phoneFocus);
       if (focus) return focus;
@@ -6602,6 +6644,47 @@ export class DuelScene extends Phaser.Scene {
       foot: {
         left: { label: 'Cancel', onTap: () => this.closePhoneFocus() },
         primary: { label: 'Cast', enabled: castable, onTap: () => this.castFromPhoneFocus(empowerable ? false : null) },
+      },
+    };
+  }
+
+  /**
+   * Choosing creatures to sacrifice in the column (W-Tithe, W-Rite, W-Edict):
+   * the card, what to choose, the running count (and Tithe's Defense and
+   * price), with Confirm in the foot. The picks are made on the board.
+   */
+  private phoneSacrificePrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
+    const pick = this.pendingSacrifice;
+    const edict = pick ? null : edictSacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, this.edictPicks);
+    if (!pick && !edict) return null;
+    const cardId = edict?.sourceCardId ?? (pick && this.actionCardId(pick.casts[0]));
+    if (!cardId) return null;
+    const card = def(CARD_DB, cardId);
+    const hint = 'Tap again to remove.';
+    if (edict) {
+      // The foe's spell: whose it is in place of the cost line's type.
+      const source = this.phoneChoiceSource(card);
+      return {
+        panel: {
+          kind: 'choice', heading: null, source: { ...source, detail: `Opponent · ${source.detail}` }, text: rulesText(card), box: null,
+          caption: `Sacrifice ${edict.count}`, count: `${this.edictPicks.length} of ${edict.count} selected`, price: null, hint, options: [],
+        },
+        foot: { left: null, primary: { label: 'Confirm sacrifice', enabled: edict.action !== null, onTap: () => this.confirmSacrificeSelection() }, wide: true },
+      };
+    }
+    const selection = sacrificeSelection(this.duel.instanceState, CARD_DB, HUMAN, pick!.casts, pick!.selected);
+    const rite = card.rite?.n;
+    return {
+      panel: {
+        kind: 'choice', heading: null, source: this.phoneChoiceSource(card), text: card.rite ? rulesText(card) : null, box: null,
+        caption: rite !== undefined ? `Rite: choose ${rite} ${rite === 1 ? 'creature' : 'creatures'}` : 'Tithe: choose creatures',
+        count: `${pick!.selected.length}${rite !== undefined ? `/${rite}` : ''} selected${card.tithe ? ` · ${selection.defense} Defense` : ''}`,
+        price: card.tithe ? selection.cost ?? null : null,
+        hint, options: [],
+      },
+      foot: {
+        left: { label: 'Cancel', onTap: () => this.cancelPendingTargeting() },
+        primary: { label: 'Confirm cast', enabled: selection.actions.length > 0, onTap: () => this.confirmSacrificeSelection() },
       },
     };
   }
@@ -8976,6 +9059,32 @@ export class DuelScene extends Phaser.Scene {
 
   /** The same card-and-cost confirmation composition as the graveyard and cast choosers. */
   private showDutyConfirm(card: CardDef, action: DutyAction): void {
+    if (this.phoneChrome) {
+      // W-Duty: the ability in its box, what it spends, and Perform in the foot.
+      const ability = activatedAbilitiesOf(card)[action.abilityIndex ?? 0];
+      const label = dutyActionLabel(ability);
+      const marks = markCostOf(ability);
+      const spends = marks > 0 ? `Removes ${marks === 1 ? 'a mark' : `${marks} marks`} from ${card.name}.` : `Taps ${card.name}.`;
+      const confirm = () => {
+        if (validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
+        this.closeEmpowerChooser();
+        this.act(action);
+      };
+      this.phoneChoice = {
+        panel: {
+          kind: 'choice', heading: label, source: this.phoneChoiceSource(card), text: null,
+          box: activatedText({ ...card, activated: ability }) ?? '', caption: null, count: null, price: null,
+          hint: `${spends} No response window: it happens at once.`, options: [],
+        },
+        foot: {
+          left: { label: DUTY_CANCEL_LABEL, onTap: () => this.closeEmpowerChooser() },
+          primary: { label, onTap: confirm },
+        },
+      };
+      this.showPhoneChoice(false);
+      this.dutyConfirm = confirm;
+      return;
+    }
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     bindTapButton(this, dim, (pointer) => {
@@ -9260,6 +9369,25 @@ export class DuelScene extends Phaser.Scene {
       fodder: sacrificeCandidates(this.duel.instanceState, CARD_DB, HUMAN).length,
     });
     if (!row) return false;
+    const empoweredCost = d.cost && d.empower ? combineManaCosts(d.cost, d.empower.cost) : undefined;
+    if (this.phoneChrome) {
+      // W-TitheHow: the ways to cast as rows over the foot, Sacrifice to cast (or the last way) in the foot.
+      const reason = shortReason(reasonUncastable(this.duel.state, CARD_DB, HUMAN, casts[0].handIndex));
+      const select: Record<SacrificeCastChoice['kind'], { cost: ManaCost | null; go: () => void }> = {
+        cast: { cost: d.cost ?? null, go: () => this.continueCast(normal) },
+        empower: { cost: empoweredCost ?? null, go: () => this.continueCast(empowered) },
+        sacrifice: { cost: null, go: () => this.startCast(tithe) },
+      };
+      const options = row.map((choice) => ({
+        label: choice.label, cost: select[choice.kind].cost, enabled: choice.enabled,
+        note: choice.enabled ? null : choice.kind === 'sacrifice' ? 'No creatures' : reason,
+        go: select[choice.kind].go,
+      }));
+      if (skims.length > 0) options.unshift({ label: 'Skim', cost: d.skim?.cost ?? null, enabled: true, note: null, go: () => this.act(skims[0]) });
+      const keyword = cardGlossaryEntries(d).find((entry) => entry.name === 'Tithe' || entry.name === 'Rite');
+      this.openPhoneChoice(d, 'How will you cast this?', keyword ? `${keyword.name}: ${keyword.reminder}` : rulesText(d), options);
+      return true;
+    }
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     bindTapButton(this, dim, (pointer) => {
@@ -9292,7 +9420,6 @@ export class DuelScene extends Phaser.Scene {
         },
       }).container);
     };
-    const empoweredCost = d.cost && d.empower ? combineManaCosts(d.cost, d.empower.cost) : undefined;
     const pick: Record<SacrificeCastChoice['kind'], { cost: CardDef['cost']; select: () => void }> = {
       cast: { cost: d.cost, select: () => this.continueCast(normal) },
       empower: { cost: empoweredCost, select: () => this.continueCast(empowered) },
@@ -9315,6 +9442,13 @@ export class DuelScene extends Phaser.Scene {
     casts: Extract<Action, { type: 'castSpell' }>[],
     skims: Extract<Action, { type: 'skim' }>[],
   ): void {
+    if (this.phoneChrome) {
+      this.openPhoneChoice(d, 'Cast, or Skim?', rulesText(d), [
+        { label: 'Skim', cost: d.skim!.cost, enabled: true, note: null, go: () => this.act(skims[0]) },
+        { label: 'Cast', cost: d.cost ?? null, enabled: true, note: null, go: () => this.startCast(casts) },
+      ]);
+      return;
+    }
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
@@ -9384,6 +9518,14 @@ export class DuelScene extends Phaser.Scene {
     casts: Extract<Action, { type: 'castSpell' }>[],
     hauntlinkedCasts: Extract<Action, { type: 'castSpell' }>[],
   ): void {
+    if (this.phoneChrome) {
+      this.openPhoneChoice(d, 'Cast, or Hauntlink?', rulesText(d), [
+        // Hauntlink skips startCast because it cannot carry an Empower choice.
+        { label: 'Hauntlink', cost: d.hauntlink!.cost, enabled: true, note: null, go: () => this.continueCast(hauntlinkedCasts) },
+        { label: 'Cast', cost: d.cost ?? null, enabled: true, note: null, go: () => this.startCast(casts) },
+      ]);
+      return;
+    }
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
@@ -9455,6 +9597,18 @@ export class DuelScene extends Phaser.Scene {
     d: CardDef,
     casts: Extract<Action, { type: 'castSpell' }>[],
   ): void {
+    if (this.phoneChrome) {
+      // W-Empower: Empower over the foot, Cast with its price in the foot.
+      const only = (empowered: boolean) => () => {
+        const subset = casts.filter((cast) => (cast.empowered ?? false) === empowered);
+        if (subset.length > 0) this.continueCast(subset);
+      };
+      this.openPhoneChoice(d, 'Cast, or pay more to Empower?', rulesText(d), [
+        { label: 'Empower', cost: combineManaCosts(d.cost!, d.empower!.cost), enabled: true, note: null, go: only(true) },
+        { label: 'Cast', cost: d.cost ?? null, enabled: true, note: null, go: only(false) },
+      ]);
+      return;
+    }
     const width = 1280;
     const height = 720;
     const c = this.add.container(0, 0).setDepth(105);
@@ -9543,9 +9697,38 @@ export class DuelScene extends Phaser.Scene {
     selected: number[] = [],
     redraw = false,
   ): void {
+    const upTo = d.modal?.upTo ?? 1;
+    if (this.phoneChrome) {
+      // The modes as rows under the card: one tap casts a pick-one; pick-several ticks boxes, then Cast.
+      const cast = (modes: number[]): void => {
+        const subset = castsForModes(casts, modes);
+        if (subset.length === 0) return;
+        this.closeEmpowerChooser();
+        this.continueCast(subset);
+      };
+      const options = modeRows(d, casts).map((row) => ({
+        label: row.line, cost: null, note: null, enabled: row.available,
+        mark: { kind: upTo === 1 ? 'radio' as const : 'box' as const, on: selected.includes(row.index) },
+        onTap: () => {
+          if (upTo === 1) cast([row.index]);
+          else this.showModeChooser(d, casts, toggleMode(selected, row.index, upTo), true);
+        },
+      }));
+      this.phoneChoice = {
+        panel: {
+          kind: 'choice', heading: modeChooserTitle(d), source: this.phoneChoiceSource(d), text: null, box: null, caption: null,
+          count: upTo > 1 ? `${selected.length} of up to ${upTo} chosen` : null, price: null, hint: null, options,
+        },
+        foot: {
+          left: { label: 'Cancel', onTap: () => this.closeEmpowerChooser() },
+          primary: upTo > 1 ? { label: 'Cast', enabled: castsForModes(casts, selected).length > 0, onTap: () => cast(selected) } : null,
+        },
+      };
+      this.showPhoneChoice(redraw);
+      return;
+    }
     this.empowerChooser?.destroy();
     this.empowerChooser = null;
-    const upTo = d.modal?.upTo ?? 1;
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add.rectangle(640, 360, 1280, 720, theme.graphics.dim, theme.alpha.overlayDim).setInteractive();
     bindTapButton(this, dim, (p) => {
@@ -9626,10 +9809,59 @@ export class DuelScene extends Phaser.Scene {
     if (!redraw) this.empowerChooserGuard.open(this.overlayGuardTargets());
   }
 
+  /** The card a phone choice is about: its art, type (with P/T) and cost. */
+  private phoneChoiceSource(d: CardDef): NonNullable<PhoneChoicePanel['source']> {
+    const stats = isType(d, 'creature') ? ` · ${d.attack ?? 0}/${d.defense ?? 0}` : '';
+    return { card: d, detail: `${typeLine(d)}${stats}`, cost: d.cost ?? null };
+  }
+
+  /**
+   * A cast chooser in the phone's column (W-TitheHow, W-Empower): the card
+   * and its text, the other ways to cast as rows over the foot, and the last
+   * way with its price in the foot beside Cancel.
+   */
+  private openPhoneChoice(d: CardDef, heading: string, text: string,
+    options: { label: string; cost: ManaCost | null; enabled: boolean; note: string | null; go: () => void }[]): void {
+    const pick = (go: () => void) => () => {
+      this.closeEmpowerChooser();
+      go();
+    };
+    const lead = options[options.length - 1];
+    this.phoneChoice = {
+      panel: {
+        kind: 'choice', heading, source: this.phoneChoiceSource(d), text, box: null, caption: null, count: null, price: null, hint: null,
+        options: options.slice(0, -1).map((option) => ({ ...option, onTap: pick(option.go) })),
+      },
+      foot: {
+        left: { label: 'Cancel', onTap: () => this.closeEmpowerChooser() },
+        primary: { label: lead.label, cost: lead.cost ?? undefined, enabled: lead.enabled, onTap: pick(lead.go) },
+      },
+    };
+    this.showPhoneChoice(false);
+  }
+
+  /** Puts the phone choice up: a placeholder keeps every "a chooser is open" check true while the column asks. */
+  private showPhoneChoice(redraw: boolean): void {
+    const chrome = this.phoneChrome;
+    if (!chrome) return;
+    if (!this.empowerChooser) this.empowerChooser = this.add.container(0, 0);
+    this.phoneHistoryOpen = false;
+    this.syncHand();
+    this.syncButton();
+    if (redraw) this.empowerChooserGuard.close();
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.empowerChooserGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
   private closeEmpowerChooser(): void {
     if (!this.empowerChooser) return;
     this.empowerChooser.destroy();
     this.empowerChooser = null;
+    if (this.phoneChoice) {
+      this.phoneChoice = null;
+      this.syncHand();
+      this.syncButton();
+    }
     this.dutyPicker = null;
     this.dutyConfirm = null;
     this.pumpTickerStep = null;
