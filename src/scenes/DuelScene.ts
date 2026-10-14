@@ -1409,7 +1409,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.tutorial) {
       // The coach-mark guide layer is display-only until its scripted beat
       // opens each target; the HUD no longer exposes an auto-skip control.
-      this.coach = new CoachMark(this);
+      this.coach = new CoachMark(this, () => this.phone?.content ?? null);
     }
     if (this.a11yFixture) {
       const fixture = this.a11yFixture;
@@ -1483,6 +1483,11 @@ export class DuelScene extends Phaser.Scene {
       case 'grave-picker': this.showGravePicker(fixture.pendingCasts ?? []); break;
       case 'duty': {
         const card = def(CARD_DB, fixture.dutyCardId!);
+        if (this.phoneChrome) {
+          // The phone's Duty choice is W-DutyPick in the column, as beginActivate opens it.
+          this.showPhoneDutyPick(card, this.duel.state.battlefield.find(p => p.cardId === card.id)!.iid, null, false);
+          break;
+        }
         this.dutyPicker = showDutyPicker(this, { card, touch: false,
           choices: () => dutyChoices(card,
             this.duel.state.battlefield.find(p => p.cardId === card.id)!.iid, this.duel.legalActions(HUMAN)),
@@ -1490,9 +1495,9 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'coach-cue': case 'coach-info':
-        this.coach = new CoachMark(this);
+        this.coach = new CoachMark(this, () => this.phone?.content ?? null);
         if (fixture.panel === 'coach-info') this.coach.showInfoCard(fixture.coachText!, () => {});
-        else this.coach.showCue(this.passArc, fixture.coachText!);
+        else this.coach.showCue(this.phoneChrome?.primaryTarget() ?? this.passArc, fixture.coachText!);
         break;
     }
     this.stackDisplay.showPage(page);
@@ -1608,7 +1613,8 @@ export class DuelScene extends Phaser.Scene {
     // one live target); this runs on every beat change, never mid-read.
     this.zoom.cancel();
     this.tutorialGuard.close();
-    this.tutorialGuard.open(this.overlayGuardTargets().filter((o) => o !== exempt && o !== this.menuBtn));
+    const phoneMenu = this.phoneChrome?.menu.inputZone;
+    this.tutorialGuard.open(this.overlayGuardTargets().filter((o) => o !== exempt && o !== this.menuBtn && o !== phoneMenu));
   }
 
   private buildTutorialInput(): TutorialCueInput {
@@ -1676,6 +1682,10 @@ export class DuelScene extends Phaser.Scene {
     kind: TutorialCueKind,
   ): (Phaser.GameObjects.GameObject & { getBounds(): Phaser.Geom.Rectangle }) | null {
     const st = this.duel.state;
+    if (this.phoneChrome) {
+      const phone = this.phoneTutorialTarget(kind, this.phoneChrome);
+      if (phone !== undefined) return phone;
+    }
     switch (kind) {
       case 'playLand':
         // Warchest: the land drop starts at the Reserves pile, which opens the
@@ -1708,6 +1718,51 @@ export class DuelScene extends Phaser.Scene {
       default:
         return null;
     }
+  }
+
+  /**
+   * The phone's spotlight for a cue that names the hand or the smart button:
+   * the hand's row (or "N more in hand" for a folded card), the Warchest
+   * Reserves row, or the foot, which also finishes a move once its card or
+   * sheet is open ("Cast", "Play land"). Board picks fall through to the tiles.
+   */
+  private phoneTutorialTarget(kind: TutorialCueKind, chrome: DuelPhoneChrome): Phaser.GameObjects.Zone | null | undefined {
+    const handRow = (handIdx: number | null): Phaser.GameObjects.Zone | null => {
+      if (handIdx === null) return null;
+      return chrome.columnZone(`hand-row:${this.duel.state.players[HUMAN].hand[handIdx]}`) ?? chrome.columnZone('hand-more');
+    };
+    switch (kind) {
+      case 'playLand':
+      case 'playCreature':
+      case 'castRitual':
+      case 'castCharm':
+        if (this.phoneFocus || this.phoneZone) return chrome.primaryTarget();
+        if (kind === 'playLand') return chrome.columnZone('hand-row:deck') ?? handRow(this.handIndexWhere((d) => isType(d, 'land')));
+        return handRow(this.castableHandIndex(kind === 'playCreature' ? 'creature' : kind === 'castRitual' ? 'ritual' : 'charm'));
+      case 'advance':
+      case 'confirmAttack':
+      case 'confirmBlock':
+        return chrome.primaryTarget();
+      default:
+        return undefined;
+    }
+  }
+
+  /** First castable card of a given type in hand, in display order → its hand index. */
+  private castableHandIndex(t: import('../engine/types').CardType): number | null {
+    const castable = new Set(
+      this.duel
+        .legalActions(HUMAN)
+        .filter((l): l is Extract<Action, { type: 'castSpell' }> => l.type === 'castSpell')
+        .map((l) => l.handIndex),
+    );
+    return this.handIndexWhere((d, handIdx) => castable.has(handIdx) && isType(d, t));
+  }
+
+  /** First hand card (in display order) matching a predicate → its hand index. */
+  private handIndexWhere(pred: (d: CardDef, handIdx: number) => boolean): number | null {
+    const hand = this.duel.state.players[HUMAN].hand;
+    return handDisplayOrder(hand, CARD_DB).find((handIdx) => pred(def(CARD_DB, hand[handIdx]), handIdx)) ?? null;
   }
 
   /** First castable card of a given type in hand → its CardView. */
@@ -2683,6 +2738,19 @@ export class DuelScene extends Phaser.Scene {
     this.closeInspect();
     this.zoom.setSuppressed(true);
     this.sync();
+    if (this.phoneChrome) {
+      // The phone's end of a replay is the result band and column, with Exit in the foot.
+      this.showPhoneResults({
+        won: true, headline: message,
+        lines: message === 'Replay complete' ? [] : ['This replay was recorded on an older version.'],
+        gold: null, breakdown: null, note: null, left: null,
+        primary: { label: 'Exit', onTap: () => this.exitReplayViewer() },
+        leave: () => this.exitReplayViewer(),
+        replay: true,
+      });
+      this.replayOutcome = this.phoneResultBand;
+      return;
+    }
     const shell = modalShell(this, {
       width: 460,
       height: message === 'Replay complete' ? 170 : 220,
@@ -4828,6 +4896,7 @@ export class DuelScene extends Phaser.Scene {
         row === null ? null : PHASE_TRACK_ROWS.indexOf(row),
         yours,
       );
+      this.phoneChrome.setTurnLineVisible(this.phoneResult === null);
       if (yours || this.ended) this.phoneChrome.setBanner(null, '');
     }
     this.syncTurnPill(st.turn, yours);
@@ -5206,7 +5275,11 @@ export class DuelScene extends Phaser.Scene {
     const cue = this.tilePresentation(perm);
     view.setCue(cue.state, this.cueContext());
     if (this.cueContext() === 'targeting') view.list.filter(child => child.name === 'duel-duty-flash').forEach(child => child.destroy());
-    view.setActionLabel(cue.chip, scale);
+    // The phone's sword disc stands in for the desktop's lift, so an attacker keeps it while a
+    // target is picked, when the word chips step aside.
+    const keepsSword = this.phone !== null && cue.chip === null && cue.lifted
+      && (this.duel.state.combat?.attackers.includes(perm.iid) ?? false);
+    view.setActionLabel(keepsSword ? 'Attack' : cue.chip, scale);
     const rowDepth = view.getData('rowDepth') as number | undefined;
     if (this.phone?.short && rowDepth !== undefined) view.setDepth(rowDepth + (view.wordChipShown ? 1 : 0));
     const sacrifice = this.pendingSacrifice?.selected ?? this.edictPicks;
@@ -5690,7 +5763,11 @@ export class DuelScene extends Phaser.Scene {
           backgroundColor: theme.colors.panelFill,
           padding: { x: 5, y: 2 },
         }).setOrigin(layout.taxOriginX, 0.5).setDepth(10);
-        if (theme.type.micro > theme.typeBase.micro) {
+        if (this.phone) {
+          // Larger text widens the chip; it stays inside its half, clear of the column's End turn.
+          const half = player === HUMAN ? this.phone.myHalf : this.phone.oppHalf;
+          chip.setX(Math.min(chip.x, half.x + half.width - 4 - chip.width / 2));
+        } else if (theme.type.micro > theme.typeBase.micro) {
           const nameBounds = label.getBounds();
           chip.setX(player === HUMAN
             ? Math.max(layout.taxX, nameBounds.right + 6 + chip.width / 2)
@@ -5724,6 +5801,8 @@ export class DuelScene extends Phaser.Scene {
         this.darlingZoneDecor.push(castCopy);
       }
       view.enableInput();
+      // The phone's thumbnail is smaller than a touch target; its zone (in card space) is not.
+      if (this.phone) view.inputZone?.setSize(Math.max(CARD_W, 44 / zoneScale), Math.max(CARD_H, 44 / zoneScale));
       this.zoom.attach(view, d, variant);
       view.on('pointerover', (pointer: Phaser.Input.Pointer) => {
         if (!pointer.wasTouch && castable) this.previewDarlingManaPlan(castActions);
@@ -7048,6 +7127,7 @@ export class DuelScene extends Phaser.Scene {
     chrome.setStage(view, () => this.closePhoneFocus());
     this.syncHand();
     this.syncButton();
+    this.tutorialTick(); // the lesson's spotlight moves to the foot's Cast
   }
 
   private closePhoneFocus(): void {
@@ -7056,6 +7136,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneChrome?.setStage(null);
     this.syncHand();
     this.syncButton();
+    this.tutorialTick();
   }
 
   private castFromPhoneFocus(empowered: boolean | null): void {
@@ -8542,6 +8623,7 @@ export class DuelScene extends Phaser.Scene {
     this.syncButton();
     const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
     this.zoneGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+    this.tutorialTick();
   }
 
   private phoneZonePrompt(zone: { player: PlayerId; tab: PhoneZoneTab; pick: number }): { panel: PhoneZonePanel; foot: PhoneFoot } {
@@ -8602,6 +8684,7 @@ export class DuelScene extends Phaser.Scene {
     this.closeZoneModal();
     this.syncHand();
     this.syncButton();
+    this.tutorialTick();
   }
 
   /**
@@ -9435,6 +9518,12 @@ export class DuelScene extends Phaser.Scene {
     for (const picked of this.targetPicks) {
       if (!options.some(ref => this.targetRefEquals(ref, picked))) options.push(picked);
     }
+    const title = edict ? `${edict.prompt} · ${this.edictPicks.length} of ${edict.count}` :
+      deferred?.title ?? `${duty ? dutyLabel : 'Choose targets'} · ${this.pendingTargetStep().countText}`;
+    if (this.phoneChrome) {
+      this.showPhoneGravePicker(options, title, mandatory, edict !== null);
+      return;
+    }
     const c = this.add.container(0, 0).setDepth(105);
     const dim = this.add
       .rectangle(width / 2, height / 2, width, height, theme.graphics.dim, theme.alpha.overlayDim)
@@ -9446,8 +9535,7 @@ export class DuelScene extends Phaser.Scene {
     c.add(dim);
     c.add(
       this.add
-        .text(width / 2, 150, edict ? `${edict.prompt} · ${this.edictPicks.length} of ${edict.count}` :
-          deferred?.title ?? `${duty ? dutyLabel : 'Choose targets'} · ${this.pendingTargetStep().countText}`, {
+        .text(width / 2, 150, title, {
           fontFamily: theme.fonts.display,
           fontSize: `${theme.type.h1}px`,
           color: theme.colors.heading,
@@ -9474,11 +9562,7 @@ export class DuelScene extends Phaser.Scene {
         }).container);
         return;
       }
-      const cardId = ref.kind === 'grave'
-        ? this.graveTargetCardId(ref)
-        : ref.kind === 'permanent'
-          ? this.duel.state.battlefield.find((perm) => perm.iid === ref.iid)?.cardId
-          : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
+      const cardId = this.pickerCardId(ref);
       if (!cardId) return;
       const v = new CardView(this, x, 370).setScale(0.62);
       const d = def(CARD_DB, cardId);
@@ -9529,6 +9613,61 @@ export class DuelScene extends Phaser.Scene {
     else c.add(cancel);
     this.gravePicker = c;
     this.gravePickerGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /** The card a picker option shows: the graveyard card, the permanent, or the spell on the stack. */
+  private pickerCardId(ref: TargetRef): string | undefined {
+    return ref.kind === 'grave'
+      ? this.graveTargetCardId(ref)
+      : ref.kind === 'permanent'
+        ? this.duel.state.battlefield.find((perm) => perm.iid === ref.iid)?.cardId
+        : ref.kind === 'stackItem' ? this.duel.state.stack.find(item => item.sid === ref.sid)?.cardId : undefined;
+  }
+
+  /**
+   * The phone's target picker: the targets the board cannot show (a graveyard
+   * card, a spell, a hidden permanent) as tiles on the zone sheet, each with
+   * its pick number once picked. A tap picks; the command column keeps the
+   * prompt, the picks and Cast or Cancel, as it does for board targets.
+   */
+  private showPhoneGravePicker(options: TargetRef[], title: string, mandatory: boolean, edict: boolean): void {
+    const tiles: SheetArtTile[] = [];
+    for (const ref of options) {
+      const cardId = ref.kind === 'player'
+        ? (ref.player === HUMAN ? this.myFaceCardId : this.oppFaceCardId) ?? undefined
+        : this.pickerCardId(ref);
+      if (!cardId || !CARD_DB[cardId]) continue;
+      const picked = ref.kind === 'permanent' && edict ? [this.edictPicks.indexOf(ref.iid)]
+        : this.pickIndices(ref, this.targetPicks);
+      const badge = pickBadgeLabel(picked);
+      const variant = displayVariantFor(Services.save.data, cardId);
+      tiles.push({
+        card: def(CARD_DB, cardId),
+        variant,
+        pill: null,
+        badge,
+        pick: badge,
+        chip: ref.kind === 'player' ? { label: ref.player === HUMAN ? 'You' : this.opponentShortName(), live: true }
+          : ref.kind === 'stackItem' ? { label: 'On the stack', live: true } : null,
+        selected: badge !== null,
+        onTap: () => {
+          this.closeGravePicker(false);
+          this.tryTarget(ref);
+        },
+      });
+    }
+    const sheet = drawDuelSheet(this, duelSheet(this.phone!), {
+      title,
+      subtitle: 'Tap a card to pick it.',
+      onClose: mandatory ? undefined : () => this.closeGravePicker(),
+      tiles,
+      empty: 'Nothing to pick.',
+    });
+    sheet.setName('gravePicker');
+    this.gravePicker = sheet;
+    const chrome = this.phoneChrome!;
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.gravePickerGuard.open([...this.overlayGuardTargets(), this.undoBtn].filter((target) => !keep.has(target)));
   }
 
   private closeGravePicker(cancelDuty = true): void {
@@ -11589,6 +11728,8 @@ export class DuelScene extends Phaser.Scene {
     primary: { label: string; onTap: () => void };
     /** Escape: where the desktop panel's close goes. */
     leave: () => void;
+    /** A replay's end shows no gold. */
+    replay?: boolean;
   }): void {
     const chrome = this.phoneChrome;
     const main = this.phone?.main;
@@ -11648,6 +11789,7 @@ export class DuelScene extends Phaser.Scene {
     // Its own slot: the opening's overlay is cleared on every sync.
     this.phoneResultBand?.destroy();
     this.phoneResultBand = c;
+    chrome.setTurnLineVisible(false);
     this.phoneResult = {
       panel: {
         kind: 'result',
@@ -11655,7 +11797,7 @@ export class DuelScene extends Phaser.Scene {
         rows: opts.breakdown?.rows ?? [],
         total: opts.breakdown?.total ?? null,
         note: opts.note,
-        balance: Services.save.data.gold,
+        balance: opts.replay ? null : Services.save.data.gold,
       },
       foot: { left: opts.left, primary: opts.primary, wide: opts.left === null },
     };

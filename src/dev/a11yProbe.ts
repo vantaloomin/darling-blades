@@ -99,6 +99,10 @@ export interface ProbeScene {
   readonly replayFixtures?: boolean;
   /** Copy whose presence is part of this fixture, independently of its geometry. */
   readonly requiredText?: readonly string[];
+  /** The settle in the phone's compact layout, when it differs from `settleMs`. */
+  readonly compactSettleMs?: number;
+  /** The required copy is the desktop HUD's; the phone layout draws it elsewhere or not at all. */
+  readonly requiredTextWideOnly?: boolean;
   /** Inspect the live renderer's cue carriers, separately from exempt card text. */
   readonly duelCue?: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'portrait' | 'two-targets' | 'lethal-pick' | 'repeated-picks';
   /** A transient accepted-pick cue is captured before its presentation timer ends. */
@@ -326,6 +330,11 @@ const duelFixture = (name: DuelA11yFixtureName, extra: Partial<ProbeScene> = {},
   label: `Duel / ${name}${page === undefined ? '' : ' / last page'}`, key: 'Duel',
   data: { a11yFixture: name, ...(page === undefined ? {} : { a11yPage: page }) }, ...extra,
 });
+/**
+ * The phone holds a pick for Cast and redraws its medallion a few frames later; at a
+ * headless 4 fps that outlasts the desktop's 200 ms instant commit (200 ms failed, 2 s passed).
+ */
+const PHONE_PICK_SETTLE_MS = 1500;
 export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   duelFixture('full-board'),
   duelFixture('sick-blocker', { duelCue: 'M1' }),
@@ -334,12 +343,12 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   duelFixture('portrait-pick', { duelCue: 'portrait' }),
   ...(['one-target-pick', 'portrait-pick'] as const).map((name) => duelFixture(name, {
     label: `Duel / ${name} / committed`, data: { a11yFixture: name, a11yCommitPick: true },
-    duelCue: name === 'one-target-pick' ? 'M3' : 'portrait', settleMs: 200,
+    duelCue: name === 'one-target-pick' ? 'M3' : 'portrait', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS,
   })),
   duelFixture('lethal-target-pick', { data: { a11yFixture: 'lethal-target-pick', a11yCommitPick: true },
-    duelCue: 'lethal-pick', settleMs: 200 }),
+    duelCue: 'lethal-pick', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS }),
   duelFixture('single-grave-pick', { data: { a11yFixture: 'single-grave-pick', a11yCommitPick: true },
-    duelCue: 'M4', settleMs: 200 }),
+    duelCue: 'M4', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS }),
   duelFixture('repeated-target-picks', { duelCue: 'repeated-picks' }),
   duelFixture('two-target-picks', { duelCue: 'two-targets' }),
   duelFixture('graveyard-pick', { duelCue: 'M4' }),
@@ -349,7 +358,8 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   // default settle (1 pass in 5 measured it mid-slide); give the panels time.
   ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [
     duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
-  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
+  // The desktop names the player under the portrait; the phone's portraits carry art and life only (T-03a).
+  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name], requiredTextWideOnly: true }),
   duelFixture('duty'),
   duelFixture('mandate-yours'),
   duelFixture('mandate-theirs'),
@@ -830,6 +840,7 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   };
   const fail = (detail: string): ProbeFinding[] => [{ kind: 'cue', text: cue,
     bounds: { x: 0, y: 0, width: 0, height: 0 }, detail }];
+  if (sceneStage(scene).compact) return checkPhoneDuelCue(cue, tile, badgeIs, objects, fail);
   if (cue === 'M1') {
     const view = tile(WAVE_2D_IIDS.blocker), tab = child(view, 'board-action-tab'), swirl = child(view, 'board-sick-swirl');
     if (!textIs(tab, 'Blocks') || !shown(swirl) || !(tab instanceof Phaser.GameObjects.Text) || !(swirl instanceof Phaser.GameObjects.Image))
@@ -870,6 +881,41 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
       || !shown(glyph) || !(glyph instanceof Phaser.GameObjects.Graphics) || glyph.commandBuffer.length === 0
       || !shown(mark) || !(mark instanceof Phaser.GameObjects.Container) || !mark.list.some((item) => numeralIs(item, '+2')))
       return fail('damage and raised-stat glyphs must coexist with the two-Mark badge');
+  }
+  return [];
+}
+
+/**
+ * The phone Duel's forms of the same cues: a medallion carries a sword or
+ * shield disc instead of the lifted tile and word tab, a pick waits for Cast
+ * instead of committing, and a graveyard pick is a tile on the sheet.
+ */
+function checkPhoneDuelCue(
+  cue: NonNullable<ProbeScene['duelCue']>,
+  tile: (iid: number) => BoardCardView | undefined,
+  badgeIs: (view: BoardCardView | undefined, value: string) => boolean,
+  objects: readonly Phaser.GameObjects.GameObject[],
+  fail: (detail: string) => ProbeFinding[],
+): ProbeFinding[] {
+  if (cue === 'M1' && tile(WAVE_2D_IIDS.blocker)?.getData('a11yChip') !== 'Blocks')
+    return fail('an assigned blocker must carry its shield disc');
+  if ((cue === 'M2' || cue === 'M6')
+    && tile(cue === 'M2' ? WAVE_2D_IIDS.attacker : WAVE_2D_IIDS.selectedAttacker)?.getData('a11yChip') !== 'Attack')
+    return fail('an attacker must carry its sword disc');
+  if ((cue === 'M3' || cue === 'lethal-pick') && !badgeIs(tile(cue === 'M3' ? 4 : 1), '1'))
+    return fail('a picked target must draw its 1 badge until Cast');
+  if (cue === 'repeated-picks' && !badgeIs(tile(4), '1, 2'))
+    return fail('a creature picked for both ordered target slots must draw both pick numbers');
+  if (cue === 'two-targets' && (!badgeIs(tile(3), '1') || !badgeIs(tile(1), '2')))
+    return fail('two-target picks must preserve the order the player chose them');
+  if (cue === 'M4' && !objects.some((object) => object.name.startsWith('sheet:') && object.getData('a11yPickBadge') === '1'))
+    return fail('a picked graveyard card must carry its 1 badge on the sheet');
+  if (cue === 'portrait' && !objects.some((object) => object.getData('a11yPickBadge') === '1'
+    && object.getData('a11yPickSurface') === 'portrait'))
+    return fail('picked portrait must expose the drawn 1 badge');
+  if (cue === 'M5') {
+    const stats = tile(WAVE_2D_IIDS.marked)?.getData('a11yStatsCue') as { glyphs: string[]; markBadge: number | null } | undefined;
+    if (stats?.markBadge !== 2) return fail('the two-Mark badge must show on the medallion');
   }
   return [];
 }
@@ -985,7 +1031,7 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
     for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
     if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
   }
-  await wait(spec.settleMs ?? settleMs);
+  await wait((sceneStage(scene).compact ? spec.compactSettleMs : undefined) ?? spec.settleMs ?? settleMs);
   if (spec.pointerTargetIid !== undefined) {
     const target = scene.children.list.find((object): object is BoardCardView =>
       object instanceof BoardCardView && object.getData('a11yIid') === spec.pointerTargetIid);
@@ -994,15 +1040,24 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
       throw new Error(`${spec.label}: pointer fixture must identify a legal target`);
     }
     const canvas = game.canvas, rect = canvas.getBoundingClientRect();
-    // Duel renders a 1280x720 design window at any renderScale. Let Phaser's
-    // mouse manager perform its own canvas/camera conversion and redraw.
+    // World to canvas through the camera (the desktop's 1280x720 design window
+    // at any renderScale, or the phone's compact camera); Phaser's mouse
+    // manager then performs its own conversion back and redraws.
+    const cam = scene.cameras.main;
     canvas.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
-      clientX: rect.left + target.x / theme.design.width * rect.width,
-      clientY: rect.top + target.y / theme.design.height * rect.height }));
-    await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
+      clientX: rect.left + (target.x - cam.worldView.x) * cam.zoom / game.scale.width * rect.width,
+      clientY: rect.top + (target.y - cam.worldView.y) * cam.zoom / game.scale.height * rect.height }));
+    // The pointer's world point refreshes on the input update after the event; until then a
+    // zoomed camera (the phone's) still reports canvas pixels. Allow a few frames for it.
+    // MouseEvent coordinates are whole CSS pixels, so allow one CSS pixel of world rounding too.
     const pointer = scene.input.activePointer;
-    if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > 1) {
-      throw new Error(`${spec.label}: pointer did not reach its legal target`);
+    const tolerance = 1 + game.scale.width / (rect.width * cam.zoom);
+    for (let frame = 0; frame < 8; frame++) {
+      await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
+      if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) <= tolerance) break;
+    }
+    if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > tolerance) {
+      throw new Error(`${spec.label}: pointer did not reach its legal target (pointer ${Math.round(pointer.worldX)},${Math.round(pointer.worldY)}; target ${Math.round(target.x)},${Math.round(target.y)})`);
     }
     scene.data.set('a11yProbePointer', { iid: spec.pointerTargetIid, x: pointer.worldX, y: pointer.worldY });
   }
@@ -1067,7 +1122,8 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
           const scene = await openScene(game, spec, settleMs);
           const result = checkScene(scene);
           const visible = walkTexts(scene).texts;
-          const missing: ProbeFinding[] = (spec.requiredText ?? []).filter((text) => !visible.some((entry) => entry.object.text === text))
+          const required = spec.requiredTextWideOnly && sceneStage(scene).compact ? [] : spec.requiredText ?? [];
+          const missing: ProbeFinding[] = required.filter((text) => !visible.some((entry) => entry.object.text === text))
             .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
           const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
           totalFindings += findings.length;

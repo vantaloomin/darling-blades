@@ -55,6 +55,8 @@ export function drawPhoneStack(scene: Phaser.Scene, root: Phaser.GameObjects.Con
   root.add(scene.add.graphics()
     .fillStyle(theme.graphics.panelFill, 0.97).fillRoundedRect(R.x, R.y, R.width, R.height, theme.radius.panel + 2)
     .lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(R.x, R.y, R.width, R.height, theme.radius.panel + 2));
+  // An opaque panel: the probe reads the board under it as hidden, not overlapping.
+  root.setData('a11ySurface', { x: root.x + R.x, y: root.y + R.y, width: R.width, height: R.height });
   const label = (item: StackItem, i: number): string => `${stackPlace(i, order.length)} · ${opts.casterLabel(item.controller)}`;
   const target = (item: StackItem): string | null => item.targets.length ? `at ${item.targets.map(opts.targetName).join(', ')}` : null;
   const hit = (rect: Rect, item: StackItem, card: CardDef): void => {
