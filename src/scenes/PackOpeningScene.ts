@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { formatGold, goldPrice } from '../ui/goldFormat';
+import { formatCount, formatGold, goldPrice } from '../ui/goldFormat';
 import { liveArtStore } from '../art/artLoader';
 import { PackRequests } from '../art/packRequests';
 import { Music } from '../audio/music';
@@ -20,13 +20,15 @@ import { checkpointAchievements } from '../meta/achievementCheckpoint';
 import { CARD_BACKS, cardBackTextureKey, resolveDeckCardBackId } from '../meta/cosmetics';
 import { isPlainVariant, TIER_LABEL, TIER_RANK, type CardVariant } from '../meta/variants';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeSceneZoom } from '../platform/renderScale';
+import { currentSceneZoom } from '../platform/renderScale';
 import { CARD_H, CARD_W, CardView, type CardFxLevel } from '../ui/CardView';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { dragMoved } from '../ui/mulliganRitualPresentation';
 import {
   cardDwellMs,
   cardRailX,
+  compactRunway,
+  DESKTOP_RUNWAY,
   flipPitchJitter,
   gateProgress,
   indexAtGate,
@@ -40,15 +42,12 @@ import {
   packRevealLayout,
   railOffsetForIndex,
   runwayOrder,
-  RUNWAY_CARD_HALF_HEIGHT,
   RUNWAY_CARD_SCALE,
-  RUNWAY_CARD_Y,
   RUNWAY_FLIP_SFX_MIN_GAP_MS,
   RUNWAY_GATE_X,
-  RUNWAY_MINIMAP,
-  RUNWAY_PITCH,
   RUNWAY_RESUME_DELAY_MS,
   RUNWAY_SKIP,
+  type RunwayGeometry,
   virtualRange,
 } from '../ui/packRunwayPresentation';
 import {
@@ -64,13 +63,19 @@ import {
 import { gateOnArt } from '../ui/artGate';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { COMPACT } from '../ui/compactLayout';
-import { compactButton, compactIconButton, type CompactButton } from '../ui/compactWidgets';
+import { COMPACT_DRAG_SLOP, compactButton, compactIconButton, type CompactButton } from '../ui/compactWidgets';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { ellipsizeText } from '../ui/textFit';
 import type { Rect } from '../ui/layout';
 import {
+  PACK_COMPACT,
+  packBatchGrid,
+  packBatchLayout,
   packColumnWidth,
   packCompactFrame,
   packInspectCompact,
   packSpecialSlots,
+  packScale,
   packSpotlightLayout,
   packTearLayout,
   packTileRows,
@@ -202,7 +207,9 @@ export class PackOpeningScene extends Phaser.Scene {
   private revealed = 0;
   private specials: SpecialEntry[] = [];
   private buttons: ThemedButton[] = [];
-  private skipBtn: ThemedButton | null = null;
+  private skipBtn: { container: Phaser.GameObjects.Container } | null = null;
+  /** Where the batch's ride sits: the desktop's design, or the compact one built from the content box. */
+  private rg: RunwayGeometry = DESKTOP_RUNWAY;
   private toasts: Toast | null = null;
   /** Account cosmetic snapshotted once in create(), never read in reveal loops. */
   private cardBackTextureKey = 'cardback';
@@ -221,7 +228,7 @@ export class PackOpeningScene extends Phaser.Scene {
     views: Map<number, CardView>;
     lastFlipSfxAt: number;
     idleSince: number | null;
-    resumeChip: ThemedButton | null;
+    resumeChip: { container: Phaser.GameObjects.Container } | null;
     needle: Phaser.GameObjects.Rectangle;
     tint: Phaser.GameObjects.Rectangle;
     tintColor: string;
@@ -265,6 +272,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.bestSettled = false;
     this.packRevealComplete = false;
     this.compactUi = null;
+    this.rg = DESKTOP_RUNWAY;
     const packs = 'batch' in data ? data.batch : [data];
     this.packArt?.release();
     this.packArt = null;
@@ -367,9 +375,16 @@ export class PackOpeningScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
-    if (sceneStage(this).compact && !('batch' in data)) {
+    if (sceneStage(this).compact) {
       registerSceneBackNavigation(this, () => this.returnToShop());
-      this.buildCompact(data);
+      if ('batch' in data) {
+        // A batch rides the runway, then lands on its summary (S-Pack-Batch).
+        this.compactUi = this.compactFrameUi(packCompactFrame(sceneStage(this).content, COMPACT.primaryH));
+        if (this.saveData.settings.animations === 'off') {
+          this.showBatchSummary(data.batch);
+          this.finishAchievementCheckpoint();
+        } else this.showPackRunway(data.batch);
+      } else this.buildCompact(data);
       return;
     }
     const back = backButton(this, 'Shop', () => this.returnToShop());
@@ -489,6 +504,10 @@ export class PackOpeningScene extends Phaser.Scene {
   }
 
   private drawBatchSummary(batch: PackResult[]): void {
+    if (this.compactUi) {
+      this.drawCompactBatch(batch);
+      return;
+    }
     const width = 1280;
     const all = batch.flatMap((p) => p.cards);
     const specials = all.filter((c) => c.tier !== 'c' && c.tier !== 'r');
@@ -575,15 +594,22 @@ export class PackOpeningScene extends Phaser.Scene {
    * bulk size (10 -> 5 -> 1), plus Shop / Menu.
    */
   private buildBatchButtons(openedQty: number): void {
+    const rebuy = this.batchRebuy(openedQty);
+    // Short of even one pack: the re-buy shows disabled with its price, as
+    // the Shop's Buy buttons do, instead of looking live and doing nothing.
+    this.buildCtaRail(`${rebuy.label} · ${goldPrice(rebuy.price)}`, rebuy.enabled, rebuy.onOpen);
+  }
+
+  /** The batch re-buy: the same quantity when affordable, else the largest affordable bulk size (10, 5, 1). */
+  private batchRebuy(openedQty: number): { label: string; price: number; enabled: boolean; onOpen: () => void } {
     const price = packPriceForSku(this.sku);
     const gold = this.saveData.gold;
     const steps = [10, 5, 1].filter((n) => n <= openedQty);
     const qty = steps.find((n) => gold >= n * price) ?? 1;
-    const label = qty === 1 ? `Open Another · ${goldPrice(price)}` : `Open ×${qty} More · ${goldPrice(qty * price)}`;
-
-    // Short of even one pack: the re-buy shows disabled with its price, as
-    // the Shop's Buy buttons do, instead of looking live and doing nothing.
-    this.buildCtaRail(label, gold >= qty * price, () => {
+    // The compact layout writes its labels in sentence case, as the mocks do.
+    const compact = this.compactUi !== null;
+    const label = qty === 1 ? (compact ? 'Open another' : 'Open Another') : compact ? `Open ×${qty} more` : `Open ×${qty} More`;
+    return { label, price: qty * price, enabled: gold >= qty * price, onOpen: () => {
       if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, qty * price)) return;
@@ -599,7 +625,7 @@ export class PackOpeningScene extends Phaser.Scene {
         Services.save.flush();
         this.scene.restart({ batch: packs, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
       }
-    });
+    } };
   }
 
   /**
@@ -634,49 +660,34 @@ export class PackOpeningScene extends Phaser.Scene {
    * Reveal chip after idle; a card flips exactly when it crosses the gate.
    */
   private showPackRunway(batch: PackResult[]): void {
-    const width = 1280;
+    const stage = sceneStage(this);
+    const compact = this.compactUi !== null;
+    const width = stage.width;
+    const caption = compact ? theme.compactType.caption : theme.type.caption;
+    if (compact) {
+      const k = this.compactUi!.frame.k;
+      const minimapH = 8 + MINIMAP_CUES.labelRowOffset + Math.ceil(caption * 1.3);
+      this.rg = compactRunway(width, stage.content, PACK_COMPACT.back, Math.round(minimapH * Math.min(k, 1.2)));
+    }
+    const rg = this.rg;
     const cards = runwayOrder(batch.flatMap((p) => p.cards));
     const root = this.add.container(0, 0);
     // Boundary lighting: a low wash retinted as the gate crosses tier runs.
-    const tint = this.add.rectangle(width / 2, 360, width, 720, colorInt(theme.rarity.c), 0.08);
+    const tint = this.add.rectangle(width / 2, stage.height / 2, width, stage.height, colorInt(theme.rarity.c), 0.08);
     root.add(tint);
-    const title = this.add
-      .text(width / 2, 60, `Opened ${batch.length} packs`, {
-        fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.display}px`,
-        color: theme.colors.heading,
-      })
-      .setOrigin(0.5);
-    const hint = this.add
-      .text(width / 2, 102, 'Drag to scrub · tap a revealed card to inspect', {
-        fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
-        color: theme.colors.muted,
-      })
-      .setOrigin(0.5);
-    this.stackHeading(title, hint);
-    root.add([title, hint]);
+    if (compact) this.compactRunwayHeader(root, batch.length);
+    else this.desktopRunwayHeader(root, batch.length);
     // Gate notches: where cards turn over.
     const gate = this.add.graphics();
     gate.lineStyle(2, colorInt(theme.colors.gold), 0.55);
-    gate.lineBetween(
-      RUNWAY_GATE_X,
-      RUNWAY_CARD_Y - RUNWAY_CARD_HALF_HEIGHT - 26,
-      RUNWAY_GATE_X,
-      RUNWAY_CARD_Y - RUNWAY_CARD_HALF_HEIGHT,
-    );
-    gate.lineBetween(
-      RUNWAY_GATE_X,
-      RUNWAY_CARD_Y + RUNWAY_CARD_HALF_HEIGHT,
-      RUNWAY_GATE_X,
-      RUNWAY_CARD_Y + RUNWAY_CARD_HALF_HEIGHT + 26,
-    );
+    gate.lineBetween(rg.gateX, rg.cardY - rg.cardHalfHeight - rg.notch, rg.gateX, rg.cardY - rg.cardHalfHeight);
+    gate.lineBetween(rg.gateX, rg.cardY + rg.cardHalfHeight, rg.gateX, rg.cardY + rg.cardHalfHeight + rg.notch);
     root.add(gate);
     // Tier-colored ribbon minimap with a progress needle — the no-scrollbar rule.
     // Colour is not the only channel: runs are parted by a gap and each is
     // labelled with its tier underneath (packCuePresentation).
-    const minimap = { x: RUNWAY_MINIMAP.x, w: RUNWAY_MINIMAP.width };
-    const mmY = RUNWAY_MINIMAP.y;
+    const minimap = { x: rg.minimap.x, w: rg.minimap.width };
+    const mmY = rg.minimap.y;
     const mm = this.add.graphics();
     const segments = minimapSegments(cards);
     segments.forEach((seg, i) => {
@@ -689,7 +700,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const labels = segments.map((seg) => this.add
       .text(0, labelY, TIER_LABEL[seg.tier], {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.caption}px`,
+        fontSize: `${caption}px`,
         fontStyle: '700',
         color: theme.rarity[seg.tier],
       })
@@ -703,23 +714,24 @@ export class PackOpeningScene extends Phaser.Scene {
     const needle = this.add.rectangle(minimap.x, mmY + 4, 3, 18, 0xffffff, 0.95);
     root.add(needle);
     // Scrub band beneath the cards: dragging anywhere on the rail moves it.
-    const band = this.add.zone(width / 2, RUNWAY_CARD_Y, width, 420).setInteractive();
+    const bandH = 2 * (rg.cardHalfHeight + rg.notch);
+    const band = this.add.zone(width / 2, rg.cardY, width, bandH).setInteractive();
     root.add(band);
     // Edge vignettes above the cards instead of a scrollbar.
     const vignettes = this.add.graphics().setDepth(5);
     vignettes.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.75, 0, 0.75, 0);
-    vignettes.fillRect(0, RUNWAY_CARD_Y - 210, 130, 420);
+    vignettes.fillRect(0, rg.cardY - bandH / 2, rg.vignette, bandH);
     vignettes.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0.75, 0, 0.75);
-    vignettes.fillRect(width - 130, RUNWAY_CARD_Y - 210, 130, 420);
+    vignettes.fillRect(width - rg.vignette, rg.cardY - bandH / 2, rg.vignette, bandH);
     root.add(vignettes);
 
-    const startOffset = railOffsetForIndex(0) + 2 * RUNWAY_PITCH;
+    const startOffset = railOffsetForIndex(0, rg) + 2 * rg.pitch;
     this.runway = {
       batch,
       cards,
       root,
       offset: startOffset,
-      minOffset: railOffsetForIndex(Math.max(0, cards.length - 1)),
+      minOffset: railOffsetForIndex(Math.max(0, cards.length - 1), rg),
       maxOffset: startOffset,
       velocity: 0,
       revealedMax: -1,
@@ -747,16 +759,68 @@ export class PackOpeningScene extends Phaser.Scene {
       this.input.off('pointermove', onMove);
       this.input.off('pointerup', onUp);
     });
-    this.skipBtn = themedButton(this, RUNWAY_SKIP.x, RUNWAY_SKIP.y, 'Skip ≫', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 100,
-      onTap: () => this.runwaySkip(),
-    });
+    this.skipBtn = compact
+      ? compactButton(this, this.compactRunwayTopRight(0), 'Skip ≫', { onTap: () => this.runwaySkip() })
+      : themedButton(this, RUNWAY_SKIP.x, RUNWAY_SKIP.y, 'Skip ≫', {
+        variant: 'ghost',
+        size: 'sm',
+        minWidth: 100,
+        onTap: () => this.runwaySkip(),
+      });
     this.runwayApplyOffset(startOffset);
     if (this.fixture) this.settleRunwayFixture();
     else this.runwayAdvance();
   }
+
+  /** The desktop ride's heading and hint, centred over the minimap. */
+  private desktopRunwayHeader(root: Phaser.GameObjects.Container, packs: number): void {
+    const width = 1280;
+    const title = this.add
+      .text(width / 2, 60, `Opened ${packs} packs`, {
+        fontFamily: theme.fonts.display,
+        fontSize: `${theme.type.display}px`,
+        color: theme.colors.heading,
+      })
+      .setOrigin(0.5);
+    const hint = this.add
+      .text(width / 2, 102, 'Drag to scrub · tap a revealed card to inspect', {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${theme.type.caption}px`,
+        color: theme.colors.muted,
+      })
+      .setOrigin(0.5);
+    this.stackHeading(title, hint);
+    root.add([title, hint]);
+  }
+
+  /** The compact ride's top bar: the back chevron, then "Opened 10 packs" (Skip takes its right end). */
+  private compactRunwayHeader(root: Phaser.GameObjects.Container, packs: number): void {
+    const content = sceneStage(this).content;
+    const back = compactIconButton(this, { x: content.x, y: content.y, width: PACK_COMPACT.back, height: PACK_COMPACT.back }, 'back',
+      () => this.returnToShop());
+    back.container.setDepth(theme.depth.reveal);
+    root.once('destroy', () => back.container.destroy()); // the summary draws its own
+    const x = content.x + PACK_COMPACT.back + PACK_COMPACT.gap;
+    const title = this.add.text(x, 0, `Opened ${packs} packs`, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.compactType.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    ellipsizeText(title, this.compactRunwayTopRight(1).x - PACK_COMPACT.gap - x);
+    title.setY(content.y + (PACK_COMPACT.back - title.height) / 2);
+    root.add(title);
+  }
+
+  /** The compact ride's top-right slots: 0 is Skip at the right end, 1 is Resume reveal left of it. */
+  private compactRunwayTopRight(slot: 0 | 1): Rect {
+    const content = sceneStage(this).content;
+    const k = this.compactUi!.frame.k;
+    const skipW = Math.round(110 * k);
+    const resumeW = Math.round(170 * k);
+    const right = content.x + content.width;
+    return slot === 0
+      ? { x: right - skipW, y: content.y, width: skipW, height: PACK_COMPACT.back }
+      : { x: right - skipW - PACK_COMPACT.gap - resumeW, y: content.y, width: resumeW, height: PACK_COMPACT.back };
+  }
+
 
   /** Fixtures only: park the last card on the gate, then finish or spotlight it. */
   private settleRunwayFixture(): void {
@@ -764,7 +828,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const last = rw.cards.length - 1;
     rw.mode = 'idle';
     if (this.fixture?.state !== 'spotlight') rw.finaleStarted = true;
-    this.runwayApplyOffset(railOffsetForIndex(last));
+    this.runwayApplyOffset(railOffsetForIndex(last, this.rg));
     this.whenFixture(() => rw.revealedMax >= last, () => {
       if (this.fixture?.state === 'spotlight') {
         this.runwaySpotlightStop(last, true);
@@ -780,7 +844,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const rw = this.runway;
     if (!rw) return;
     rw.offset = Math.max(rw.minOffset, Math.min(rw.maxOffset, offset));
-    const range = virtualRange(rw.offset, rw.cards.length);
+    const range = virtualRange(rw.offset, rw.cards.length, this.rg.virtualMargin, this.rg);
     for (const [i, view] of [...rw.views]) {
       if (i < range.first || i > range.last) {
         view.destroy();
@@ -793,9 +857,9 @@ export class PackOpeningScene extends Phaser.Scene {
         view = this.buildRunwayCard(i);
         rw.views.set(i, view);
       }
-      view.x = cardRailX(i, rw.offset);
+      view.x = cardRailX(i, rw.offset, this.rg);
     }
-    const gateIdx = indexAtGate(rw.offset, rw.cards.length);
+    const gateIdx = indexAtGate(rw.offset, rw.cards.length, this.rg);
     if (gateIdx > rw.revealedMax) this.runwayRevealTo(gateIdx);
     else this.packArt?.cancelReveal();
     rw.needle.x = rw.minimap.x + gateProgress(rw.revealedMax, rw.cards.length) * rw.minimap.w;
@@ -805,10 +869,10 @@ export class PackOpeningScene extends Phaser.Scene {
   private buildRunwayCard(index: number): CardView {
     const rw = this.runway!;
     const card = rw.cards[index];
-    const view = new CardView(this, cardRailX(index, rw.offset), RUNWAY_CARD_Y, {
+    const view = new CardView(this, cardRailX(index, rw.offset, this.rg), this.rg.cardY, {
       backTextureKey: this.cardBackTextureKey,
     });
-    view.setScale(RUNWAY_CARD_SCALE);
+    view.setScale(this.rg.cardScale);
     rw.root.add(view);
     if (index <= rw.revealedMax) this.runwayShowFace(view, card, index, true);
     else {
@@ -847,8 +911,9 @@ export class PackOpeningScene extends Phaser.Scene {
     view.setData('packInspectBlocked', false);
     this.addNewMarker(view, card);
     if (!instant) {
-      view.setScale(RUNWAY_CARD_SCALE + 0.06, RUNWAY_CARD_SCALE);
-      this.tweens.add({ targets: view, scaleX: RUNWAY_CARD_SCALE, duration: 160, ease: 'Back.easeOut' });
+      const scale = this.rg.cardScale;
+      view.setScale(scale + 0.06 * (scale / RUNWAY_CARD_SCALE), scale);
+      this.tweens.add({ targets: view, scaleX: scale, duration: 160, ease: 'Back.easeOut' });
       if (card.fullArt) this.shedFullArtFrame(view, card);
     }
   }
@@ -950,13 +1015,13 @@ export class PackOpeningScene extends Phaser.Scene {
       });
       return;
     }
-    const target = railOffsetForIndex(next);
+    const target = railOffsetForIndex(next, this.rg);
     const distance = rw.offset - target;
     // Scrubbed back into revealed territory: fast-travel to the frontier first.
-    if (distance > RUNWAY_PITCH * 1.5) {
+    if (distance > this.rg.pitch * 1.5) {
       rw.autoTween = this.tweens.add({
         targets: rw,
-        offset: railOffsetForIndex(rw.revealedMax) ,
+        offset: railOffsetForIndex(rw.revealedMax, this.rg),
         duration: Math.min(900, distance / 2),
         ease: 'Sine.easeInOut',
         onUpdate: () => this.runwayApplyOffset(rw.offset),
@@ -975,7 +1040,7 @@ export class PackOpeningScene extends Phaser.Scene {
     rw.autoTween = this.tweens.add({
       targets: rw,
       offset: target,
-      duration: Math.max(60, dwell * Math.max(0.4, Math.abs(distance) / RUNWAY_PITCH)),
+      duration: Math.max(60, dwell * Math.max(0.4, Math.abs(distance) / this.rg.pitch)),
       ease: tier === 'c' || tier === 'r' ? 'Linear' : 'Sine.easeOut',
       onUpdate: () => this.runwayApplyOffset(rw.offset),
       onComplete: () => {
@@ -995,7 +1060,7 @@ export class PackOpeningScene extends Phaser.Scene {
     if (finale && rw.finaleStarted) return;
     let view = rw.views.get(index);
     if (!view) {
-      this.runwayApplyOffset(railOffsetForIndex(index));
+      this.runwayApplyOffset(railOffsetForIndex(index, this.rg));
       view = rw.views.get(index);
     }
     if (!view) {
@@ -1015,8 +1080,10 @@ export class PackOpeningScene extends Phaser.Scene {
     const esc = tier === 'c' || tier === 'r'
       ? { ...baseEsc, flash: [255, 216, 138] as [number, number, number], tint: colorInt(theme.colors.gold) }
       : baseEsc;
-    const width = 1280;
-    const height = 720;
+    const stage = sceneStage(this);
+    const width = stage.width;
+    const height = stage.height;
+    const compact = this.compactUi !== null;
     Sfx.play('shimmer');
     this.cameras.main.flash(260, ...esc.flash);
     const dim = this.add
@@ -1028,12 +1095,24 @@ export class PackOpeningScene extends Phaser.Scene {
     rw.root.remove(view);
     this.add.existing(view);
     view.setDepth(50);
-    this.cameras.main.zoomTo(esc.zoom * activeSceneZoom(), 380);
-    this.tweens.add({ targets: view, scale: 0.85, x: width / 2, y: height / 2 + 20, duration: 320, ease: 'Cubic.easeOut' });
-    const burst = this.add.particles(RUNWAY_GATE_X, RUNWAY_CARD_Y, 'fx-star', {
-      speed: { min: 220, max: 640 },
+    // The compact spotlight fills the content box itself (S-Pack-Spotlight) instead of zooming the camera.
+    const spot = packSpotlightLayout(stage.content, CARD_H / CARD_W);
+    if (compact) {
+      this.tweens.add({ targets: view, scale: spot.card.height / CARD_H, x: spot.card.x + spot.card.width / 2,
+        y: spot.card.y + spot.card.height / 2, duration: 320, ease: 'Cubic.easeOut' });
+    } else {
+      this.cameras.main.zoomTo(esc.zoom * currentSceneZoom(), 380);
+      this.tweens.add({ targets: view, scale: 0.85, x: width / 2, y: height / 2 + 20, duration: 320, ease: 'Cubic.easeOut' });
+    }
+    // Compact: the burst leaves the spotlit card, sized like the single pack's showcase.
+    const fk = compact ? packScale(stage.content) : 1;
+    const burst = this.add.particles(
+      compact ? spot.card.x + spot.card.width / 2 : this.rg.gateX,
+      compact ? spot.card.y + spot.card.height / 2 : this.rg.cardY,
+      'fx-star', {
+      speed: compact ? { min: 160 * fk, max: 460 * fk } : { min: 220, max: 640 },
       lifespan: 1100,
-      scale: { start: 1.6, end: 0 },
+      scale: { start: compact ? 1.2 : 1.6, end: 0 },
       emitting: false,
       tint: esc.tint,
       blendMode: Phaser.BlendModes.ADD,
@@ -1041,9 +1120,9 @@ export class PackOpeningScene extends Phaser.Scene {
     burst.setDepth(60);
     burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), 0, 0);
     const hint = this.add
-      .text(width / 2, this.spotlightHintY(esc.zoom), 'tap to continue', {
+      .text(width / 2, compact ? spot.hintY : this.spotlightHintY(esc.zoom), 'tap to continue', {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.label}px`,
+        fontSize: `${compact ? theme.compactType.label : theme.type.label}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5)
@@ -1069,7 +1148,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // no-op while one is active — the restore would be silently dropped and
     // the camera stuck zoomed. Stop the in-flight effect first.
     this.cameras.main.zoomEffect.reset();
-    this.cameras.main.zoomTo(activeSceneZoom(), 300);
+    this.cameras.main.zoomTo(currentSceneZoom(), 300);
     const spot = rw.spotlight;
     rw.spotlight = null;
     if (spot) {
@@ -1089,9 +1168,9 @@ export class PackOpeningScene extends Phaser.Scene {
       rw.root.add(view);
       this.tweens.add({
         targets: view,
-        x: cardRailX(index, rw.offset),
-        y: RUNWAY_CARD_Y,
-        scale: RUNWAY_CARD_SCALE,
+        x: cardRailX(index, rw.offset, this.rg),
+        y: this.rg.cardY,
+        scale: this.rg.cardScale,
         duration: 280,
         onComplete: () => {
           if (rw.mode !== 'stopped') return;
@@ -1175,11 +1254,13 @@ export class PackOpeningScene extends Phaser.Scene {
       !rw.resumeChip &&
       rw.revealedMax < rw.cards.length - 1
     ) {
-      rw.resumeChip = themedButton(this, RUNWAY_GATE_X, 578, 'Resume Reveal ▸', {
-        variant: 'primary',
-        minWidth: 170,
-        onTap: () => this.runwayAdvance(),
-      });
+      rw.resumeChip = this.compactUi
+        ? compactButton(this, this.compactRunwayTopRight(1), 'Resume reveal ▸', { variant: 'primary', onTap: () => this.runwayAdvance() })
+        : themedButton(this, RUNWAY_GATE_X, 578, 'Resume Reveal ▸', {
+          variant: 'primary',
+          minWidth: 170,
+          onTap: () => this.runwayAdvance(),
+        });
       rw.resumeChip.container.setDepth(30);
     }
   }
@@ -1196,6 +1277,12 @@ export class PackOpeningScene extends Phaser.Scene {
     }
     if (!rw.finaleStarted && rw.cards.length > 0) {
       this.runwaySpotlightStop(rw.cards.length - 1, true);
+      return;
+    }
+    if (this.compactUi) {
+      // The compact ride lands on its summary (S-Pack-Batch).
+      this.runwaySkip();
+      rw.mode = 'done';
       return;
     }
     rw.mode = 'done';
@@ -1234,7 +1321,7 @@ export class PackOpeningScene extends Phaser.Scene {
     rw.spotlight?.hint.destroy();
     rw.spotlight?.dim.destroy();
     this.cameras.main.zoomEffect.reset(); // a live effect would keep re-zooming past setZoom
-    this.cameras.main.setZoom(activeSceneZoom());
+    this.cameras.main.setZoom(currentSceneZoom());
     this.skipBtn?.container.destroy();
     this.skipBtn = null;
     rw.resumeChip?.container.destroy();
@@ -1710,7 +1797,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // zoomTo targets are ABSOLUTE camera zooms: multiply by the render-scale
     // base zoom k (applySceneSettings set the camera to k, not 1) or the
     // escalation would stomp it and reveal the full 1280k×720k canvas.
-    this.cameras.main.zoomTo(esc.zoom * activeSceneZoom(), 380);
+    this.cameras.main.zoomTo(esc.zoom * currentSceneZoom(), 380);
     this.tweens.add({
       targets: view,
       scale: 0.85,
@@ -1791,7 +1878,7 @@ export class PackOpeningScene extends Phaser.Scene {
     // silently lost for the rest of the pack once any SR+ card escalates.
     this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
     // restore to the render-scale base zoom, not 1 (zoomTo is absolute)
-    this.cameras.main.zoomTo(activeSceneZoom(), 300);
+    this.cameras.main.zoomTo(currentSceneZoom(), 300);
     if (skipHint.active) skipHint.destroy();
     this.tweens.add({
       targets: dim,
@@ -1882,7 +1969,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const footH = COMPACT.primaryH;
     const columnW = packColumnWidth(content, gridCount, data.cards.length - gridCount, footH);
     const frame = packCompactFrame(content, footH, columnW);
-    this.compactUi = { frame, badgeH: 0, tabH: 0, specials: [], foot: [], done: false };
+    this.compactUi = this.compactFrameUi(frame);
     const back = compactIconButton(this, frame.back, 'back', () => this.returnToShop());
     back.container.setDepth(theme.depth.reveal);
 
@@ -1987,6 +2074,115 @@ export class PackOpeningScene extends Phaser.Scene {
       const skip = compactButton(this, frame.foot, 'Skip ≫', { onTap: () => this.skipAll() });
       ui.foot.push(skip);
     }
+  }
+
+  private compactFrameUi(frame: PackCompactFrame): CompactPackUi {
+    return { frame, badgeH: 0, tabH: 0, specials: [], foot: [], done: false };
+  }
+
+  /**
+   * A multi-pack open's summary, compact (S-Pack-Batch): "Opened 10 packs"
+   * beside the back chevron, every Super Rare and up best first in a
+   * scrolling grid of tiles (tier, New star), the batch's stats down the
+   * column, and Menu beside the re-buy in its foot.
+   */
+  private drawCompactBatch(batch: PackResult[]): void {
+    const ui = this.compactUi!;
+    const stage = sceneStage(this);
+    const type = theme.compactType;
+    const layout = packBatchLayout(stage.content, ui.frame.foot.height);
+    const k = layout.k;
+    const back = compactIconButton(this, layout.back, 'back', () => this.returnToShop());
+    back.container.setDepth(theme.depth.reveal);
+    const title = this.add.text(layout.title.x, 0, `Opened ${batch.length} packs`, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    ellipsizeText(title, layout.title.width);
+    title.setY(layout.title.y + (layout.title.height - title.height) / 2);
+
+    const all = batch.flatMap((p) => p.cards);
+    const notable = all.filter((c) => c.tier !== 'c' && c.tier !== 'r').sort((a, b) => TIER_RANK[b.tier] - TIER_RANK[a.tier]);
+    const g = layout.grid;
+    if (notable.length === 0) {
+      this.add.text(g.x + g.width / 2, g.y + g.height / 3, 'No Super Rare or better this time: every pull is a Common or a Rare.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, align: 'center',
+        wordWrap: { width: g.width * 0.7, useAdvancedWrap: true },
+      }).setOrigin(0.5);
+    } else {
+      const grid = packBatchGrid(g, notable.length, k);
+      const list = this.add.container(0, g.y);
+      notable.forEach((card, i) => {
+        const cell = grid.cells[i];
+        const hint = HINT[card.tier as keyof typeof HINT] ?? HINT.sr;
+        const tile = new PackTile(this, cell).showFace(def(CARD_DB, card.cardId), card.frame, {
+          tier: { label: TIER_LABEL[card.tier], color: hint.label },
+          mark: card.isNew ? 'new' : card.isNewVariant ? 'variant' : undefined,
+        });
+        if (card.dupeGold > 0) tile.setAlpha(0.5);
+        list.add(tile);
+        this.inspectables.push({ card, view: tile });
+      });
+      const scroll = bindMenuScroll(this, list, g, grid.contentH, () => this.inspectShell !== null);
+      const zone = this.add.zone(g.x + g.width / 2, g.y + g.height / 2, g.width, g.height).setInteractive({ useHandCursor: true });
+      zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+        if (p.rightButtonReleased() || Math.abs(p.upY - p.downY) > COMPACT_DRAG_SLOP) return;
+        const y = p.worldY - g.y + scroll.offset();
+        const index = grid.cells.findIndex((c) => p.worldX >= c.x && p.worldX <= c.x + c.width && y >= c.y && y <= c.y + c.height);
+        if (index >= 0) this.showPackInspect(notable[index]);
+      });
+    }
+
+    // The stats: a big number over a short label, rows parted by hairlines.
+    const dupeGold = all.reduce((sum, c) => sum + c.dupeGold, 0);
+    const rows: { n: string; label: string; color: string; star?: boolean; coin?: boolean }[] = [
+      { n: `${all.length}`, label: 'cards', color: theme.colors.heading },
+      { n: `${all.filter((c) => c.isNew).length}`, label: 'new', color: theme.colors.heading, star: true },
+      { n: `${notable.length}`, label: 'Super Rare+', color: theme.colors.heading },
+    ];
+    if (dupeGold > 0) rows.push({ n: `+${dupeGold}`, label: 'from duplicates', color: theme.colors.gold, coin: true });
+    const st = layout.stats;
+    const rowH = Math.min(Math.round(48 * k), st.height / rows.length);
+    rows.forEach((row, i) => {
+      const y = st.y + i * rowH;
+      let x = st.x + 4;
+      const number = this.add.text(x, 0, row.n, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: row.color,
+      });
+      number.setY(y + (rowH - number.height) / 2);
+      if (row.coin) {
+        const icon = Math.round(type.h1 * 0.8);
+        const coin = this.add.image(0, number.y + number.height / 2, bakeUiIcon(this, 'gold')).setDisplaySize(icon, icon);
+        // "+" first, then the coin, then the amount.
+        number.setText('+');
+        coin.setX(number.x + number.width + 2 + icon / 2);
+        const amount = this.add.text(coin.x + icon / 2 + 2, number.y, `${dupeGold}`, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: row.color,
+        });
+        x = amount.x + amount.width + 10;
+      } else x = number.x + number.width + 10;
+      if (row.star) {
+        const star = this.add.text(x, 0, '★', { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.success });
+        star.setY(number.y + number.height - star.height - 3);
+        x += star.width + 6;
+      }
+      const label = this.add.text(x, 0, row.label, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body,
+      });
+      ellipsizeText(label, st.x + st.width - x);
+      label.setY(number.y + number.height - label.height - 3);
+      this.add.graphics().lineStyle(1, theme.graphics.panelStroke, 0.7)
+        .lineBetween(st.x, y + rowH - 0.5, st.x + st.width, y + rowH - 0.5);
+    });
+
+    const foot = layout.foot;
+    const menuW = Math.round(foot.width * 0.34);
+    const menu = compactButton(this, { ...foot, width: menuW }, 'Menu', { onTap: () => this.scene.start('MainMenu') });
+    const rebuy = this.batchRebuy(batch.length);
+    const open = this.priceButton({ ...foot, x: foot.x + menuW + COMPACT.gap, width: foot.width - menuW - COMPACT.gap }, rebuy.label, rebuy.price, rebuy.onOpen);
+    open.setEnabled(rebuy.enabled);
+    ui.foot.push(menu, open);
+    ui.done = true;
+    this.markFixtureReady();
   }
 
   /** A Zone over a cell (never the scaled tile) that answers a tap. */
@@ -2265,7 +2461,7 @@ export class PackOpeningScene extends Phaser.Scene {
     const menuW = Math.round(foot.width * 0.34);
     const menu = compactButton(this, { ...foot, width: menuW }, 'Menu', { onTap: () => this.scene.start('MainMenu') });
     const openRect = { ...foot, x: foot.x + menuW + COMPACT.gap, width: foot.width - menuW - COMPACT.gap };
-    const open = this.fittedButton(openRect, `Open another · ${goldPrice(price)}`, () => {
+    const open = this.priceButton(openRect, 'Open another', price, () => {
       if (this.fixture) return;
       const save = Services.save.data;
       if (!spendGold(save, price)) return;
@@ -2280,14 +2476,27 @@ export class PackOpeningScene extends Phaser.Scene {
     ui.foot.push(menu, open);
   }
 
-  /** The gold action, its label stepped down until it fits the button. */
-  private fittedButton(rect: Rect, text: string, onTap: () => void): CompactButton {
-    const base = theme.compactType.body;
-    for (let size = base; ; size--) {
-      const button = compactButton(this, rect, text, { variant: 'primary', fontSize: size, onTap });
-      if (button.labelRight() <= rect.width - 8 || size <= Math.round(base * 0.75)) return button;
-      button.container.destroy();
-    }
+  /** The gold action (S-Pack-Results): its label over the price, the coin before the amount. */
+  private priceButton(rect: Rect, text: string, price: number, onTap: () => void): CompactButton {
+    const type = theme.compactType;
+    const button = compactButton(this, rect, '', { variant: 'primary', onTap });
+    const ink = button.label.style.color as string;
+    const label = this.add.text(rect.width / 2, rect.height / 2 + 1, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: ink,
+    }).setOrigin(0.5, 1);
+    for (let size = type.body; label.width > rect.width - 12 && size > type.body * 0.75;) label.setFontSize(--size);
+    const amount = this.add.text(0, rect.height / 2 + 1, formatCount(price), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: ink,
+    }).setOrigin(0, 0);
+    const icon = Math.round(type.label * 1.1);
+    const left = (rect.width - icon - 4 - amount.width) / 2;
+    const coin = this.add.image(left + icon / 2, amount.y + amount.height / 2, bakeUiIcon(this, 'gold')).setDisplaySize(icon, icon);
+    amount.setX(left + icon + 4);
+    // Room for two lines: the pair sits centred on the plate.
+    const shift = (label.height - amount.height) / 2;
+    for (const part of [label, amount, coin]) part.y += shift;
+    button.container.add([label, coin, amount]);
+    return button;
   }
 
   /**

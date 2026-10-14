@@ -160,17 +160,19 @@ describe('Expansion shop retail', () => {
         save.gold = qty * price;
         const restart = vi.fn();
         const buildCtaRail = vi.fn<(label: string, enabled: boolean, buy: () => void) => void>();
+        const deps = {
+          packPriceForSku, packSetForSku: retail().packSetForSku,
+          Services: { save: { data: save, flush: vi.fn() } },
+          spendGold, openPack, openPacks, CARD_DB, createRngState, goldPrice, formatGold,
+          Sfx: { play: vi.fn() }, Date: { now: () => 12345 },
+        };
         const buildButtons = sceneMethod<(qty?: number) => void>(
-          qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', {
-            packPriceForSku, packSetForSku: retail().packSetForSku,
-            Services: { save: { data: save, flush: vi.fn() } },
-            spendGold, openPack, openPacks, CARD_DB, createRngState, goldPrice, formatGold,
-            Sfx: { play: vi.fn() }, Date: { now: () => 12345 },
-          }, source, 'PackOpeningScene',
+          qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', deps, source, 'PackOpeningScene',
         );
         const scene = {
           sku, saveData: save, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
-          buildCtaRail, tweens: { timeScale: 1 },
+          buildCtaRail, tweens: { timeScale: 1 }, compactUi: null,
+          batchRebuy: sceneMethod('batchRebuy', deps, source, 'PackOpeningScene'),
           scene: { restart },
         };
         buildButtons.call(scene, qty);

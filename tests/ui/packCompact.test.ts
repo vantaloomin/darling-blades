@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   PACK_COMPACT,
+  packBatchGrid,
+  packBatchLayout,
   packColumnWidth,
   packCompactFrame,
   packSpecialSlots,
@@ -65,5 +67,22 @@ describe('the compact Pack Opening (mocks S-Pack-Reveal, S-Pack-Results)', () =>
     const three = packCompactFrame(phone, 44, packColumnWidth(phone, 6, 3, 44));
     expect(three.column.width).toBeGreaterThan(PACK_COMPACT.columnW);
     expect(packSpecialSlots(specialArea(three), 3, three.k).cells[0].width).toBeGreaterThanOrEqual(100);
+  });
+
+  it('lays a ten-pack summary as the mock does: a tile grid under the heading, the stats over the foot, nothing overlapping', () => {
+    for (const { name, content } of landscape) {
+      const l = packBatchLayout(content, 44);
+      for (const [a, b] of [[l.grid, l.column], [l.title, l.column], [l.back, l.title], [l.stats, l.foot], [l.grid, l.back]] as const) {
+        expect(overlap(a, b), name).toBe(false);
+      }
+      expect(inside(l.stats, l.column) && inside(l.foot, l.column), name).toBe(true);
+      const grid = packBatchGrid(l.grid, 20, l.k);
+      const perRow = grid.cells.filter((c) => c.y === 0).length;
+      expect(perRow, name).toBeGreaterThanOrEqual(4);
+      for (const c of grid.cells) expect(c.x >= l.grid.x && c.x + c.width <= l.grid.x + l.grid.width, name).toBe(true);
+    }
+    const phone = landscape.find((l) => l.name === 'phone-island')!.content;
+    const l = packBatchLayout(phone, 44);
+    expect(packBatchGrid(l.grid, 20, l.k).cells.filter((c) => c.y === 0)).toHaveLength(5);
   });
 });

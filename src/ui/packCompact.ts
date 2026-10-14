@@ -223,3 +223,52 @@ export function packInspectCompact(frame: PackCompactFrame, cardAspect: number):
   const details = { x: column.x, y: column.y, width: column.width, height: Math.max(0, foot.y - PACK_COMPACT.gap - column.y) };
   return { card, details };
 }
+
+export interface PackBatchLayout {
+  k: number;
+  back: Rect;
+  /** The heading beside the back chevron ("Opened 10 packs"). */
+  title: Rect;
+  /** The scrolling grid of the batch's best pulls, under the heading. */
+  grid: Rect;
+  column: Rect;
+  /** The column's stats, above its foot. */
+  stats: Rect;
+  foot: Rect;
+}
+
+/**
+ * A multi-pack open's summary (S-Pack-Batch): the heading beside the back
+ * chevron, the best pulls in a scrolling grid under it, and the column with
+ * the batch's stats over Menu and the re-buy.
+ */
+export function packBatchLayout(content: Rect, footH: number): PackBatchLayout {
+  const P = PACK_COMPACT;
+  const k = packScale(content);
+  const colW = Math.round(P.columnW * k);
+  const back = { x: content.x, y: content.y, width: P.back, height: P.back };
+  const column = { x: content.x + content.width - colW, y: content.y, width: colW, height: content.height };
+  const mainW = column.x - P.gap - content.x;
+  const title = { x: back.x + back.width + P.gap, y: content.y, width: mainW - back.width - P.gap, height: P.back };
+  const gridTop = back.y + back.height + P.gap;
+  const grid = { x: content.x, y: gridTop, width: mainW, height: content.y + content.height - gridTop };
+  const foot = { x: column.x, y: column.y + column.height - footH, width: colW, height: footH };
+  const stats = { x: column.x, y: column.y + P.back + P.gap, width: colW, height: Math.max(0, foot.y - P.gap - column.y - P.back - P.gap) };
+  return { k, back, title, grid, column, stats, foot };
+}
+
+/** The summary's tiles: as many columns as fit at the mock's 88 px (times k), the tiles stretched to fill the row. */
+export function packBatchGrid(area: Rect, count: number, k: number): { cells: Rect[]; contentH: number } {
+  const maxW = 88 * k;
+  const gap = Math.round(10 * k);
+  const cols = Math.max(1, Math.floor((area.width + gap) / (maxW * 0.9 + gap)));
+  const w = Math.floor(Math.min(maxW * 1.15, (area.width - (cols - 1) * gap) / cols));
+  const h = Math.floor(w * PACK_COMPACT.aspect);
+  const rowW = cols * w + (cols - 1) * gap;
+  const left = area.x + Math.floor((area.width - rowW) / 2);
+  const cells = Array.from({ length: count }, (_, i) => ({
+    x: left + (i % cols) * (w + gap), y: Math.floor(i / cols) * (h + gap), width: w, height: h,
+  }));
+  const rows = Math.ceil(count / cols);
+  return { cells, contentH: rows > 0 ? rows * h + (rows - 1) * gap : 0 };
+}
