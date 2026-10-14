@@ -1,4 +1,5 @@
 /** Pure player-facing copy shared by DuelScene and headless UI tests. */
+import { formatCount, formatGold } from './goldFormat';
 import type { ToastNotice } from './toastQueue';
 
 export interface CombatForecastCopyInput {
@@ -137,4 +138,30 @@ export function storyResultCopy(input: StoryResultCopyInput): StoryResultCopy {
     ? null
     : `${names.length === 1 ? 'New character' : 'New characters'} unlocked: ${names.join(', ')}.`;
   return { headline, runLine, unlockLine };
+}
+
+export interface RewardBreakdownRow {
+  label: string;
+  value: string;
+}
+
+/**
+ * The phone results' reward list (T-11a, T-11b): what the result paid on its
+ * own, then the first win of the day and the daily streak each on their own
+ * row, and the total. `gold` is the result's payout with the first-win bonus
+ * in it, as the economy reports it; the streak is paid apart.
+ */
+export function rewardBreakdown(input: {
+  /** What the result's own pay is for ("Win · Medium", "Loss"). */
+  label: string;
+  gold: number;
+  firstWinBonus: number | null;
+  streak: { count: number; gold: number } | null;
+}): { rows: RewardBreakdownRow[]; total: string } {
+  const bonus = input.firstWinBonus ?? 0;
+  const rows: RewardBreakdownRow[] = [{ label: input.label, value: `+${formatCount(input.gold - bonus)}` }];
+  if (input.firstWinBonus !== null) rows.push({ label: 'First win of the day', value: `+${formatCount(bonus)}` });
+  const streak = input.streak && input.streak.gold > 0 ? input.streak : null;
+  if (streak) rows.push({ label: `Daily streak · ${streak.count} ${streak.count === 1 ? 'day' : 'days'}`, value: `+${formatCount(streak.gold)}` });
+  return { rows, total: `+${formatGold(input.gold + (streak?.gold ?? 0))}` };
 }

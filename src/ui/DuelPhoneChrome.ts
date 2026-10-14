@@ -18,6 +18,7 @@ import { CardView } from './CardView';
 import { COIN_FLIP_FACE_TEXTURES } from './coinFlipLayout';
 import { dutyRowPips } from './duelPresentation';
 import { renderManaText } from './ManaText';
+import { formatCount } from './goldFormat';
 import { ellipsizeText } from './textFit';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { colorInt, theme } from './theme';
@@ -280,7 +281,21 @@ export interface PhoneMenuPanel {
   exit: { label: string; danger: boolean; onTap: () => void } | null;
 }
 
-export type PhonePanel = PhoneMenuPanel | PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/**
+ * A finished duel's column (T-11a, T-11b): the matchup, the rewards row by
+ * row with their total, a line on what comes next, and your gold.
+ */
+export interface PhoneResultPanel {
+  kind: 'result';
+  sub: string;
+  rows: readonly { label: string; value: string }[];
+  total: string | null;
+  /** Under the rewards ("Next: Mira", "No reward: the match ended too early."). */
+  note: string | null;
+  balance: number;
+}
+
+export type PhonePanel = PhoneResultPanel | PhoneMenuPanel | PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -668,6 +683,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'choice') this.drawChoicePanel(panel);
     else if (panel.kind === 'coin') this.drawCoinPanel(panel);
     else if (panel.kind === 'menu') this.drawMenuPanel(panel);
+    else if (panel.kind === 'result') this.drawResultPanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -1198,6 +1214,65 @@ export class DuelPhoneChrome {
     const g = scene.add.graphics().setDepth(theme.depth.hand);
     g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
     this.handObjects.push(g);
+  }
+
+  private drawResultPanel(panel: PhoneResultPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const sub = scene.add.text(x, pane.y, panel.sub, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.muted,
+    }).setDepth(theme.depth.hand);
+    ellipsizeText(sub, width);
+    this.handObjects.push(sub);
+    // Your gold sits over the foot, right-aligned (T-11a).
+    const pillH = Math.max(COMPACT.touch, this.type.h2 + 20);
+    const coin = scene.add.image(0, 0, bakeUiIcon(scene, 'gold')).setDisplaySize(this.type.h2, this.type.h2).setDepth(theme.depth.hand + 1);
+    const amount = scene.add.text(0, 0, formatCount(panel.balance), {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    }).setOrigin(0, 0.5).setDepth(theme.depth.hand + 1);
+    const pillW = Math.min(pane.width, 20 + coin.displayWidth + 10 + amount.width + 22);
+    const pill = { x: pane.x + pane.width - pillW, y: pane.y + pane.height - pillH, width: pillW, height: pillH };
+    const g = scene.add.graphics().setDepth(theme.depth.hand);
+    g.fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2)
+      .lineStyle(1, colorInt(theme.colors.panelStroke), 1).strokeRoundedRect(pill.x, pill.y, pill.width, pill.height, pill.height / 2);
+    coin.setPosition(pill.x + 20 + coin.displayWidth / 2, pill.y + pillH / 2);
+    amount.setPosition(coin.x + coin.displayWidth / 2 + 10, pill.y + pillH / 2);
+    this.handObjects.push(g, coin, amount);
+    const bottom = pill.y - 8;
+    let y = sub.y + sub.height + 6;
+    if (panel.rows.length > 0) {
+      const caption = scene.add.text(x, y, 'REWARDS', {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(caption);
+      y += caption.height + 4;
+    }
+    const lines = [...panel.rows.map((row) => ({ ...row, total: false })), ...(panel.total ? [{ label: 'Total', value: panel.total, total: true }] : [])];
+    // Rows share what is left over the pill, never taller than a touch row.
+    const rowH = Math.min(COMPACT.touch + 4, Math.floor((bottom - y - (panel.note ? this.type.label * 2 + 8 : 0)) / Math.max(1, lines.length)));
+    for (const line of lines) {
+      const style = {
+        fontFamily: theme.fonts.ui, fontSize: `${line.total ? this.type.h2 : this.type.body}px`,
+        ...(line.total ? { fontStyle: theme.weight.w700 } : {}), color: line.total ? theme.colors.gold : theme.colors.heading,
+      };
+      const value = scene.add.text(x + width, y + rowH / 2, line.value, style).setOrigin(1, 0.5).setDepth(theme.depth.hand);
+      const label = scene.add.text(x, y + rowH / 2, line.label, style).setOrigin(0, 0.5).setDepth(theme.depth.hand);
+      ellipsizeText(label, width - value.width - 12);
+      const rule = scene.add.graphics().setDepth(theme.depth.hand);
+      rule.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y + rowH, x + width, y + rowH);
+      this.handObjects.push(value, label, rule);
+      y += rowH;
+    }
+    if (panel.note) {
+      const note = scene.add.text(x, y + 8, panel.note, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(note);
+      if (note.y + note.height > bottom) note.destroy();
+    }
   }
 
   private drawMenuPanel(panel: PhoneMenuPanel): void {

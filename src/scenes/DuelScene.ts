@@ -94,6 +94,8 @@ import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
 import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { compactButton, compactDialog } from '../ui/compactWidgets';
+import { ellipsizeText } from '../ui/textFit';
+import { bakeUiIcon } from '../ui/uiIcons';
 import { COMPACT } from '../ui/compactLayout';
 import { CoachMark } from '../ui/CoachMark';
 import { CombatFx } from '../ui/CombatFx';
@@ -155,6 +157,8 @@ import {
   concedeConfirmLabel,
   defeatReasonCopy,
   resultReasonCopy,
+  rewardBreakdown,
+  type RewardBreakdownRow,
   storyDuelUnavailableNotice,
   storyResultCopy,
 } from '../ui/duelCopy';
@@ -245,7 +249,7 @@ import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneResultPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -511,6 +515,9 @@ export class DuelScene extends Phaser.Scene {
   private phoneConcedeArmed = false;
   /** The duel's menu is open in the phone's column (T-12a). */
   private phoneMenu = false;
+  /** A finished duel's rewards and way on in the phone's column (T-11a, T-11b). */
+  private phoneResult: { panel: PhoneResultPanel; foot: PhoneFoot } | null = null;
+  private phoneResultBand: Phaser.GameObjects.Container | null = null;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1859,6 +1866,8 @@ export class DuelScene extends Phaser.Scene {
     this.phoneMullStage = null;
     this.phoneConcedeArmed = false;
     this.phoneMenu = false;
+    this.phoneResult = null;
+    this.phoneResultBand = null;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -6338,6 +6347,7 @@ export class DuelScene extends Phaser.Scene {
    * waiting on its target (T-06). Each brings its own foot.
    */
   private phonePrompt(): { panel: PhonePanel; foot: PhoneFoot | null } | null {
+    if (this.phoneResult) return this.phoneResult;
     if (this.phoneMenu) return this.phoneMenuPrompt();
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
@@ -11131,7 +11141,8 @@ export class DuelScene extends Phaser.Scene {
 
   private showResults(won: boolean, reason: string): void {
     if (this.a11yFixture) {
-      this.showPracticeResultPanel(won, reason, this.rewardLine(0, false, 0));
+      this.showPracticeResultPanel(won, reason, this.rewardLine(0, false, 0),
+        rewardBreakdown({ label: this.practiceRewardLabel(won), gold: 0, firstWinBonus: null, streak: null }));
       return;
     }
     if (this.replayMode) {
@@ -11198,11 +11209,138 @@ export class DuelScene extends Phaser.Scene {
     Sfx.play(won ? 'win' : 'loss');
 
     this.showPracticeResultPanel(won, reason, reward.tooEarly ? 'No reward: the match ended too early'
-      : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0));
+      : this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0),
+    reward.tooEarly ? null : rewardBreakdown({
+      label: this.practiceRewardLabel(won),
+      gold: reward.gold,
+      firstWinBonus: reward.firstWinBonus ? ECONOMY.firstWinOfDayBonus : null,
+      streak: streak.advanced ? streak : null,
+    }));
+  }
+
+  /** What a practice result's own pay is for on the phone's reward list ("Win · Medium", "Loss"). */
+  private practiceRewardLabel(won: boolean): string {
+    return won ? `Win · ${this.difficulty[0].toUpperCase()}${this.difficulty.slice(1)}` : 'Loss';
+  }
+
+  /**
+   * A finished duel on the phone (T-11a, T-11b): the result in a band over
+   * the board, and the rewards, your gold and the way on in the column.
+   */
+  private showPhoneResults(opts: {
+    won: boolean;
+    headline: string;
+    /** Muted lines under the headline: the reason, the run or record. */
+    lines: readonly string[];
+    /** A gold line with the coin under them. */
+    gold: string | null;
+    breakdown: { rows: RewardBreakdownRow[]; total: string } | null;
+    note: string | null;
+    left: { label: string; onTap: () => void } | null;
+    primary: { label: string; onTap: () => void };
+    /** Escape: where the desktop panel's close goes. */
+    leave: () => void;
+  }): void {
+    const chrome = this.phoneChrome;
+    const main = this.phone?.main;
+    if (!chrome || !main) return;
+    const type = theme.compactType;
+    const cx = main.x + main.width / 2;
+    const c = this.add.container(0, 0).setDepth(theme.depth.results);
+    c.add(this.add.rectangle(cx, main.y + main.height / 2, main.width + 8, main.height + 16, theme.graphics.dim, 0.55));
+    const wrap = main.width - 48;
+    const headline = this.add.text(cx, 0, opts.headline, {
+      fontFamily: theme.fonts.display, fontSize: `${Math.round(type.displayXL * 1.5)}px`, fontStyle: theme.weight.w700,
+      color: opts.won ? theme.colors.gold : theme.colors.danger, align: 'center', wordWrap: { width: wrap },
+    }).setOrigin(0.5, 0);
+    const texts: Phaser.GameObjects.GameObject[] = [headline];
+    const stack: { obj: Phaser.GameObjects.Text | Phaser.GameObjects.Container; h: number; gap: number }[] = [{ obj: headline, h: headline.height, gap: 0 }];
+    for (const line of opts.lines.filter((l) => l !== '')) {
+      const text = this.add.text(cx, 0, line, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, align: 'center', wordWrap: { width: wrap },
+      }).setOrigin(0.5, 0);
+      texts.push(text);
+      stack.push({ obj: text, h: text.height, gap: 8 });
+    }
+    if (opts.gold) {
+      const row = this.add.container(0, 0);
+      const coin = this.add.image(0, 0, bakeUiIcon(this, 'gold')).setDisplaySize(type.h2, type.h2);
+      const text = this.add.text(0, 0, opts.gold, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+      }).setOrigin(0, 0.5);
+      // Too long for the band: the total alone, the column lists the rest.
+      if (text.width > wrap - type.h2 - 12 && opts.breakdown) text.setText(opts.breakdown.total);
+      ellipsizeText(text, wrap - type.h2 - 12);
+      const w = type.h2 + 12 + text.width;
+      coin.setX(-w / 2 + type.h2 / 2);
+      text.setX(-w / 2 + type.h2 + 12);
+      row.add([coin, text]);
+      texts.push(row);
+      stack.push({ obj: row, h: Math.max(type.h2, text.height), gap: 12 });
+    }
+    // The band holds the stack, centred on the board, with hairlines at its edges.
+    const contentH = stack.reduce((sum, item) => sum + item.gap + item.h, 0);
+    const bandH = Math.min(main.height, contentH + 64);
+    const top = main.y + (main.height - bandH) / 2;
+    const band = this.add.graphics();
+    band.fillStyle(theme.graphics.panelFill, 0.94).fillRect(main.x - 4, top, main.width + 8, bandH);
+    band.lineStyle(1.5, colorInt(opts.won ? theme.colors.gold : theme.colors.danger), 0.55)
+      .lineBetween(main.x + 24, top, main.x + main.width - 24, top)
+      .lineBetween(main.x + 24, top + bandH, main.x + main.width - 24, top + bandH);
+    c.add(band);
+    let y = top + 32;
+    for (const item of stack) {
+      y += item.gap;
+      item.obj.setY(item.obj instanceof Phaser.GameObjects.Container ? y + item.h / 2 : y);
+      if (item.obj instanceof Phaser.GameObjects.Container) item.obj.setX(cx);
+      y += item.h;
+    }
+    c.add(texts);
+    // Its own slot: the opening's overlay is cleared on every sync.
+    this.phoneResultBand?.destroy();
+    this.phoneResultBand = c;
+    this.phoneResult = {
+      panel: {
+        kind: 'result',
+        sub: this.matchupLabel(),
+        rows: opts.breakdown?.rows ?? [],
+        total: opts.breakdown?.total ?? null,
+        note: opts.note,
+        balance: Services.save.data.gold,
+      },
+      foot: { left: opts.left, primary: opts.primary, wide: opts.left === null },
+    };
+    this.syncHand();
+    this.syncButton();
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.guard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+    const result = this.phoneResult;
+    this.input.keyboard?.once('keydown-ESC', () => {
+      if (this.phoneResult === result) opts.leave();
+    });
   }
 
   /** Rendering only, shared with the dev fixture; reward/save work stays with showResults. */
-  private showPracticeResultPanel(won: boolean, reason: string, rewardCopy: string): void {
+  private showPracticeResultPanel(
+    won: boolean,
+    reason: string,
+    rewardCopy: string,
+    breakdown: { rows: RewardBreakdownRow[]; total: string } | null = null,
+  ): void {
+    if (this.phoneChrome) {
+      this.showPhoneResults({
+        won,
+        headline: won ? 'VICTORY' : 'DEFEAT',
+        lines: [resultReasonCopy(won, reason)],
+        gold: breakdown ? rewardCopy : null,
+        breakdown,
+        note: breakdown ? null : `${rewardCopy}.`,
+        left: { label: 'Menu', onTap: () => this.scene.start('MainMenu') },
+        primary: { label: 'Rematch', onTap: () => this.restartDuel() },
+        leave: () => this.scene.start('MainMenu'),
+      });
+      return;
+    }
     const shell = modalShell(this, {
       width: 560,
       height: 330,
@@ -11287,6 +11425,31 @@ export class DuelScene extends Phaser.Scene {
     if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8);
     Sfx.play(won ? (reward.runOver && reward.wins === 3 ? 'win' : 'rungClear') : 'loss');
+    if (this.phoneChrome) {
+      const complete = reward.runOver && reward.wins === LIMITED_MATCHES;
+      const nextRun = reward.runOver ? null : save.limited.activeRun;
+      const nextPersona = nextRun ? draftPersonaById(limitedDuelData(nextRun).limited.opponentPersonaId ?? '') : null;
+      const knowsTheme = nextPersona ? personaRevealTier(save.limited, nextPersona.id) >= 3 : false;
+      const toDraft = (): void => { this.scene.start('Limited'); };
+      this.showPhoneResults({
+        won,
+        headline: reward.runOver ? 'LIMITED COMPLETE' : won ? 'MATCH WON' : 'MATCH LOST',
+        lines: [`Record ${reward.wins}-${reward.losses}`, resultReasonCopy(won, reason)],
+        gold: this.rewardLine(reward.gold + streak.gold, reward.firstWinBonus, streak.advanced ? streak.count : 0, complete),
+        breakdown: rewardBreakdown({
+          label: won ? (complete ? 'Win · draft complete' : 'Match win') : 'Match loss',
+          gold: reward.gold,
+          firstWinBonus: reward.firstWinBonus ? ECONOMY.firstWinOfDayBonus : null,
+          streak: streak.advanced ? streak : null,
+        }),
+        note: nextPersona ? (knowsTheme ? `Next: ${nextPersona.name}, ${nextPersona.title}` : `Next: ${nextPersona.name}`) : null,
+        ...(!reward.runOver && nextRun
+          ? { left: { label: 'Draft', onTap: toDraft }, primary: { label: 'Next Match', onTap: () => this.restartDuel(limitedDuelData(nextRun)) } }
+          : { left: { label: 'Menu', onTap: () => this.scene.start('MainMenu') }, primary: { label: 'Draft', onTap: toDraft } }),
+        leave: toDraft,
+      });
+      return;
+    }
 
     const shell = modalShell(this, {
       width: 620,
@@ -11427,6 +11590,26 @@ export class DuelScene extends Phaser.Scene {
     const toStory = (): void => {
       this.scene.start('Story');
     };
+    if (this.phoneChrome) {
+      this.showPhoneResults({
+        won,
+        headline: copy.headline,
+        lines: [copy.runLine, resultReasonCopy(won, reason), copy.unlockLine ?? ''],
+        gold: rewardCopy,
+        breakdown: rewardCopy ? rewardBreakdown({
+          label: won ? 'Story win' : 'Loss',
+          gold: applied.ok ? applied.gold : 0,
+          firstWinBonus: applied.ok && applied.firstWinBonus ? ECONOMY.firstWinOfDayBonus : null,
+          streak: streak.advanced ? streak : null,
+        }) : null,
+        note: null,
+        // A win continues the run; a loss ended it.
+        left: won ? null : { label: 'Menu', onTap: () => this.scene.start('MainMenu') },
+        primary: { label: won ? 'Continue' : 'Story', onTap: toStory },
+        leave: toStory,
+      });
+      return;
+    }
 
     // Rows stack from the headline down, so the panel is only as tall as the
     // lines this result has: with an unlock line and a gold line it is the
@@ -11559,8 +11742,35 @@ export class DuelScene extends Phaser.Scene {
       streak.advanced ? streak.count : 0,
       reward.completed,
     );
+    const breakdown = rewardBreakdown({
+      label: won ? `Rung ${rung}${reward.completed ? ' · tower cleared' : ''}` : 'Loss',
+      gold: reward.gold,
+      firstWinBonus: reward.firstWinBonus ? ECONOMY.firstWinOfDayBonus : null,
+      streak: streak.advanced ? streak : null,
+    });
     if (reward.runOver) {
-      this.showGauntletRunRecap(reward.completed, won ? null : rung, reason, bonusLine);
+      this.showGauntletRunRecap(reward.completed, won ? null : rung, reason, bonusLine, 0, breakdown);
+      return;
+    }
+    if (this.phoneChrome) {
+      const next = reward.nextRung;
+      const toTower = (): void => { this.scene.start('Gauntlet'); };
+      if (next !== null) prefetchDuelArt(this, { opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next });
+      this.showPhoneResults({
+        won,
+        headline: 'RUNG CLEARED',
+        lines: [`Defeated ${this.opponent!.name}`, resultReasonCopy(won, reason)],
+        gold: bonusLine,
+        breakdown,
+        note: null,
+        ...(next !== null
+          ? {
+            left: { label: 'Tower', onTap: toTower },
+            primary: { label: 'Next Foe', onTap: () => this.restartDuel({ opponentId: this.avatarForGauntletFloor(next).id, gauntletRung: next }) },
+          }
+          : { left: null, primary: { label: 'Tower', onTap: toTower } }),
+        leave: toTower,
+      });
       return;
     }
 
@@ -11659,7 +11869,24 @@ export class DuelScene extends Phaser.Scene {
     reason: string,
     rewardLine: string,
     initialPage = 0,
+    breakdown: { rows: RewardBreakdownRow[]; total: string } | null = null,
   ): void {
+    if (this.phoneChrome) {
+      // The phone keeps the result and the rewards; the rung portraits stay a desktop recap.
+      const toTower = (): void => { this.scene.start('Gauntlet'); };
+      this.showPhoneResults({
+        won: completed,
+        headline: completed ? 'SUCCESS' : 'FAILURE',
+        lines: [completed ? 'Tower cleared' : `Stopped at Rung ${failedRung ?? 1}. ${defeatReasonCopy(reason) ?? 'The run ended.'}`],
+        gold: completed ? rewardLine : `Final match reward: ${rewardLine}`,
+        breakdown,
+        note: null,
+        left: { label: 'Menu', onTap: () => this.scene.start('MainMenu') },
+        primary: { label: 'Tower', onTap: toTower },
+        leave: toTower,
+      });
+      return;
+    }
     const shell = modalShell(this, {
       width: 820,
       height: 640,

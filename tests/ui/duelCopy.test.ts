@@ -4,6 +4,7 @@ import {
   concedeConfirmLabel,
   defeatReasonCopy,
   resultReasonCopy,
+  rewardBreakdown,
 } from '../../src/ui/duelCopy';
 
 describe('Duel player-facing copy', () => {
@@ -44,5 +45,23 @@ describe('Duel player-facing copy', () => {
       ]),
     ];
     expect(copy.join('\n')).not.toContain('—');
+  });
+});
+
+describe('rewardBreakdown', () => {
+  it('takes the first-win bonus out of the base row and adds the streak to the total', () => {
+    const { rows, total } = rewardBreakdown({ label: 'Win · Medium', gold: 200, firstWinBonus: 100, streak: { count: 3, gold: 55 } });
+    expect(rows).toEqual([
+      { label: 'Win · Medium', value: '+100' },
+      { label: 'First win of the day', value: '+100' },
+      { label: 'Daily streak · 3 days', value: '+55' },
+    ]);
+    expect(total).toBe('+255 gold');
+  });
+
+  it('leaves out a streak that paid nothing', () => {
+    const { rows, total } = rewardBreakdown({ label: 'Loss', gold: 20, firstWinBonus: null, streak: { count: 2, gold: 0 } });
+    expect(rows).toEqual([{ label: 'Loss', value: '+20' }]);
+    expect(total).toBe('+20 gold');
   });
 });
