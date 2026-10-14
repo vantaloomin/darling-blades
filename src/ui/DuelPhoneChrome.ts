@@ -4,7 +4,7 @@ import { holdArt } from '../art/artWatch';
 import type { CardDef, ManaCost } from '../engine/types';
 import { bindTapButton } from '../platform/gestures';
 import { COMPACT } from './compactLayout';
-import { compactButton, compactIconButton, type CompactButton } from './compactWidgets';
+import { compactButton, compactIconButton, compactSwitch, type CompactButton } from './compactWidgets';
 import {
   blockCounts,
   blockManaY,
@@ -259,7 +259,28 @@ export interface PhoneCoinPanel {
   explain: boolean;
 }
 
-export type PhonePanel = PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/** One quick setting in the duel's menu (T-12a); the whole row toggles it. */
+export interface PhoneMenuToggle {
+  label: string;
+  /** A muted line under the label ("Auto-skip forced turns"). */
+  sub: string | null;
+  on: boolean;
+  onTap: () => void;
+}
+
+/**
+ * The duel's menu in the column (T-12a): the matchup, the quick settings as
+ * switch rows, and the way out over the foot, where Resume waits.
+ */
+export interface PhoneMenuPanel {
+  kind: 'menu';
+  sub: string;
+  toggles: readonly PhoneMenuToggle[];
+  /** Concede (red, with its flag) or the tutorial's plain Leave Tutorial. */
+  exit: { label: string; danger: boolean; onTap: () => void } | null;
+}
+
+export type PhonePanel = PhoneMenuPanel | PhoneCoinPanel | PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -646,6 +667,7 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'zone') this.drawZonePanel(panel);
     else if (panel.kind === 'choice') this.drawChoicePanel(panel);
     else if (panel.kind === 'coin') this.drawCoinPanel(panel);
+    else if (panel.kind === 'menu') this.drawMenuPanel(panel);
     else this.drawInspectPanel(panel);
   }
 
@@ -1176,6 +1198,67 @@ export class DuelPhoneChrome {
     const g = scene.add.graphics().setDepth(theme.depth.hand);
     g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
     this.handObjects.push(g);
+  }
+
+  private drawMenuPanel(panel: PhoneMenuPanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const heading = scene.add.text(x, pane.y, 'Menu', {
+      fontFamily: theme.fonts.display, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    }).setDepth(theme.depth.hand);
+    const sub = scene.add.text(x, heading.y + heading.height, panel.sub, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.muted,
+    }).setDepth(theme.depth.hand);
+    ellipsizeText(sub, width);
+    this.handObjects.push(heading, sub);
+    // The way out sits over the foot at the foot's height, Resume under it.
+    let bottom = pane.y + pane.height;
+    if (panel.exit) {
+      const exit = panel.exit;
+      const h = this.L.foot.height;
+      const button = compactButton(scene, { x: pane.x, y: bottom - h, width: pane.width, height: h }, exit.label, {
+        variant: exit.danger ? 'danger' : 'ghost', icon: exit.danger ? 'flag' : undefined, onTap: () => exit.onTap(),
+      });
+      button.container.setDepth(theme.depth.hand);
+      button.inputZone.setName(`menu:${exit.label}`);
+      this.handObjects.push(button.container);
+      this.handZones.push(button.inputZone);
+      bottom -= h + 10;
+    }
+    // Switch rows; a cramped column (Largest text) drops the muted lines.
+    const top = sub.y + sub.height + 12;
+    const labelStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading };
+    const subStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted };
+    const probe = scene.add.text(0, 0, 'Ag', labelStyle);
+    const subProbe = scene.add.text(0, 0, 'Ag', subStyle);
+    const fullH = (t: PhoneMenuToggle): number => Math.max(COMPACT.touch, probe.height + (t.sub ? subProbe.height : 0) + 16);
+    const withSubs = panel.toggles.reduce((sum, t) => sum + fullH(t), 0) <= bottom - top;
+    probe.destroy();
+    subProbe.destroy();
+    let y = top;
+    panel.toggles.forEach((toggle) => {
+      const showSub = withSubs && toggle.sub !== null;
+      const rowH = showSub ? fullH(toggle) : Math.min(COMPACT.touch, Math.floor((bottom - top) / panel.toggles.length));
+      const sw = compactSwitch(scene, x + width, y + rowH / 2, toggle.on);
+      sw.container.setDepth(theme.depth.hand);
+      const label = scene.add.text(x, y + rowH / 2, toggle.label, labelStyle).setOrigin(0, showSub ? 1 : 0.5).setDepth(theme.depth.hand);
+      ellipsizeText(label, width - sw.width - 10);
+      this.handObjects.push(sw.container, label);
+      if (showSub && toggle.sub) {
+        const line = scene.add.text(x, y + rowH / 2, toggle.sub, subStyle).setDepth(theme.depth.hand);
+        ellipsizeText(line, width - sw.width - 10);
+        this.handObjects.push(line);
+      }
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y + rowH, x + width, y + rowH);
+      this.handObjects.push(g);
+      const zone = this.rowZone({ x: pane.x, y, width: pane.width, height: rowH }, toggle.onTap);
+      zone.setName(`menu:${toggle.label}`);
+      sw.bindHover(zone);
+      y += rowH;
+    });
   }
 
   private drawChoicePanel(panel: PhoneChoicePanel): void {
