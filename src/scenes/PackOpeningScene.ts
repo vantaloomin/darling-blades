@@ -62,7 +62,23 @@ import {
   newMarkerGlyphPoints,
 } from '../ui/packCuePresentation';
 import { gateOnArt } from '../ui/artGate';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT } from '../ui/compactLayout';
+import { compactButton, compactIconButton, type CompactButton } from '../ui/compactWidgets';
+import type { Rect } from '../ui/layout';
+import {
+  packColumnWidth,
+  packCompactFrame,
+  packInspectCompact,
+  packSpecialSlots,
+  packSpotlightLayout,
+  packTearLayout,
+  packTileRows,
+  specialArea,
+  type PackCompactFrame,
+} from '../ui/packCompact';
+import { PackTile } from '../ui/PackTile';
+import { bakeUiIcon } from '../ui/uiIcons';
 import { bindInspectHotkeys } from '../ui/inspectHotkeys';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
@@ -122,6 +138,32 @@ const ESCALATION: Record<
 
 let contextMenuDisabled = false;
 
+/** How far past its tile a grid pill may reach ("★ New variant" is wider than a tile), at k = 1. */
+const PACK_BADGE_SPILL = 10;
+
+/** A face-down special in the compact column (S-Pack-Reveal): its tile, slot and the tab and glow it waits with. */
+interface CompactSpecial {
+  tile: PackTile;
+  card: AddResult;
+  cell: Rect;
+  done: boolean;
+  tab?: Phaser.GameObjects.GameObject[];
+  /** The glow's pulse (the tile's postFX glow, or a ring on lite renderers). */
+  hint?: Phaser.GameObjects.GameObject;
+  zone?: Phaser.GameObjects.Zone;
+}
+
+/** The compact reveal's state: its frame, the specials column and the foot's buttons. */
+interface CompactPackUi {
+  frame: PackCompactFrame;
+  badgeH: number;
+  tabH: number;
+  specials: CompactSpecial[];
+  foot: CompactButton[];
+  /** Menu and Open another are up. */
+  done: boolean;
+}
+
 interface SpecialEntry {
   view: CardView;
   card: AddResult;
@@ -151,7 +193,7 @@ export class PackOpeningScene extends Phaser.Scene {
   private packArt: PackRequests | null = null;
   private readonly packForCard = new Map<AddResult, number>();
   /** Revealed, inspectable pulls in reveal order - the arrow-key ring. */
-  private inspectables: { card: AddResult; view: CardView }[] = [];
+  private inspectables: { card: AddResult; view: Phaser.GameObjects.Container }[] = [];
   private inspectShell: import('../ui/themeWidgets').ModalShell | null = null;
   private unbindInspectKeys: (() => void) | null = null;
   private sku: BoosterSku = 'base';
@@ -194,6 +236,8 @@ export class PackOpeningScene extends Phaser.Scene {
    * onComplete can't both run the restore (one-shot per pack). */
   private bestSettled = false;
   private fixture: PackOpeningA11yFixture | null = null;
+  /** Set when the scene draws the compact (phone) reveal. */
+  private compactUi: CompactPackUi | null = null;
   private fixtureSave: SaveData | null = null;
 
   constructor() {
@@ -220,6 +264,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.toasts = null;
     this.bestSettled = false;
     this.packRevealComplete = false;
+    this.compactUi = null;
     const packs = 'batch' in data ? data.batch : [data];
     this.packArt?.release();
     this.packArt = null;
@@ -322,6 +367,11 @@ export class PackOpeningScene extends Phaser.Scene {
         bg.fillRect(0, 0, width, height);
       },
     });
+    if (sceneStage(this).compact && !('batch' in data)) {
+      registerSceneBackNavigation(this, () => this.returnToShop());
+      this.buildCompact(data);
+      return;
+    }
     const back = backButton(this, 'Shop', () => this.returnToShop());
     // Keep the persistent escape hatch above the reveal spotlight's dim layer.
     back.setDepth(theme.depth.reveal);
@@ -381,15 +431,17 @@ export class PackOpeningScene extends Phaser.Scene {
     pack.destroy();
     prompt.destroy();
     this.dealCards();
-    const grid = this.result.cards.length - this.specials.length;
+    const specials = this.compactUi?.specials ?? this.specials;
+    const grid = this.result.cards.length - specials.length;
     if (state === 'facedown') {
       // The specials wait face down, each with its glow and tier tab.
-      this.whenFixture(() => this.inspectables.length >= grid && this.specials.every((s) => s.tab), () => this.markFixtureReady());
+      this.whenFixture(() => this.inspectables.length >= grid && specials.every((s) => s.tab), () => this.markFixtureReady());
       return;
     }
     this.whenFixture(() => this.inspectables.length >= grid, () => {
-      if (state === 'best' && this.specials.length > 0) {
-        this.revealSpecial(this.specials[this.specials.length - 1], true);
+      if (state === 'best' && specials.length > 0) {
+        if (this.compactUi) this.revealCompactSpecial(this.compactUi.specials[specials.length - 1], true);
+        else this.revealSpecial(this.specials[this.specials.length - 1], true);
         return;
       }
       this.skipAll();
@@ -987,7 +1039,7 @@ export class PackOpeningScene extends Phaser.Scene {
       blendMode: Phaser.BlendModes.ADD,
     });
     burst.setDepth(60);
-    burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), RUNWAY_GATE_X, RUNWAY_CARD_Y);
+    burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), 0, 0);
     const hint = this.add
       .text(width / 2, this.spotlightHintY(esc.zoom), 'tap to continue', {
         fontFamily: theme.fonts.ui,
@@ -1207,7 +1259,7 @@ export class PackOpeningScene extends Phaser.Scene {
       emitting: false,
       blendMode: Phaser.BlendModes.ADD,
     });
-    burst.explode(count, pack.x, pack.y);
+    burst.explode(count, 0, 0); // emitter-local: the emitter already sits on the pack
     this.tweens.killTweensOf(pack);
     this.tweens.add({
       targets: pack,
@@ -1225,6 +1277,10 @@ export class PackOpeningScene extends Phaser.Scene {
 
   // Beat 3+4: the c/r grid cascades; sr+ specials wait with tier-hint glows.
   private dealCards(): void {
+    if (this.compactUi) {
+      this.dealCompact();
+      return;
+    }
     const width = 1280; // design-space width (see create())
     // PackResult is sorted worst→best, so both groups keep that order and the
     // best card in the pack is always the LAST special.
@@ -1443,6 +1499,10 @@ export class PackOpeningScene extends Phaser.Scene {
   private showPackInspect(card: AddResult): void {
     // Re-entry (arrow stepping) replaces the open modal; close silently first.
     this.closePackInspect();
+    if (this.compactUi) {
+      this.showCompactInspect(card);
+      return;
+    }
     const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
     // Measure the detail lines first: the shell, the plate and the card's
     // size all follow from them (packInspectLayout).
@@ -1676,8 +1736,8 @@ export class PackOpeningScene extends Phaser.Scene {
           burst.setDepth(60);
           burst.explode(
             Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)),
-            view.x,
-            view.y,
+            0,
+            0,
           );
           // Tap-to-skip: a hint + the interactive dim let the player dismiss the
           // showcase early. Both the tap and the wobble's natural end route
@@ -1759,12 +1819,17 @@ export class PackOpeningScene extends Phaser.Scene {
 
   private skipAll(): void {
     this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
+    for (const entry of this.compactUi?.specials ?? []) this.revealCompactSpecial(entry, false, true);
     for (const entry of this.specials) this.revealSpecial(entry, false, true);
     this.checkAllRevealed();
   }
 
   private checkAllRevealed(): void {
     if (!this.specials.every((s) => s.done)) return;
+    if (this.compactUi) {
+      this.checkCompactRevealed();
+      return;
+    }
     this.finishAchievementCheckpoint();
     this.skipBtn?.container.destroy();
     this.skipBtn = null;
@@ -1800,6 +1865,506 @@ export class PackOpeningScene extends Phaser.Scene {
       queueAchievementUnlockToasts(checkpoint.ids);
     }
     this.toasts?.release();
+  }
+
+  // ---------------------------------------------------------------- compact (Version C S-Pack-*)
+
+  /**
+   * The compact reveal (S-Pack-Tear): the pack centred over its prompt, the
+   * back chevron at the top left. The tear deals into the compact layout
+   * (dealCompact): Common and Rare tiles across the main area, the specials
+   * face down in the column above its foot.
+   */
+  private buildCompact(data: PackResult): void {
+    this.result = data;
+    const content = sceneStage(this).content;
+    const gridCount = data.cards.filter((c) => c.tier === 'c' || c.tier === 'r').length;
+    const footH = COMPACT.primaryH;
+    const columnW = packColumnWidth(content, gridCount, data.cards.length - gridCount, footH);
+    const frame = packCompactFrame(content, footH, columnW);
+    this.compactUi = { frame, badgeH: 0, tabH: 0, specials: [], foot: [], done: false };
+    const back = compactIconButton(this, frame.back, 'back', () => this.returnToShop());
+    back.container.setDepth(theme.depth.reveal);
+
+    const tear = packTearLayout(content);
+    const pack = this.add
+      .image(tear.pack.x + tear.pack.width / 2, tear.pack.y + tear.pack.height / 2, packTextureForSku(this.sku))
+      .setDisplaySize(tear.pack.width, tear.pack.height)
+      .setInteractive({ useHandCursor: true });
+    this.tweens.add({ targets: pack, y: pack.y - 8 * frame.k, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (fxPolicy(this).shine && pack.preFX) pack.preFX.addShine(0.6, 0.4, 4);
+    const prompt = this.add
+      .text(pack.x, tear.promptY, 'Tap to tear it open', {
+        fontFamily: theme.fonts.display,
+        fontSize: `${Math.round(theme.compactType.h2 * frame.k)}px`,
+        color: theme.colors.body,
+      })
+      .setOrigin(0.5);
+    this.tweens.add({ targets: prompt, alpha: 0.4, duration: 800, yoyo: true, repeat: -1 });
+    pack.once('pointerup', () => {
+      prompt.destroy();
+      this.tear(pack);
+    });
+    this.settleSingleFixture(pack, prompt);
+  }
+
+  /** Beats 3 and 4, compact: the tiles cascade in and flip; the specials wait in the column with their tabs and glows. */
+  private dealCompact(): void {
+    const ui = this.compactUi!;
+    const { frame } = ui;
+    const k = frame.k;
+    const gridCards = this.result.cards.filter((c) => c.tier === 'c' || c.tier === 'r');
+    const specialCards = this.result.cards.filter((c) => c.tier !== 'c' && c.tier !== 'r');
+    const rows = packTileRows(frame.main, gridCards.length, k);
+    const slots = packSpecialSlots(specialArea(frame), specialCards.length, k);
+    ui.badgeH = rows.badgeH;
+    ui.tabH = slots.tabH;
+    const content = sceneStage(this).content;
+    const startX = content.x + content.width / 2;
+    const startY = content.y + content.height / 2;
+
+    gridCards.forEach((card, i) => {
+      const cell = rows.cells[i];
+      const tile = new PackTile(this, cell).showBack(this.cardBackTextureKey);
+      tile.setPosition(startX, startY).setScale(0.2);
+      this.tweens.add({
+        targets: tile,
+        x: cell.x + cell.width / 2,
+        y: cell.y + cell.height / 2,
+        scale: 1,
+        delay: i * 55,
+        duration: 300,
+        ease: 'Cubic.easeOut',
+        onComplete: () => {
+          this.time.delayedCall(180 + i * 70, () => this.flipTile(tile, card, false));
+        },
+      });
+    });
+    if (specialCards.length === 0) {
+      const settle = (gridCards.length - 1) * 125 + 1200;
+      this.time.delayedCall(Math.max(settle, 600), () => this.checkAllRevealed());
+    }
+
+    const s = specialCards.length;
+    specialCards.forEach((card, i) => {
+      const isBest = i === s - 1;
+      const hint = HINT[card.tier as keyof typeof HINT] ?? HINT.sr;
+      const cell = slots.cells[i];
+      const tile = new PackTile(this, cell).showBack(this.cardBackTextureKey, hint.glow);
+      tile.setPosition(startX, startY).setScale(0.2);
+      const entry: CompactSpecial = { tile, card, cell, done: false };
+      ui.specials.push(entry);
+      this.tweens.add({
+        targets: tile,
+        x: cell.x + cell.width / 2,
+        y: cell.y + cell.height / 2,
+        scale: 1,
+        delay: 700 + i * 110,
+        duration: 380,
+        ease: 'Back.easeOut',
+        onComplete: () => {
+          if (entry.done || !tile.active) return;
+          entry.tab = [this.compactPill(cell.x + cell.width / 2, cell.y - slots.tabH / 2, TIER_LABEL[card.tier], hint.label, cell.width + 8)];
+          if (fxPolicy(this).packGlow && tile.postFX) {
+            const glow = tile.postFX.addGlow(hint.glow, 2, 0, false, 0.12, 14);
+            this.tweens.add({ targets: glow, outerStrength: isBest ? 6 : 3.5, duration: hint.pulse, yoyo: true, repeat: -1 });
+          } else {
+            const pad = 4;
+            const ring = this.add.graphics()
+              .lineStyle(4, hint.glow, 1)
+              .strokeRoundedRect(cell.x - pad, cell.y - pad, cell.width + 2 * pad, cell.height + 2 * pad, theme.radius.panel + pad)
+              .setAlpha(0.25);
+            this.children.moveBelow(ring, tile);
+            entry.hint = ring;
+            this.tweens.add({ targets: ring, alpha: 0.85, duration: hint.pulse, yoyo: true, repeat: -1 });
+          }
+          entry.zone = this.tileZone(cell, () => this.revealCompactSpecial(entry, isBest));
+        },
+      });
+    });
+
+    if (s > 0) {
+      const skip = compactButton(this, frame.foot, 'Skip ≫', { onTap: () => this.skipAll() });
+      ui.foot.push(skip);
+    }
+  }
+
+  /** A Zone over a cell (never the scaled tile) that answers a tap. */
+  private tileZone(cell: Rect, onTap: () => void): Phaser.GameObjects.Zone {
+    const zone = this.add.zone(cell.x + cell.width / 2, cell.y + cell.height / 2, cell.width, cell.height)
+      .setInteractive({ useHandCursor: true });
+    zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+      if (!p.rightButtonReleased()) onTap();
+    });
+    return zone;
+  }
+
+  /** Flip a tile face up; a special also gets its caption under it. Melted duplicates are dimmed. */
+  private flipTile(tile: PackTile, card: AddResult, fast: boolean): void {
+    if (!tile.active) return;
+    this.tweens.add({
+      targets: tile,
+      scaleX: 0,
+      duration: fast ? 60 : 130,
+      ease: 'Cubic.easeIn',
+      onComplete: () => {
+        if (!tile.active) return;
+        Sfx.play('flip');
+        this.showTileFace(tile, card);
+        this.tweens.add({ targets: tile, scaleX: 1, duration: fast ? 80 : 170, ease: 'Back.easeOut' });
+      },
+    });
+  }
+
+  /** A tile's face, its badge or caption, and its tap to inspect. */
+  private showTileFace(tile: PackTile, card: AddResult): void {
+    const ui = this.compactUi!;
+    tile.showFace(def(CARD_DB, card.cardId), card.frame);
+    if (card.dupeGold > 0) tile.setAlpha(0.5);
+    const cell = tile.cell;
+    const special = TIER_RANK[card.tier] >= TIER_RANK.sr;
+    const badge = this.pullBadge(card);
+    const room = cell.width + PACK_BADGE_SPILL * ui.frame.k;
+    if (!special) {
+      if (badge) this.compactPill(cell.x + cell.width / 2, cell.y - ui.badgeH / 2, badge.text, badge.color, room, badge.coin);
+    } else {
+      // Under a special: its New pill, then the frame and holo it rolled (S-Pack-Results).
+      let y = cell.y + cell.height + 4;
+      if (badge) {
+        const pill = this.compactPill(cell.x + cell.width / 2, 0, badge.text, badge.color, room, badge.coin);
+        pill.setY(y + pill.height / 2);
+        y += pill.height + 2;
+      }
+      const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
+      if (!isPlainVariant(variant)) {
+        this.add.text(cell.x + cell.width / 2, y, this.variantLabel(variant), {
+          fontFamily: theme.fonts.ui,
+          fontSize: `${theme.compactType.label}px`,
+          fontStyle: theme.weight.w600,
+          color: theme.colors.heading,
+          align: 'center',
+          wordWrap: { width: room, useAdvancedWrap: true },
+        }).setOrigin(0.5, 0);
+      }
+    }
+    if (tile.getData('packInspectBound')) return;
+    tile.setData('packInspectBound', true);
+    this.inspectables.push({ card, view: tile });
+    this.tileZone(cell, () => {
+      if (!tile.getData('packInspectBlocked')) this.showPackInspect(card);
+    });
+  }
+
+  /** The pill over a pull: new card, new variant, or the gold a melted duplicate paid. */
+  private pullBadge(card: AddResult): { text: string; color: string; coin: boolean } | null {
+    if (card.isNew) return { text: '★ New', color: theme.colors.success, coin: false };
+    if (card.isNewVariant) return { text: '★ New variant', color: theme.rarity.ssr, coin: false };
+    if (card.dupeGold > 0) return { text: `+${card.dupeGold}`, color: theme.colors.gold, coin: true };
+    return null;
+  }
+
+  /** A rounded pill centred on (x, y), outlined in its text colour; its type steps down to fit `maxW`. */
+  private compactPill(x: number, y: number, text: string, color: string, maxW: number, coin = false): Phaser.GameObjects.Container {
+    const base = theme.compactType.label;
+    const label = this.add.text(0, 0, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${base}px`, fontStyle: theme.weight.w700, color,
+    }).setOrigin(0.5);
+    const icon = coin ? Math.round(base * 1.15) : 0;
+    const extra = coin ? icon + 4 : 0;
+    for (let size = base; label.width + extra + 16 > maxW && size > base * 0.75;) label.setFontSize(--size);
+    const w = Math.min(maxW, label.width + extra + 16);
+    const h = label.height + 4;
+    const plate = this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 0.94).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2)
+      .lineStyle(1.5, colorInt(color), 0.95).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+    const parts: Phaser.GameObjects.GameObject[] = [plate, label];
+    if (coin) {
+      label.setX(extra / 2);
+      parts.push(this.add.image(-label.width / 2 - 4 + extra / 2 - icon / 2, 0, bakeUiIcon(this, 'gold')).setDisplaySize(icon, icon));
+    }
+    return this.add.container(x, y, parts).setSize(w, h);
+  }
+
+  /**
+   * Beat 5, compact. A special flips in its slot; the best card in the pack
+   * first takes the spotlight (S-Pack-Spotlight): the full card centred over
+   * a dim, its tier and finish beside it, "tap to skip" under it.
+   */
+  private revealCompactSpecial(entry: CompactSpecial, escalate: boolean, fast = false): void {
+    if (entry.done) return;
+    entry.done = true;
+    const { tile, card } = entry;
+    tile.postFX?.clear();
+    if (entry.hint) {
+      this.tweens.killTweensOf(entry.hint);
+      entry.hint.destroy();
+      entry.hint = undefined;
+    }
+    // The tier tab stays over the card once it is face up (S-Pack-Results).
+    entry.zone?.destroy();
+    entry.zone = undefined;
+    const ui = this.compactUi!;
+    if (!escalate || fast) {
+      const isBest = entry === ui.specials[ui.specials.length - 1];
+      if (!fast || isBest) Sfx.play('shimmer');
+      this.tweens.killTweensOf(tile);
+      tile.setPosition(entry.cell.x + entry.cell.width / 2, entry.cell.y + entry.cell.height / 2).setScale(1);
+      this.flipTile(tile, card, fast);
+      this.checkAllRevealed();
+      return;
+    }
+
+    tile.setData('packInspectBlocked', true);
+    const stage = sceneStage(this);
+    const esc = ESCALATION[card.tier as keyof typeof ESCALATION] ?? ESCALATION.sr;
+    const k = ui.frame.k;
+    const dim = this.add
+      .rectangle(stage.width / 2, stage.height / 2, stage.width, stage.height, theme.graphics.dim, 0)
+      .setDepth(40)
+      .setInteractive();
+    this.tweens.add({ targets: dim, fillAlpha: esc.dimAlpha, duration: 300 });
+    this.tweens.timeScale = 0.35;
+    const spot = packSpotlightLayout(stage.content, CARD_H / CARD_W);
+    const view = new CardView(this, tile.x, tile.y, { backTextureKey: this.cardBackTextureKey });
+    view.setScale(entry.cell.width / CARD_W).setCard(null).setDepth(50);
+    tile.setVisible(false);
+    const parts: Phaser.GameObjects.GameObject[] = [dim, view];
+    this.tweens.add({
+      targets: view,
+      x: spot.card.x + spot.card.width / 2,
+      y: spot.card.y + spot.card.height / 2,
+      scale: spot.card.height / CARD_H,
+      duration: 320,
+      ease: 'Cubic.easeOut',
+      onComplete: () => {
+        if (!view.active) return;
+        const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
+        this.tweens.add({
+          targets: view,
+          scaleX: 0,
+          duration: 130,
+          ease: 'Cubic.easeIn',
+          onComplete: () => {
+            if (!view.active) return;
+            Sfx.play('flip');
+            view.setCard(def(CARD_DB, card.cardId), {
+              fx: card.holo !== 'none' ? 'full' : 'static',
+              variant: isPlainVariant(variant) ? undefined : variant,
+              fullArt: variant.fullArt,
+            });
+            this.tweens.add({ targets: view, scaleX: view.scaleY, duration: 170, ease: 'Back.easeOut', onComplete: showcase });
+          },
+        });
+        const showcase = (): void => {
+          if (!view.active) return;
+          Sfx.play('shimmer');
+          this.cameras.main.flash(260, ...esc.flash);
+          const burst = this.add.particles(view.x, view.y, 'fx-star', {
+            speed: { min: 160 * k, max: 460 * k },
+            lifespan: 1100,
+            scale: { start: 1.2, end: 0 },
+            emitting: false,
+            tint: esc.tint,
+            blendMode: Phaser.BlendModes.ADD,
+          });
+          burst.setDepth(60);
+          burst.explode(Math.max(1, Math.round(esc.particles * fxPolicy(this).particleScale)), 0, 0);
+          // The chips beside the card: New at its top right corner, the tier and finish to its right.
+          const badge = this.pullBadge(card);
+          const right = spot.card.x + spot.card.width;
+          if (badge) {
+            const chip = this.compactPill(right - 8 * k, spot.card.y + 10 * k, badge.text, badge.color, 140 * k, badge.coin);
+            chip.setX(right - chip.width / 2 + 10 * k);
+            parts.push(chip.setDepth(51));
+          }
+          const tier = this.compactPill(0, spot.side.y, TIER_LABEL[card.tier], (HINT[card.tier as keyof typeof HINT] ?? HINT.sr).label, 120 * k);
+          tier.setX(spot.side.x + tier.width / 2).setDepth(51);
+          parts.push(tier);
+          if (!isPlainVariant(variant)) {
+            const finish = this.compactPill(0, spot.side.y + tier.height + 10 * k, this.variantLabel(variant), theme.colors.heading,
+              Math.max(80, stage.content.x + stage.content.width - spot.side.x));
+            finish.setX(spot.side.x + finish.width / 2).setDepth(51);
+            parts.push(finish);
+          }
+          const hint = this.add
+            .text(spot.card.x + spot.card.width / 2, spot.hintY, 'tap to skip', {
+              fontFamily: theme.fonts.ui,
+              fontSize: `${theme.compactType.label}px`,
+              color: theme.colors.muted,
+            })
+            .setOrigin(0.5)
+            .setDepth(51)
+            .setAlpha(0);
+          this.tweens.add({ targets: hint, alpha: 1, duration: 400 });
+          parts.push(hint);
+          for (const part of parts) if (part !== dim && part !== view) this.children.bringToTop(part);
+          this.markFixtureReady();
+          dim.once('pointerup', () => this.settleCompactBest(entry, view, parts));
+          this.tweens.add({
+            targets: view,
+            angle: { from: -2, to: 2 },
+            duration: 900,
+            yoyo: true,
+            repeat: 1,
+            ease: 'Sine.easeInOut',
+            onComplete: () => this.settleCompactBest(entry, view, parts),
+          });
+        };
+      },
+    });
+  }
+
+  /** End the compact spotlight: the card shrinks back into its slot in the column and turns into its tile. */
+  private settleCompactBest(entry: CompactSpecial, view: CardView, parts: Phaser.GameObjects.GameObject[]): void {
+    if (this.bestSettled) return;
+    this.bestSettled = true;
+    this.tweens.killTweensOf(view);
+    this.tweens.timeScale = animTimeScale(this.saveData.settings.animations);
+    for (const part of parts) {
+      if (part === view) continue;
+      if (part instanceof Phaser.GameObjects.Rectangle) {
+        this.tweens.add({ targets: part, fillAlpha: 0, duration: 300, onComplete: () => part.destroy() });
+      } else part.destroy();
+    }
+    const { tile, cell } = entry;
+    const home = (): void => {
+      if (view.active) view.destroy();
+      if (!tile.active) return;
+      tile.setVisible(true);
+      this.showTileFace(tile, entry.card);
+      tile.setData('packInspectBlocked', false);
+      this.checkAllRevealed();
+    };
+    if (!view.active) {
+      home();
+      return;
+    }
+    this.tweens.add({
+      targets: view,
+      x: cell.x + cell.width / 2,
+      y: cell.y + cell.height / 2,
+      scale: cell.width / CARD_W,
+      angle: 0,
+      duration: 300,
+      onComplete: home,
+    });
+  }
+
+  /** Every special face up: Skip gives way to Menu and Open another (S-Pack-Results). */
+  private checkCompactRevealed(): void {
+    const ui = this.compactUi!;
+    if (!ui.specials.every((s) => s.done)) return;
+    if (ui.specials.some((s) => s.tile.getData('packInspectBlocked'))) return; // the spotlight is still up
+    this.finishAchievementCheckpoint();
+    if (ui.done) return;
+    ui.done = true;
+    for (const button of ui.foot) button.container.destroy();
+    ui.foot = [];
+    const { foot } = ui.frame;
+    const price = packPriceForSku(this.sku);
+    const menuW = Math.round(foot.width * 0.34);
+    const menu = compactButton(this, { ...foot, width: menuW }, 'Menu', { onTap: () => this.scene.start('MainMenu') });
+    const openRect = { ...foot, x: foot.x + menuW + COMPACT.gap, width: foot.width - menuW - COMPACT.gap };
+    const open = this.fittedButton(openRect, `Open another · ${goldPrice(price)}`, () => {
+      if (this.fixture) return;
+      const save = Services.save.data;
+      if (!spendGold(save, price)) return;
+      Sfx.play('coin');
+      const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
+      Services.save.flush();
+      this.tweens.timeScale = 1;
+      this.scene.restart({ ...result, sku: this.sku, shopBoosterIndex: this.shopBoosterIndex });
+    });
+    // Short of the price: disabled with the price still readable.
+    open.setEnabled(this.saveData.gold >= price);
+    ui.foot.push(menu, open);
+  }
+
+  /** The gold action, its label stepped down until it fits the button. */
+  private fittedButton(rect: Rect, text: string, onTap: () => void): CompactButton {
+    const base = theme.compactType.body;
+    for (let size = base; ; size--) {
+      const button = compactButton(this, rect, text, { variant: 'primary', fontSize: size, onTap });
+      if (button.labelRight() <= rect.width - 8 || size <= Math.round(base * 0.75)) return button;
+      button.container.destroy();
+    }
+  }
+
+  /**
+   * A pull's inspect, compact (S-Pack-Inspect): the full card over the main
+   * area, its pull details at the top of the column, Previous, Next and
+   * Close in the foot.
+   */
+  private showCompactInspect(card: AddResult): void {
+    const ui = this.compactUi!;
+    const stage = sceneStage(this);
+    const type = theme.compactType;
+    const layout = packInspectCompact(ui.frame, CARD_H / CARD_W);
+    const shell = modalShell(this, {
+      width: stage.width,
+      height: stage.height,
+      x: stage.width / 2,
+      y: stage.height / 2,
+      dimAlpha: 0.72,
+      depth: theme.depth.inspect,
+      dismissal: 'esc-only',
+      onClose: () => {
+        if (this.inspectShell === shell) this.closePackInspect(false);
+      },
+    });
+    shell.panel.clear();
+    this.inspectShell = shell;
+    const c = shell.container;
+    c.setData('a11ySurface', { x: 0, y: 0, width: stage.width, height: stage.height }).setData('a11yPanel', stage.content);
+    const index = this.inspectables.findIndex((entry) => entry.card === card);
+    this.unbindInspectKeys = bindInspectHotkeys(this, {
+      onPrev: () => this.stepPackInspect(index, -1),
+      onNext: () => this.stepPackInspect(index, 1),
+      onClose: () => this.closePackInspect(),
+    });
+
+    const variant: CardVariant = { frame: card.frame, holo: card.holo, fullArt: card.fullArt };
+    const view = new CardView(this, layout.card.x + layout.card.width / 2, layout.card.y + layout.card.height / 2)
+      .setScale(layout.card.height / CARD_H);
+    view.setCard(def(CARD_DB, card.cardId), {
+      fx: card.holo !== 'none' ? 'full' : 'static',
+      variant: isPlainVariant(variant) ? undefined : variant,
+      fullArt: variant.fullArt,
+    });
+    c.add(view);
+
+    // The details: odds first in gold, then New, rarity, frame, holo and treatment.
+    const d = layout.details;
+    const pad = 16;
+    const lines = this.packPullDetails(card, variant).map((line, i) => this.add
+      .text(d.x + pad, 0, line, {
+        fontFamily: theme.fonts.ui,
+        fontSize: `${i === 0 ? type.h2 : type.body}px`,
+        fontStyle: i === 0 || line.includes('★') ? theme.weight.w700 : theme.weight.w600,
+        color: this.packPullDetailColor(line),
+        wordWrap: { width: d.width - 2 * pad, useAdvancedWrap: true },
+      }));
+    const gap = 10;
+    const textH = lines.reduce((sum, text) => sum + text.height, 0) + gap * Math.max(0, lines.length - 1);
+    const panelH = Math.min(d.height, textH + 2 * pad);
+    c.add(panel(this, d.x, d.y, d.width, panelH, { alpha: 0.97 }));
+    let y = d.y + pad;
+    for (const text of lines) {
+      text.setY(y);
+      y += text.height + gap;
+      c.add(text);
+    }
+
+    const foot = ui.frame.foot;
+    const btn = COMPACT.touch;
+    const prev = compactIconButton(this, { x: foot.x, y: foot.y, width: btn, height: foot.height }, 'back', () => this.stepPackInspect(index, -1));
+    const next = compactIconButton(this, { x: foot.x + btn + COMPACT.gap, y: foot.y, width: btn, height: foot.height }, 'chevron',
+      () => this.stepPackInspect(index, 1));
+    const closeX = foot.x + 2 * (btn + COMPACT.gap);
+    const close = compactButton(this, { x: closeX, y: foot.y, width: foot.x + foot.width - closeX, height: foot.height }, 'Close', {
+      onTap: () => this.closePackInspect(),
+    });
+    c.add([prev.container, next.container, close.container]);
   }
 
   shutdown(): void {
