@@ -375,9 +375,11 @@ export class DuelPhoneChrome {
    * Returns each row's thumbnail centre, in `rows` order; a row folded into
    * "N more in hand" reports that row's centre.
    */
-  setHand(rows: readonly PhoneHandRow[], pinned: readonly PhonePinnedRow[]): { x: number; y: number }[] {
+  setHand(rows: readonly PhoneHandRow[], pinned: readonly PhonePinnedRow[], caption: string | null = null): { x: number; y: number }[] {
     this.clearColumn();
-    const list = handList(this.L, rows.length, pinned.length);
+    // A response window names itself over the hand ("Your response", W-Stack).
+    const head = caption ? this.caption(this.L.hand.x + 2, this.L.hand.y, caption) : null;
+    const list = handList(this.L, rows.length, pinned.length, head ? Math.ceil(head.height) + 6 : 0);
     pinned.forEach((row, i) => this.drawPinnedRow(list.pinned[i], row));
     const visible = list.more > 0 ? list.rows.length - 1 : list.rows.length;
     for (let i = 0; i < visible; i++) this.drawHandRow(list.rows[i].visual, list.rows[i].hit, rows[i]);

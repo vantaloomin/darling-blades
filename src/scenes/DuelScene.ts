@@ -2252,9 +2252,15 @@ export class DuelScene extends Phaser.Scene {
         .setOrigin(0.5)
         .setDepth(57),
     };
+    const phone = this.phone;
     this.stackDisplay = new StackDisplay(this, {
-      x: this.L.gap.stackX,
-      y: this.L.gap.stackY,
+      x: phone ? 0 : this.L.gap.stackX,
+      y: phone ? 0 : this.L.gap.stackY,
+      phone: phone ? {
+        rect: phone.oppHalf,
+        largeText: currentAccessibility().textScale >= 1.3,
+        targetName: (ref) => this.phoneTargetName(ref),
+      } : undefined,
       cardFor: (cardId) => def(CARD_DB, cardId),
       casterLabel: (controller) => (controller === HUMAN ? 'You' : 'Opponent'),
       isTargetable: (sid) => this.targetRefsForInput().some(
@@ -6229,7 +6235,13 @@ export class DuelScene extends Phaser.Scene {
    * While the foe acts the foot is a waiting line instead (T-10).
    */
   private syncPhoneFoot(chrome: DuelPhoneChrome): void {
-    const primaryLabel = this.passArc.visible ? phoneActionLabel(this.hud.button.text) : null;
+    let primaryLabel = this.passArc.visible ? phoneActionLabel(this.hud.button.text) : null;
+    // Passing a response closes the window and resolves the whole stack (W-Stack).
+    const a = this.duel.awaiting;
+    const stack = this.duel.state.stack.length;
+    if (primaryLabel === 'Pass' && 'player' in a && a.player === HUMAN && a.kind === 'respond' && stack > 0) {
+      primaryLabel = stack > 1 ? `Let all ${stack} resolve` : 'Let it resolve';
+    }
     const endTurn = this.endTurnBtn.visible;
     this.passArc.setVisible(false);
     this.hud.button.setVisible(false);
@@ -6630,6 +6642,27 @@ export class DuelScene extends Phaser.Scene {
     };
   }
 
+  /** The column's caption while a response window is open: "Your response", "Hestia's Sunset" (W-Stack, W-Sunset). */
+  private phoneWindowCaption(): string | null {
+    const a = this.duel.awaiting;
+    if (this.ended || !('player' in a) || a.player !== HUMAN) return null;
+    if (a.kind === 'respond') return 'Your response';
+    if (a.kind === 'endStepWindow') {
+      return this.duel.state.activePlayer === HUMAN ? 'Your Sunset' : `${this.opponentShortName()}'s Sunset`;
+    }
+    return null;
+  }
+
+  /** What a spell on the phone's stack is aimed at ("at Lu Bu", "at you"). */
+  private phoneTargetName(ref: TargetRef): string {
+    if (ref.kind === 'player') return ref.player === HUMAN ? 'you' : this.opponentShortName();
+    if (ref.kind === 'stackItem') {
+      const item = this.duel.state.stack.find((entry) => entry.sid === ref.sid);
+      return item ? def(CARD_DB, item.cardId).name : 'a spell';
+    }
+    return this.phonePickRow(ref).name;
+  }
+
   /** A picked target's row in the phone's column: the card or the player. */
   private phonePickRow(ref: TargetRef): PhoneTargetPanel['picks'][number] {
     if (ref.kind === 'player') {
@@ -6819,7 +6852,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.isReserveDuel() && this.landDropAvailable() && reserve.length > 0) {
       pinned.push({ title: `Warchest Reserves · ${reserve.length}`, detail: 'One land each turn', icon: 'deck', onTap: () => this.showReserveModal(HUMAN) });
     }
-    const spots = chrome.setHand(rows, pinned);
+    const spots = chrome.setHand(rows, pinned, this.phoneWindowCaption());
     // Played cards leave from their row (the travel animations read these).
     order.forEach((handIdx, i) => {
       const spot = spots[i];
@@ -7058,6 +7091,8 @@ export class DuelScene extends Phaser.Scene {
 
   /** Stack targets reuse the arrow shaft but key their colour to the target controller. */
   private drawStackTargetArrows(): void {
+    // The phone's stack strip names each target ("at Lu Bu") instead (W-Stack).
+    if (this.phone) return;
     for (const item of this.duel.state.stack) {
       const from = this.stackDisplay.itemCenter(item.sid);
       if (!from) continue;

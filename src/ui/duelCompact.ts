@@ -226,12 +226,13 @@ export interface HandListLayout extends CompactListLayout {
  * undoable move, the Warchest while a land drop is open) take the first
  * slots; a hand longer than the pane ends in an "N more in hand" row (T-13a).
  */
-export function handList(L: DuelPhoneLayout, count: number, pinnedCount = 0): HandListLayout {
+export function handList(L: DuelPhoneLayout, count: number, pinnedCount = 0, captionH = 0): HandListLayout {
   const rowH = L.handRowH;
   const pitch = rowH + (COMPACT.rowPitch - COMPACT.touch);
   const pins = Math.max(0, Math.floor(pinnedCount));
-  const pinned = Array.from({ length: pins }, (_, i) => ({ x: L.hand.x, y: L.hand.y + i * pitch, width: L.hand.width, height: rowH }));
-  const pane = { ...L.hand, y: L.hand.y + pins * pitch, height: Math.max(0, L.hand.height - pins * pitch) };
+  const top = L.hand.y + captionH;
+  const pinned = Array.from({ length: pins }, (_, i) => ({ x: L.hand.x, y: top + i * pitch, width: L.hand.width, height: rowH }));
+  const pane = { ...L.hand, y: top + pins * pitch, height: Math.max(0, L.hand.height - captionH - pins * pitch) };
   return { ...compactList(pane, count, rowH), pinned };
 }
 
