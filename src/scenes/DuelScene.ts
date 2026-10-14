@@ -1215,7 +1215,7 @@ export class DuelScene extends Phaser.Scene {
     // On a phone the preview docks over the board's centre at most of the screen's height.
     const phoneScreen = compactSceneMetrics(this.sys.settings.key);
     const phoneDock = phoneScreen
-      ? duelPhoneLayout(phoneScreen.content, { largeText: currentAccessibility().textScale >= 1.3 }).main
+      ? duelPhoneLayout(phoneScreen.content, { largeText: currentAccessibility().textScale >= 1.3, short: phoneScreen.variant === 'short' }).main
       : null;
     this.zoom = new CardZoomPreview(this, {
       // Keep the docked card above the player mana-plan strip. At 1.1x the
@@ -1955,7 +1955,10 @@ export class DuelScene extends Phaser.Scene {
 
   /** The phone board: its layout, read-backs, animation spots and chrome. */
   private buildPhoneZones(content: Rect): void {
-    const phone = duelPhoneLayout(content, { largeText: currentAccessibility().textScale >= 1.3 });
+    const phone = duelPhoneLayout(content, {
+      largeText: currentAccessibility().textScale >= 1.3,
+      short: compactSceneMetrics(this.sys.settings.key)?.variant === 'short',
+    });
     this.phone = phone;
     this.L = duelPhoneReadback(phone);
     const mainCx = phone.main.x + phone.main.width / 2;
@@ -4851,7 +4854,7 @@ export class DuelScene extends Phaser.Scene {
       if (this.phone) {
         // Two rows of medallions and the outer strip (src/ui/duelCompact.ts).
         const board = sideBoard(player === AI ? this.phone.oppHalf : this.phone.myHalf,
-          player === AI ? 'opp' : 'mine', creatures.length, nonCreatures.length);
+          player === AI ? 'opp' : 'mine', creatures.length, nonCreatures.length, this.phone.short);
         this.syncPermanentRow(creatures, seen, { align: 'spots', spots: board.creatures, round: board.d, depth: 5, liftSelected: true });
         this.syncPermanentRow(nonCreatures, seen, { align: 'spots', spots: board.strip, round: board.stripD, depth: 4, liftSelected: false });
         this.syncBoardFullChip(player, creatures.length >= RULES.maxCreatures, board);
@@ -4976,6 +4979,9 @@ export class DuelScene extends Phaser.Scene {
       this.boardTargets.set(perm.iid, { x, y, scale });
       this.viewSides.set(perm.iid, perm.controller);
       const d = def(CARD_DB, perm.cardId);
+      // The short variant's upper row draws over the lower, so a stat pill tucked into the row below stays
+      // readable (M21); `syncTileCue` lifts a tile whose word chip would otherwise hide under the row above.
+      const depth = spot && this.phone?.short ? layout.depth + 0.5 - spot.y / 10000 : layout.depth;
       let view = this.views.get(perm.iid);
       // A medallion's art is baked at its diameter: a crowded row that
       // shrinks the discs draws them again rather than scaling.
@@ -4988,7 +4994,7 @@ export class DuelScene extends Phaser.Scene {
       }
       if (!view) {
         view = new BoardCardView(this, x, y, d, phoneRow ? { round: phoneRow.round } : {});
-        view.setDepth(layout.depth);
+        view.setDepth(depth).setData('rowDepth', depth);
         view.setScale(scale);
         view.setTapped(perm.tapped, false);
         // Show YOUR own special-variant cards with their holo finish in play
@@ -5029,7 +5035,7 @@ export class DuelScene extends Phaser.Scene {
           this.tweens.add({ targets: view, alpha: 1, duration: 200 });
         }
       } else {
-        view.setDepth(layout.depth);
+        view.setDepth(depth).setData('rowDepth', depth);
         this.tweens.add({
           targets: view,
           x,
@@ -5201,6 +5207,8 @@ export class DuelScene extends Phaser.Scene {
     view.setCue(cue.state, this.cueContext());
     if (this.cueContext() === 'targeting') view.list.filter(child => child.name === 'duel-duty-flash').forEach(child => child.destroy());
     view.setActionLabel(cue.chip, scale);
+    const rowDepth = view.getData('rowDepth') as number | undefined;
+    if (this.phone?.short && rowDepth !== undefined) view.setDepth(rowDepth + (view.wordChipShown ? 1 : 0));
     const sacrifice = this.pendingSacrifice?.selected ?? this.edictPicks;
     const picked = cue.state === 'selectedSacrifice' ? [sacrifice.indexOf(perm.iid)]
       : this.pickIndices({ kind: 'permanent', iid: perm.iid });
@@ -9263,6 +9271,14 @@ export class DuelScene extends Phaser.Scene {
       panel: {
         kind: 'menu',
         sub: this.matchupLabel(),
+        piles: this.phone?.short ? ([AI, HUMAN] as const).map((player) => ({
+          name: player === HUMAN ? 'You' : this.opponentShortName(),
+          counts: {
+            hand: this.duel.state.players[player].hand.length,
+            deck: this.duel.state.players[player].deck.length,
+            grave: this.duel.state.players[player].graveyard.length,
+          },
+        })) : undefined,
         toggles: [
           {
             label: 'Auto-skip', sub: 'Auto-skip forced turns', on: s.autoSkip,

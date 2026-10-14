@@ -21,7 +21,7 @@ import {
 } from '../../src/ui/duelCompact';
 import { COMPACT } from '../../src/ui/compactLayout';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
-import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { SCREEN_FIXTURES, SHORT_SCREEN_FIXTURE } from '../../src/platform/screenFixtures';
 import type { Rect } from '../../src/ui/layout';
 
 const landscape = SCREEN_FIXTURES.filter((f) => f.viewportWidth > f.viewportHeight).map((f) => ({ name: f.name, m: resolveScreenMetrics(f) }));
@@ -62,6 +62,33 @@ describe('the phone Duel (mocks T-03a, T-03b, T-10, T-13a)', () => {
         expect(L.oppPortrait.height, tag).toBeGreaterThan(0);
       }
     }
+  });
+
+  it('composes the short variant for phone Safari with its bars showing (M21, mock P3)', () => {
+    const m = resolveScreenMetrics(SHORT_SCREEN_FIXTURE);
+    expect(m.variant).toBe('short');
+    for (const largeText of [false, true]) {
+      const L = duelPhoneLayout(m.content, { largeText, short: true });
+      const tag = largeText ? 'short 130%' : 'short';
+      for (const r of [L.oppPortrait, L.oppBlock, L.history, L.menu, L.myBlock, L.myPortrait, L.oppHalf, L.line, L.myHalf, L.hand, L.endTurn, L.primary]) {
+        expect(inside(r, m.content), `${tag}: ${JSON.stringify(r)}`).toBe(true);
+      }
+      disjoint([L.oppPortrait, L.oppBlock, L.history, L.myBlock, L.myPortrait], `${tag} left`);
+      expect([L.oppPortrait.width, L.oppPortrait.height, L.myPortrait.height], tag).toEqual([72, 72, 72]);
+      for (const r of [L.history, L.menu, L.endTurn, L.primary]) expect(r.height, tag).toBeGreaterThanOrEqual(COMPACT.touch);
+      // P3's worst case: eight creatures and four other permanents a side at 44 px, discs clear of each other and the strip.
+      for (const [side, half] of [['opp', L.oppHalf], ['mine', L.myHalf]] as const) {
+        const b = sideBoard(half, side, 8, 4, true);
+        expect(b.d, `${tag} ${side}`).toBe(DUEL_PHONE.short.medallion);
+        const discs = b.creatures.map((c) => ({ x: c.x - b.d / 2, y: c.y - b.d / 2, width: b.d, height: b.d }));
+        const strip = b.strip.map((c) => ({ x: c.x - b.stripD / 2, y: c.y - b.stripD / 2, width: b.stripD, height: b.stripD }));
+        for (const r of [...discs, ...strip]) expect(inside(r, half), `${tag} ${side}`).toBe(true);
+        disjoint([...discs, ...strip], `${tag} ${side}`);
+      }
+    }
+    // Seven cards in hand: four rows and "3 more", as P3 draws it.
+    const list = handList(duelPhoneLayout(m.content, { short: true }), 7);
+    expect([list.rows.length, list.more]).toEqual([5, 3]);
   });
 
   it('splits a crowded side into a front row taking the larger half', () => {

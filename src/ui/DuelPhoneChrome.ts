@@ -11,6 +11,7 @@ import {
   blockManaY,
   handList,
   lifePlate,
+  ZONE_COUNTS,
   type DuelPhoneLayout,
   type HandRowLook,
   type ZoneCount,
@@ -292,6 +293,8 @@ export interface PhoneMenuPanel {
   toggles: readonly PhoneMenuToggle[];
   /** Concede (red, with its flag) or the tutorial's plain Leave Tutorial. */
   exit: { label: string; danger: boolean; onTap: () => void } | null;
+  /** The short variant's pile counts (M21), the foe's first, in place of the matchup line. */
+  piles?: readonly { name: string; counts: Record<ZoneCount, number> }[];
 }
 
 /**
@@ -369,15 +372,23 @@ export class DuelPhoneChrome {
     };
     panel(L.oppHalf);
     panel(L.myHalf);
-    panel(L.oppBlock, 0.9);
-    panel(L.myBlock, 0.9);
+    // The short variant's blocks are the mana alone, unframed under each portrait (P3).
+    if (!L.short) {
+      panel(L.oppBlock, 0.9);
+      panel(L.myBlock, 0.9);
+    }
 
     // The blocks are one framed button each (M15).
     for (const [side, block] of [['opp', L.oppBlock], ['mine', L.myBlock]] as const) {
-      const zone = scene.add.zone(block.x + block.width / 2, block.y + block.height / 2, block.width, block.height)
+      // A short block is under the touch floor; its hit area grows toward the middle of the column.
+      const hitH = Math.max(block.height, L.short ? COMPACT.touch : 0);
+      const hitY = side === 'opp' ? block.y : block.y + block.height - hitH;
+      const zone = scene.add.zone(block.x + block.width / 2, hitY + hitH / 2, block.width, hitH)
         .setInteractive({ useHandCursor: true }).setDepth(4);
       bindTapButton(scene, zone, () => cb.onBlock(side));
       this.blockZones.push(zone);
+      // The short variant keeps the pile counts behind the menu (M21).
+      if (L.short) continue;
       this.counts[side] = blockCounts(block, side).map((spot) => {
         const icon = scene.add.image(0, spot.y, bakeUiIcon(scene, BLOCK_ICON[spot.kind])).setDisplaySize(COUNT_ICON, COUNT_ICON)
           .setTint(colorInt(theme.colors.muted)).setDepth(3);
@@ -455,7 +466,7 @@ export class DuelPhoneChrome {
     for (const o of this.mana[side]) o.destroy();
     this.mana[side] = [];
     const block = side === 'opp' ? this.L.oppBlock : this.L.myBlock;
-    const y = blockManaY(block, side);
+    const y = blockManaY(block, side, this.L.short);
     // M16: three or more colour sets fold into a "+N" pip after the first.
     const folded = slots.length > 2;
     const shown = folded ? slots.slice(0, 1) : slots.length ? slots : [{ texture: 'pip-C', untapped: 0, total: 0 }];
@@ -1409,11 +1420,38 @@ export class DuelPhoneChrome {
     const heading = scene.add.text(x, pane.y, 'Menu', {
       fontFamily: theme.fonts.display, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
     }).setDepth(theme.depth.hand);
-    const sub = scene.add.text(x, heading.y + heading.height, panel.sub, {
-      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.muted,
-    }).setDepth(theme.depth.hand);
-    ellipsizeText(sub, width);
-    this.handObjects.push(heading, sub);
+    this.handObjects.push(heading);
+    let subBottom = heading.y + heading.height;
+    if (panel.piles?.length) {
+      // M21: the counts the short left column has no room for, one line per side.
+      for (const pile of panel.piles) {
+        const cy = subBottom + 11;
+        const name = scene.add.text(x, cy, pile.name, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+        }).setOrigin(0, 0.5).setDepth(theme.depth.hand);
+        this.handObjects.push(name);
+        let cx = x + width;
+        for (const kind of [...ZONE_COUNTS].reverse()) {
+          const count = scene.add.text(cx, cy, `${pile.counts[kind]}`, {
+            fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+          }).setOrigin(1, 0.5).setDepth(theme.depth.hand);
+          cx -= count.width + 3;
+          const icon = scene.add.image(cx - COUNT_ICON / 2, cy, bakeUiIcon(scene, BLOCK_ICON[kind])).setDisplaySize(COUNT_ICON, COUNT_ICON)
+            .setTint(colorInt(theme.colors.muted)).setDepth(theme.depth.hand);
+          cx -= COUNT_ICON + 10;
+          this.handObjects.push(count, icon);
+        }
+        ellipsizeText(name, cx - x);
+        subBottom += 22;
+      }
+    } else {
+      const sub = scene.add.text(x, subBottom, panel.sub, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.muted,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(sub, width);
+      this.handObjects.push(sub);
+      subBottom = sub.y + sub.height;
+    }
     // The way out sits over the foot at the foot's height, Resume under it.
     let bottom = pane.y + pane.height;
     if (panel.exit) {
@@ -1429,7 +1467,7 @@ export class DuelPhoneChrome {
       bottom -= h + 10;
     }
     // Switch rows; a cramped column (Largest text) drops the muted lines.
-    const top = sub.y + sub.height + 12;
+    const top = subBottom + 12;
     const labelStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading };
     const subStyle = { fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted };
     const probe = scene.add.text(0, 0, 'Ag', labelStyle);

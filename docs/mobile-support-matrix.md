@@ -115,6 +115,8 @@ devices, browser bars included.
 | `tablet-mini` | 1133x744 | 0, 0, 20 | iPad mini (must resolve to a tablet, compact scaled up) |
 | `tablet-upright` | 820x1180 | 0, 0, 20 | Upright tablet, letterboxed (M11) |
 
+One more fixture, `phone-safari` (852x313, insets 59, 59, 0: phone Safari with its bars showing, mock P3), is the short variant's (M21). It sits outside the sweep in `SHORT_SCREEN_FIXTURE` until every compact scene composes a short variant; so far only the Duel does.
+
 Android rows are 0 because Chrome reports a nonzero safe-area inset only
 in full screen on a phone with a camera cutout; with M8's full-screen
 button the baseline adds a full-screen Android fixture. Each fixture runs

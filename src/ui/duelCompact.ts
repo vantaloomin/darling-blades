@@ -51,6 +51,12 @@ export const DUEL_PHONE = {
   stripD: 34,
   stripPitch: 44,
   stripInset: 4,
+  /**
+   * The short variant (M21, mock P3): 72 px portraits with only the mana
+   * under them (the pile counts move behind the menu), 44 px medallions
+   * whose pills tuck into the row behind, and a tighter strip.
+   */
+  short: { portrait: 72, manaH: 24, medallion: 44, pillDrop: 6, stripD: 32, stripInset: 1 },
   /** The hand list's rows (M27): 40 tall on a 44 pitch; 52 on 56 at the largest text. */
   handRowH: 40,
   handRowHLarge: 52,
@@ -60,6 +66,8 @@ export const DUEL_PHONE = {
 
 export interface DuelPhoneLayout {
   content: Rect;
+  /** The short variant (M21): small portraits, mana-only blocks, pile counts in the menu. */
+  short: boolean;
   left: Rect;
   main: Rect;
   column: Rect;
@@ -88,6 +96,8 @@ export interface DuelPhoneLayout {
 export interface DuelPhoneOptions {
   /** The largest text size (130%): taller blocks, line and hand rows. */
   largeText?: boolean;
+  /** The short variant (M21) for a phone left with little height. */
+  short?: boolean;
 }
 
 /** The phone Duel's regions inside the content box. */
@@ -105,14 +115,26 @@ export function duelPhoneLayout(content: Rect, opts: DuelPhoneOptions = {}): Due
 
   // The left column, top to bottom: portrait, block, the two buttons on the
   // midline, block, portrait.
-  const blockH = large ? P.blockHLarge : P.blockH;
+  const short = opts.short === true;
   const g = P.stackGap;
-  const portraitH = Math.max(0, Math.floor((H - 2 * blockH - P.buttonH - 4 * g) / 2));
   const buttonsY = top + Math.round((H - P.buttonH) / 2);
-  const oppPortrait: Rect = { x: left.x, y: top, width: left.width, height: portraitH };
-  const myPortrait: Rect = { x: left.x, y: bottom - portraitH, width: left.width, height: portraitH };
-  const oppBlock: Rect = { x: left.x, y: buttonsY - g - blockH, width: left.width, height: blockH };
-  const myBlock: Rect = { x: left.x, y: buttonsY + P.buttonH + g, width: left.width, height: blockH };
+  let oppPortrait: Rect, myPortrait: Rect, oppBlock: Rect, myBlock: Rect;
+  if (short) {
+    // P3: a square portrait at each end with its mana beside the board's edge; the middle stays open.
+    const size = Math.max(0, Math.min(P.short.portrait, left.width, Math.floor((H - 2 * P.short.manaH - P.buttonH - 4 * g) / 2)));
+    const px = left.x + (left.width - size) / 2;
+    oppPortrait = { x: px, y: top, width: size, height: size };
+    myPortrait = { x: px, y: bottom - size, width: size, height: size };
+    oppBlock = { x: left.x, y: top + size + g, width: left.width, height: P.short.manaH };
+    myBlock = { x: left.x, y: bottom - size - g - P.short.manaH, width: left.width, height: P.short.manaH };
+  } else {
+    const blockH = large ? P.blockHLarge : P.blockH;
+    const portraitH = Math.max(0, Math.floor((H - 2 * blockH - P.buttonH - 4 * g) / 2));
+    oppPortrait = { x: left.x, y: top, width: left.width, height: portraitH };
+    myPortrait = { x: left.x, y: bottom - portraitH, width: left.width, height: portraitH };
+    oppBlock = { x: left.x, y: buttonsY - g - blockH, width: left.width, height: blockH };
+    myBlock = { x: left.x, y: buttonsY + P.buttonH + g, width: left.width, height: blockH };
+  }
   const buttonW = (left.width - P.gap) / 2;
   const history: Rect = { x: left.x, y: buttonsY, width: buttonW, height: P.buttonH };
   const menu: Rect = { x: left.x + buttonW + P.gap, y: buttonsY, width: buttonW, height: P.buttonH };
@@ -132,7 +154,7 @@ export function duelPhoneLayout(content: Rect, opts: DuelPhoneOptions = {}): Due
   const hand: Rect = { x: column.x, y: top, width: column.width, height: Math.max(0, foot.y - P.gap - top) };
 
   return {
-    content: { ...content }, left, main, column, oppPortrait, myPortrait, oppBlock, myBlock, history, menu,
+    content: { ...content }, short, left, main, column, oppPortrait, myPortrait, oppBlock, myBlock, history, menu,
     oppHalf, myHalf, line, hand, handRowH: large ? P.handRowHLarge : P.handRowH, endTurn, primary, foot,
   };
 }
@@ -178,21 +200,25 @@ function centredRow(count: number, cx: number, pitch: number): number[] {
  * above the line (its strip on top, its front row at the bottom) or 'mine'
  * (front row at the top, strip at the foot).
  */
-export function sideBoard(half: Rect, side: 'opp' | 'mine', creatureCount: number, otherCount: number): SideBoard {
+export function sideBoard(half: Rect, side: 'opp' | 'mine', creatureCount: number, otherCount: number, short = false): SideBoard {
   const P = DUEL_PHONE;
   const pad = P.gap;
+  const medallion = short ? P.short.medallion : P.medallion;
+  const pillDrop = short ? P.short.pillDrop : P.pillDrop;
+  const stripInset = short ? P.short.stripInset : P.stripInset;
+  const stripD = short ? P.short.stripD : P.stripD;
   const usableW = Math.max(0, half.width - 2 * pad);
-  const stripZone = P.stripD + 2 * P.stripInset;
+  const stripZone = stripD + 2 * stripInset;
   const rowsH = Math.max(0, half.height - stripZone);
   // Two rows of a medallion plus its hanging pill share what is left.
-  const rowFitD = Math.floor(rowsH / 2) - P.pillDrop;
-  const maxPerRow = Math.max(1, Math.floor((usableW + P.medallionGap) / (P.medallion + P.medallionGap)));
+  const rowFitD = Math.floor(rowsH / 2) - pillDrop;
+  const maxPerRow = Math.max(1, Math.floor((usableW + P.medallionGap) / (medallion + P.medallionGap)));
   const [front, back] = medallionRows(creatureCount, maxPerRow);
   const widest = Math.max(front, back, 1);
   const widthFitD = Math.floor((usableW + P.medallionGap) / widest) - P.medallionGap;
-  const d = Math.max(P.medallionMin, Math.min(P.medallion, rowFitD, widthFitD));
+  const d = Math.max(P.medallionMin, Math.min(medallion, rowFitD, widthFitD));
   const pitchX = Math.min(d + P.medallionGap, widest > 1 ? (usableW - d) / (widest - 1) : d + P.medallionGap);
-  const rowPitch = d + P.pillDrop;
+  const rowPitch = d + pillDrop;
   // The rows sit centred in their band; the strip hugs the outer edge.
   const rowsTop = side === 'opp' ? half.y + stripZone : half.y;
   const slack = Math.max(0, rowsH - 2 * rowPitch);
@@ -206,12 +232,12 @@ export function sideBoard(half: Rect, side: 'opp' | 'mine', creatureCount: numbe
     ...centredRow(back, cx, pitchX).map((x) => ({ x, y: rowY[1] })),
   ];
 
-  const stripY = side === 'opp' ? half.y + P.stripInset + P.stripD / 2 : half.y + half.height - P.stripInset - P.stripD / 2;
+  const stripY = side === 'opp' ? half.y + stripInset + stripD / 2 : half.y + half.height - stripInset - stripD / 2;
   const others = Math.max(0, Math.floor(otherCount));
   // The strip starts at the left and packs tighter once it would run out of room.
-  const stripPitch = others > 1 ? Math.min(P.stripPitch, (usableW - P.stripD) / (others - 1)) : P.stripPitch;
-  const strip = Array.from({ length: others }, (_, i) => ({ x: half.x + pad + P.stripD / 2 + i * stripPitch, y: stripY }));
-  return { d, creatures, rowY, strip, stripD: P.stripD, stripY };
+  const stripPitch = others > 1 ? Math.min(P.stripPitch, (usableW - stripD) / (others - 1)) : P.stripPitch;
+  const strip = Array.from({ length: others }, (_, i) => ({ x: half.x + pad + stripD / 2 + i * stripPitch, y: stripY }));
+  return { d, creatures, rowY, strip, stripD, stripY };
 }
 
 // ------------------------------------------------------------------ the hand list
@@ -457,9 +483,12 @@ export function blockCounts(block: Rect, side: 'opp' | 'mine' = 'opp'): { kind: 
   return ZONE_COUNTS.map((kind, i) => ({ kind, x: block.x + third * (i + 0.5), y }));
 }
 
-/** The mana line's centre y in a block: the blocks mirror, so mana faces each portrait's board edge (T-03a). */
-export function blockManaY(block: Rect, side: 'opp' | 'mine' = 'opp'): number {
-  return block.y + block.height * (side === 'opp' ? 0.28 : 0.72);
+/**
+ * The mana line's centre y in a block: the blocks mirror, so mana faces each
+ * portrait's board edge (T-03a). The short variant's block is the mana alone.
+ */
+export function blockManaY(block: Rect, side: 'opp' | 'mine' = 'opp', short = false): number {
+  return block.y + block.height * (short ? 0.5 : side === 'opp' ? 0.28 : 0.72);
 }
 
 // ------------------------------------------------------------------ read-backs
@@ -478,13 +507,13 @@ export type DuelLayoutShape = Widen<typeof DUEL_LAYOUT>;
  * stray read never sends a card off screen.
  */
 export function duelPhoneReadback(L: DuelPhoneLayout): DuelLayoutShape {
-  const opp = sideBoard(L.oppHalf, 'opp', 0, 0);
-  const mine = sideBoard(L.myHalf, 'mine', 0, 0);
+  const opp = sideBoard(L.oppHalf, 'opp', 0, 0, L.short);
+  const mine = sideBoard(L.myHalf, 'mine', 0, 0, L.short);
   const blockCx = L.left.x + L.left.width / 2;
   const oppCountsY = blockCounts(L.oppBlock)[0].y;
   const myCountsY = blockCounts(L.myBlock, 'mine')[0].y;
-  const oppManaY = blockManaY(L.oppBlock);
-  const myManaY = blockManaY(L.myBlock, 'mine');
+  const oppManaY = blockManaY(L.oppBlock, 'opp', L.short);
+  const myManaY = blockManaY(L.myBlock, 'mine', L.short);
   const countX = (i: number): number => blockCounts(L.oppBlock)[i].x;
   const lifeY = (portrait: Rect): number => lifePlate(portrait).y + LIFE_PLATE.height / 2;
   const mainCx = L.main.x + L.main.width / 2;

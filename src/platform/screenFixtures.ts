@@ -48,6 +48,14 @@ export const SCREEN_FIXTURES: readonly ScreenFixture[] = [
 ];
 
 /**
+ * Phone Safari with its bars showing (mock P3: the 393 pt screen less its
+ * 32 and 48 pt bars, a 297 pt content box): the short variant (M21). Not
+ * in `SCREEN_FIXTURES` yet, because only the Duel composes the short variant
+ * so far; each scene joins the sweep as it gains one.
+ */
+export const SHORT_SCREEN_FIXTURE: ScreenFixture = fixture('phone-safari', 852, 313, [59, 59, 0], 3, 'iPhone Safari with its bars showing (mock P3)');
+
+/**
  * The fixture a dev URL's `viewport=<name>` names (`?layout=compact&viewport=phone-island`),
  * or null. The a11y probe's viewport axis: the dev server boots the compact
  * profile as if on that screen, on any desktop browser.
@@ -55,7 +63,7 @@ export const SCREEN_FIXTURES: readonly ScreenFixture[] = [
 export function screenFixtureNamed(search: string): ScreenFixture | null {
   try {
     const name = new URLSearchParams(search).get('viewport');
-    return SCREEN_FIXTURES.find((f) => f.name === name) ?? null;
+    return [...SCREEN_FIXTURES, SHORT_SCREEN_FIXTURE].find((f) => f.name === name) ?? null;
   } catch {
     return null;
   }

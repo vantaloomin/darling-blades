@@ -595,6 +595,11 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    * (the 0.55 permanent band, where Duty artifacts live, and tucked links),
    * where it would otherwise print at 5-6px.
    */
+  /** Whether a word chip ("Duty", "Link") is showing over the tile's top edge, rather than a role disc. */
+  get wordChipShown(): boolean {
+    return this.actionBadge.visible;
+  }
+
   setActionLabel(label: string | null, tileScale = 1): this {
     if (this.roleBadge && this.roleIcon) {
       // A medallion has no top edge for a word: attacking and blocking read as a sword or shield disc,
