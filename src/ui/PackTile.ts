@@ -61,7 +61,14 @@ export class PackTile extends Phaser.GameObjects.Container {
    * (S-Pack-Batch) adds the tier in a pill left of the stats and a star disc
    * at the top right for a new card (green) or a new variant (violet).
    */
-  showFace(card: CardDef, frame: FrameStyle, opts: { tier?: { label: string; color: string }; mark?: 'new' | 'variant' } = {}): this {
+  showFace(card: CardDef, frame: FrameStyle, opts: {
+    tier?: { label: string; color: string };
+    mark?: 'new' | 'variant';
+    /** The Limited builder's count ("1/2", "2×") in a gold pill at the top right. */
+    chip?: string;
+    /** The Limited builder's in-the-deck check, a gold disc under the cost. */
+    check?: boolean;
+  } = {}): this {
     this.clearFace();
     const scene = this.scene;
     const type = theme.compactType;
@@ -104,6 +111,19 @@ export class PackTile extends Phaser.GameObjects.Container {
       parts.push(scene.add.graphics().fillStyle(theme.graphics.panelFill, 0.92).fillCircle(cx, cy, d / 2)
         .lineStyle(1.5, ink, 1).strokeCircle(cx, cy, d / 2));
       parts.push(scene.add.image(cx, cy, bakeUiIcon(scene, 'star')).setDisplaySize(d * 0.62, d * 0.62).setTint(ink));
+    }
+    if (opts.chip) {
+      const chip = statPill(scene, art.x + art.width - 3, art.y + 3, opts.chip, theme.colors.gold);
+      chip.setY(art.y + 3 + chip.height / 2);
+      parts.push(chip);
+    }
+    if (opts.check) {
+      const d = Math.round(Math.min(type.label * 1.8, art.width * 0.3));
+      const cx = art.x + art.width / 2;
+      const cy = art.y + 3 + pip + 4 + d / 2;
+      parts.push(scene.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, d / 2)
+        .lineStyle(1.5, theme.graphics.panelFill, 1).strokeCircle(cx, cy, d / 2));
+      parts.push(scene.add.image(cx, cy, bakeUiIcon(scene, 'check')).setDisplaySize(d * 0.62, d * 0.62).setTint(colorInt(theme.colors.onGold)));
     }
     const rim = frameRim(frame) ?? colorInt(medallionRim(card.colors, card.types));
     parts.push(scene.add.graphics().lineStyle(frame === 'white' ? 2.5 : 3.5, rim, 1)

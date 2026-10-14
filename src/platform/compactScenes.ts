@@ -19,7 +19,7 @@
 import type { ScreenMetrics } from './screenMetrics';
 
 /** Scene keys with a compact composition. Each joins in the PR that builds it. */
-export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'Duel', 'PackOpening']);
+export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'Duel', 'PackOpening', 'Limited', 'LimitedDeckBuilder']);
 
 /**
  * The desktop pass (owner ruling 2026-10-14, S1 B): on the wide profile these
@@ -28,7 +28,7 @@ export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu
  * about the desktop ramp's size. The Duel keeps its own desktop layout (S2 A).
  * Each scene joins in the PR that tunes it for desktop.
  */
-export const DESKTOP_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'PackOpening']);
+export const DESKTOP_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'PackOpening', 'Limited', 'LimitedDeckBuilder']);
 
 /** Desktop design px per compact design px: the compact body (14) at about the desktop body (16). */
 export const DESKTOP_DENSITY = 1.2;
@@ -62,7 +62,7 @@ export function disableDesktopCompactScenes(): void {
 
 let metrics: ScreenMetrics | null = null;
 
-/** Scenes a dev session has switched on early (`?phone=Draft`), before their switch flips in COMPACT_SCENES. */
+/** Scenes a dev session has switched on early (`?phone=Draft`), before their switch flips in COMPACT_SCENES (and, on the desktop, DESKTOP_SCENES). */
 const devScenes = new Set<string>();
 
 /**
@@ -95,7 +95,7 @@ export function compactSceneMetrics(
   desktopScenes: ReadonlySet<string> = DESKTOP_SCENES,
 ): ScreenMetrics | null {
   if (metrics !== null) return scenes.has(sceneKey) || devScenes.has(sceneKey) ? metrics : null;
-  return desktopOn && desktopScenes.has(sceneKey) ? desktopCompactMetrics() : null;
+  return desktopOn && (desktopScenes.has(sceneKey) || devScenes.has(sceneKey)) ? desktopCompactMetrics() : null;
 }
 
 export interface CompactCamera {

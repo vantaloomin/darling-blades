@@ -21,8 +21,15 @@ import { isTouchDevice } from '../platform/gestures';
 import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { DECK_STYLE_LABEL } from '../meta/profileStats';
-import { applyBackdrop } from '../ui/SceneBackdrop';
-import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT } from '../ui/compactLayout';
+import { compactButton, compactHeader, coverFitImage } from '../ui/compactWidgets';
+import type { ThemedButtonVariant } from '../ui/controlStyle';
+import { LIMITED_COMPACT, limitedHubLayout } from '../ui/limitedCompact';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { addPortraitArt } from '../ui/portraitArt';
+import { ellipsizeText } from '../ui/textFit';
+import { HEADER_CURRENCY_ANCHOR, type Rect } from '../ui/layout';
 import {
   premiumGrantSummary,
   type LimitedBuilderEntry,
@@ -30,7 +37,7 @@ import {
   type PremiumGrantSummary,
 } from '../ui/limitedDraftPresentation';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
-import { theme } from '../ui/theme';
+import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { backButton, goldBadge, panel, registerSceneBackNavigation, themedButton, type ThemedButton } from '../ui/themeWidgets';
 
@@ -67,9 +74,18 @@ const HISTORY_ROW_H = 36;
 /** Eight rows plus the bottom inset: the records panel's floor, which the left column's bottom matches. */
 const HISTORY_PANEL_MIN_H = HISTORY_TOP + (HISTORY_ROWS - 1) * HISTORY_PITCH + HISTORY_ROW_H + 18;
 
+/** Retire run as both layouts draw it: the desktop's themed button or the compact foot's. */
+interface RetireControl {
+  container: Phaser.GameObjects.Container;
+  setLabel(label: string): void;
+  setVariant(variant: ThemedButtonVariant): void;
+}
+
 export class LimitedScene extends Phaser.Scene {
   private retireArmed = false;
-  private retireBtn: ThemedButton | null = null;
+  private retireBtn: RetireControl | null = null;
+  /** The compact composition draws its labels in sentence case and arms Retire on two lines. */
+  private compact = false;
   /** The run's pool line, and the consequence line that replaces it while armed. */
   private runPoolLine: Phaser.GameObjects.Text | null = null;
   private retireWarning: Phaser.GameObjects.Text | null = null;
@@ -100,6 +116,7 @@ export class LimitedScene extends Phaser.Scene {
     this.retireWarning = null;
     this.retireDisarm = null;
     this.premiumGrant = null;
+    this.compact = false;
     applyBackdrop(this, 'gauntlet', {
       dim: theme.graphics.dim,
       dimAlpha: 0.52,
@@ -110,7 +127,9 @@ export class LimitedScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('menu');
-    new Toast(this);
+    const stage = sceneStage(this);
+    this.compact = stage.compact;
+    if (!this.compact) new Toast(this);
     const save = this.saveData;
     if (
       save.limited.activeRun?.status === 'draft' &&
@@ -123,6 +142,11 @@ export class LimitedScene extends Phaser.Scene {
       recordDraftEncounters(save.limited, save.limited.activeRun);
       save.limited.activeRun = completeDraftRun(CARD_DB, save.limited.activeRun);
       this.persist();
+    }
+    if (this.compact) {
+      this.buildCompact(stage.content);
+      if (this.fixture?.armRetire && this.retireBtn) this.armRetire(false);
+      return;
     }
     sceneTitle(this, 'Draft');
     // One line at the standard size; larger text wraps it inside the frame
@@ -220,13 +244,7 @@ export class LimitedScene extends Phaser.Scene {
       'Free Draft',
       // One gold action per screen: Continue owns it while a run is active.
       runActive ? 'ghost' : 'primary',
-      () => {
-        if (!runActive && !this.fixture) {
-          this.saveData.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
-          this.persist();
-          this.scene.start('LimitedDraft');
-        }
-      },
+      () => this.startFree(),
       runActive,
     );
     this.button(
@@ -234,14 +252,7 @@ export class LimitedScene extends Phaser.Scene {
       y + 84,
       `Premium Draft · ${formatGold(ECONOMY.premiumDraftEntry)}`,
       'ghost',
-      () => {
-        if (runActive || this.fixture) return;
-        if (!payPremiumDraftEntry(save, todayString())) return;
-        const run = startDraftRun(CARD_DB, freshRunSeed(), Date.now(), { premium: true });
-        save.limited.activeRun = run;
-        this.persist();
-        this.scene.start('LimitedDraft');
-      },
+      () => this.startPremium(),
       premiumDisabled,
     );
     // Each entry's terms sit under its own column so neither can read as
@@ -348,6 +359,246 @@ export class LimitedScene extends Phaser.Scene {
       );
     }
   }
+  private startFree(): void {
+    if (this.saveData.limited.activeRun || this.fixture) return;
+    this.saveData.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now());
+    this.persist();
+    this.scene.start('LimitedDraft');
+  }
+  private startPremium(): void {
+    const save = this.saveData;
+    if (save.limited.activeRun || this.fixture) return;
+    if (!payPremiumDraftEntry(save, todayString())) return;
+    save.limited.activeRun = startDraftRun(CARD_DB, freshRunSeed(), Date.now(), { premium: true });
+    this.persist();
+    this.scene.start('LimitedDraft');
+  }
+
+  // ------------------------------------------------------------------ compact (phone and desktop)
+
+  /** The hub's compact composition (S-Limited-Hub, S-Limited-Run, S-Limited-Retire). */
+  private buildCompact(content: Rect): void {
+    const type = theme.compactType;
+    const save = this.saveData;
+    const run = save.limited.activeRun;
+    const leave = (): void => { this.scene.start('Play'); };
+    registerSceneBackNavigation(this, leave);
+    // The rules paragraph and the run's text are measured before the panels are placed.
+    const probe = limitedHubLayout(content, 0, 0, false);
+    const intro = this.add.text(probe.intro.x, probe.intro.y,
+      `Draft from packs against seven rivals, build exactly ${LIMITED_DECK_SIZE} spells, then play three matches. Your Warchest of 10 lands is provided.`,
+      { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: probe.intro.width, useAdvancedWrap: true } });
+    const nextPersona = run?.status === 'matches' ? draftPersonaById(run.draft?.personaIds[run.matchIndex + 1] ?? '') : null;
+    const lines = this.compactRunLines(run);
+    const runTextH = lines.reduce((h, l) => h + this.lineHeight(l.size) + 4, 0);
+    const layout = limitedHubLayout(content, Math.ceil(intro.height), runTextH, !!nextPersona);
+    compactHeader(this, layout.shell, { title: 'Draft', gold: save.gold, onBack: leave });
+    new Toast(this, { rail: { right: layout.column.x + layout.column.width, top: layout.column.y, width: layout.column.width } });
+
+    // The active run.
+    this.compactPanel(layout.run);
+    if (layout.portrait && nextPersona) {
+      const pic = layout.portrait;
+      this.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+      try {
+        const inset = { x: pic.x + 2, y: pic.y + 2, width: pic.width - 4, height: pic.height - 4 };
+        addPortraitArt(this, inset.x + inset.width / 2, inset.y + inset.height / 2, nextPersona.portraitCardId, (img) => coverFitImage(img, inset, 0.1), 'half');
+      } catch {
+        // the frame stands in for missing art
+      }
+      this.add.graphics().lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, 1)
+        .strokeRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+    }
+    let y = layout.runText.y;
+    for (const line of lines) {
+      const text = this.add.text(layout.runText.x, y, line.text, {
+        fontFamily: line.display ? theme.fonts.display : theme.fonts.ui, fontSize: `${line.size}px`,
+        fontStyle: line.bold ? theme.weight.w700 : undefined, color: line.color,
+      });
+      ellipsizeText(text, layout.runText.width);
+      if (line.role === 'pool') this.runPoolLine = text;
+      if (line.role === 'warning') {
+        // The armed Retire's consequence, in the pool line's place.
+        text.setY(this.runPoolLine?.y ?? y).setWordWrapWidth(layout.runText.width, true).setVisible(false);
+        this.retireWarning = text;
+        continue;
+      }
+      y += this.lineHeight(line.size) + 4;
+    }
+
+    this.buildCompactRecords(layout.records);
+    this.buildCompactColumn(layout, run);
+  }
+
+  /** The run panel's lines: its title, the run's status, record and pool (and the armed Retire's warning). */
+  private compactRunLines(run: LimitedRun | null): { text: string; size: number; color: string; bold?: boolean; display?: boolean; role?: 'pool' | 'warning' }[] {
+    const type = theme.compactType;
+    const title = { text: 'Active Run', size: type.h2, color: theme.colors.heading, bold: true, display: true };
+    if (!run) {
+      return [title,
+        { text: 'No Limited run is active.', size: type.body, color: theme.colors.muted },
+        { text: 'Start a Free or Premium Draft to build a card pool.', size: type.label, color: theme.colors.muted }];
+    }
+    const nextPersona = run.status === 'matches' ? draftPersonaById(run.draft?.personaIds[run.matchIndex + 1] ?? '') : null;
+    const status = run.status === 'draft'
+      ? `Pack ${run.draft ? run.draft.packIndex + 1 : 1} · Pick ${run.draft ? run.draft.pickIndex + 1 : 1}`
+      : run.status === 'build'
+        ? `Building ${run.deck.length}/${LIMITED_DECK_SIZE}`
+        : `Match ${run.matchIndex + 1}/3${nextPersona ? ` · vs ${nextPersona.name}` : ''}`;
+    return [title,
+      { text: `${draftModeLabel(run)} · ${status}`, size: type.body, color: theme.colors.gold, bold: true },
+      { text: `Record ${run.wins}-${run.losses}`, size: type.label, color: theme.colors.body },
+      { text: `Pool ${run.pool.length} cards · Deck ${run.deck.length}/${LIMITED_DECK_SIZE}`, size: type.label, color: theme.colors.muted, role: 'pool' },
+      { text: retireConsequence(run), size: type.label, color: theme.colors.danger, role: 'warning' }];
+  }
+
+  /** Draft Records: the best run over the finished runs, newest first, scrolling. */
+  private buildCompactRecords(box: Rect): void {
+    const type = theme.compactType;
+    const L = LIMITED_COMPACT;
+    const save = this.saveData;
+    this.compactPanel(box);
+    const title = this.add.text(box.x + L.pad, box.y + L.pad, 'Draft Records', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    const best = this.add.text(box.x + box.width - L.pad, title.y + title.height / 2, `Best Draft ${save.limited.bestDraftWins}/3`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    }).setOrigin(1, 0.5);
+    ellipsizeText(title, Math.max(0, best.x - best.width - COMPACT.gap - title.x));
+    const list = { x: box.x + L.pad, y: title.y + title.height + COMPACT.gap, width: box.width - 2 * L.pad, height: 0 };
+    list.height = Math.max(0, box.y + box.height - L.pad - list.y);
+    const history = save.limited.history.filter((entry) => entry.mode === 'draft');
+    if (!history.length) {
+      this.add.text(list.x, list.y + 4, 'Completed draft runs will appear here.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: list.width, useAdvancedWrap: true },
+      });
+      return;
+    }
+    const rows = this.add.container(0, list.y);
+    // Rows sit inside the scroll thumb's lane.
+    const rowW = list.width - 6;
+    history.forEach((entry, i) => {
+      const top = i * (L.rowH + L.rowGap);
+      const cy = top + L.rowH / 2;
+      const plate = this.add.graphics().fillStyle(theme.graphics.rowFill, theme.alpha.chrome).fillRoundedRect(list.x, top, rowW, L.rowH, theme.radius.panel)
+        .lineStyle(1, theme.graphics.panelStroke, theme.alpha.subtle).strokeRoundedRect(list.x, top, rowW, L.rowH, theme.radius.panel);
+      const name = this.add.text(list.x + 12, cy, `${draftModeLabel({})} ${entry.wins}-${entry.losses}`, {
+        fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
+        color: entry.wins === 3 ? theme.colors.gold : theme.colors.heading,
+      }).setOrigin(0, 0.5);
+      const reward = entry.premium ? null : this.add.text(list.x + rowW - 12, cy, `+${formatGold(entry.rewardGold)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      }).setOrigin(1, 0.5);
+      let x = name.x + name.width + 10;
+      const parts: Phaser.GameObjects.GameObject[] = [plate, name];
+      if (entry.premium) {
+        const pill = this.compactPill(x, cy, 'Premium');
+        parts.push(pill);
+        x += pill.width + 8;
+      }
+      const style = this.add.text(x, cy, DECK_STYLE_LABEL[entry.deckStyle].toLowerCase(), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+      }).setOrigin(0, 0.5);
+      ellipsizeText(style, Math.max(0, (reward ? reward.x - reward.width - 8 : list.x + rowW - 12) - x));
+      parts.push(style);
+      if (reward) parts.push(reward);
+      rows.add(parts);
+    });
+    const total = history.length * (L.rowH + L.rowGap) - L.rowGap;
+    bindMenuScroll(this, rows, list, total);
+  }
+
+  /** "Premium": an outlined gold pill, its left edge at `x`. */
+  private compactPill(x: number, cy: number, text: string): Phaser.GameObjects.Container {
+    const label = this.add.text(0, 0, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.caption}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+    }).setOrigin(0.5);
+    const w = label.width + 16;
+    const h = label.height + 6;
+    const plate = this.add.graphics().lineStyle(1.5, colorInt(theme.colors.gold), 1).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+    return this.add.container(x + w / 2, cy, [plate, label]).setSize(w, h);
+  }
+
+  /** New Run: the Premium card and Free Draft, or both off with Retire and Continue in the foot. */
+  private buildCompactColumn(layout: ReturnType<typeof limitedHubLayout>, run: LimitedRun | null): void {
+    const type = theme.compactType;
+    const L = LIMITED_COMPACT;
+    const save = this.saveData;
+    const col = layout.column;
+    const heading = this.add.text(col.x, col.y, 'New Run', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700,
+      color: run ? theme.colors.muted : theme.colors.heading,
+    });
+    let y = heading.y + heading.height + COMPACT.gap;
+    const premium = premiumEntryStatus(save, todayString());
+    const unaffordable = save.gold < ECONOMY.premiumDraftEntry;
+    const premiumLabel = `Premium Draft · ${formatGold(ECONOMY.premiumDraftEntry)}`;
+    if (run) {
+      const free = compactButton(this, { x: col.x, y, width: col.width, height: COMPACT.touch }, 'Free Draft', { onTap: () => undefined });
+      free.setEnabled(false);
+      y += COMPACT.touch + COMPACT.gap;
+      const prem = compactButton(this, { x: col.x, y, width: col.width, height: COMPACT.touch }, premiumLabel, { onTap: () => undefined });
+      prem.setEnabled(false);
+      y += COMPACT.touch + COMPACT.gap;
+      this.add.text(col.x + col.width / 2, y, 'Finish active run first', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, align: 'center', wordWrap: { width: col.width },
+      }).setOrigin(0.5, 0);
+      const retire = compactButton(this, layout.retire, 'Retire run', { variant: 'danger', onTap: (pointer) => this.retireRun(pointer) });
+      retire.label.setAlign('center');
+      this.retireBtn = retire;
+      compactButton(this, layout.next, sentenceCase(primaryActionLabel(run)), { variant: 'primary', onTap: () => this.continueRun(run) });
+      return;
+    }
+    // The Premium entry as a card: its price, this week's allowance and what it keeps.
+    const off = !premium.allowed || unaffordable;
+    const card = { x: col.x, y, width: col.width, height: 0 };
+    const lines = [
+      this.add.text(0, 0, premiumLabel, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: off ? theme.colors.muted : theme.colors.heading }),
+      this.add.text(0, 0, premiumAllowanceCopy(premium, false, unaffordable), { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted }),
+      this.add.text(0, 0, 'Every pick is yours to keep.', { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: off ? theme.colors.muted : theme.colors.body }),
+    ];
+    for (const line of lines) line.setOrigin(0.5, 0).setAlign('center').setWordWrapWidth(col.width - 2 * L.pad, true);
+    const linesH = lines.reduce((h, l) => h + l.height, 0) + 4 * (lines.length - 1);
+    // The Free Draft's payout line sits over the foot; the card keeps clear of it.
+    const payout = this.add.text(col.x + col.width / 2, 0, freeDraftPayoutCopy(), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body, align: 'center', wordWrap: { width: col.width, useAdvancedWrap: true },
+    }).setOrigin(0.5, 1);
+    payout.setY(layout.foot.y - COMPACT.gap);
+    card.height = Math.max(L.premiumMinH, linesH + 2 * L.pad);
+    card.height = Math.min(card.height, Math.max(COMPACT.touch, payout.y - payout.height - COMPACT.gap - card.y));
+    const plate = this.add.graphics();
+    const draw = (hover: boolean): void => {
+      plate.clear().fillStyle(theme.graphics.panelFill, off ? theme.alpha.panel : 1).fillRoundedRect(card.x, card.y, card.width, card.height, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, hover && !off ? colorInt(theme.colors.goldHover) : theme.graphics.panelStroke, 1)
+        .strokeRoundedRect(card.x, card.y, card.width, card.height, theme.radius.panel);
+    };
+    draw(false);
+    let ly = card.y + Math.max(L.pad, (card.height - linesH) / 2);
+    for (const line of lines) {
+      line.setPosition(card.x + card.width / 2, ly).setDepth(1);
+      ly += line.height + 4;
+    }
+    if (!off) {
+      const zone = this.add.zone(card.x + card.width / 2, card.y + card.height / 2, card.width, card.height).setInteractive({ useHandCursor: true });
+      zone.on('pointerover', () => draw(true)).on('pointerout', () => draw(false));
+      zone.on('pointerup', () => this.startPremium());
+    }
+    compactButton(this, layout.foot, 'Free Draft', { variant: 'primary', onTap: () => this.startFree() });
+  }
+
+  private compactPanel(r: Rect): void {
+    this.add.graphics().fillStyle(theme.graphics.panelFill, theme.alpha.panel).fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome).strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel);
+  }
+
+  /** One line's height at a compact size (measured once per size). */
+  private lineHeight(size: number): number {
+    const probe = this.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${size}px` });
+    const h = probe.height;
+    probe.destroy();
+    return h;
+  }
+
   /** Fixtures never reach storage. */
   private persist(): void {
     if (!this.fixture) Services.save.flush();
@@ -376,7 +627,8 @@ export class LimitedScene extends Phaser.Scene {
   /** First press: name the loss, then stand down after a few seconds unanswered. */
   private armRetire(touch: boolean): void {
     this.retireArmed = true;
-    this.retireBtn?.setLabel(`${touch ? 'Tap' : 'Click'} again to retire`);
+    // The compact foot's Retire is narrow, so its armed label takes two lines (S-Limited-Retire).
+    this.retireBtn?.setLabel(`${touch ? 'Tap' : 'Click'} again${this.compact ? '\n' : ' '}to retire`);
     this.retireBtn?.setVariant('danger');
     this.runPoolLine?.setVisible(false);
     this.retireWarning?.setVisible(true);
@@ -386,7 +638,7 @@ export class LimitedScene extends Phaser.Scene {
   private disarmRetire(): void {
     this.retireDisarm = null;
     this.retireArmed = false;
-    if (this.retireBtn?.container.active) this.retireBtn.setLabel('Retire Run');
+    if (this.retireBtn?.container.active) this.retireBtn.setLabel(this.compact ? 'Retire run' : 'Retire Run');
     if (this.runPoolLine?.active) this.runPoolLine.setVisible(true);
     if (this.retireWarning?.active) this.retireWarning.setVisible(false);
   }
@@ -464,6 +716,11 @@ function premiumAllowanceCopy(
   if (runActive) return 'Finish active run first';
   if (unaffordable) return `Not enough gold · ${status.remaining} left this week`;
   return `${status.remaining} left this week`;
+}
+
+/** "Continue Match" as the compact layout writes it: "Continue match". */
+function sentenceCase(label: string): string {
+  return label.charAt(0) + label.slice(1).toLowerCase();
 }
 
 function primaryActionLabel(run: LimitedRun): string {

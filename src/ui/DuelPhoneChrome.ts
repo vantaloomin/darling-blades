@@ -345,6 +345,8 @@ export class DuelPhoneChrome {
   private readonly blockZones: Phaser.GameObjects.Zone[] = [];
   private readonly lineText: Phaser.GameObjects.Text;
   private readonly lineArt: Phaser.GameObjects.Graphics;
+  /** The two board halves' frames. */
+  private readonly halves: Phaser.GameObjects.Graphics;
   private handObjects: Phaser.GameObjects.GameObject[] = [];
   private footLeft: PhoneFootButton | null = null;
   private footPrimary: PhoneFootButton | null = null;
@@ -367,12 +369,13 @@ export class DuelPhoneChrome {
     this.L = L;
     this.cb = cb;
     const g = scene.add.graphics().setDepth(1);
-    const panel = (r: { x: number; y: number; width: number; height: number }, alpha = 0.55): void => {
-      g.fillStyle(theme.graphics.panelFill, alpha).fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
-      g.lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
+    const panel = (r: { x: number; y: number; width: number; height: number }, alpha = 0.55, art = g): void => {
+      art.fillStyle(theme.graphics.panelFill, alpha).fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
+      art.lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.panel + 2);
     };
-    panel(L.oppHalf);
-    panel(L.myHalf);
+    this.halves = scene.add.graphics().setDepth(1);
+    panel(L.oppHalf, 0.55, this.halves);
+    panel(L.myHalf, 0.55, this.halves);
     // The short variant's blocks are the mana alone, unframed under each portrait (P3).
     if (!L.short) {
       panel(L.oppBlock, 0.9);
@@ -535,6 +538,12 @@ export class DuelPhoneChrome {
       g.fillStyle(i === phase ? accent : colorInt(theme.colors.muted), i === phase ? 1 : 0.6);
       g.fillCircle(dx0 + i * DOT_GAP, cy, DOT_R);
     }
+  }
+
+  /** The opening (the coin flip, mulligans) has no board yet: its frames and the turn line step aside. */
+  setBoardVisible(visible: boolean): void {
+    this.halves.setVisible(visible);
+    this.setTurnLineVisible(visible);
   }
 
   /** The turn line steps aside under the result band, which takes the board's middle. */
@@ -1289,19 +1298,25 @@ export class DuelPhoneChrome {
     this.handObjects.push(heading, text);
     const call = panel.call;
     if (call) {
-      // Two coin tiles fill the lower column and the foot, under the thumb.
+      // Two coin tiles stand on the foot, under the thumb, each hugging its
+      // coin and name (T-01a): a tile as tall as the room left read as an
+      // empty box with the coin pushed to its top.
       const top = Math.max(text.y + text.height + 12, pane.y + pane.height * 0.45);
       const bottom = this.L.foot.y + this.L.foot.height;
       const gap = 10;
       const tileW = (pane.width - gap) / 2;
+      const tileH = Math.min(bottom - top, Math.round(tileW * 1.3));
       (['heads', 'tails'] as const).forEach((side, i) => {
-        const rect = { x: pane.x + i * (tileW + gap), y: top, width: tileW, height: bottom - top };
+        const rect = { x: pane.x + i * (tileW + gap), y: bottom - tileH, width: tileW, height: tileH };
         this.rowPlate(rect, theme.colors.panelStroke, 1);
-        const label = scene.add.text(rect.x + tileW / 2, rect.y + rect.height - 10, side === 'heads' ? 'Heads' : 'Tails', {
+        const label = scene.add.text(rect.x + tileW / 2, 0, side === 'heads' ? 'Heads' : 'Tails', {
           fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
-        }).setOrigin(0.5, 1).setDepth(theme.depth.hand);
-        const size = Math.min(tileW - 24, label.y - label.height - rect.y - 16);
-        const coin = scene.add.image(rect.x + tileW / 2, rect.y + (label.y - label.height - rect.y) / 2, COIN_FLIP_FACE_TEXTURES[side])
+        }).setOrigin(0.5, 0).setDepth(theme.depth.hand);
+        const size = Math.max(24, Math.min(tileW - 28, tileH - label.height - 34));
+        // The coin and its name, as one block centred in the tile.
+        const blockTop = rect.y + (tileH - size - 10 - label.height) / 2;
+        label.setY(blockTop + size + 10);
+        const coin = scene.add.image(rect.x + tileW / 2, blockTop + size / 2, COIN_FLIP_FACE_TEXTURES[side])
           .setDisplaySize(size, size).setDepth(theme.depth.hand);
         this.handObjects.push(label, coin);
         this.rowZone(rect, () => call(side)).setName(`coin:${side}`);
