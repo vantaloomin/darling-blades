@@ -31,8 +31,8 @@ export const SETTINGS_COMPACT = {
   navColumns: 2,
   /** Desktop: the list sits on a panel, its rows this far inside the panel's edge. */
   desktopPanelPad: 14,
-  /** Desktop: rows stop at this width so a label stays near its control (the panel centres in the pane). */
-  desktopRowMaxW: 640,
+  /** Desktop: rows stop at this width (about 640 px at a 1280 window) so a label stays near its control. */
+  desktopRowMaxW: 530,
 } as const;
 
 export type SettingsCompactSectionKey = 'audio' | 'yourTurn' | 'gameplay' | 'accessibility' | 'privacy' | 'saveData';
@@ -122,9 +122,15 @@ export function compactSettingsLayout(
 ): CompactSettingsLayout {
   const C = SETTINGS_COMPACT;
   const shell = compactShell(content, { back: true });
-  const main = shell.main;
-  const column = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
   const { touch, gap } = COMPACT;
+  let main = shell.main;
+  let column = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
+  if (opts.desktop && shell.column) {
+    // Desktop (owner ruling R3 A): the section list leads on the left and the
+    // settings read to its right, the list-detail layout of desktop settings.
+    column = { ...column, x: content.x };
+    main = { ...main, x: content.x + column.width + gap };
+  }
   const columns = opts.desktop ? 1 : C.navColumns;
   const nav: Rect[] = [];
   for (let i = 0; i < Math.max(0, sectionCount); i += columns) {
@@ -154,9 +160,9 @@ export function compactSettingsLayout(
   if (!opts.desktop) return { shell, list: main, listPanel: null, rowW: Math.max(0, main.width - C.thumbLane), nav, versionY, legal, update };
   const pad = C.desktopPanelPad;
   const panelW = Math.min(main.width, C.desktopRowMaxW + C.thumbLane + 2 * pad);
-  const listPanel = { x: main.x + Math.round((main.width - panelW) / 2), y: main.y, width: panelW, height: main.height };
+  const listPanel = { x: main.x, y: main.y, width: panelW, height: main.height };
   const list = { x: listPanel.x + pad, y: main.y + pad, width: Math.max(0, panelW - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
-  return { shell, list, listPanel, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
+  return { shell: { ...shell, main, column, primary: null }, list, listPanel, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
 }
 
 /**

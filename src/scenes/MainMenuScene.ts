@@ -33,7 +33,7 @@ import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { isDesktopStage } from '../ui/compactLayout';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
@@ -86,8 +86,6 @@ const deckRepairMessage = (count: number): string =>
   'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.';
 /** The Profile tile's art when the player has no deck to take a face from. */
 const PROFILE_FALLBACK_ART = 'scene-card-back';
-/** The phone's Daily Blades action buttons: the touch floor. */
-const COMPACT_ACTION_H = 44;
 
 export class MainMenuScene extends Phaser.Scene {
   private fixture = false;
@@ -466,7 +464,7 @@ export class MainMenuScene extends Phaser.Scene {
     const fullW = inner.width - 2 * 10;
     const sideHeights = rows.map(sideHeight);
     for (const r of rows) { r.name.setWordWrapWidth(fullW); r.description.setWordWrapWidth(fullW); }
-    const stackedHeights = rows.map((r) => r.name.height + 2 + r.description.height + 6 + COMPACT_ACTION_H + 2 * 6);
+    const stackedHeights = rows.map((r) => r.name.height + 2 + r.description.height + 6 + COMPACT.touch + 2 * 6);
     // Whichever shape shows more quests before the fold wins (M-MainMenu130
     // keeps two side by side); on a tie, the shorter list.
     const shown = (heights: number[]): number => compactDailyPage(listH, heights, 0).quests.length;
@@ -483,7 +481,7 @@ export class MainMenuScene extends Phaser.Scene {
       const box = { x: inner.x, y, width: inner.width, height: r.height };
       panel(this, box.x, box.y, box.width, box.height, { radius: theme.radius.control });
       const textX = box.x + 10;
-      const lastLine = stacked ? COMPACT_ACTION_H : Math.max(8, r.count.height);
+      const lastLine = stacked ? COMPACT.touch : Math.max(8, r.count.height);
       const block = r.name.height + 2 + r.description.height + 6 + lastLine;
       let ty = box.y + (box.height - block) / 2;
       r.name.setPosition(textX, ty); ty += r.name.height + 2;
@@ -496,7 +494,7 @@ export class MainMenuScene extends Phaser.Scene {
       const fillW = Math.round(barW * Math.min(r.quest.progress, r.quest.target) / r.quest.target);
       if (fillW > 0) progress.fillStyle(r.quest.complete ? colorInt(theme.colors.success) : colorInt(theme.colors.gold), 1).fillRoundedRect(textX, barCenter - 4, fillW, 8, 4);
       for (const part of r.parts) this.children.bringToTop(part);
-      const action = { x: box.x + box.width - 10 - actionW, y: stacked ? barCenter - COMPACT_ACTION_H / 2 : box.y + (box.height - COMPACT_ACTION_H) / 2, width: actionW, height: COMPACT_ACTION_H };
+      const action = { x: box.x + box.width - 10 - actionW, y: stacked ? barCenter - COMPACT.touch / 2 : box.y + (box.height - COMPACT.touch) / 2, width: actionW, height: COMPACT.touch };
       const settled = r.quest.claimed || (!r.quest.complete && rerollsLeft === 0);
       if (settled) {
         const done = r.quest.claimed;

@@ -50,6 +50,8 @@ export interface CompactPracticeLayout {
   tileH: number;
   /** The blurb's scroll area, the column's top. */
   blurb: Rect;
+  /** The desktop's panel behind the blurb and "Difficulty" (`textPanel`), else null. */
+  textPanel: Rect | null;
   /** "Difficulty": its top-left. */
   difficultyLabel: { x: number; y: number };
   /** The three difficulty segments' track. */
@@ -71,6 +73,12 @@ export interface PracticeLayoutOptions {
    * those rows' height and the scroll steps a row at a time.
    */
   wholeRows?: boolean;
+  /**
+   * Desktop: one faded panel, the column's exact width, behind the blurb and
+   * the "Difficulty" label; their text sits `inset` in from its sides and
+   * `padY` in from its top and bottom, the segments still under it.
+   */
+  textPanel?: { inset: number; padY: number };
 }
 
 /** `labelH` is the measured "Difficulty" line. */
@@ -101,9 +109,14 @@ export function compactPracticeLayout(content: Rect, labelH: number, opts: Pract
   }
   const launch = shell.primary?.visual ?? { x: column.x, y: column.y + column.height - COMPACT.touch, width: column.width, height: COMPACT.touch };
   const segments = { x: column.x, y: launch.y - COMPACT.gap * 3 - COMPACT.touch, width: column.width, height: COMPACT.touch };
-  const labelY = segments.y - P.labelGap - labelH;
-  const blurb = { x: column.x, y: column.y, width: column.width, height: Math.max(0, labelY - P.blurbGap - column.y) };
-  return { shell, hero, grid, gridView, gridStep, columns, tileW, tileH, blurb, difficultyLabel: { x: column.x + 2, y: labelY }, segments, launch };
+  const tp = opts.textPanel;
+  const labelY = segments.y - P.labelGap - labelH - (tp?.padY ?? 0);
+  const blurb = tp
+    ? { x: column.x + tp.inset, y: column.y + tp.padY, width: Math.max(0, column.width - 2 * tp.inset), height: Math.max(0, labelY - P.blurbGap - column.y - tp.padY) }
+    : { x: column.x, y: column.y, width: column.width, height: Math.max(0, labelY - P.blurbGap - column.y) };
+  const textPanel = tp ? { x: column.x, y: column.y, width: column.width, height: labelY + labelH + tp.padY - column.y } : null;
+  const difficultyLabel = { x: column.x + (tp ? tp.inset : 2), y: labelY };
+  return { shell, hero, grid, gridView, gridStep, columns, tileW, tileH, blurb, textPanel, difficultyLabel, segments, launch };
 }
 
 /**
@@ -116,7 +129,7 @@ export function compactPracticeLayoutFitting(
   content: Rect,
   labelH: number,
   namesFit: (nameWidth: number) => boolean,
-  base: Pick<PracticeLayoutOptions, 'minTileW' | 'wholeRows'> = {},
+  base: Pick<PracticeLayoutOptions, 'minTileW' | 'wholeRows' | 'textPanel'> = {},
 ): CompactPracticeLayout {
   const P = PRACTICE_COMPACT;
   const nameWidth = (l: CompactPracticeLayout): number => l.tileW - 2 * P.nameInset;

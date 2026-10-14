@@ -409,16 +409,19 @@ export class ProfileScene extends Phaser.Scene {
   private buildCompactReplays(layout: ReturnType<typeof compactProfileLayout>, replays: readonly ReplayLog[]): void {
     const type = theme.compactType;
     const P = PROFILE_COMPACT;
-    const area = layout.replays;
+    const column = layout.replays;
+    // Desktop: the heading and list sit inset inside a faded panel drawn exactly on the column, for contrast over the backdrop.
+    const desktop = isDesktopStage(sceneStage(this));
+    const inset = desktop ? P.desktopPanelInset : { x: 0, y: 0 };
+    const area = { x: column.x + inset.x, y: column.y + inset.y, width: Math.max(0, column.width - inset.x * 2), height: Math.max(0, column.height - inset.y * 2) };
     const heading = this.add.text(area.x, area.y, 'Replays', {
       fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
     });
     const top = heading.y + heading.height + P.headingGap;
     const view = { x: area.x, y: top, width: area.width, height: Math.max(0, area.y + area.height - top) };
-    // Desktop: the faded panel behind the column's words, so they keep their contrast over the backdrop's art.
     const backing = (bottom: number): void => {
-      if (!isDesktopStage(sceneStage(this))) return;
-      const g = desktopTextPanel(this, { x: area.x, y: area.y, width: area.width, height: Math.min(area.y + area.height, bottom) - area.y }, 8);
+      if (!desktop) return;
+      const g = desktopTextPanel(this, { x: column.x, y: column.y, width: column.width, height: Math.min(area.y + area.height, bottom) + inset.y - column.y }, 0);
       this.children.moveBelow(g as Phaser.GameObjects.GameObject, heading as Phaser.GameObjects.GameObject);
     };
     if (replays.length === 0) {

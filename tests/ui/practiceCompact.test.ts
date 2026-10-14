@@ -97,3 +97,22 @@ describe('the desktop rival grid (whole rows)', () => {
     expect(phone.gridStep).toBe(0);
   });
 });
+
+describe('the desktop text panel', () => {
+  it('sits on the column exactly, holds the blurb and "Difficulty" inset, and clears the segments; a phone has none', () => {
+    const content = desktopCompactMetrics().content;
+    const l = compactPracticeLayout(content, 17, { textPanel: { inset: 12, padY: 8 } });
+    const column = l.shell.column!;
+    const panel = l.textPanel!;
+    expect(panel.x).toBe(column.x);
+    expect(panel.width).toBe(column.width);
+    expect(l.blurb.x).toBe(column.x + 12);
+    expect(l.blurb.width).toBe(column.width - 24);
+    expect(inside(l.blurb, panel)).toBe(true);
+    expect(l.difficultyLabel.x).toBe(column.x + 12);
+    expect(l.difficultyLabel.y + 17 + 8).toBe(panel.y + panel.height);
+    expect(panel.y + panel.height).toBeLessThan(l.segments.y);
+    expect(l.segments.width).toBe(column.width);
+    expect(compactPracticeLayout(reference.content, 17).textPanel).toBeNull();
+  });
+});

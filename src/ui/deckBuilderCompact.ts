@@ -149,8 +149,8 @@ export function poolChips(grid: PoolGrid): { count: { x: number; width: number }
 
 export interface PoolHit {
   index: number;
-  /** The card (add one), or the add-to-cap chip (fill to the cap). */
-  part: 'card' | 'all';
+  /** The card (add one), the add-to-cap chip (fill to the cap), or (desktop) the hover inspect button. */
+  part: 'card' | 'all' | 'inspect';
 }
 
 /**
@@ -386,4 +386,93 @@ export function splitDarlingName(name: string): { name: string; title: string | 
 /** The row under `y` in a stacked list, each row from `tops[i]` and `heights[i]` tall, or -1 in a gap or past the end. */
 export function stackedRowAt(tops: readonly number[], heights: readonly number[], y: number): number {
   return tops.findIndex((top, i) => y >= top && y < top + heights[i]);
+}
+
+/**
+ * Desktop pass (expert review R2 A, owner ruling 2026-10-14): on the desktop
+ * stage a click on a pool card adds one copy and a right-click removes one,
+ * so the pool's chip line shrinks to a small count line (in deck over cap at
+ * the left, copies owned at the right; the +N fill chip and an inspect button
+ * appear only on the hovered card), and the deck list is one slim line per
+ * card: count, the full name, the cost when it fits, and a faint minus that
+ * turns red on the hovered row. Phones keep the compact sizes above.
+ */
+export const BUILDER_DESKTOP = {
+  /** The count line under a pool card: at least this tall, else the label's height and a little air. */
+  chipH: 20,
+  chipPad: 4,
+  /** A deck row: about 36 px at a 1280 window (30 compact px times the 1.2 density); taller only when the name needs a second line or larger text. */
+  rowH: 30,
+  rowPad: 8,
+  rowGap: 2,
+  /** A row's minus (and a Classic basic's plus) at its right, the full row tall. */
+  controlW: 24,
+  controlGap: 2,
+  /** Between a row's edge and its count, its count and name, its name and cost. */
+  inset: 6,
+  textGap: 6,
+  /** The hovered pool card's inspect button, at the face's top right. */
+  inspectSize: 26,
+  inspectInset: 4,
+} as const;
+
+/** The chip line's height under a pool card: the phone's pills, or the desktop's slim count line. */
+export function poolChipH(desktop: boolean, labelH: number): number {
+  return desktop
+    ? Math.max(BUILDER_DESKTOP.chipH, Math.ceil(labelH + BUILDER_DESKTOP.chipPad))
+    : Math.max(28, Math.ceil(labelH + 10));
+}
+
+/** The hovered pool card's inspect button, card-local (desktop). */
+export function poolInspectRect(grid: PoolGrid): Rect {
+  const { inspectSize: s, inspectInset: i } = BUILDER_DESKTOP;
+  return { x: Math.max(0, grid.cardW - i - s), y: i, width: s, height: s };
+}
+
+/**
+ * The desktop pool's hit test: the hovered card's inspect button first (it
+ * shows only under the mouse, so any click on it is on a shown button), then
+ * the phone's rules.
+ */
+export function deskPoolHitAt(grid: PoolGrid, count: number, x: number, y: number, hasAll: (index: number) => boolean): PoolHit | null {
+  const hit = poolHitAt(grid, count, x, y, hasAll);
+  if (!hit) return null;
+  const localX = x - (hit.index % grid.columns) * grid.pitchX;
+  const localY = y - Math.floor(hit.index / grid.columns) * grid.pitchY;
+  const r = poolInspectRect(grid);
+  if (localX >= r.x && localX <= r.x + r.width && localY >= r.y && localY <= r.y + r.height) return { index: hit.index, part: 'inspect' };
+  return hit;
+}
+
+export interface DeskDeckRow {
+  height: number;
+  /** Row-local x of the count's left, the name's left, and the most the name may take. */
+  countX: number;
+  nameX: number;
+  nameW: number;
+  /** The cost's left, or null when the full name leaves it no room. */
+  pipsX: number | null;
+  /** The minus (then a Classic basic's plus), right-aligned. */
+  controls: { x: number; width: number }[];
+}
+
+/**
+ * One desktop deck row (R2 A), row-local: the count in a fixed lane, then
+ * the name at its full measured width while the row has room (it is cut only
+ * when the name alone overflows), then the cost right-aligned before the
+ * controls, dropped when it would crowd the name. `starW` is the hero star's
+ * room after the name (0 when none).
+ */
+export function deskDeckRow(rowW: number, nameH: number, countLaneW: number, nameW: number, starW: number, pipsW: number, controlCount: number): DeskDeckRow {
+  const D = BUILDER_DESKTOP;
+  const height = Math.max(D.rowH, Math.ceil(nameH + D.rowPad));
+  const controlsW = controlCount * D.controlW + Math.max(0, controlCount - 1) * D.controlGap;
+  const controls = Array.from({ length: controlCount }, (_, i) => ({ x: rowW - controlsW + i * (D.controlW + D.controlGap), width: D.controlW }));
+  const countX = D.inset;
+  const nameX = countX + countLaneW + D.textGap;
+  const textRight = rowW - controlsW - D.textGap;
+  const room = Math.max(0, textRight - nameX - starW);
+  const fitName = Math.min(nameW, room);
+  const pipsFit = pipsW > 0 && nameX + fitName + starW + D.textGap + pipsW <= textRight && fitName >= nameW;
+  return { height, countX, nameX, nameW: room, pipsX: pipsFit ? textRight - pipsW : null, controls };
 }
