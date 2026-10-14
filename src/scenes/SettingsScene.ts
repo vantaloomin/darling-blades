@@ -16,7 +16,7 @@ import { createLegalPanel } from '../ui/LegalPanel';
 import { LEGAL_BUTTON_LABEL } from '../ui/legalPresentation';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { COMPACT } from '../ui/compactLayout';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
 import {
   compactButton,
   compactHeader,
@@ -294,8 +294,12 @@ export class SettingsScene extends Phaser.Scene {
     const layout = compactSettingsLayout(content, sections.length, {
       legal: footNeed(LEGAL_BUTTON_LABEL),
       update: footNeed('Check for updates'),
-    }, nav.needs);
+    }, nav.needs, { desktop: isDesktopStage(sceneStage(this)) });
     compactHeader(this, layout.shell, { title: 'Settings', onBack: () => this.scene.start('MainMenu') });
+    if (layout.listPanel) {
+      const p = layout.listPanel;
+      panel(this, p.x, p.y, p.width, p.height);
+    }
     registerSceneBackNavigation(this, () => this.scene.start('MainMenu'));
 
     const list = this.add.container(0, layout.list.y);

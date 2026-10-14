@@ -53,6 +53,19 @@ describe('gauntletInfoStack', () => {
     expect(lastBottom).toBe(256 - 8);
     expect(s.blurb.y + s.blurb.height + GAUNTLET_COMPACT.lineGap).toBe(s.bottomYs[0]);
     for (let i = 1; i < s.bottomYs.length; i++) expect(s.bottomYs[i]).toBeGreaterThan(s.bottomYs[i - 1]);
+    expect(s.lift).toBe(0);
+  });
+
+  it('pulls the bottom stack up under a short blurb, and leaves a long one the whole gap', () => {
+    const info = { x: 0, y: 0, width: 300, height: 300 };
+    const anchored = gauntletInfoStack(info, 256, [24, 18, 18], [24, 16, 18, 16]);
+    const short = gauntletInfoStack(info, 256, [24, 18, 18], [24, 16, 18, 16], 40);
+    expect(short.lift).toBeGreaterThan(0);
+    expect(short.blurb.height).toBeGreaterThanOrEqual(40);
+    expect(short.blurb.y + short.blurb.height + GAUNTLET_COMPACT.lineGap).toBe(short.bottomYs[0]);
+    expect(short.bottomYs).toEqual(anchored.bottomYs.map((y) => y - short.lift));
+    const long = gauntletInfoStack(info, 256, [24, 18, 18], [24, 16, 18, 16], 500);
+    expect(long).toEqual(anchored);
   });
 });
 

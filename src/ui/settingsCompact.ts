@@ -29,6 +29,8 @@ export const SETTINGS_COMPACT = {
   controlGap: 12,
   /** The two-across jump grid in the column. */
   navColumns: 2,
+  /** Desktop: the list sits on a panel, its rows this far inside the panel's edge. */
+  desktopPanelPad: 14,
 } as const;
 
 export type SettingsCompactSectionKey = 'audio' | 'yourTurn' | 'gameplay' | 'accessibility' | 'privacy' | 'saveData';
@@ -90,9 +92,11 @@ export interface CompactSettingsLayout {
   shell: CompactShell;
   /** The list's viewport. */
   list: Rect;
+  /** Desktop: the panel behind the list, so its text reads over the backdrop's art. */
+  listPanel: Rect | null;
   /** A row's width inside the list (the thumb's lane left free). */
   rowW: number;
-  /** One jump button per section, two across, top down. */
+  /** One jump button per section, two across (one on desktop), top down. */
   nav: Rect[];
   /** Where the version line starts. */
   versionY: number;
@@ -104,27 +108,34 @@ export interface CompactSettingsLayout {
 /**
  * The shell, the list, the jump grid and the foot. `footWidths` are the two
  * foot buttons' measured needs; when they cannot share a row, Legal goes on
- * its own row above Check for updates.
+ * its own row above Check for updates. `desktop` stacks the jumps one per row
+ * and puts the list on a panel.
  */
 export function compactSettingsLayout(
   content: Rect,
   sectionCount: number,
   footWidths: { legal: number; update: number },
   navNeeds: readonly number[] = [],
+  opts: { desktop?: boolean } = {},
 ): CompactSettingsLayout {
   const C = SETTINGS_COMPACT;
   const shell = compactShell(content, { back: true });
   const main = shell.main;
   const column = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
   const { touch, gap } = COMPACT;
+  const columns = opts.desktop ? 1 : C.navColumns;
   const nav: Rect[] = [];
-  for (let i = 0; i < Math.max(0, sectionCount); i += C.navColumns) {
-    const y = column.y + (i / C.navColumns) * (touch + gap);
+  for (let i = 0; i < Math.max(0, sectionCount); i += columns) {
+    const y = column.y + (i / columns) * (touch + gap);
+    if (columns === 1) {
+      nav.push({ x: column.x, y, width: column.width, height: touch });
+      continue;
+    }
     const [leftW, rightW] = settingsNavRowWidths(column.width, navNeeds[i] ?? 0, navNeeds[i + 1] ?? 0);
     nav.push({ x: column.x, y, width: leftW, height: touch });
     if (i + 1 < sectionCount) nav.push({ x: column.x + leftW + gap, y, width: rightW, height: touch });
   }
-  const navRows = Math.ceil(Math.max(0, sectionCount) / C.navColumns);
+  const navRows = Math.ceil(Math.max(0, sectionCount) / columns);
   const versionY = column.y + navRows * (touch + gap) + 4;
   const footY = column.y + column.height - touch;
   let legal: Rect;
@@ -138,7 +149,9 @@ export function compactSettingsLayout(
     update = { x: column.x, y: footY, width: column.width, height: touch };
     legal = { x: column.x, y: footY - gap - touch, width: column.width, height: touch };
   }
-  return { shell, list: main, rowW: Math.max(0, main.width - C.thumbLane), nav, versionY, legal, update };
+  const pad = opts.desktop ? C.desktopPanelPad : 0;
+  const list = { x: main.x + pad, y: main.y + pad, width: Math.max(0, main.width - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
+  return { shell, list, listPanel: opts.desktop ? main : null, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
 }
 
 /**

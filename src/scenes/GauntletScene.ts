@@ -34,7 +34,7 @@ import { gateOnArt } from '../ui/artGate';
 import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { COMPACT } from '../ui/compactLayout';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
 import { compactButton, compactDialog, compactHeader, coverFitImage, type CompactButton } from '../ui/compactWidgets';
 import {
   compactGauntletLayout,
@@ -558,7 +558,7 @@ export class GauntletScene extends Phaser.Scene {
 
   /** The tower's compact composition: the rival, who she is, the tower and Fight. */
   private buildCompact(content: Rect): void {
-    const layout = compactGauntletLayout(content);
+    const layout = compactGauntletLayout(content, { desktop: isDesktopStage(sceneStage(this)) });
     this.compactLayout = layout;
     compactHeader(this, layout.shell, {
       title: 'Avatar Gauntlet',
@@ -749,7 +749,8 @@ export class GauntletScene extends Phaser.Scene {
     const linePitch = lineHeight + blurb.lineSpacing;
     const stackFor = (withLineup: boolean): GauntletInfoStack => gauntletInfoStack(info, layout.actions.y,
       [name.height, title.height, rungLine.height],
-      [Math.max(rewardLabel.height, coinSize), record.height, Math.max(seedText.height, diceSize), ...(withLineup ? [lineup.height] : [])]);
+      [Math.max(rewardLabel.height, coinSize), record.height, Math.max(seedText.height, diceSize), ...(withLineup ? [lineup.height] : [])],
+      isDesktopStage(sceneStage(this)) ? blurb.height : undefined);
     let stack = stackFor(true);
     if (stack.blurb.height < 2 * linePitch - blurb.lineSpacing && lines > 1) {
       stack = stackFor(false);
@@ -781,8 +782,8 @@ export class GauntletScene extends Phaser.Scene {
     if (view.height >= lineHeight) bindMenuScroll(this, blurbColumn, view, blurb.height, undefined, undefined, linePitch);
     else blurbColumn.setVisible(false);
 
-    // The run's own actions at the centre's foot, well away from Fight.
-    const actions = layout.actions;
+    // The run's own actions at the centre's foot (under the text on desktop), well away from Fight.
+    const actions = { ...layout.actions, y: layout.actions.y - stack.lift };
     if (active) {
       const armedText = 'Tap again to abandon';
       const measure = this.add.text(0, 0, armedText, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
