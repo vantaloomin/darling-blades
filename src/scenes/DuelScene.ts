@@ -241,12 +241,12 @@ import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
-import { drawDuelSheet } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneTargetPanel } from '../ui/DuelPhoneChrome';
+import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
-import { showZoneContents, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
+import { showZoneContents, type ZoneContentsAction, type ZoneContentsEntry, type ZoneContentsModal } from '../ui/ZoneContentsModal';
 
 const HUMAN: PlayerId = 0;
 const AI: PlayerId = 1;
@@ -302,6 +302,8 @@ let contextMenuDisabled = false;
 const AUTOSKIP_INPUT_LOCK_MS = 280;
 
 const SEVER_ENABLED = true;
+/** The Warchest's land drop in a sentence, under the Reserves (W-Reserves). */
+const WARCHEST_NOTE = 'Each turn, move one land from your Warchest Reserves into your Active Warchest. Dual lands arrive tapped.';
 const BOARD_CENTER_X = 640;
 
 /**
@@ -355,6 +357,8 @@ const PERMANENT_BAND_SCALE = 0.55;
 const PERMANENT_BAND_TILE_W = TILE_W * PERMANENT_BAND_SCALE;
 const PERMANENT_BAND_MAX_SPACING = 98;
 type ViewableZone = 'deck' | 'graveyard' | 'severed';
+/** The phone's zone sheet tabs: a graveyard beside its severed pile, the Active Warchest beside its Reserves. */
+type PhoneZoneTab = ViewableZone | 'lands' | 'reserves';
 type DarlingCastAction = Extract<Action, { type: 'castDarling' }>;
 type PendingCastAction = Extract<Action, { type: 'castSpell' }> | DarlingCastAction;
 type LinkHauntAction = Extract<Action, { type: 'linkHaunt' }>;
@@ -492,6 +496,8 @@ export class DuelScene extends Phaser.Scene {
   /** What the phone's Undo toast takes back (M20). */
   /** The phone's combat damage recap (T-09), shown through the strikes and a moment after. */
   private phoneRecap: PhoneRecapPanel | null = null;
+  /** A zone open on the phone (W-GraveYours, W-Reserves): whose, which tab, and the card the column shows. */
+  private phoneZone: { player: PlayerId; tab: PhoneZoneTab; pick: number } | null = null;
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1833,6 +1839,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneFocus = null;
     this.phoneInspect = null;
     this.phoneRecap = null;
+    this.phoneZone = null;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -6271,6 +6278,7 @@ export class DuelScene extends Phaser.Scene {
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
     }
+    if (this.phoneZone) return this.phoneZonePrompt(this.phoneZone);
     if (this.phoneFocus) {
       const focus = this.phoneFocusPrompt(this.phoneFocus);
       if (focus) return focus;
@@ -6612,14 +6620,19 @@ export class DuelScene extends Phaser.Scene {
       const huntPrompt = huntStepPrompt(card, this.huntTargetSource(pending), step.selected.length,
         pending.type === 'activate' ? pending.abilityIndex ?? 0 : 0);
       const empowered = pending.type === 'castSpell' && pending.empowered === true;
+      // A cast from the graveyard shows the price it is paying (Retell, Whispers), not the printed one.
+      const grave = pending.type !== 'castSpell' ? null
+        : pending.retell === true && card.retell ? { name: 'Retell', cost: card.retell.cost }
+          : pending.whispers === true && card.whispers ? { name: 'Whispers', cost: card.whispers.cost } : null;
       const cost = pending.type === 'activate' ? null
-        : empowered && card.cost && card.empower ? combineManaCosts(card.cost, card.empower.cost) : card.cost ?? null;
+        : grave ? grave.cost
+          : empowered && card.cost && card.empower ? combineManaCosts(card.cost, card.empower.cost) : card.cost ?? null;
       return {
         panel: {
           kind: 'target',
           card,
           cost,
-          chip: empowered ? 'Empowered' : null,
+          chip: empowered ? 'Empowered' : grave?.name ?? null,
           title: targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText),
           text: rulesText(card),
           picks: this.targetPicks.map((ref) => this.phonePickRow(ref)),
@@ -7994,6 +8007,10 @@ export class DuelScene extends Phaser.Scene {
   private showZoneModal(player: PlayerId, zone: ViewableZone): void {
     if (!this.canOpenZoneModal()) return;
     if (zone === 'deck' && player !== HUMAN) return;
+    if (this.phoneChrome) {
+      this.openPhoneZone(player, zone);
+      return;
+    }
 
     const view = this.duel.viewFor(HUMAN);
     const cardIds = zone === 'deck'
@@ -8040,6 +8057,10 @@ export class DuelScene extends Phaser.Scene {
   /** Public reserve contents, with the existing land-play action moved off the always-on strip. */
   private showReserveModal(player: PlayerId): void {
     if (!this.canOpenZoneModal()) return;
+    if (this.phoneChrome) {
+      this.openPhoneZone(player, 'reserves');
+      return;
+    }
     const view = this.duel.viewFor(HUMAN);
     const cardIds = player === HUMAN ? view.you.landReserve ?? [] : view.opp.landReserve ?? [];
     const owner = player === HUMAN ? 'Your' : "Foe's";
@@ -8064,6 +8085,10 @@ export class DuelScene extends Phaser.Scene {
 
   private showLandsModal(player: PlayerId): void {
     if (!this.canOpenZoneModal()) return;
+    if (this.phoneChrome) {
+      this.openPhoneZone(player, 'lands');
+      return;
+    }
 
     const lands = this.battlefieldLands(player);
     const untapped = lands.filter((land) => !land.tapped).length;
@@ -8088,6 +8113,162 @@ export class DuelScene extends Phaser.Scene {
     });
     this.zoneModal = modal;
     this.zoneGuard.open(this.overlayGuardTargets());
+  }
+
+  /**
+   * The phone's zones (W-GraveYours, W-GraveFoe, W-Severed, W-Reserves): the
+   * cards on a sheet over the left column and the centre, and in the command
+   * column the zone's tabs, the picked card in full, and what it can do from
+   * here, with its main action across the foot. It stands in for the zone
+   * modal, so every "is a zone open" check holds while it is up.
+   */
+  private openPhoneZone(player: PlayerId, tab: PhoneZoneTab): void {
+    this.phoneZone = { player, tab, pick: 0 };
+    this.phoneHistoryOpen = false;
+    this.drawPhoneZone();
+  }
+
+  private phoneZoneEntries(zone: { player: PlayerId; tab: PhoneZoneTab }): ZoneContentsEntry[] {
+    const { player, tab } = zone;
+    const view = this.duel.viewFor(HUMAN);
+    const side = player === HUMAN ? view.you : view.opp;
+    if (tab === 'graveyard') return this.graveyardEntries(this.duel.state.players[player].graveyard, player);
+    if (tab === 'severed') return this.zoneEntries(side.severed, player === HUMAN);
+    if (tab === 'deck') return this.zoneEntries(this.duel.state.players[HUMAN].deck, true);
+    if (tab === 'reserves') return this.reserveZoneEntries(side.landReserve ?? [], player);
+    return this.landZoneEntries(this.battlefieldLands(player), player === HUMAN);
+  }
+
+  /** A tile's actions, the one the foot carries first: a Whispers cast before Preserve. */
+  private phoneZoneActions(entry: ZoneContentsEntry): ZoneContentsAction[] {
+    return [...(entry.additionalActions ?? []), ...(entry.action ? [entry.action] : [])];
+  }
+
+  private phoneZoneTitle(zone: { player: PlayerId; tab: PhoneZoneTab }): string {
+    const owner = zone.player === HUMAN ? 'Your' : "Foe's";
+    const count = this.phoneZoneEntries(zone).reduce((n, entry) => n + entry.count, 0);
+    switch (zone.tab) {
+      case 'graveyard': return `${owner} Graveyard · ${count}${count > 1 ? ' · newest first' : ''}`;
+      case 'severed': return `${owner} Severed · ${count}`;
+      case 'deck': return `Your Deck · ${count} cards left`;
+      case 'reserves': return `${owner} Warchest Reserves · ${count}`;
+      case 'lands': {
+        const lands = this.battlefieldLands(zone.player);
+        const untapped = lands.filter((land) => !land.tapped).length;
+        return `${owner} ${this.isReserveDuel() ? 'Active Warchest' : 'Lands'} · ${lands.length} (${untapped} untapped)`;
+      }
+    }
+  }
+
+  private drawPhoneZone(): void {
+    const chrome = this.phoneChrome;
+    const zone = this.phoneZone;
+    if (!chrome || !zone) return;
+    this.zoneModal?.container.destroy();
+    this.zoneGuard.close();
+    const entries = this.phoneZoneEntries(zone);
+    zone.pick = Math.max(0, Math.min(zone.pick, entries.length - 1));
+    const graveyard = zone.tab === 'graveyard';
+    const tiles: SheetArtTile[] = entries.map((entry, i) => {
+      const actions = this.phoneZoneActions(entry);
+      // A graveyard card names what it can do from there ("Whispers", "Retell"),
+      // muted while it cannot (the foe's card, or the mana is short).
+      const lead = actions[0];
+      const card = entry.card;
+      const mechanic = entry.deadline ? 'Whispers' : card.retell ? 'Retell' : card.preserve ? 'Preserve' : null;
+      const chip = !graveyard ? null
+        : lead ? { label: lead.label.startsWith('Whisper') ? 'Whispers' : lead.label, live: lead.enabled !== false }
+          : mechanic ? { label: mechanic, live: false } : null;
+      return {
+        card: entry.card,
+        variant: entry.variant,
+        landStyle: entry.landStyle,
+        pill: null,
+        costs: false,
+        // A Warchest stack always says how many; elsewhere only a pile of copies does.
+        badge: entry.badge !== undefined ? entry.badge : zone.tab === 'reserves' || entry.count > 1 ? `x${entry.count}` : null,
+        chip,
+        selected: i === zone.pick,
+        onTap: () => {
+          if (this.phoneZone !== zone) return;
+          zone.pick = i;
+          this.drawPhoneZone();
+        },
+      };
+    });
+    const sheet = drawDuelSheet(this, duelSheet(this.phone!), {
+      title: this.phoneZoneTitle(zone),
+      subtitle: zone.player === HUMAN && graveyard ? this.untappedManaSubtitle() : '',
+      onClose: () => this.closePhoneZone(),
+      tiles,
+      empty: zone.tab === 'deck' ? 'No cards left.' : zone.tab === 'severed' ? 'No cards severed.'
+        : zone.tab === 'reserves' ? 'No lands in the Warchest Reserves.' : zone.tab === 'lands' ? 'No lands yet.' : 'No cards here.',
+    });
+    this.zoneModal = { container: sheet, close: () => this.closePhoneZone(), showPage: () => {} };
+    this.syncHand();
+    this.syncButton();
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.zoneGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
+  private phoneZonePrompt(zone: { player: PlayerId; tab: PhoneZoneTab; pick: number }): { panel: PhoneZonePanel; foot: PhoneFoot } {
+    const view = this.duel.viewFor(HUMAN);
+    const side = zone.player === HUMAN ? view.you : view.opp;
+    const swap = (tab: PhoneZoneTab) => () => {
+      if (this.phoneZone !== zone) return;
+      this.phoneZone = { ...zone, tab, pick: 0 };
+      this.drawPhoneZone();
+    };
+    const grave = zone.tab === 'graveyard' || zone.tab === 'severed';
+    const tabs = zone.tab === 'deck' ? [] : grave
+      ? [
+          { label: `Graveyard · ${this.duel.state.players[zone.player].graveyard.length}`, active: zone.tab === 'graveyard', onTap: swap('graveyard') },
+          ...(SEVER_ENABLED ? [{ label: `Severed · ${side.severed.length}`, active: zone.tab === 'severed', onTap: swap('severed') }] : []),
+        ]
+      : this.isReserveDuel()
+        ? [
+            { label: `Active · ${this.battlefieldLands(zone.player).length}`, active: zone.tab === 'lands', onTap: swap('lands') },
+            { label: `Reserves · ${(side.landReserve ?? []).length}`, active: zone.tab === 'reserves', onTap: swap('reserves') },
+          ]
+        : [];
+    const entry = this.phoneZoneEntries(zone)[zone.pick] ?? null;
+    const run = (action: ZoneContentsAction) => () => {
+      if (action.enabled === false) return;
+      this.closePhoneZone();
+      action.onSelect();
+    };
+    const actions = entry ? this.phoneZoneActions(entry) : [];
+    const [lead, ...rest] = actions;
+    const card = entry?.card ?? null;
+    const stats = card && isType(card, 'creature') ? ` · ${card.attack ?? 0}/${card.defense ?? 0}` : '';
+    return {
+      panel: {
+        kind: 'zone',
+        tabs,
+        card,
+        detail: card ? `${typeLine(card)}${stats}` : '',
+        text: card ? rulesText(card) || null : null,
+        deadline: entry?.deadline ?? null,
+        actions: rest.map((action) => ({ label: action.label, cost: action.cost ?? null, enabled: action.enabled !== false, onTap: run(action) })),
+        note: zone.tab === 'reserves' ? WARCHEST_NOTE : null,
+      },
+      foot: {
+        left: null,
+        primary: lead
+          ? { label: lead.label, cost: lead.cost, enabled: lead.enabled !== false, onTap: run(lead) }
+          : { label: 'Close', ghost: true, onTap: () => this.closePhoneZone() },
+        wide: true,
+      },
+    };
+  }
+
+  private closePhoneZone(): void {
+    if (!this.phoneZone) return;
+    this.phoneZone = null;
+    this.zoneModal?.container.destroy();
+    this.closeZoneModal();
+    this.syncHand();
+    this.syncButton();
   }
 
   private closeZoneModal(): void {
