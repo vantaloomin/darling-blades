@@ -98,9 +98,9 @@ function readCompactScreen(): ScreenMetrics | null {
   });
   return m.profile === 'compact' ? m : null;
 }
-// Dev only: `?duel=phone` lays the Duel out in the compact space while its
-// phone layout is still being built (docs/plan-mobile-overhaul.md C4).
-if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('duel') === 'phone') enableDevCompactScene('Duel');
+// Dev only: `?phone=Draft,Story` lays scenes out in the compact space while
+// their phone layouts are still being built (docs/plan-mobile-overhaul.md C4).
+if (import.meta.env.DEV) for (const key of (new URLSearchParams(window.location.search).get('phone') ?? '').split(',')) if (key) enableDevCompactScene(key);
 // Dev only: `?desktop=classic` keeps the old desktop menu layouts, for before shots.
 if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('desktop') === 'classic') disableDesktopCompactScenes();
 const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)

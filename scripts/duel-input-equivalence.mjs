@@ -54,9 +54,9 @@ const shots = opts.has('shots') ? resolve(opts.get('shots')) : null;
 
 /** Each layout: the page, the viewport and whether it taps (touch) or clicks. */
 const LAYOUTS = {
-  phone: { query: '?duel=phone&layout=compact&viewport=phone-island', width: 852, height: 393, touch: true },
-  short: { query: '?duel=phone&layout=compact&viewport=phone-safari', width: 852, height: 313, touch: true },
-  desktop: { query: '?duel=phone', width: 1280, height: 720, touch: false },
+  phone: { query: '?layout=compact&viewport=phone-island', width: 852, height: 393, touch: true },
+  short: { query: '?layout=compact&viewport=phone-safari', width: 852, height: 313, touch: true },
+  desktop: { query: '', width: 1280, height: 720, touch: false },
 };
 for (const layout of layouts) if (!LAYOUTS[layout]) throw new Error(`Unknown layout "${layout}"; use ${Object.keys(LAYOUTS).join(', ')}`);
 
