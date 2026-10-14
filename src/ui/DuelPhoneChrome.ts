@@ -15,6 +15,7 @@ import {
   type ZoneCount,
 } from './duelCompact';
 import { CardView } from './CardView';
+import { dutyRowPips } from './duelPresentation';
 import { renderManaText } from './ManaText';
 import { ellipsizeText } from './textFit';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
@@ -191,7 +192,46 @@ export interface PhoneZonePanel {
   note: string | null;
 }
 
-export type PhonePanel = PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
+/** One answer in a choice: a way to cast, a mode, a Duty. */
+export interface PhoneChoiceOption {
+  /** With mana symbols ("{T}: Draw a card."). */
+  label: string;
+  cost: ManaCost | null;
+  /** Why it is off ("Board full"), after the price. */
+  note: string | null;
+  enabled: boolean;
+  /** A radio (pick one) or a box (pick several), filled when chosen; omitted for a plain button row. */
+  mark?: { kind: 'radio' | 'box'; on: boolean };
+  onTap: () => void;
+}
+
+/**
+ * A question the column asks about one card (W-TitheHow, W-Empower,
+ * W-Tithe, W-Rite, W-Edict, W-Duty, W-DutyPick): the card, its text, what
+ * to choose and the running count, and the answers as rows.
+ */
+export interface PhoneChoicePanel {
+  kind: 'choice';
+  /** The display title over the card ("How will you cast this?"). */
+  heading: string | null;
+  source: { card: CardDef; detail: string; cost: ManaCost | null } | null;
+  /** The card's text or a keyword's reminder, with mana symbols. */
+  text: string | null;
+  /** An ability in its own box (W-Duty). */
+  box: string | null;
+  /** The gold question under a rule ("Tithe: choose creatures"). */
+  caption: string | null;
+  /** "3 selected · 4 Defense". */
+  count: string | null;
+  /** "Cast for {2}{R}{R}". */
+  price: ManaCost | null;
+  /** A muted line under it ("Tap again to remove."). */
+  hint: string | null;
+  /** Marked rows (a mode, a Duty) follow the card; plain rows (another way to cast) sit over the foot. */
+  options: readonly PhoneChoiceOption[];
+}
+
+export type PhonePanel = PhoneChoicePanel | PhoneZonePanel | PhoneFocusPanel | PhoneTargetPanel | PhoneInspectPanel | PhoneCombatPanel | PhoneRecapPanel | PhoneSummaryPanel;
 
 export interface DuelPhoneCallbacks {
   onHistory: () => void;
@@ -571,12 +611,16 @@ export class DuelPhoneChrome {
     else if (panel.kind === 'recap') this.drawRecapPanel(panel);
     else if (panel.kind === 'summary') this.drawSummaryPanel(panel);
     else if (panel.kind === 'zone') this.drawZonePanel(panel);
+    else if (panel.kind === 'choice') this.drawChoicePanel(panel);
     else this.drawInspectPanel(panel);
   }
 
   private panelText(x: number, y: number, raw: string, style: Phaser.Types.GameObjects.Text.TextStyle, width: number): Phaser.GameObjects.Container {
     const box = this.scene.add.container(0, 0).setDepth(theme.depth.hand);
-    const rendered = renderManaText(this.scene, box, x, y, raw, { ...style, wordWrap: { width, useAdvancedWrap: true } });
+    // A Duty's {T} rides as a colourless pip and is swapped for the tap pip, as the desktop picker does.
+    const { raw: pipped, tapPips } = dutyRowPips(raw);
+    const rendered = renderManaText(this.scene, box, x, y, pipped, { ...style, wordWrap: { width, useAdvancedWrap: true } });
+    for (const index of tapPips) rendered.pips[index]?.setTexture('pip-T');
     rendered.reflow();
     this.handObjects.push(box);
     return box;
@@ -1039,6 +1083,181 @@ export class DuelPhoneChrome {
       }, width);
       if (box.getBounds().bottom > bottom) box.destroy();
     }
+  }
+
+  private drawChoicePanel(panel: PhoneChoicePanel): void {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const x = pane.x + 2;
+    const width = pane.width - 4;
+    const bottom = pane.y + pane.height;
+    let y = pane.y;
+    if (panel.heading) {
+      const heading = scene.add.text(x, y, panel.heading, {
+        fontFamily: theme.fonts.display, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+        wordWrap: { width, useAdvancedWrap: true }, lineSpacing: -2,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(heading);
+      y += heading.height + 8;
+    }
+    if (panel.source) {
+      const card = panel.source.card;
+      const thumb = Math.max(40, this.L.handRowH + 6);
+      this.thumbArt(card, x + thumb / 2, y + thumb / 2, thumb);
+      const tx = x + thumb + 10;
+      const name = scene.add.text(tx, y, card.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+        wordWrap: { width: x + width - tx }, lineSpacing: -2,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(name);
+      const detail = scene.add.text(tx, name.y + name.height, panel.source.detail, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(detail, x + width - tx);
+      this.handObjects.push(detail);
+      let textTop = detail.y + detail.height;
+      if (panel.source.cost) {
+        const pip = 16;
+        const pipsW = pipsFor(panel.source.cost).length * (pip + 2);
+        const fits = detail.x + detail.width + 8 + pipsW <= x + width;
+        const cy = fits ? detail.y + detail.height / 2 : textTop + pip / 2 + 2;
+        this.costPips(panel.source.cost, (fits ? detail.x + detail.width + 8 : tx) + pipsW, cy, pip);
+        if (!fits) textTop += pip + 4;
+      }
+      y = Math.max(y + thumb, textTop) + 8;
+    }
+    if (panel.text) {
+      const box = this.panelText(x, y, panel.text, { fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body, lineSpacing: 2 }, width);
+      y += box.getBounds().height + 8;
+    }
+    if (panel.box) {
+      // An ability in its own box (W-Duty).
+      const probe = scene.add.text(0, 0, panel.box, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, wordWrap: { width: width - 32 } });
+      const h = Math.max(COMPACT.touch + 8, probe.height + 28);
+      probe.destroy();
+      this.rowPlate({ x: pane.x, y, width: pane.width, height: h }, theme.colors.panelStroke, 1);
+      const box = this.panelText(x + 14, y + 14, panel.box, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.heading }, width - 28);
+      box.setY(Math.max(0, (h - 28 - box.getBounds().height) / 2));
+      y += h + 10;
+    }
+    if (panel.caption) {
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
+      this.handObjects.push(g);
+      y += 10;
+      const caption = scene.add.text(x, y, panel.caption, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(caption);
+      y += caption.height + 6;
+    }
+    if (panel.count) {
+      const count = scene.add.text(x, y, panel.count, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(count, width);
+      this.handObjects.push(count);
+      y += count.height + 6;
+    }
+    if (panel.price) {
+      const label = scene.add.text(x, y, 'Cast for', {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(label);
+      const pip = Math.round(this.type.h2 * 1.05);
+      const pipsW = pipsFor(panel.price).length * (pip + 2);
+      this.costPips(panel.price, label.x + label.width + 8 + pipsW, y + label.height / 2, pip);
+      y += Math.max(label.height, pip) + 6;
+    }
+    if (panel.hint) {
+      const hint = scene.add.text(x, y, panel.hint, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted,
+        wordWrap: { width, useAdvancedWrap: true },
+      }).setDepth(theme.depth.hand);
+      this.handObjects.push(hint);
+      y += hint.height + 8;
+    }
+    // Marked rows (a mode, a Duty) follow the card; plain rows (another way to cast) wait over the foot.
+    const marked = panel.options.filter((option) => option.mark);
+    const plain = panel.options.filter((option) => !option.mark);
+    for (const option of marked) {
+      const h = this.choiceRowHeight(option, width);
+      if (y + h > bottom) break;
+      this.drawChoiceRow({ x: pane.x, y, width: pane.width, height: h }, option);
+      y += h + 8;
+    }
+    let py = bottom;
+    for (const option of [...plain].reverse()) {
+      const h = this.choiceRowHeight(option, width);
+      py -= h;
+      if (py < y) break;
+      this.drawChoiceRow({ x: pane.x, y: py, width: pane.width, height: h }, option);
+      py -= 8;
+    }
+  }
+
+  private choiceRowHeight(option: PhoneChoiceOption, width: number): number {
+    const base = Math.max(COMPACT.touch + 8, Math.round(this.type.h2 * 2.4));
+    if (!option.mark) return base;
+    const probe = this.scene.add.text(0, 0, option.label, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, wordWrap: { width: width - 64 } });
+    const h = Math.max(base, probe.height + 24);
+    probe.destroy();
+    return h;
+  }
+
+  private drawChoiceRow(rect: { x: number; y: number; width: number; height: number }, option: PhoneChoiceOption): void {
+    const scene = this.scene;
+    const on = option.mark?.on === true;
+    const alpha = option.enabled ? 1 : 0.45;
+    this.rowPlate(rect, on ? theme.colors.gold : theme.colors.panelStroke, 1).setAlpha(alpha);
+    if (on) {
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
+      this.handObjects.push(g);
+    }
+    const cy = rect.y + rect.height / 2;
+    let x = rect.x + 16;
+    if (option.mark) {
+      // A ring for "pick one", a box for "pick several"; filled when chosen. Shape and word, never colour alone.
+      const r = Math.round(this.type.body * 0.75);
+      const g = scene.add.graphics().setDepth(theme.depth.hand).setAlpha(alpha);
+      g.lineStyle(2, colorInt(on ? theme.colors.gold : theme.colors.body), 1);
+      if (option.mark.kind === 'radio') {
+        g.strokeCircle(x + r, cy, r);
+        if (on) g.fillStyle(colorInt(theme.colors.gold), 1).fillCircle(x + r, cy, r * 0.55);
+      } else {
+        g.strokeRoundedRect(x, cy - r, 2 * r, 2 * r, 4);
+        if (on) g.fillStyle(colorInt(theme.colors.gold), 1).fillRect(x + r * 0.45, cy - r * 0.55, r * 1.1, r * 1.1);
+      }
+      this.handObjects.push(g);
+      x += 2 * r + 14;
+      const box = this.panelText(x, 0, option.label, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.heading }, rect.x + rect.width - 12 - x);
+      box.setY(cy - box.getBounds().height / 2).setAlpha(alpha);
+    } else {
+      // Label, price and why it is off, centred together (W-Empower, W-TitheHow).
+      const label = scene.add.text(0, cy, option.label, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+      }).setOrigin(0, 0.5).setDepth(theme.depth.hand).setAlpha(alpha);
+      const pip = Math.round(this.type.h2 * 1.05);
+      const pipsW = option.cost ? pipsFor(option.cost).length * (pip + 2) + 8 : 0;
+      const note = option.note ? scene.add.text(0, cy, option.note, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+      }).setOrigin(0, 0.5).setDepth(theme.depth.hand).setAlpha(alpha) : null;
+      const total = label.width + pipsW + (note ? note.width + 12 : 0);
+      label.setX(rect.x + Math.max(12, (rect.width - total) / 2));
+      this.handObjects.push(label);
+      if (option.cost) {
+        const before = this.handObjects.length;
+        this.costPips(option.cost, label.x + label.width + pipsW, cy, pip);
+        for (const o of this.handObjects.slice(before)) (o as Phaser.GameObjects.Image).setAlpha(alpha);
+      }
+      if (note) {
+        note.setX(label.x + label.width + pipsW + 12);
+        this.handObjects.push(note);
+      }
+    }
+    if (option.enabled) this.rowZone(rect, option.onTap).setName(`choice:${option.label}`);
   }
 
   private drawZonePanel(panel: PhoneZonePanel): void {
