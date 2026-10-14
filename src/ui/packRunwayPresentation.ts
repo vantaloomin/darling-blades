@@ -56,26 +56,96 @@ export function runwayOrder<T extends RunwayCardLite>(cards: readonly T[]): T[] 
   );
 }
 
+/**
+ * Where the ride sits on screen. The desktop's is the 1280x720 design
+ * (`DESKTOP_RUNWAY`); the compact layout builds its own from the phone's
+ * content box (`compactRunway`), so one ride serves both.
+ */
+export interface RunwayGeometry {
+  /** The stage's width: the rail is materialized across it. */
+  width: number;
+  gateX: number;
+  pitch: number;
+  cardScale: number;
+  cardY: number;
+  cardHalfHeight: number;
+  virtualMargin: number;
+  minimap: { x: number; y: number; width: number };
+  /** The gate notches' length above and below the cards. */
+  notch: number;
+  /** The edge vignettes' width. */
+  vignette: number;
+}
+
+export const DESKTOP_RUNWAY: RunwayGeometry = {
+  width: 1280,
+  gateX: RUNWAY_GATE_X,
+  pitch: RUNWAY_PITCH,
+  cardScale: RUNWAY_CARD_SCALE,
+  cardY: RUNWAY_CARD_Y,
+  cardHalfHeight: RUNWAY_CARD_HALF_HEIGHT,
+  virtualMargin: RUNWAY_VIRTUAL_MARGIN,
+  minimap: RUNWAY_MINIMAP,
+  notch: 26,
+  vignette: 130,
+};
+
+/**
+ * The compact ride: the top bar (back, heading, Skip) over the minimap, then
+ * the rail centred in the rest of the content box, its gate at the same share
+ * of the width as the desktop's. `topH` is the top bar's height and
+ * `minimapH` the ribbon with its tier labels under it.
+ */
+export function compactRunway(
+  stageWidth: number,
+  content: { x: number; y: number; width: number; height: number },
+  topH: number,
+  minimapH: number,
+): RunwayGeometry {
+  const k = Math.max(1, Math.min(1.6, Math.min(content.width / 718, content.height / 356)));
+  const notch = Math.round(10 * k);
+  const minimapY = content.y + topH + Math.round(8 * k);
+  const railTop = minimapY + minimapH + Math.round(4 * k);
+  const room = content.y + content.height - railTop - 2 * notch;
+  const cardScale = Math.max(0.3, Math.min(0.9, room / RUNWAY_CARD_DESIGN_HEIGHT));
+  const cardH = RUNWAY_CARD_DESIGN_HEIGHT * cardScale;
+  const pitch = Math.round(RUNWAY_CARD_DESIGN_WIDTH * cardScale + 12 * k);
+  const mmW = Math.round(Math.min(content.width * 0.6, 520 * k));
+  return {
+    width: stageWidth,
+    gateX: Math.round(stageWidth * (RUNWAY_GATE_X / 1280)),
+    pitch,
+    cardScale,
+    // Centred in the room, so a tall stage doesn't leave the floor empty under the rail.
+    cardY: Math.round(railTop + notch + room / 2),
+    cardHalfHeight: cardH / 2,
+    virtualMargin: Math.round(pitch * 1.5),
+    minimap: { x: Math.round(content.x + (content.width - mmW) / 2), y: minimapY, width: mmW },
+    notch,
+    vignette: Math.round(60 * k),
+  };
+}
+
 /** Rail offset that parks card `index` exactly on the gate. */
-export function railOffsetForIndex(index: number): number {
-  return RUNWAY_GATE_X - index * RUNWAY_PITCH;
+export function railOffsetForIndex(index: number, g: RunwayGeometry = DESKTOP_RUNWAY): number {
+  return g.gateX - index * g.pitch;
 }
 
 /** A card's screen x for the current rail offset. */
-export function cardRailX(index: number, offset: number): number {
-  return offset + index * RUNWAY_PITCH;
+export function cardRailX(index: number, offset: number, g: RunwayGeometry = DESKTOP_RUNWAY): number {
+  return offset + index * g.pitch;
 }
 
 /** The highest card index at or left of the gate (-1 = none arrived yet). */
-export function indexAtGate(offset: number, total: number): number {
-  const raw = Math.floor((RUNWAY_GATE_X - offset) / RUNWAY_PITCH + 1e-6);
+export function indexAtGate(offset: number, total: number, g: RunwayGeometry = DESKTOP_RUNWAY): number {
+  const raw = Math.floor((g.gateX - offset) / g.pitch + 1e-6);
   return Math.max(-1, Math.min(total - 1, raw));
 }
 
 /** Scrub bounds: card 0 on the gate through the last card on the gate. */
-export function clampRailOffset(offset: number, total: number): number {
-  const min = railOffsetForIndex(Math.max(0, total - 1));
-  const max = railOffsetForIndex(0);
+export function clampRailOffset(offset: number, total: number, g: RunwayGeometry = DESKTOP_RUNWAY): number {
+  const min = railOffsetForIndex(Math.max(0, total - 1), g);
+  const max = railOffsetForIndex(0, g);
   return Math.max(min, Math.min(max, offset));
 }
 
@@ -119,9 +189,10 @@ export function virtualRange(
   offset: number,
   total: number,
   margin = RUNWAY_VIRTUAL_MARGIN,
+  g: RunwayGeometry = DESKTOP_RUNWAY,
 ): { first: number; last: number } {
-  const first = Math.max(0, Math.ceil((-margin - offset) / RUNWAY_PITCH));
-  const last = Math.min(total - 1, Math.floor((1280 + margin - offset) / RUNWAY_PITCH));
+  const first = Math.max(0, Math.ceil((-margin - offset) / g.pitch));
+  const last = Math.min(total - 1, Math.floor((g.width + margin - offset) / g.pitch));
   return { first, last };
 }
 

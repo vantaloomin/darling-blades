@@ -9,6 +9,7 @@ import type { Rect } from './layout';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { addPortraitArt } from './portraitArt';
 import { colorInt, theme } from './theme';
+import { bakeUiIcon } from './uiIcons';
 
 /**
  * A pull as the compact Pack Opening shows it (S-Pack-Reveal): face down, the
@@ -55,8 +56,12 @@ export class PackTile extends Phaser.GameObjects.Container {
     return this;
   }
 
-  /** Face up: art, cost, name and stats, in the frame's rim. */
-  showFace(card: CardDef, frame: FrameStyle): this {
+  /**
+   * Face up: art, cost, name and stats, in the frame's rim. The summary
+   * (S-Pack-Batch) adds the tier in a pill left of the stats and a star disc
+   * at the top right for a new card (green) or a new variant (violet).
+   */
+  showFace(card: CardDef, frame: FrameStyle, opts: { tier?: { label: string; color: string }; mark?: 'new' | 'variant' } = {}): this {
     this.clearFace();
     const scene = this.scene;
     const type = theme.compactType;
@@ -82,8 +87,23 @@ export class PackTile extends Phaser.GameObjects.Container {
     }
     const name = tileName(scene, art, card.name);
     parts.push(name);
+    const pillBottom = name.y - name.height - 3;
     if (card.attack !== undefined && card.defense !== undefined) {
-      parts.push(statPill(scene, art.x + art.width - 4, name.y - name.height - 3, `${card.attack}/${card.defense}`));
+      parts.push(statPill(scene, art.x + art.width - 4, pillBottom, `${card.attack}/${card.defense}`));
+    }
+    if (opts.tier) {
+      const tier = statPill(scene, 0, pillBottom, opts.tier.label, opts.tier.color);
+      tier.setX(art.x + 4 + tier.width / 2);
+      parts.push(tier);
+    }
+    if (opts.mark) {
+      const d = Math.round(Math.min(type.label * 1.7, art.width * 0.28));
+      const cx = art.x + art.width - 3 - d / 2;
+      const cy = art.y + 3 + d / 2;
+      const ink = colorInt(opts.mark === 'new' ? theme.colors.success : theme.rarity.ssr);
+      parts.push(scene.add.graphics().fillStyle(theme.graphics.panelFill, 0.92).fillCircle(cx, cy, d / 2)
+        .lineStyle(1.5, ink, 1).strokeCircle(cx, cy, d / 2));
+      parts.push(scene.add.image(cx, cy, bakeUiIcon(scene, 'star')).setDisplaySize(d * 0.62, d * 0.62).setTint(ink));
     }
     const rim = frameRim(frame) ?? colorInt(medallionRim(card.colors, card.types));
     parts.push(scene.add.graphics().lineStyle(frame === 'white' ? 2.5 : 3.5, rim, 1)
@@ -101,15 +121,15 @@ export function frameRim(frame: FrameStyle): number | null {
   return FRAME_TREATMENTS[frame].ring;
 }
 
-/** "1/2": a creature's stats, right-aligned at `right`, its foot at `bottom`. */
-function statPill(scene: Phaser.Scene, right: number, bottom: number, text: string): Phaser.GameObjects.Container {
+/** "1/2": a creature's stats (or, with a colour, a tier), right-aligned at `right`, its foot at `bottom`. */
+function statPill(scene: Phaser.Scene, right: number, bottom: number, text: string, color?: string): Phaser.GameObjects.Container {
   const label = scene.add.text(0, 0, text, {
-    fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, fontStyle: theme.weight.w700, color: color ?? theme.colors.heading,
   }).setOrigin(0.5);
   const w = label.width + 12;
   const h = label.height + 4;
   const plate = scene.add.graphics()
     .fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, h / 2)
-    .lineStyle(1, theme.graphics.panelStroke, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
-  return scene.add.container(right - w / 2, bottom - h / 2, [plate, label]);
+    .lineStyle(color ? 1.5 : 1, color ? colorInt(color) : theme.graphics.panelStroke, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, h / 2);
+  return scene.add.container(right - w / 2, bottom - h / 2, [plate, label]).setSize(w, h);
 }
