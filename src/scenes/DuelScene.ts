@@ -79,7 +79,7 @@ import { combineManaCosts, manaSources, solveMana } from '../engine/mana';
 import { ensureSplitPip } from '../ui/ManaSymbols';
 import { ensureNumeralBadgeInk, INTER_FIGURE_HEIGHT } from '../ui/NumeralGlyphs';
 import { getEffectiveStats, isSummoningSick, isSwornActive } from '../engine/statics';
-import type { CardDef, Color, ManaColor, ManaCost, PlayerId, Permanent, TargetRef } from '../engine/types';
+import type { CardDef, Color, GameState, ManaColor, ManaCost, PlayerId, Permanent, TargetRef } from '../engine/types';
 import { activatedAbilitiesOf, cardIdOf, def, isType, manaValue, markCostOf } from '../engine/types';
 import { graveRefCard, sameGraveCard } from '../engine/graveyard';
 import {
@@ -3332,6 +3332,12 @@ export class DuelScene extends Phaser.Scene {
       return t !== undefined && this.targetRefEquals(t, ref);
     });
     if (matches.length === 0) return;
+    if (this.phone && matches[0].type === 'linkHaunt') {
+      // W-HauntHost: a tap picks the new host and the foot links; the picked one again clears it.
+      this.targetPicks = this.targetPicks[0] && this.targetRefEquals(this.targetPicks[0], ref) ? [] : [ref];
+      this.sync();
+      return;
+    }
     // For X spells pick the biggest X the mana allows.
     const best = matches[0].type === 'linkHaunt'
       ? matches[0]
@@ -6342,6 +6348,7 @@ export class DuelScene extends Phaser.Scene {
     const st = this.duel.state;
     const a = this.duel.awaiting;
     if (this.ended || !('player' in a) || a.player !== HUMAN) return null;
+    if (a.kind === 'hauntlinkWindow') return this.pendingCasts ? null : this.phoneHauntWindowPrompt(a.over);
     if (a.kind === 'foresee') {
       const pending = st.pendingDecisions[0];
       const sourceId = pending?.kind === 'foresee' ? pending.thenContext?.sourceCardId : undefined;
@@ -6693,7 +6700,8 @@ export class DuelScene extends Phaser.Scene {
   private phoneTargetPrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
     if (this.pendingSacrifice) return null;
     const pending = this.pendingCasts?.[0];
-    if (pending && pending.type !== 'linkHaunt') {
+    if (pending?.type === 'linkHaunt') return this.phoneLinkPrompt(pending);
+    if (pending) {
       const cardId = pending.type === 'activate'
         ? this.duel.state.battlefield.find((perm) => perm.iid === pending.iid)?.cardId
         : this.actionCardId(pending);
@@ -6735,6 +6743,62 @@ export class DuelScene extends Phaser.Scene {
     return {
       panel: { kind: 'target', card: def(CARD_DB, deferred.sourceCardId), cost: null, chip: null, title: deferred.title, text: deferred.text, picks: [] },
       foot: { left: null, primary: null },
+    };
+  }
+
+  /** W-HauntHost: the Hauntlink, where it is linked, and the host picked on the board. */
+  private phoneLinkPrompt(pending: LinkHauntAction): { panel: PhonePanel; foot: PhoneFoot } | null {
+    const st = this.duel.state;
+    const link = st.battlefield.find((perm) => perm.iid === pending.iid);
+    if (!link) return null;
+    const card = def(CARD_DB, link.cardId);
+    const host = link.attachedTo === undefined ? undefined : st.battlefield.find((perm) => perm.iid === link.attachedTo);
+    const verb = host ? 'Relink' : 'Link';
+    // What the link gives (W-HauntHost); the price is in the foot and the reminder is the screen itself.
+    const full = rulesText(card);
+    const at = full.indexOf('Linked:');
+    const linked = at >= 0 ? full.slice(at).split('\n')[0] : full;
+    const picked = this.targetPicks[0];
+    const action = picked?.kind === 'permanent'
+      ? (this.pendingCasts ?? []).find((a): a is LinkHauntAction => a.type === 'linkHaunt' && a.hostIid === picked.iid)
+      : undefined;
+    return {
+      panel: {
+        kind: 'target', card, cost: null, chip: verb,
+        detail: host ? `Linked to ${def(CARD_DB, host.cardId).name}` : 'Not linked',
+        title: 'Choose a creature you control', text: linked, pickLabel: 'New host',
+        picks: picked && action ? [this.phonePickRow(picked)] : [],
+      },
+      foot: {
+        left: { label: 'Cancel', onTap: () => this.cancelPendingTargeting() },
+        primary: { label: verb, cost: card.hauntlink?.cost, enabled: action !== undefined, onTap: () => { if (action) this.act(action); } },
+      },
+    };
+  }
+
+  /** W-HauntWindow: what is next, each Hauntlink you can link or move with its price, and Pass. */
+  private phoneHauntWindowPrompt(over: Extract<GameState['awaiting'], { kind: 'hauntlinkWindow' }>['over']): { panel: PhonePanel; foot: PhoneFoot } {
+    const st = this.duel.state;
+    const legal = this.duel.legalActions(HUMAN);
+    const source = over.type === 'trigger' ? st.battlefield.find((perm) => perm.iid === over.iid) : undefined;
+    const next = over.type === 'combatDamage'
+      ? 'Combat damage is next. You may link or move a Hauntlink before damage.'
+      : `${source ? `${def(CARD_DB, source.cardId).name}'s trigger` : 'A trigger'} is next. You may link or move a Hauntlink before it resolves.`;
+    const options = st.battlefield
+      .filter((perm) => perm.controller === HUMAN && def(CARD_DB, perm.cardId).hauntlink !== undefined)
+      .map((perm) => {
+        const d = def(CARD_DB, perm.cardId);
+        const host = perm.attachedTo === undefined ? undefined : st.battlefield.find((entry) => entry.iid === perm.attachedTo);
+        return {
+          label: d.name, cost: d.hauntlink!.cost, note: null,
+          enabled: legal.some((action) => action.type === 'linkHaunt' && action.iid === perm.iid),
+          card: { def: d, detail: host ? `Relink · on ${def(CARD_DB, host.cardId).name}` : 'Link · not linked' },
+          onTap: () => { this.beginHauntlinkTargeting(perm.iid); },
+        };
+      });
+    return {
+      panel: { kind: 'choice', heading: 'Hauntlink', source: null, text: next, box: null, caption: null, count: null, price: null, hint: null, options },
+      foot: { left: null, wide: true, primary: { label: 'Pass', onTap: () => this.onButton() } },
     };
   }
 
