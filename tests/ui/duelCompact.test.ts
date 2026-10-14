@@ -205,6 +205,17 @@ describe('the phone Duel (mocks T-03a, T-03b, T-10, T-13a)', () => {
     expect(plainHistoryLine('[Sanctum of Many Masks] linked to [Gaia]')).toBe('Sanctum of Many Masks linked to Gaia');
   });
 
+  it('starts the hand under a response window\'s caption, still inside the column (W-Stack, W-Sunset)', () => {
+    const L = duelPhoneLayout(island);
+    const captionH = 22;
+    const list = handList(L, 6, 1, captionH);
+    expect(list.pinned[0].y).toBe(L.hand.y + captionH);
+    for (const row of [...list.pinned, ...list.rows.map((r) => r.visual)]) {
+      expect(row.y).toBeGreaterThanOrEqual(L.hand.y + captionH);
+      expect(inside(row, L.hand)).toBe(true);
+    }
+  });
+
   it('lays a window\'s cards as large as fit, rows from the left, inside the sheet beside the column (W-Loot, W-HandSize)', () => {
     for (const { name, m } of landscape) {
       for (const largeText of [false, true]) {

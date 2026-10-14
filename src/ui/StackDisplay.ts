@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
-import type { StackItem, CardDef } from '../engine/types';
+import type { StackItem, CardDef, TargetRef } from '../engine/types';
+import { drawPhoneStack } from './DuelPhoneStack';
+import type { Rect } from './layout';
 import { bindTapButton } from '../platform/gestures';
 import { CardView, CARD_H, CARD_W } from './CardView';
 import { colorInt, theme } from './theme';
@@ -21,6 +23,8 @@ export interface StackDisplayOptions {
   attachZoom?: (view: CardView, card: CardDef) => void;
   /** Full-card inspect; at 0.32 scale the stack card itself is unreadable. */
   onInspect?: (card: CardDef) => void;
+  /** The phone Duel draws the stack over the foe's half instead (W-Stack). */
+  phone?: { rect: Rect; largeText: boolean; targetName: (ref: TargetRef) => string };
 }
 
 /**
@@ -34,7 +38,7 @@ export interface StackDisplayOptions {
 export class StackDisplay {
   private readonly root: Phaser.GameObjects.Container;
   private readonly opts: StackDisplayOptions;
-  private targetCards: CardView[] = [];
+  private targetCards: Phaser.GameObjects.GameObject[] = [];
   private inspectCards: CardView[] = [];
   private items: readonly StackItem[] = [];
   private live = false;
@@ -69,6 +73,12 @@ export class StackDisplay {
     const visible = live && items.length > 0;
     this.root.setVisible(visible);
     if (!visible) return;
+    if (this.opts.phone) {
+      const drawn = drawPhoneStack(this.root.scene, this.root, items, { ...this.opts.phone, ...this.opts });
+      this.targetCards = drawn.zones;
+      for (const [sid, at] of drawn.centers) this.itemCenters.set(sid, { x: this.root.x + at.x, y: this.root.y + at.y });
+      return;
+    }
 
     const cardWidth = CARD_W * CARD_SCALE;
     const cardHeight = CARD_H * CARD_SCALE;
