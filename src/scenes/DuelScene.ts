@@ -5759,7 +5759,11 @@ export class DuelScene extends Phaser.Scene {
           backgroundColor: theme.colors.panelFill,
           padding: { x: 5, y: 2 },
         }).setOrigin(layout.taxOriginX, 0.5).setDepth(10);
-        if (theme.type.micro > theme.typeBase.micro) {
+        if (this.phone) {
+          // Larger text widens the chip; it stays inside its half, clear of the column's End turn.
+          const half = player === HUMAN ? this.phone.myHalf : this.phone.oppHalf;
+          chip.setX(Math.min(chip.x, half.x + half.width - 4 - chip.width / 2));
+        } else if (theme.type.micro > theme.typeBase.micro) {
           const nameBounds = label.getBounds();
           chip.setX(player === HUMAN
             ? Math.max(layout.taxX, nameBounds.right + 6 + chip.width / 2)
@@ -9638,6 +9642,7 @@ export class DuelScene extends Phaser.Scene {
         variant,
         pill: null,
         badge,
+        pick: badge,
         chip: ref.kind === 'player' ? { label: ref.player === HUMAN ? 'You' : this.opponentShortName(), live: true }
           : ref.kind === 'stackItem' ? { label: 'On the stack', live: true } : null,
         selected: badge !== null,

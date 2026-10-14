@@ -9,6 +9,7 @@ import type { Rect } from './layout';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { addPortraitArt } from './portraitArt';
 import { renderManaText } from './ManaText';
+import { bindMenuScroll } from './menuScroll';
 import { ellipsizeText } from './textFit';
 import { colorInt, theme } from './theme';
 import { bakeUiIcon } from './uiIcons';
@@ -41,6 +42,8 @@ export interface SheetTileMarks {
   selected?: boolean;
   /** Cost pips and the spell glyph at the top (W-Loot); a zone tile leaves them out. */
   costs?: boolean;
+  /** The target picker's pick order ("1", "1, 2"), read by the layout probe. */
+  pick?: string | null;
 }
 
 /** A card shown as its art (W-Loot, W-HandSize): cost, type, name. */
@@ -90,6 +93,8 @@ const PAD = 16;
 export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSpec): Phaser.GameObjects.Container {
   const type = theme.compactType;
   const c = scene.add.container(0, 0).setDepth(theme.depth.overlay);
+  // An opaque plate: the probe reads what it covers as hidden, not as overlapping.
+  c.setData('a11ySurface', rect);
   // The plate swallows taps that miss a card, so nothing under the sheet answers them.
   const plate = scene.add.rectangle(rect.x + rect.width / 2, rect.y + rect.height / 2, rect.width, rect.height, 0, 0).setInteractive();
   const frame = scene.add.graphics()
@@ -143,21 +148,23 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
 function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, tiles: readonly SheetArtTile[]): void {
   const type = theme.compactType;
   const grid = sheetGrid(body, tiles.length, TILE_ASPECT, 120, 48);
+  // A grid taller than the sheet (a long graveyard) scrolls; its tiles sit in a list at local y.
+  const list = scene.add.container(0, body.y);
   tiles.forEach((tile, i) => {
-    const cell = grid.cells[i];
+    const cell = { ...grid.cells[i], y: grid.cells[i].y - body.y };
     const rim = colorInt(medallionRim(tile.card.colors, tile.card.types));
     const picked = tile.pill !== null;
     const r = theme.radius.panel;
-    c.add(scene.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(cell.x, cell.y, cell.width, cell.height, r));
+    list.add(scene.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(cell.x, cell.y, cell.width, cell.height, r));
     const art: Rect = { x: cell.x + 3, y: cell.y + 3, width: cell.width - 6, height: cell.height - 6 };
     try {
       const image = addPortraitArt(scene, art.x + art.width / 2, art.y + art.height / 2, tile.card.id, (img) => coverFitImage(img, art, 0.1),
         'half', tile.landStyle);
-      if (image) c.add(image);
+      if (image) list.add(image);
     } catch {
       // No art: the tile reads as its name and cost.
     }
-    c.add(compactScrim(scene, art, 0.5));
+    list.add(compactScrim(scene, art, 0.5));
     // Cost at the top left, generic first; the type's glyph at the top right.
     const pip = Math.round(type.label * 1.3);
     const costs = tile.costs !== false;
@@ -165,38 +172,40 @@ function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
     for (const spec of costs && tile.card.cost ? pipsFor(tile.card.cost) : []) {
       const key = spec.number !== undefined ? ensureNumeralPip(scene, spec.number) : spec.texture;
       if (!scene.textures.exists(key) || px + pip > art.x + art.width - pip - 4) break;
-      c.add(scene.add.image(px + pip / 2, art.y + 3 + pip / 2, key).setDisplaySize(pip, pip));
+      list.add(scene.add.image(px + pip / 2, art.y + 3 + pip / 2, key).setDisplaySize(pip, pip));
       px += pip + 1;
     }
     const glyph = !costs ? null : tile.card.types.includes('charm') ? 'bolt' : tile.card.types.includes('ritual') ? 'scroll' : null;
     if (glyph) {
       const gx = art.x + art.width - 3 - pip / 2;
       const gy = art.y + 3 + pip / 2;
-      c.add(scene.add.graphics().fillStyle(theme.graphics.panelFill, 0.9).fillCircle(gx, gy, pip / 2 + 1)
+      list.add(scene.add.graphics().fillStyle(theme.graphics.panelFill, 0.9).fillCircle(gx, gy, pip / 2 + 1)
         .lineStyle(1, colorInt(theme.colors.gold), 0.9).strokeCircle(gx, gy, pip / 2 + 1));
-      c.add(scene.add.image(gx, gy, bakeUiIcon(scene, glyph)).setDisplaySize(pip * 0.7, pip * 0.7).setTint(colorInt(theme.colors.gold)));
+      list.add(scene.add.image(gx, gy, bakeUiIcon(scene, glyph)).setDisplaySize(pip * 0.7, pip * 0.7).setTint(colorInt(theme.colors.gold)));
     }
     const name = tileName(scene, art, tile.card.name);
-    c.add(name);
-    if (tile.chip) c.add(actionChip(scene, art.x + 5, name.y - name.height - 4, tile.chip.label, tile.chip.live, art.width - 10));
-    if (tile.badge) c.add(cornerBadge(scene, art.x + art.width - 3, art.y + 3, tile.badge));
+    list.add(name);
+    if (tile.chip) list.add(actionChip(scene, art.x + 5, name.y - name.height - 4, tile.chip.label, tile.chip.live, art.width - 10));
+    if (tile.badge) list.add(cornerBadge(scene, art.x + art.width - 3, art.y + 3, tile.badge));
     if (picked) {
-      c.add(scene.add.graphics().fillStyle(theme.graphics.dim, 0.62).fillRect(art.x, art.y, art.width, art.height));
-      c.add(pill(scene, cell.x + cell.width / 2, cell.y + cell.height * 0.42, tile.pill!, cell.width - 8));
+      list.add(scene.add.graphics().fillStyle(theme.graphics.dim, 0.62).fillRect(art.x, art.y, art.width, art.height));
+      list.add(pill(scene, cell.x + cell.width / 2, cell.y + cell.height * 0.42, tile.pill!, cell.width - 8));
     }
     const selected = tile.selected === true;
     const stroke = picked ? colorInt(theme.colors.dangerArmed) : selected ? colorInt(theme.colors.gold) : rim;
-    c.add(scene.add.graphics().lineStyle(selected ? 3.5 : 2.5, stroke, picked ? 0.7 : 1)
+    list.add(scene.add.graphics().lineStyle(selected ? 3.5 : 2.5, stroke, picked ? 0.7 : 1)
       .strokeRoundedRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2, r));
     if (selected) {
       const d = Math.round(Math.min(type.label * 1.9, art.width * 0.3));
       const cx = art.x + 4 + d / 2;
       const cy = art.y + 4 + d / 2;
-      c.add(scene.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, d / 2));
-      c.add(scene.add.image(cx, cy, bakeUiIcon(scene, 'check')).setDisplaySize(d * 0.6, d * 0.6).setTint(colorInt(theme.colors.onGold)));
+      list.add(scene.add.graphics().fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, d / 2));
+      list.add(scene.add.image(cx, cy, bakeUiIcon(scene, 'check')).setDisplaySize(d * 0.6, d * 0.6).setTint(colorInt(theme.colors.onGold)));
     }
-    c.add(tapZone(scene, cell, tile));
+    list.add(tapZone(scene, cell, tile, body).setData('a11yPickBadge', tile.pick ?? null));
   });
+  c.add(list);
+  bindMenuScroll(scene, list, body, grid.contentH);
 }
 
 function drawFaces(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, faces: readonly SheetFace[]): void {
@@ -412,10 +421,13 @@ function pill(scene: Phaser.Scene, x: number, y: number, text: string, maxW = In
 }
 
 /** A tap picks the card; a long press reads it. A Zone, never the scaled card, takes the input. */
-function tapZone(scene: Phaser.Scene, cell: Rect, card: SheetCard): Phaser.GameObjects.Zone {
+function tapZone(scene: Phaser.Scene, cell: Rect, card: SheetCard, viewport?: Rect): Phaser.GameObjects.Zone {
   const zone = scene.add.zone(cell.x + cell.width / 2, cell.y + cell.height / 2, cell.width, cell.height).setInteractive({ useHandCursor: true });
   zone.setName(`sheet:${card.card.id}`);
-  bindTapButton(scene, zone, (p) => { if (!p.rightButtonReleased()) card.onTap(); },
+  // A tile scrolled out of view keeps its zone; a tap outside the grid's viewport is not its.
+  const inView = (p: Phaser.Input.Pointer): boolean => !viewport
+    || (p.worldY >= viewport.y && p.worldY <= viewport.y + viewport.height);
+  bindTapButton(scene, zone, (p) => { if (!p.rightButtonReleased() && inView(p)) card.onTap(); },
     { card: card.card, variant: card.variant, landStyle: card.landStyle });
   return zone;
 }

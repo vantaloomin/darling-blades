@@ -99,6 +99,8 @@ export interface ProbeScene {
   readonly replayFixtures?: boolean;
   /** Copy whose presence is part of this fixture, independently of its geometry. */
   readonly requiredText?: readonly string[];
+  /** The required copy is the desktop HUD's; the phone layout draws it elsewhere or not at all. */
+  readonly requiredTextWideOnly?: boolean;
   /** Inspect the live renderer's cue carriers, separately from exempt card text. */
   readonly duelCue?: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'portrait' | 'two-targets' | 'lethal-pick' | 'repeated-picks';
   /** A transient accepted-pick cue is captured before its presentation timer ends. */
@@ -349,7 +351,8 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   // default settle (1 pass in 5 measured it mid-slide); give the panels time.
   ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [
     duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
-  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
+  // The desktop names the player under the portrait; the phone's portraits carry art and life only (T-03a).
+  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name], requiredTextWideOnly: true }),
   duelFixture('duty'),
   duelFixture('mandate-yours'),
   duelFixture('mandate-theirs'),
@@ -830,6 +833,7 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   };
   const fail = (detail: string): ProbeFinding[] => [{ kind: 'cue', text: cue,
     bounds: { x: 0, y: 0, width: 0, height: 0 }, detail }];
+  if (sceneStage(scene).compact) return checkPhoneDuelCue(cue, tile, badgeIs, objects, fail);
   if (cue === 'M1') {
     const view = tile(WAVE_2D_IIDS.blocker), tab = child(view, 'board-action-tab'), swirl = child(view, 'board-sick-swirl');
     if (!textIs(tab, 'Blocks') || !shown(swirl) || !(tab instanceof Phaser.GameObjects.Text) || !(swirl instanceof Phaser.GameObjects.Image))
@@ -870,6 +874,41 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
       || !shown(glyph) || !(glyph instanceof Phaser.GameObjects.Graphics) || glyph.commandBuffer.length === 0
       || !shown(mark) || !(mark instanceof Phaser.GameObjects.Container) || !mark.list.some((item) => numeralIs(item, '+2')))
       return fail('damage and raised-stat glyphs must coexist with the two-Mark badge');
+  }
+  return [];
+}
+
+/**
+ * The phone Duel's forms of the same cues: a medallion carries a sword or
+ * shield disc instead of the lifted tile and word tab, a pick waits for Cast
+ * instead of committing, and a graveyard pick is a tile on the sheet.
+ */
+function checkPhoneDuelCue(
+  cue: NonNullable<ProbeScene['duelCue']>,
+  tile: (iid: number) => BoardCardView | undefined,
+  badgeIs: (view: BoardCardView | undefined, value: string) => boolean,
+  objects: readonly Phaser.GameObjects.GameObject[],
+  fail: (detail: string) => ProbeFinding[],
+): ProbeFinding[] {
+  if (cue === 'M1' && tile(WAVE_2D_IIDS.blocker)?.getData('a11yChip') !== 'Blocks')
+    return fail('an assigned blocker must carry its shield disc');
+  if ((cue === 'M2' || cue === 'M6')
+    && tile(cue === 'M2' ? WAVE_2D_IIDS.attacker : WAVE_2D_IIDS.selectedAttacker)?.getData('a11yChip') !== 'Attack')
+    return fail('an attacker must carry its sword disc');
+  if ((cue === 'M3' || cue === 'lethal-pick') && !badgeIs(tile(cue === 'M3' ? 4 : 1), '1'))
+    return fail('a picked target must draw its 1 badge until Cast');
+  if (cue === 'repeated-picks' && !badgeIs(tile(4), '1, 2'))
+    return fail('a creature picked for both ordered target slots must draw both pick numbers');
+  if (cue === 'two-targets' && (!badgeIs(tile(3), '1') || !badgeIs(tile(1), '2')))
+    return fail('two-target picks must preserve the order the player chose them');
+  if (cue === 'M4' && !objects.some((object) => object.name.startsWith('sheet:') && object.getData('a11yPickBadge') === '1'))
+    return fail('a picked graveyard card must carry its 1 badge on the sheet');
+  if (cue === 'portrait' && !objects.some((object) => object.getData('a11yPickBadge') === '1'
+    && object.getData('a11yPickSurface') === 'portrait'))
+    return fail('picked portrait must expose the drawn 1 badge');
+  if (cue === 'M5') {
+    const stats = tile(WAVE_2D_IIDS.marked)?.getData('a11yStatsCue') as { glyphs: string[]; markBadge: number | null } | undefined;
+    if (stats?.markBadge !== 2) return fail('the two-Mark badge must show on the medallion');
   }
   return [];
 }
@@ -1069,7 +1108,8 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
           const scene = await openScene(game, spec, settleMs);
           const result = checkScene(scene);
           const visible = walkTexts(scene).texts;
-          const missing: ProbeFinding[] = (spec.requiredText ?? []).filter((text) => !visible.some((entry) => entry.object.text === text))
+          const required = spec.requiredTextWideOnly && sceneStage(scene).compact ? [] : spec.requiredText ?? [];
+          const missing: ProbeFinding[] = required.filter((text) => !visible.some((entry) => entry.object.text === text))
             .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
           const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
           totalFindings += findings.length;
