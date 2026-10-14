@@ -94,7 +94,7 @@ import { BoardCardView, TILE_W, TILE_H, } from '../ui/BoardCardView';
 import { CardZoomPreview, rarityLine } from '../ui/CardZoomPreview';
 import { CardView, CARD_W, CARD_H } from '../ui/CardView';
 import { compactButton, compactDialog } from '../ui/compactWidgets';
-import { ellipsizeText } from '../ui/textFit';
+import { ellipsizeText, shortCardName } from '../ui/textFit';
 import { bakeUiIcon } from '../ui/uiIcons';
 import { COMPACT } from '../ui/compactLayout';
 import { CoachMark } from '../ui/CoachMark';
@@ -143,7 +143,7 @@ import { MandateSeal } from '../ui/MandateSeal';
 import { swornChip, type SwornChip } from '../ui/swornPresentation';
 import { CARD_FACE } from '../config/cardFaceGeometry';
 import { castsForModes, modeChooserTitle, modeRows, toggleMode } from '../ui/modeChoice';
-import { mandateSealCenter, mandateSpot } from '../ui/mandatePresentation';
+import { MANDATE_REMINDER, MANDATE_SEAL_PHONE_SIZE, mandateCareRows, mandateClaimCards, mandateClaimDetail, mandateSealCenter, mandateSpot, type MandateClaim, type MandateSpot } from '../ui/mandatePresentation';
 import { addPortraitArt } from '../ui/portraitArt';
 import { fanLayout } from '../ui/handFan';
 import { handDisplayOrder } from '../ui/handSort';
@@ -247,9 +247,9 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, phoneSealCenter, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
-import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneResultPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
+import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneClaimsPanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneResultPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -518,6 +518,14 @@ export class DuelScene extends Phaser.Scene {
   /** A finished duel's rewards and way on in the phone's column (T-11a, T-11b). */
   private phoneResult: { panel: PhoneResultPanel; foot: PhoneFoot } | null = null;
   private phoneResultBand: Phaser.GameObjects.Container | null = null;
+  /** "Board full" on each side's strip (N-09), made on first need. */
+  private phoneBoardFull: Record<PlayerId, Phaser.GameObjects.Container | null> = { 0: null, 1: null };
+  /** The Mandate's sheet is open on the phone (N-04). */
+  private phoneMandate = false;
+  /** This duel's Mandate claims, oldest first, for that sheet's column. */
+  private mandateClaims: MandateClaim[] = [];
+  /** Each spell's card by its stack id, so a claim can name the spell that made it. */
+  private spellCards = new Map<number, string>();
   private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
@@ -1868,6 +1876,10 @@ export class DuelScene extends Phaser.Scene {
     this.phoneMenu = false;
     this.phoneResult = null;
     this.phoneResultBand = null;
+    this.phoneMandate = false;
+    this.phoneBoardFull = { 0: null, 1: null };
+    this.mandateClaims = [];
+    this.spellCards = new Map();
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -2067,7 +2079,13 @@ export class DuelScene extends Phaser.Scene {
     const seal = this.mandateSeal;
     if (!seal || seal.flying) return;
     const spot = mandateSpot(this.duel.state.mandateHolder, HUMAN);
-    seal.place(spot, spot && mandateSealCenter(spot));
+    seal.place(spot, spot && this.sealCenter(spot));
+  }
+
+  /** Beside the holder's life: the desktop badge, or the phone's life pill (N-02). */
+  private sealCenter(spot: MandateSpot): { x: number; y: number } {
+    if (!this.phone) return mandateSealCenter(spot);
+    return phoneSealCenter(spot === 'you' ? this.phone.myPortrait : this.phone.oppPortrait, MANDATE_SEAL_PHONE_SIZE);
   }
 
   /** A claim: the seal flies from its old holder to the new one, or grows in place on a first claim (instant unless motion is full). */
@@ -2077,8 +2095,8 @@ export class DuelScene extends Phaser.Scene {
     if (!seal || !spot) return;
     const origin = mandateSpot(from, HUMAN);
     seal.fly(
-      origin && mandateSealCenter(origin),
-      mandateSealCenter(spot),
+      origin && this.sealCenter(origin),
+      this.sealCenter(spot),
       spot,
       Services.save.data.settings.animations === 'full',
       () => this.syncMandateSeal(),
@@ -2207,7 +2225,9 @@ export class DuelScene extends Phaser.Scene {
       this.addLifeBadgePlate(this.L.myLife.x, this.L.myLife.y);
       this.addLifeBadgePlate(this.L.oppLife.x, this.L.oppLife.y);
     }
-    this.mandateSeal = new MandateSeal(this);
+    this.mandateSeal = this.phone
+      ? new MandateSeal(this, { size: MANDATE_SEAL_PHONE_SIZE, onOpen: () => this.openPhoneMandate() })
+      : new MandateSeal(this);
     this.lifeTargetRings = {
       my: this.add.graphics().setDepth(theme.depth.hudLabel),
       opp: this.add.graphics().setDepth(theme.depth.hudLabel),
@@ -3765,6 +3785,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'spellCast': {
+        this.spellCards.set(e.sid, e.cardId);
         Sfx.play('cast');
         // Targeted casts name their targets; the row's tappable card stays the
         // CAST card (the target names are informational, not extra links).
@@ -3911,6 +3932,7 @@ export class DuelScene extends Phaser.Scene {
       case 'mandateChanged': {
         const line = eventHistoryLine(e, this.eventLineLookup(batch));
         if (line) this.log(line);
+        this.recordMandateClaim(e, batch);
         this.flyMandateSeal(e.from, e.to);
         break;
       }
@@ -4824,6 +4846,7 @@ export class DuelScene extends Phaser.Scene {
           player === AI ? 'opp' : 'mine', creatures.length, nonCreatures.length);
         this.syncPermanentRow(creatures, seen, { align: 'spots', spots: board.creatures, round: board.d, depth: 5, liftSelected: true });
         this.syncPermanentRow(nonCreatures, seen, { align: 'spots', spots: board.strip, round: board.stripD, depth: 4, liftSelected: false });
+        this.syncBoardFullChip(player, creatures.length >= RULES.maxCreatures, board);
         continue;
       }
 
@@ -6357,6 +6380,7 @@ export class DuelScene extends Phaser.Scene {
     if (mulligan) return mulligan;
     if (this.phoneChoice) return this.phoneChoice;
     if (this.phoneZone) return this.phoneZonePrompt(this.phoneZone);
+    if (this.phoneMandate) return this.phoneMandatePrompt();
     const sacrifice = this.phoneSacrificePrompt();
     if (sacrifice) return sacrifice;
     if (this.phoneFocus) {
@@ -6953,9 +6977,7 @@ export class DuelScene extends Phaser.Scene {
 
   /** The foe's name up to its title ("Carmilla" of "Carmilla, Crimson Host"), for the phone's short lines. */
   private opponentShortName(): string {
-    const name = this.replayLog?.context.opponentName ?? this.opponentName() ?? 'Opponent';
-    const comma = name.indexOf(', ');
-    return comma > 0 ? name.slice(0, comma) : name;
+    return shortCardName(this.replayLog?.context.opponentName ?? this.opponentName() ?? 'Opponent');
   }
 
   /** The phone's resource block (M15). PR 3 opens the zone sheet; until then the Warchest or the graveyard. */
@@ -7016,6 +7038,7 @@ export class DuelScene extends Phaser.Scene {
       }
     }
     const order = handDisplayOrder(hand, CARD_DB);
+    const swornNow = isSwornActive(this.duel.state.battlefield, CARD_DB, HUMAN);
     const rows: PhoneHandRow[] = order.map((handIdx) => {
       const cardId = hand[handIdx];
       const d = def(CARD_DB, cardId);
@@ -7029,6 +7052,7 @@ export class DuelScene extends Phaser.Scene {
           reason: decision && !playable ? reasonUncastable(this.duel.state, CARD_DB, HUMAN, handIdx) : null,
           yourDecision: decision,
         }),
+        sworn: swornChip(d, swornNow),
         onTap: () => this.onHandClick(handIdx),
         onInspect: () => {
           if (!this.pendingCasts) this.showInspect(d, variant, landStyle);
@@ -8444,6 +8468,123 @@ export class DuelScene extends Phaser.Scene {
   private closePhoneZone(): void {
     if (!this.phoneZone) return;
     this.phoneZone = null;
+    this.zoneModal?.container.destroy();
+    this.closeZoneModal();
+    this.syncHand();
+    this.syncButton();
+  }
+
+  /**
+   * "Board full" on a side's strip (N-09) while it holds the creature cap: a
+   * new token turns into an Overcharge there, and creature cards wait.
+   */
+  private syncBoardFullChip(player: PlayerId, full: boolean, board: { strip: readonly { x: number }[]; stripD: number; stripY: number }): void {
+    const chip = this.phoneBoardFull[player];
+    if (!full) {
+      chip?.setVisible(false);
+      return;
+    }
+    const half = player === AI ? this.phone!.oppHalf : this.phone!.myHalf;
+    const last = board.strip[board.strip.length - 1];
+    const x = last ? last.x + board.stripD / 2 + 14 : half.x + DUEL_PHONE.gap;
+    if (chip) {
+      chip.setPosition(x, board.stripY).setVisible(true);
+      return;
+    }
+    const label = this.add.text(0, 0, 'Board full', {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+    }).setOrigin(0, 0.5);
+    label.setX(12);
+    const w = label.width + 24;
+    const h = Math.max(24, label.height + 8);
+    const plate = this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 0.92).fillRoundedRect(0, -h / 2, w, h, h / 2)
+      .lineStyle(1.5, colorInt(theme.colors.panelStroke), 1).strokeRoundedRect(0, -h / 2, w, h, h / 2);
+    this.phoneBoardFull[player] = this.add.container(x, board.stripY, [plate, label]).setDepth(4).setName('board-full-chip');
+  }
+
+  private recordMandateClaim(e: Extract<GameEvent, { e: 'mandateChanged' }>, batch: readonly GameEvent[]): void {
+    const permanentCard = (iid: number): string | undefined =>
+      this.duel.state.battlefield.find((perm) => perm.iid === iid)?.cardId
+        ?? departedInBatch(batch, iid)?.cardId
+        ?? this.views.get(iid)?.card.id;
+    const cards = mandateClaimCards(batch, batch.indexOf(e), (sid) => this.spellCards.get(sid), permanentCard);
+    this.mandateClaims.push({ turn: this.duel.state.turn, to: e.to, reason: e.reason, cards });
+    if (this.phoneMandate) this.drawPhoneMandate();
+  }
+
+  /**
+   * Tapping the seal on the phone (N-04): the rules reminder and the cards on
+   * either side whose text reads the Mandate, with whether each is on now, on
+   * a sheet; the column lists this duel's claims, newest first. It stands in
+   * for the zone modal, so every "is a zone open" check holds while it is up.
+   */
+  private openPhoneMandate(): void {
+    if (this.ended || !this.phoneChrome || this.zoneModal || this.inspect) return;
+    this.phoneMandate = true;
+    this.phoneHistoryOpen = false;
+    this.drawPhoneMandate();
+  }
+
+  private drawPhoneMandate(): void {
+    const chrome = this.phoneChrome;
+    if (!chrome || !this.phoneMandate) return;
+    this.zoneModal?.container.destroy();
+    this.zoneGuard.close();
+    const holder = this.duel.state.mandateHolder;
+    const since = [...this.mandateClaims].reverse().find((claim) => claim.to === holder);
+    const who = holder === HUMAN ? 'you' : this.opponentShortName();
+    const subtitle = holder === null || holder === undefined ? 'Unclaimed'
+      : `Held by ${who}${since ? ` since turn ${since.turn}` : ''}`;
+    const permanents = this.duel.state.battlefield.map((perm) => {
+      const card = def(CARD_DB, perm.cardId);
+      return { card, controller: perm.controller, text: rulesText(card), iid: perm.iid };
+    });
+    const rows = mandateCareRows(permanents, holder, HUMAN).map((row) => {
+      const perm = permanents.find((entry) => entry.card.id === row.cardId)!;
+      return {
+        card: perm.card,
+        name: shortCardName(perm.card.name),
+        whose: row.mine ? 'yours' : `${this.opponentShortName()}'s`,
+        line: row.line,
+        active: row.active,
+        onTap: () => {
+          // The card reads in full; closing it comes back to the sheet.
+          this.closePhoneMandate();
+          this.zoneModalReturn = () => this.openPhoneMandate();
+          this.showInspect(perm.card, undefined, undefined, null, perm.iid);
+        },
+      };
+    });
+    const sheet = drawDuelSheet(this, duelSheet(this.phone!), {
+      title: 'The Mandate',
+      subtitle,
+      onClose: () => this.closePhoneMandate(),
+      mandate: { reminder: MANDATE_REMINDER, rows },
+    });
+    this.zoneModal = { container: sheet, close: () => this.closePhoneMandate(), showPage: () => {} };
+    this.syncHand();
+    this.syncButton();
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.columnTargets()]);
+    this.zoneGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+  }
+
+  private phoneMandatePrompt(): { panel: PhoneClaimsPanel; foot: PhoneFoot } {
+    const name = (cardId: string): string => shortCardName(def(CARD_DB, cardId).name);
+    const rows = [...this.mandateClaims].reverse().map((claim) => ({
+      title: `Turn ${claim.turn} · ${claim.to === HUMAN ? 'You' : this.opponentShortName()}`,
+      detail: mandateClaimDetail(claim, name),
+      combat: claim.reason === 'combat',
+    }));
+    return {
+      panel: { kind: 'claims', rows },
+      foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closePhoneMandate() }, wide: true },
+    };
+  }
+
+  private closePhoneMandate(): void {
+    if (!this.phoneMandate) return;
+    this.phoneMandate = false;
     this.zoneModal?.container.destroy();
     this.closeZoneModal();
     this.syncHand();

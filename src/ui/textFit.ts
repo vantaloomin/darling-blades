@@ -41,3 +41,9 @@ export function ellipsizeText(
   }
   text.setText(`${value.slice(0, low).trimEnd()}…`);
 }
+
+/** A name up to its title: "Carmilla" of "Carmilla, Crimson Host". */
+export function shortCardName(name: string): string {
+  const comma = name.indexOf(', ');
+  return comma > 0 ? name.slice(0, comma) : name;
+}

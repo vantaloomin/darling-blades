@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass', 'shield', 'flag'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass', 'shield', 'flag', 'crown'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -733,6 +733,21 @@ const drawFlag: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+/** A three-pointed crown: a legendary creature. */
+const drawCrown: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.beginPath();
+  ctx.moveTo(c - 22, c + 18);
+  ctx.lineTo(c - 24, c - 14);
+  ctx.lineTo(c - 10, c);
+  ctx.lineTo(c, c - 20);
+  ctx.lineTo(c + 10, c);
+  ctx.lineTo(c + 24, c - 14);
+  ctx.lineTo(c + 22, c + 18);
+  ctx.closePath();
+  ctx.stroke();
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -776,6 +791,7 @@ const DRAW: Record<UiIconName, Draw> = {
   hourglass: drawHourglass,
   shield: drawShield,
   flag: drawFlag,
+  crown: drawCrown,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

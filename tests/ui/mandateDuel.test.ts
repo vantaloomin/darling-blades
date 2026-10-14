@@ -4,7 +4,7 @@ import { sequencedBatchRoutes } from '../../src/ui/combatSequence';
 import { eventHistoryLine, type EventLineLookup } from '../../src/ui/duelPresentation';
 import { DUEL_LAYOUT, LIFE_BADGE_REACH } from '../../src/ui/duelLayout';
 import {
-  MANDATE_SEAL_HIT, MANDATE_SEAL_SIZE, mandateSealCenter, mandateSpot,
+  MANDATE_SEAL_HIT, MANDATE_SEAL_SIZE, mandateCareRows, mandateClaimCards, mandateSealCenter, mandateSpot,
 } from '../../src/ui/mandatePresentation';
 import { swornChip } from '../../src/ui/swornPresentation';
 import { theme } from '../../src/ui/theme';
@@ -89,5 +89,58 @@ describe('Sworn on a hand card', () => {
     expect(swornChip(oath, true)).toEqual({ active: true, label: 'Sworn on' });
     expect(swornChip(oath, false)).toEqual({ active: false, label: 'Sworn off' });
     expect(swornChip(banner, true)).toBeNull();
+  });
+});
+
+describe('the cards that care, on the Mandate sheet', () => {
+  const sulk = card('sulk', {
+    abilities: [{ when: 'dawn', condition: 'youDontHoldMandate', ops: [{ op: 'draw', n: 1 }] }],
+  });
+  const usurper = card('usurper', { abilities: [{ when: 'arrives', ops: [{ op: 'claimMandate' }] }] });
+  const rows = (holder: 0 | 1 | null) => mandateCareRows([
+    { card: sulk, controller: 1, text: 'During your Dawn: If you don\'t hold the Mandate, your opponent loses 1 life.' },
+    { card: usurper, controller: 1, text: 'When this enters, claim the Mandate.' },
+    { card: banner, controller: 0, text: 'Vigilance. As long as you hold the Mandate, this gets +1/+0.' },
+    { card: card('plain'), controller: 0, text: 'Flying.' },
+  ], holder, 0);
+
+  it('lists only cards whose text names the Mandate, yours first, with what each does from your side', () => {
+    expect(rows(0).map((r) => [r.cardId, r.mine, r.line])).toEqual([
+      ['banner', true, 'this gets +1/+0'],
+      ['sulk', false, 'you lose 1 life at their Dawn'],
+      ['usurper', false, 'When this enters, claim the Mandate.'],
+    ]);
+  });
+
+  it('marks a condition on or off from its controller\'s side, and a claim as neither', () => {
+    const active = (holder: 0 | 1 | null) => rows(holder).map((r) => r.active);
+    expect(active(0)).toEqual([true, true, null]);
+    expect(active(1)).toEqual([false, false, null]);
+    expect(active(null)).toEqual([false, true, null]);
+  });
+});
+
+describe('what made a claim, for the sheet\'s claims list', () => {
+  const spellCard = (sid: number) => (sid === 7 ? 'usurp' : undefined);
+  const permanentCard = (iid: number) => ({ 1: 'lubu', 2: 'eos', 3: 'jia' } as Record<number, string>)[iid];
+
+  it('names the creatures whose blows hit the old holder, once each', () => {
+    const batch: GameEvent[] = [
+      { e: 'combatDamage', firstStrike: false, hits: [
+        { source: 1, target: { kind: 'player', player: 1 }, amount: 4 },
+        { source: 1, target: { kind: 'player', player: 1 }, amount: 1 },
+        { source: 2, target: { kind: 'permanent', iid: 9 }, amount: 2 },
+      ] },
+      { e: 'mandateChanged', from: 1, to: 0, reason: 'combat' },
+    ];
+    expect(mandateClaimCards(batch, 1, spellCard, permanentCard)).toEqual(['lubu']);
+  });
+
+  it('names the nearest spell or trigger before an effect claim, and nothing when the batch has none', () => {
+    const cast: GameEvent[] = [{ e: 'spellResolved', sid: 7 }, { e: 'mandateChanged', from: null, to: 0, reason: 'effect' }];
+    expect(mandateClaimCards(cast, 1, spellCard, permanentCard)).toEqual(['usurp']);
+    const trigger: GameEvent[] = [...cast.slice(0, 1), { e: 'triggerFired', iid: 3, when: 'arrives' }, cast[1]];
+    expect(mandateClaimCards(trigger, 2, spellCard, permanentCard)).toEqual(['jia']);
+    expect(mandateClaimCards(cast.slice(1), 0, spellCard, permanentCard)).toEqual([]);
   });
 });

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { attachTouchGestures } from '../platform/gestures';
+import { attachTouchGestures, bindTapButton } from '../platform/gestures';
 import {
   MANDATE_CLAIM_MS,
   MANDATE_REMINDER,
@@ -27,6 +27,9 @@ const RULES_W = 300;
  * is a separate Zone that follows it (never `setInteractive` a scaled
  * Container). DuelScene owns where it is: `place` snaps it, `fly` animates a
  * claim and reports when it has landed.
+ *
+ * On the phone (N-02, N-04) the seal is smaller and a tap or long press
+ * opens the Mandate sheet (`onOpen`) in place of the tip.
  */
 export class MandateSeal {
   private readonly seal: Phaser.GameObjects.Container;
@@ -39,8 +42,10 @@ export class MandateSeal {
   private spot: MandateSpot | null = null;
   private flight: Phaser.Tweens.Tween | null = null;
   private inputAllowed = true;
+  private readonly size: number;
 
-  constructor(private readonly scene: Phaser.Scene) {
+  constructor(private readonly scene: Phaser.Scene, opts: { size?: number; onOpen?: () => void } = {}) {
+    this.size = opts.size ?? MANDATE_SEAL_SIZE;
     this.face = scene.add.graphics();
     this.seal = scene.add.container(0, 0, [this.face]).setDepth(theme.depth.hudLabel).setVisible(false);
     this.draw();
@@ -60,6 +65,12 @@ export class MandateSeal {
     this.tip = scene.add.container(0, 0, [this.tipPlate, this.tipCaption, this.tipRules])
       .setDepth(theme.depth.popover).setVisible(false);
 
+    const onOpen = opts.onOpen;
+    if (onOpen) {
+      // The sheet is the seal's only answer: a tap and a long press both open it.
+      bindTapButton(scene, this.hit, () => onOpen(), { onLongPress: onOpen });
+      return;
+    }
     this.hit.on('pointerover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) this.showTip(true);
     });
@@ -133,7 +144,7 @@ export class MandateSeal {
     const start = from ?? to;
     this.seal.setPosition(start.x, start.y).setScale(from ? 1 : 0.2).setAlpha(1).setVisible(true);
     const ring = this.scene.add.graphics().setDepth(theme.depth.hudLabel).setPosition(start.x, start.y);
-    ring.lineStyle(2, colorInt(theme.colors.gold), 1).strokeCircle(0, 0, MANDATE_SEAL_SIZE / 2);
+    ring.lineStyle(2, colorInt(theme.colors.gold), 1).strokeCircle(0, 0, this.size / 2);
     this.scene.tweens.add({
       targets: ring, scale: 1.8, alpha: 0, duration: 420, ease: 'Quad.easeOut',
       onComplete: () => ring.destroy(),
@@ -164,7 +175,7 @@ export class MandateSeal {
 
   /** A solid gold seal with the star knocked out in the panel colour. */
   private draw(): void {
-    const r = MANDATE_SEAL_SIZE / 2;
+    const r = this.size / 2;
     const star = STAR.map((p) => new Phaser.Math.Vector2(p.x * r, p.y * r));
     this.face.clear()
       .fillStyle(colorInt(theme.colors.gold), 1).fillCircle(0, 0, r)

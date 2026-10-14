@@ -437,6 +437,16 @@ export function lifePlate(portrait: Rect): Rect {
   };
 }
 
+/**
+ * The Mandate's seal on the phone (N-02, the owner's M1): right of the
+ * holder's life pill, on the portrait's inner bottom corner, never over the
+ * number. `size` is the seal's diameter.
+ */
+export function phoneSealCenter(portrait: Rect, size: number): { x: number; y: number } {
+  const plate = lifePlate(portrait);
+  return { x: plate.x + plate.width + 2 + size / 2, y: plate.y + plate.height / 2 };
+}
+
 export type ZoneCount = 'hand' | 'deck' | 'grave';
 export const ZONE_COUNTS: readonly ZoneCount[] = ['hand', 'deck', 'grave'];
 

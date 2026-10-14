@@ -214,6 +214,12 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private actionBadge: Phaser.GameObjects.Text;
   /** Round mode: the "Attack" and "Blocks" chips as a sword or shield disc at top right (T-07, T-08). */
   private roleBadge: Phaser.GameObjects.Container | null = null;
+  /**
+   * A legendary creature's crown (owner's B1, N-19; round mode only). It sits
+   * lower left, not lower right as drawn in N-19: the right edge holds the
+   * Mark count and the spent Provoked glyph, and Nüwa is a legend with Marks.
+   */
+  private crownBadge: Phaser.GameObjects.Container | null = null;
   private roleIcon: Phaser.GameObjects.Image | null = null;
   private pickBadge: Phaser.GameObjects.Container;
   /** The pick order as vector numerals ("1", repeated picks "1, 2"). */
@@ -477,6 +483,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         scene.add.circle(0, 0, side / 2, colorInt(theme.colors.gold)).setStrokeStyle(1.5, colorInt(theme.colors.onGold), 0.8),
         this.roleIcon,
       ]).setName('board-role-badge').setVisible(false);
+      if (isLegendaryCreature(card)) {
+        const d = Math.max(16, Math.round(round * 0.3));
+        this.crownBadge = scene.add.container(-r * 0.88, r * 0.42, [
+          scene.add.circle(0, 0, d / 2, colorInt(theme.colors.rowFill), 0.95).setStrokeStyle(1.5, colorInt(theme.colors.gold), 0.95),
+          scene.add.image(0, 0, bakeUiIcon(scene, 'crown')).setDisplaySize(d * 0.62, d * 0.62).setTint(colorInt(theme.colors.gold)),
+        ]).setName('board-crown-badge');
+      }
     }
 
     this.add([
@@ -495,6 +508,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.chapterBadge,
       this.overchargeBadge,
       this.provokedBadge,
+      ...(this.crownBadge ? [this.crownBadge] : []),
       this.sickIcon,
       this.awakenedRect,
       this.hauntlinkBrokenMark,
@@ -956,4 +970,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.zone = null; // Container.destroy destroys the child zone itself
     super.destroy(fromScene);
   }
+}
+
+/** Legendary creatures wear the crown, Champions too: Sworn asks "do I control a legend?" (owner's B1). */
+function isLegendaryCreature(card: CardDef): boolean {
+  return card.types.includes('creature') && (card.supertypes ?? []).includes('legendary');
 }
