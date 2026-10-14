@@ -2023,6 +2023,8 @@ export class DuelPhoneChrome {
     // A long name steps down a little before it ends in an ellipsis, as the sheet's title does.
     for (let size = this.type.body; name.width > textW && size > Math.ceil(this.type.body * 0.85);) name.setFontSize(--size);
     ellipsizeText(name, textW);
+    // At 115% text the name is taller than the row's top half: it sits lower rather than over the row's edge.
+    name.setY(Math.max(cy - 1, rect.y + name.height));
     name.setData('a11yReleaseFullText', row.card.name);
     const toneColor = row.look.tone === 'gold' ? theme.colors.gold : row.look.tone === 'danger' ? theme.colors.dangerArmed : theme.colors.muted;
     let dx = textX;
