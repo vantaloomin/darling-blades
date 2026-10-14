@@ -110,7 +110,12 @@ export interface PhoneTargetPanel {
   text: string;
   /** Over the picks, in place of "Target". */
   pickLabel?: string;
-  picks: readonly { card: CardDef | null; portrait: string | null; name: string; detail: string }[];
+  /** Each pick; a Hunt's prey adds "Lethal" when the hunter's blow kills it (N-13). */
+  picks: readonly { card: CardDef | null; portrait: string | null; name: string; detail: string; chip?: string }[];
+  /** A warning under the picks: "Tusk-and-Claw dies too". */
+  note?: string | null;
+  /** The trigger's condition and whether it held (N-08): "Gained 4 life this turn". */
+  condition?: { met: boolean; text: string; detail: string | null } | null;
 }
 
 /** A card read in full (T-05a, T-05b): its live numbers and the keyword guide. */
@@ -216,7 +221,7 @@ export interface PhoneChoiceOption {
    * this line under it (gold unless muted, after a chip such as "Bottom"), the
    * price at the right. A dimmed row has been set aside.
    */
-  card?: { def: CardDef; detail: string; muted?: boolean; chip?: string; dim?: boolean };
+  card?: { def: CardDef; detail: string; muted?: boolean; chip?: string; dim?: boolean; costLead?: boolean };
   /** A gold outline: the row the board or centre is showing. */
   selected?: boolean;
   /** A red row (Concede). */
@@ -248,6 +253,11 @@ export interface PhoneChoicePanel {
   hint: string | null;
   /** Marked rows (a mode, a Duty) follow the card; plain rows (another way to cast) sit over the foot. */
   options: readonly PhoneChoiceOption[];
+  /**
+   * A count picked with - and + (N-16, Boost): the count between them, the
+   * bound and what the count costs and does under them.
+   */
+  stepper?: { count: number; canDecrease: boolean; canIncrease: boolean; limit: string; summary: string; onStep: (delta: number) => void } | null;
 }
 
 /**
@@ -842,6 +852,7 @@ export class DuelPhoneChrome {
       const body = this.panelText(x, y, panel.text, { fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, color: theme.colors.muted, lineSpacing: 2 }, width);
       y += body.getBounds().height + 10;
     }
+    if (panel.condition) y = this.drawConditionRow(panel.condition, y);
     // No room for one pick row: the board's numbered ring carries the pick, and no orphan label is drawn.
     if (panel.picks.length === 0 || y + this.type.caption + 12 + this.L.handRowH + 8 > pane.y + pane.height) return;
     const label = scene.add.text(x, y, (panel.pickLabel ?? 'Target').toUpperCase(), {
@@ -861,10 +872,24 @@ export class DuelPhoneChrome {
         this.handObjects.push(scene.add.image(cx, y + rowH / 2, pick.portrait).setDisplaySize(thumb, thumb).setDepth(theme.depth.hand));
       }
       const tx = rect.x + thumb + 14;
+      let chipW = 0;
+      if (pick.chip) {
+        // The chip rides the name line; the detail line keeps the full width.
+        const chip = scene.add.text(rect.x + rect.width - 10, y + rowH / 2 - 1 - this.type.body * 0.6, pick.chip, {
+          fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.danger,
+          padding: { x: 8, y: 2 },
+        }).setOrigin(1, 0.5).setDepth(theme.depth.hand);
+        const g = scene.add.graphics().setDepth(theme.depth.hand - 1);
+        const left = chip.x - chip.width;
+        g.fillStyle(colorInt(theme.colors.dangerBg), 1).fillRoundedRect(left, chip.y - chip.height / 2, chip.width, chip.height, chip.height / 2);
+        g.lineStyle(1.5, colorInt(theme.colors.dangerArmed), 1).strokeRoundedRect(left, chip.y - chip.height / 2, chip.width, chip.height, chip.height / 2);
+        this.handObjects.push(chip, g);
+        chipW = chip.width + 8;
+      }
       const name = scene.add.text(tx, y + rowH / 2 - 1, pick.name, {
         fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
       }).setOrigin(0, 1).setDepth(theme.depth.hand);
-      ellipsizeText(name, rect.width - (tx - rect.x) - 8);
+      ellipsizeText(name, rect.width - (tx - rect.x) - 8 - chipW);
       const detail = scene.add.text(tx, y + rowH / 2 + 3, pick.detail, {
         fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
       }).setDepth(theme.depth.hand);
@@ -872,6 +897,50 @@ export class DuelPhoneChrome {
       this.handObjects.push(name, detail);
       y += rowH + 6;
     }
+    if (panel.note && y + this.type.body + 4 <= pane.y + pane.height) {
+      const note = scene.add.text(x, y + 2, panel.note, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.danger,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(note, width);
+      this.handObjects.push(note);
+    }
+  }
+
+  /** A condition's row (N-08): a check and the line in green when it held, an open ring when not. Returns the y below it. */
+  private drawConditionRow(condition: NonNullable<PhoneTargetPanel['condition']>, y: number): number {
+    const scene = this.scene;
+    const pane = this.L.hand;
+    const rowH = this.L.handRowH + 8;
+    if (y + rowH > pane.y + pane.height) return y;
+    const rect = { x: pane.x, y, width: pane.width, height: rowH };
+    this.rowPlate(rect, theme.colors.panelStroke, 0.9);
+    const color = condition.met ? theme.colors.success : theme.colors.muted;
+    const size = Math.round(this.type.body * 1.1);
+    const cx = rect.x + 10 + size / 2;
+    const cy = y + rowH / 2;
+    if (condition.met) {
+      this.handObjects.push(scene.add.image(cx, cy, bakeUiIcon(scene, 'check'))
+        .setDisplaySize(size, size).setTint(colorInt(color)).setDepth(theme.depth.hand));
+    } else {
+      this.handObjects.push(scene.add.graphics().lineStyle(1.5, colorInt(color), 1)
+        .strokeCircle(cx, cy, size / 2 - 1).setDepth(theme.depth.hand));
+    }
+    const tx = rect.x + 20 + size;
+    const line = scene.add.text(tx, condition.detail ? cy - 1 : cy, condition.text, {
+      fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color,
+    }).setOrigin(0, condition.detail ? 1 : 0.5).setDepth(theme.depth.hand);
+    // At the largest text the line steps down a size before it gives up words.
+    if (line.width > rect.width - (tx - rect.x) - 8) line.setFontSize(`${Math.round(this.type.body * 0.85)}px`);
+    ellipsizeText(line, rect.width - (tx - rect.x) - 8);
+    this.handObjects.push(line);
+    if (condition.detail) {
+      const detail = scene.add.text(tx, cy + 3, condition.detail, {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.body,
+      }).setDepth(theme.depth.hand);
+      ellipsizeText(detail, rect.width - (tx - rect.x) - 8);
+      this.handObjects.push(detail);
+    }
+    return y + rowH + 8;
   }
 
   /** A small gold caption over a column panel ("YOUR COMBAT"). */
@@ -1448,6 +1517,39 @@ export class DuelPhoneChrome {
       box.setY(Math.max(0, (h - 28 - box.getBounds().height) / 2));
       y += h + 10;
     }
+    if (panel.stepper) {
+      const stepper = panel.stepper;
+      const h = Math.max(COMPACT.touch + 4, this.type.h1 + 24);
+      const side = h;
+      const gap = 10;
+      const minus = compactButton(scene, { x: pane.x, y, width: side, height: h }, '\u2212', {
+        onTap: () => stepper.onStep(-1), fontSize: this.type.h1,
+      });
+      const plus = compactButton(scene, { x: pane.x + pane.width - side, y, width: side, height: h }, '+', {
+        onTap: () => stepper.onStep(1), fontSize: this.type.h1,
+      });
+      minus.setEnabled(stepper.canDecrease);
+      plus.setEnabled(stepper.canIncrease);
+      minus.inputZone.setName('stepper:minus');
+      plus.inputZone.setName('stepper:plus');
+      const well = { x: pane.x + side + gap, y, width: pane.width - 2 * (side + gap), height: h };
+      const g = scene.add.graphics().setDepth(theme.depth.hand);
+      g.fillStyle(theme.graphics.dim, 0.9).fillRoundedRect(well.x, well.y, well.width, well.height, theme.radius.control)
+        .lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(well.x, well.y, well.width, well.height, theme.radius.control);
+      const count = scene.add.text(well.x + well.width / 2, y + h / 2, String(stepper.count), {
+        fontFamily: theme.fonts.ui, fontSize: `${this.type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setOrigin(0.5).setDepth(theme.depth.hand);
+      for (const button of [minus, plus]) {
+        button.container.setDepth(theme.depth.hand);
+        this.handObjects.push(button.container);
+        this.handZones.push(button.inputZone);
+      }
+      this.handObjects.push(g, count);
+      y += h + 8;
+      const line = this.panelText(x, y, `${stepper.limit} · ${stepper.summary}`,
+        { fontFamily: theme.fonts.ui, fontSize: `${this.type.label}px`, color: theme.colors.muted, lineSpacing: 2 }, width);
+      y += line.getBounds().height + 8;
+    }
     if (panel.caption) {
       const g = scene.add.graphics().setDepth(theme.depth.hand);
       g.lineStyle(1, theme.graphics.panelStroke, 0.9).lineBetween(x, y, x + width, y);
@@ -1538,12 +1640,20 @@ export class DuelPhoneChrome {
       // Art, name and what it would do, the price at the right (W-HauntWindow).
       // A row tightened to fit a whole hand keeps one line: the name, any chip, the price.
       const twoLines = rect.height >= COMPACT.touch;
-      const thumb = rect.height - (twoLines ? 14 : 8);
-      this.thumbArt(option.card.def, rect.x + 6 + thumb / 2, cy, thumb);
       const pip = 18;
+      // N-21 leads with the price in the art's place: the rows share one card, so the cost tells them apart.
+      const costLead = option.card.costLead === true && option.cost !== null;
+      const leadPip = Math.round(pip * 1.25);
+      const thumb = costLead
+        ? Math.max(rect.height - (twoLines ? 14 : 8), pipsFor(option.cost!).length * (leadPip + 2))
+        : rect.height - (twoLines ? 14 : 8);
+      if (costLead) {
+        const pipsW = pipsFor(option.cost!).length * (leadPip + 2);
+        this.costPips(option.cost!, rect.x + 6 + (thumb + pipsW) / 2, cy, leadPip);
+      } else this.thumbArt(option.card.def, rect.x + 6 + thumb / 2, cy, thumb);
       // The price sits on the name's line so the line under it can run the row's width.
       const nameY = twoLines ? cy - 1 - this.type.body * 0.6 : cy;
-      let right = option.cost ? this.costPips(option.cost, rect.x + rect.width - 10, nameY, pip) : rect.x + rect.width - 10;
+      let right = option.cost && !costLead ? this.costPips(option.cost, rect.x + rect.width - 10, nameY, pip) : rect.x + rect.width - 10;
       const tx = rect.x + thumb + 14;
       const chipAt = (cx: number, cyChip: number, alignRight: boolean): number => {
         const chip = scene.add.text(cx, cyChip, option.card!.chip!, {
@@ -1561,6 +1671,8 @@ export class DuelPhoneChrome {
       const name = scene.add.text(tx, twoLines ? cy - 1 : cy, option.label, {
         fontFamily: theme.fonts.ui, fontSize: `${this.type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
       }).setOrigin(0, twoLines ? 1 : 0.5).setDepth(theme.depth.hand).setAlpha(alpha);
+      // An ability's words (N-21) step down a little before they are cut.
+      if (costLead) for (let size = this.type.body; name.width > right - 8 - tx && size > this.type.body * 0.8;) name.setFontSize(--size);
       ellipsizeText(name, right - 8 - tx);
       this.handObjects.push(name);
       if (twoLines) {

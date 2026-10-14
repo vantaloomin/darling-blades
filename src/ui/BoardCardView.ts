@@ -6,7 +6,7 @@ import { isType } from '../engine/types';
 import type { CardVariant } from '../meta/variants';
 import { applyHolo, type HoloHandle } from './fx/HoloEffects';
 import {
-  CUE_MIN_SCREEN_PX, awakeningRingVisible, cueCounterScale, cueColour, cueIn, pickBadgeLabel, sickSwirlBounds, statsCue, tileChipBounds,
+  BOOST_CHIP_LABEL, CUE_MIN_SCREEN_PX, awakeningRingVisible, cueCounterScale, cueColour, cueIn, pickBadgeLabel, sickSwirlBounds, statsCue, tileChipBounds,
   type BoardCueState, type CueContext, type StatsCueInput, type StatsTone,
 } from './boardCuePresentation';
 import { currentAccessibility } from './accessibility';
@@ -597,8 +597,9 @@ export class BoardCardView extends Phaser.GameObjects.Container {
    */
   setActionLabel(label: string | null, tileScale = 1): this {
     if (this.roleBadge && this.roleIcon) {
-      // A medallion has no top edge for a word: attacking and blocking read as a sword or shield disc.
-      const role = label === 'Attack' ? 'sword' : label === 'Blocks' ? 'shield' : null;
+      // A medallion has no top edge for a word: attacking and blocking read as a sword or shield disc,
+      // and a Boost ready to use as a bolt (N-16).
+      const role = label === 'Attack' ? 'sword' : label === 'Blocks' ? 'shield' : label === BOOST_CHIP_LABEL ? 'bolt' : null;
       this.roleBadge.setVisible(role !== null);
       if (role) this.roleIcon.setTexture(bakeUiIcon(this.scene, role));
       this.sickIcon.setVisible(this.sick && role === null);

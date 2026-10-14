@@ -14,9 +14,9 @@ import { planCombat, sequencedBatchRoutes, sequencedEventRoute } from '../../src
 import { deferredTargetPrompt } from '../../src/ui/drownedDeepChoices';
 import { departedInBatch, eventHistoryLine, type EventLineLookup } from '../../src/ui/duelPresentation';
 import {
-  HUNT_HUNTER_PROMPT, HUNT_PREY_PROMPT, huntBlows, huntDrawnDamage, huntExchangeDraw, huntFloatText, huntStepPrompt,
+  HUNT_HUNTER_PROMPT, HUNT_PREY_PROMPT, huntBlows, huntDrawnDamage, huntExchangeDraw, huntFloatText, huntStepPrompt, huntTrade,
   planHunts, tookPartInHunt,
-  type HuntedEvent,
+  type HuntedEvent, type HuntSide,
 } from '../../src/ui/huntPresentation';
 import {
   pumpActionsFor, pumpBoost, pumpSubmission, pumpTicker, stepPumpTicker, type ManaPumpAction,
@@ -257,6 +257,33 @@ describe('the Hunt exchange', () => {
     expect(plan.steps[0].deaths).toEqual([]);
     expect(plan.unclaimed).toEqual([9]);
   });
+});
+
+describe('the Hunt trade read before it is cast', () => {
+  const side = (state: GameState, db: CardDb, iid: number): HuntSide => {
+    const stats = getEffectiveStats(state, db, iid);
+    const perm = state.battlefield.find((p) => p.iid === iid)!;
+    return { attack: stats.attack, defense: stats.defense, damage: perm.damage, deathblade: stats.keywords.has('deathblade') };
+  };
+  const cases: { name: string; hunter: CardDef; prey: CardDef; preyDamage?: number }[] = [
+    { name: 'a clean kill', hunter: body('h', 4, 5), prey: body('p', 2, 3) },
+    { name: 'a trade', hunter: body('h', 3, 3), prey: body('p', 3, 3) },
+    { name: 'a blow short of lethal that marked damage finishes', hunter: body('h', 2, 5), prey: body('p', 1, 4), preyDamage: 2 },
+    { name: 'a 1-Attack Deathblade prey killing a big hunter', hunter: body('h', 1, 9), prey: card('p', { attack: 1, defense: 6, keywords: ['deathblade'] }) },
+    { name: 'a 0-Attack hunter', hunter: body('h', 0, 2), prey: body('p', 1, 3) },
+  ];
+  for (const c of cases) {
+    it(`says who dies as the engine resolves it: ${c.name}`, () => {
+      const db = dbOf(stalk, c.hunter, c.prey);
+      const battlefield = [{ iid: 1, cardId: 'h' }, { iid: 2, cardId: 'p', controller: 1 as const, damage: c.preyDamage ?? 0 }];
+      const before = board([['stalk'], []], battlefield);
+      const trade = huntTrade(side(before, db, 1), side(before, db, 2));
+      const { game } = castHunt(db, battlefield, 1, 2);
+      const alive = (iid: number) => game.instanceState.battlefield.some((p) => p.iid === iid);
+      expect(trade.preyDies).toBe(!alive(2));
+      expect(trade.hunterDies).toBe(!alive(1));
+    });
+  }
 });
 
 describe('where the new events go', () => {
