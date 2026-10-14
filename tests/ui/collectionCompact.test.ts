@@ -93,3 +93,14 @@ describe('the Collection on desktop (the desktop pass)', () => {
     expect(desktop.cardW).toBeGreaterThanOrEqual(DESKTOP_GRID.cardMinW);
   });
 });
+
+describe('the desktop filter column', () => {
+  it('gives Rarity and Owned only full rows, with every control clear of the next', () => {
+    const L = binderColumn(230, 500, 34, 70, { desktop: true });
+    expect(L.owned.width).toBe(230);
+    expect(L.rarity.width).toBe(230);
+    const rows = [L.set, L.color, L.rarity, L.owned, L.sort, L.counter];
+    for (let i = 1; i < rows.length; i++) expect(rows[i].y).toBeGreaterThanOrEqual(rows[i - 1].y + rows[i - 1].height);
+    expect(binderColumn(230, 500, 34, 70).owned.width).toBeLessThan(230);
+  });
+});

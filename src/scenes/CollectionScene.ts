@@ -1915,7 +1915,11 @@ export class CollectionScene extends Phaser.Scene {
     const valueStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading };
     const probe = this.add.text(0, 0, 'Set', labelStyle);
     const probeValue = this.add.text(0, 0, 'All', valueStyle);
-    const controlH = Math.max(COMPACT.touch, pad * 2 + probe.height + probeValue.height);
+    // Desktop draws each facet on one line ("Color: All"); a phone stacks the label over the value.
+    const desktop = isDesktopStage(sceneStage(this));
+    const controlH = desktop
+      ? Math.max(COMPACT.touch, pad * 2 + probeValue.height)
+      : Math.max(COMPACT.touch, pad * 2 + probe.height + probeValue.height);
     probe.destroy();
     probeValue.destroy();
 
@@ -1933,7 +1937,7 @@ export class CollectionScene extends Phaser.Scene {
     });
     const bar = currentAccessibility().textScale < 1.3;
     const counterH = C.counterPad * 2 + counted.height + share.height + (bar ? COMPACT.gap + C.barH : 0);
-    const L = binderColumn(col.width, col.height, controlH, counterH);
+    const L = binderColumn(col.width, col.height, controlH, counterH, { desktop });
 
     const plate = (g: Phaser.GameObjects.Graphics, r: Rect, active = false): void => {
       g.fillStyle(active ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
@@ -1953,12 +1957,18 @@ export class CollectionScene extends Phaser.Scene {
     const facet = (name: CollectionFilterName, label: string, r: Rect): void => {
       const g = this.add.graphics();
       plate(g, r);
-      const caption = this.add.text(r.x + 10, 0, label, labelStyle);
-      const value = this.add.text(r.x + 10, 0, '', valueStyle);
-      ellipsizeText(value, r.width - 20 - chevron - COMPACT.gap, this.compactFacetValue(name));
-      const top = r.y + (r.height - caption.height - value.height) / 2;
-      caption.setY(top);
-      value.setY(top + caption.height);
+      const caption = this.add.text(r.x + 10, 0, desktop ? `${label}:` : label, desktop ? { ...labelStyle, fontSize: `${type.body}px` } : labelStyle);
+      const valueX = desktop ? caption.x + caption.width + 6 : r.x + 10;
+      const value = this.add.text(valueX, 0, '', valueStyle);
+      ellipsizeText(value, r.x + r.width - 10 - chevron - COMPACT.gap - valueX, this.compactFacetValue(name));
+      if (desktop) {
+        caption.setY(r.y + (r.height - caption.height) / 2);
+        value.setY(r.y + (r.height - value.height) / 2);
+      } else {
+        const top = r.y + (r.height - caption.height - value.height) / 2;
+        caption.setY(top);
+        value.setY(top + caption.height);
+      }
       const icon = this.add.image(r.x + r.width - 10 - chevron / 2, r.y + r.height / 2, bakeUiIcon(this, 'chevron'))
         .setDisplaySize(chevron, chevron).setAngle(90).setTint(colorInt(theme.colors.muted));
       block.add([g, caption, value, icon]);

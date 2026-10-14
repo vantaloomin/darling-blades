@@ -109,11 +109,25 @@ export interface BinderColumn {
  * where the other screens keep their primary action. Rects are relative to
  * the column's top-left.
  */
-export function binderColumn(width: number, height: number, controlH: number, counterH: number): BinderColumn {
+export function binderColumn(width: number, height: number, controlH: number, counterH: number, opts: { desktop?: boolean } = {}): BinderColumn {
   const gap = COMPACT.gap;
   const h = Math.max(COMPACT.touch, controlH);
   const half = (width - gap) / 2;
   const row = (i: number): number => i * (h + gap);
+  if (opts.desktop) {
+    // Desktop: one-line controls ("Rarity: All"), Rarity and Owned only each a full row so neither wraps.
+    const counterY = Math.max(row(5) + gap, height - counterH);
+    return {
+      set: { x: 0, y: row(0), width, height: h },
+      color: { x: 0, y: row(1), width: half, height: h },
+      type: { x: half + gap, y: row(1), width: half, height: h },
+      rarity: { x: 0, y: row(2), width, height: h },
+      owned: { x: 0, y: row(3), width, height: h },
+      sort: { x: 0, y: row(4), width, height: h },
+      counter: { x: 0, y: counterY, width, height: counterH },
+      height: counterY + counterH,
+    };
+  }
   const controlsBottom = row(3) + h;
   const counterY = Math.max(controlsBottom + gap, height - counterH);
   return {
