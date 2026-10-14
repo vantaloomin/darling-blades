@@ -27,6 +27,9 @@ export const SHOP_COMPACT = {
   packAspect: 0.7,
   /** Between a small pack and its name. */
   packLabelGap: 8,
+  /** Desktop: the chosen pack's share of the pane's height, and a small pack's share of the chosen one's, so more packs show at once. */
+  desktopBigPack: 0.8,
+  desktopSmallPack: 0.62,
   /** Decks: the narrowest tile, the gap between tiles, the tile's inner padding, and the art's height over its width. */
   deckMinW: 120,
   deckGap: 8,
@@ -57,13 +60,15 @@ export interface PackStrip {
 /**
  * The packs across the main pane (S-Shop-Packs): the chosen one as tall as
  * the pane, the rest smaller and named under, all centred on one line.
+ * On desktop the chosen pack takes most of the pane's height and the rest
+ * shrink further, so three or more packs show at once.
  */
-export function packStrip(main: Rect, count: number, selected: number, labelH: number): PackStrip {
+export function packStrip(main: Rect, count: number, selected: number, labelH: number, opts: { desktop?: boolean } = {}): PackStrip {
   const S = SHOP_COMPACT;
-  const bigH = Math.max(0, main.height - S.packInset * 2);
+  const bigH = Math.max(0, (main.height - S.packInset * 2) * (opts.desktop ? S.desktopBigPack : 1));
   const bigW = Math.round(bigH * S.packAspect);
   const centerY = main.y + main.height / 2;
-  const smallH = Math.round(Math.min(bigH * S.smallPack, bigH - labelH - S.packLabelGap));
+  const smallH = Math.round(Math.min(bigH * (opts.desktop ? S.desktopSmallPack : S.smallPack), bigH - labelH - S.packLabelGap));
   const smallW = Math.round(smallH * S.packAspect);
   const smallTop = centerY - (smallH + S.packLabelGap + labelH) / 2;
   const items: PackStripItem[] = [];

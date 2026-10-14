@@ -2813,7 +2813,7 @@ export class ShopScene extends Phaser.Scene {
     const skus = visibleBoosterSkus();
     const labelStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body };
     const probe = this.add.text(0, 0, 'Ag', labelStyle);
-    const strip = packStrip(main, skus.length, ui.pack, probe.height);
+    const strip = packStrip(main, skus.length, ui.pack, probe.height, { desktop: isDesktopStage(sceneStage(this)) });
     probe.destroy();
     ui.strip = strip;
     ui.stripOffset = focus
