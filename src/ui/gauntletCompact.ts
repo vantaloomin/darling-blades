@@ -28,6 +28,10 @@ export const GAUNTLET_COMPACT = {
   /** A tower row (the touch floor) and the gap between two rows. */
   rowH: 44,
   rowGap: 8,
+  /** Desktop: the portrait takes the pane's height, kept under this share of its width. */
+  desktopHeroShare: 0.42,
+  /** Desktop: room kept under the portrait for her deck's theme. */
+  desktopCaptionH: 30,
 } as const;
 
 export interface CompactGauntletLayout {
@@ -44,12 +48,18 @@ export interface CompactGauntletLayout {
   launch: Rect;
 }
 
-export function compactGauntletLayout(content: Rect): CompactGauntletLayout {
+/**
+ * `desktop` sizes the rival by the pane's height instead of the phone's width
+ * cap, so she fills the left of a desktop window.
+ */
+export function compactGauntletLayout(content: Rect, opts: { desktop?: boolean } = {}): CompactGauntletLayout {
   const G = GAUNTLET_COMPACT;
   const shell = compactShell(content, { back: true });
   const main = shell.main;
   const column = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
-  const heroW = Math.round(Math.min(G.heroMax, Math.max(G.heroMin, main.width * G.heroShare)));
+  const heroW = opts.desktop
+    ? Math.round(Math.max(G.heroMin, Math.min(main.width * G.desktopHeroShare, (main.height - G.desktopCaptionH) / G.portraitAspect)))
+    : Math.round(Math.min(G.heroMax, Math.max(G.heroMin, main.width * G.heroShare)));
   const hero = { x: main.x, y: main.y, width: heroW, height: main.height };
   const infoX = main.x + heroW + G.infoGap;
   const info = { x: infoX, y: main.y, width: Math.max(0, main.x + main.width - infoX), height: main.height };
@@ -66,14 +76,18 @@ export interface GauntletInfoStack {
   blurb: Rect;
   /** Tops of the lines stacked up from the actions row (reward, record, seed, lineup). */
   bottomYs: number[];
+  /** How far the bottom stack (and the actions row under it) rose to sit under a short blurb. */
+  lift: number;
 }
 
 /**
  * Stack the centre's measured lines: `top` from the column's top down, `bottom`
  * up from the actions row, and the blurb in what is left between them (it
- * scrolls when it runs longer).
+ * scrolls when it runs longer). Given the blurb's own height (desktop), a
+ * shorter blurb pulls the bottom stack and the actions up under it rather than
+ * leave a gap.
  */
-export function gauntletInfoStack(info: Rect, actionsTop: number, top: readonly number[], bottom: readonly number[]): GauntletInfoStack {
+export function gauntletInfoStack(info: Rect, actionsTop: number, top: readonly number[], bottom: readonly number[], blurbH?: number): GauntletInfoStack {
   const gap = GAUNTLET_COMPACT.lineGap;
   let y = info.y;
   const topYs = top.map((h) => {
@@ -89,8 +103,14 @@ export function gauntletInfoStack(info: Rect, actionsTop: number, top: readonly 
     b -= gap;
     return at;
   }).reverse();
-  const blurbBottom = b;
-  return { topYs, blurb: { x: info.x, y: blurbTop, width: info.width, height: Math.max(0, blurbBottom - blurbTop) }, bottomYs };
+  const room = Math.max(0, b - blurbTop);
+  const lift = blurbH === undefined ? 0 : Math.max(0, Math.floor(room - blurbH - COMPACT.gap));
+  return {
+    topYs,
+    blurb: { x: info.x, y: blurbTop, width: info.width, height: room - lift },
+    bottomYs: bottomYs.map((at) => at - lift),
+    lift,
+  };
 }
 
 /** A tower row's top inside the scrolled content, rungs bottom-up (the top rung first). */

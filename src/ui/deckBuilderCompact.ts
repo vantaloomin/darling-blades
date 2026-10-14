@@ -122,13 +122,13 @@ export interface PoolGrid {
 
 /**
  * The pool across a pane, less the scroll thumb's lane: as many columns as
- * keep the faces at `minCardW`, one fewer at the largest text so the faces
+ * keep the faces at `minCardW` (the desktop passes its larger floor), one fewer at the largest text so the faces
  * grow (D-Cards130). Each card has a chip line under it, `chipH` tall.
  */
-export function poolGrid(paneWidth: number, chipH: number, largeText: boolean): PoolGrid {
+export function poolGrid(paneWidth: number, chipH: number, largeText: boolean, minCardW: number = BUILDER_COMPACT.minCardW): PoolGrid {
   const B = BUILDER_COMPACT;
   const width = Math.max(0, paneWidth - B.thumbLane);
-  const fit = Math.max(1, Math.floor((width + B.gridGap) / (B.minCardW + B.gridGap)));
+  const fit = Math.max(1, Math.floor((width + B.gridGap) / (minCardW + B.gridGap)));
   const columns = Math.max(1, fit - (largeText ? 1 : 0));
   const cardW = Math.floor((width - B.gridGap * (columns - 1)) / columns);
   const cardH = Math.round(cardW * ASPECT);

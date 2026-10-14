@@ -57,6 +57,8 @@ export interface PracticeLayoutOptions {
   heroW?: number;
   /** At most this many grid columns. */
   maxColumns?: number;
+  /** The narrowest tile, in place of `minTileW` (the desktop's is larger). */
+  minTileW?: number;
 }
 
 /** `labelH` is the measured "Difficulty" line. */
@@ -69,7 +71,7 @@ export function compactPracticeLayout(content: Rect, labelH: number, opts: Pract
   const hero = { x: main.x, y: main.y, width: heroW, height: main.height };
   const gridX = main.x + heroW + COMPACT.gap;
   const grid = { x: gridX, y: main.y, width: Math.max(0, main.x + main.width - gridX), height: main.height };
-  const fitColumns = Math.floor((grid.width + P.tileGap) / (P.minTileW + P.tileGap));
+  const fitColumns = Math.floor((grid.width + P.tileGap) / ((opts.minTileW ?? P.minTileW) + P.tileGap));
   const columns = Math.max(1, Math.min(opts.maxColumns ?? fitColumns, fitColumns));
   // A scroll thumb runs down the grid's right edge; the tiles leave it room.
   const tileW = Math.max(0, Math.floor((grid.width - 6 - P.tileGap * (columns - 1)) / columns));
@@ -91,18 +93,19 @@ export function compactPracticeLayoutFitting(
   content: Rect,
   labelH: number,
   namesFit: (nameWidth: number) => boolean,
+  base: Pick<PracticeLayoutOptions, 'minTileW'> = {},
 ): CompactPracticeLayout {
   const P = PRACTICE_COMPACT;
   const nameWidth = (l: CompactPracticeLayout): number => l.tileW - 2 * P.nameInset;
-  let layout = compactPracticeLayout(content, labelH);
+  let layout = compactPracticeLayout(content, labelH, base);
   const firstHero = layout.hero.width;
   for (let heroW = firstHero; heroW >= P.heroMin; heroW -= P.heroStep) {
-    const next = compactPracticeLayout(content, labelH, { heroW });
+    const next = compactPracticeLayout(content, labelH, { ...base, heroW });
     if (next.columns < layout.columns) break;
     if (namesFit(nameWidth(next))) return next;
   }
   while (layout.columns > 1 && !namesFit(nameWidth(layout))) {
-    layout = compactPracticeLayout(content, labelH, { heroW: firstHero, maxColumns: layout.columns - 1 });
+    layout = compactPracticeLayout(content, labelH, { ...base, heroW: firstHero, maxColumns: layout.columns - 1 });
   }
   return layout;
 }

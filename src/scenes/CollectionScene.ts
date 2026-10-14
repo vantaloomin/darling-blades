@@ -45,7 +45,7 @@ import {
   TIER_TEXT_COLOR,
 } from '../ui/binder/FilterBar';
 import type { DropdownOption } from '../ui/Dropdown';
-import { COMPACT, compactShell } from '../ui/compactLayout';
+import { COMPACT, compactShell, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
 import {
   compactButton,
   compactDialog,
@@ -1807,7 +1807,8 @@ export class CollectionScene extends Phaser.Scene {
     const main = parts.main;
     const badgeStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w700 };
     const probe = this.add.text(0, 0, 'UR ×4', badgeStyle);
-    const grid = binderGrid(main.width, probe.height, currentAccessibility().textScale >= 1.3);
+    const grid = binderGrid(main.width, probe.height, currentAccessibility().textScale >= 1.3,
+      isDesktopStage(sceneStage(this)) ? DESKTOP_GRID.cardMinW : undefined);
     probe.destroy();
     const columns = grid.columns;
     const list = this.add.container(0, main.y);

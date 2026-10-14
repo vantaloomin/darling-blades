@@ -38,6 +38,25 @@ export const COMPACT = {
   switchTrack: { width: 52, height: 32 },
 } as const;
 
+/**
+ * Where the desktop pass (owner ruling 2026-10-14) sizes a grid differently
+ * from the phone: the same compositions, but card and tile floors that keep
+ * the faces big on a wide pane instead of adding columns of small ones.
+ */
+export const DESKTOP_GRID = {
+  /** Collection binder and deck-builder pool faces. */
+  cardMinW: 140,
+  /** Shop deck tiles. */
+  shopDeckMinW: 170,
+  /** Practice rival tiles. */
+  practiceTileMinW: 112,
+} as const;
+
+/** True when a scene's stage is the desktop's compact composition (not a phone or tablet). */
+export function isDesktopStage(stage: { metrics: { device: string } | null }): boolean {
+  return stage.metrics?.device === 'desktop';
+}
+
 /** A control's drawn rect and the (never smaller) rect that takes taps. */
 export interface CompactControl {
   visual: Rect;

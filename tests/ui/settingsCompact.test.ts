@@ -9,6 +9,7 @@ import {
 import { ALL_ACCESSIBILITY_CONTROLS, NO_ACCESSIBILITY_CONTROLS } from '../../src/ui/settingsPresentation';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import type { Rect } from '../../src/ui/layout';
 
 const landscape = SCREEN_FIXTURES.filter((f) => f.viewportWidth > f.viewportHeight).map((f) => ({ name: f.name, m: resolveScreenMetrics(f) }));
@@ -59,6 +60,18 @@ describe('the compact Settings (mock M-Settings)', () => {
         expect(l.list.x + l.list.width).toBeLessThanOrEqual(column.x);
       }
     }
+  });
+
+  it('stacks the jumps one per row on desktop, with the list inset on its panel', () => {
+    const m = desktopCompactMetrics();
+    const l = compactSettingsLayout(m.content, 6, { legal: 64, update: 149 }, [], { desktop: true });
+    const column = l.shell.column!;
+    for (const r of l.nav) expect(r.width).toBe(column.width);
+    for (let i = 1; i < l.nav.length; i++) expect(l.nav[i].y).toBeGreaterThan(l.nav[i - 1].y + l.nav[i - 1].height);
+    expect(l.versionY).toBeLessThan(Math.min(l.legal.y, l.update.y));
+    expect(l.listPanel).not.toBeNull();
+    expect(inside(l.list, l.listPanel!)).toBe(true);
+    expect(compactSettingsLayout(m.content, 6, { legal: 64, update: 149 }).listPanel).toBeNull();
   });
 
   it('puts Legal beside Check for updates when both fit, and above it when they do not', () => {

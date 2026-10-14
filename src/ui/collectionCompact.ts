@@ -54,13 +54,14 @@ export interface BinderGrid {
 
 /**
  * The binder grid across the main pane, less the scroll thumb's lane. Cards
- * take the pane's width in as many columns as keep them at `minCardW`; at the
+ * take the pane's width in as many columns as keep them at `minCardW` (the
+ * desktop passes its larger floor); at the
  * largest text the grid drops a column so the faces grow (D-Binder130).
  */
-export function binderGrid(paneWidth: number, badgeH: number, largeText: boolean): BinderGrid {
+export function binderGrid(paneWidth: number, badgeH: number, largeText: boolean, minCardW: number = COLLECTION_COMPACT.minCardW): BinderGrid {
   const C = COLLECTION_COMPACT;
   const width = Math.max(0, paneWidth - C.thumbLane);
-  const fit = Math.max(1, Math.floor((width + C.gridGap) / (C.minCardW + C.gridGap)));
+  const fit = Math.max(1, Math.floor((width + C.gridGap) / (minCardW + C.gridGap)));
   const columns = Math.max(1, fit - (largeText ? 1 : 0));
   const cardW = Math.floor((width - C.gridGap * (columns - 1)) / columns);
   const cardH = Math.round(cardW * ASPECT);

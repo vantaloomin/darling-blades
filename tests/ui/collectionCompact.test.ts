@@ -8,7 +8,8 @@ import {
   compactInspectLayout,
   stackUp,
 } from '../../src/ui/collectionCompact';
-import { COMPACT } from '../../src/ui/compactLayout';
+import { COMPACT, compactShell, DESKTOP_GRID } from '../../src/ui/compactLayout';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
 import type { Rect } from '../../src/ui/layout';
@@ -79,5 +80,16 @@ describe('the compact Collection (mocks D-Binder, D-Detail, D-Craft)', () => {
 
   it('stacks the actions up from the column foot in their order', () => {
     expect(stackUp(300, [44, 60], 8)).toEqual([188, 240]);
+  });
+});
+
+describe('the Collection on desktop (the desktop pass)', () => {
+  it('a wide pane keeps big faces: fewer columns at the desktop floor, none under it', () => {
+    const { content } = desktopCompactMetrics();
+    const pane = compactShell(content, { back: true }).main.width;
+    const phone = binderGrid(pane, 16, false);
+    const desktop = binderGrid(pane, 16, false, DESKTOP_GRID.cardMinW);
+    expect(desktop.columns).toBeLessThan(phone.columns);
+    expect(desktop.cardW).toBeGreaterThanOrEqual(DESKTOP_GRID.cardMinW);
   });
 });

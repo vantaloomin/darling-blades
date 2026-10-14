@@ -99,7 +99,7 @@ import { gateOnPagedArt, PAGE_ART_HOLD_MS, PagedArt } from '../ui/artGate';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { currentAccessibility } from '../ui/accessibility';
-import { COMPACT, compactShell } from '../ui/compactLayout';
+import { COMPACT, compactShell, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
 import {
   COMPACT_DRAG_SLOP,
   compactButton,
@@ -3901,7 +3901,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     const pool = this.pool();
     const chipStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700 };
     const probe = this.add.text(0, 0, '0/4', chipStyle);
-    const grid = poolGrid(pane.width, Math.max(28, probe.height + 10), ui.largeText);
+    const grid = poolGrid(pane.width, Math.max(28, probe.height + 10), ui.largeText,
+      isDesktopStage(sceneStage(this)) ? DESKTOP_GRID.cardMinW : undefined);
     probe.destroy();
     const chips = poolChips(grid);
     if (pool.length === 0) {

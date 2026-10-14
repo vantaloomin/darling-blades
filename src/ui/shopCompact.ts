@@ -114,13 +114,13 @@ export interface DeckGrid {
 
 /**
  * The deck tiles across the main pane (S-Shop-Decks): art over the name over
- * the pips and the price. Tiles keep `deckMinW`; at the largest text the
+ * the pips and the price. Tiles keep `deckMinW` (the desktop passes its larger floor); at the largest text the
  * grid drops a column so the names keep their room.
  */
-export function deckGrid(paneWidth: number, nameH: number, lineH: number, largeText: boolean): DeckGrid {
+export function deckGrid(paneWidth: number, nameH: number, lineH: number, largeText: boolean, minTileW: number = SHOP_COMPACT.deckMinW): DeckGrid {
   const S = SHOP_COMPACT;
   const width = Math.max(0, paneWidth - S.thumbLane);
-  const fit = Math.max(1, Math.floor((width + S.deckGap) / (S.deckMinW + S.deckGap)));
+  const fit = Math.max(1, Math.floor((width + S.deckGap) / (minTileW + S.deckGap)));
   const columns = Math.max(1, fit - (largeText ? 1 : 0));
   const tileW = Math.floor((width - S.deckGap * (columns - 1)) / columns);
   const artH = Math.round((tileW - S.deckPad * 2) * S.deckArtAspect);
