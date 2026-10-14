@@ -19,7 +19,7 @@
 import type { ScreenMetrics } from './screenMetrics';
 
 /** Scene keys with a compact composition. Each joins in the PR that builds it. */
-export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder']);
+export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'Duel']);
 
 /**
  * The desktop pass (owner ruling 2026-10-14, S1 B): on the wide profile these
@@ -62,7 +62,7 @@ export function disableDesktopCompactScenes(): void {
 
 let metrics: ScreenMetrics | null = null;
 
-/** Scenes a dev session has switched on early (`?duel=phone`), before their switch flips in COMPACT_SCENES. */
+/** Scenes a dev session has switched on early (`?phone=Draft`), before their switch flips in COMPACT_SCENES. */
 const devScenes = new Set<string>();
 
 /**

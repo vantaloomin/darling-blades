@@ -54,9 +54,9 @@ const shots = opts.has('shots') ? resolve(opts.get('shots')) : null;
 
 /** Each layout: the page, the viewport and whether it taps (touch) or clicks. */
 const LAYOUTS = {
-  phone: { query: '?duel=phone&layout=compact&viewport=phone-island', width: 852, height: 393, touch: true },
-  short: { query: '?duel=phone&layout=compact&viewport=phone-safari', width: 852, height: 313, touch: true },
-  desktop: { query: '?duel=phone', width: 1280, height: 720, touch: false },
+  phone: { query: '?layout=compact&viewport=phone-island', width: 852, height: 393, touch: true },
+  short: { query: '?layout=compact&viewport=phone-safari', width: 852, height: 313, touch: true },
+  desktop: { query: '', width: 1280, height: 720, touch: false },
 };
 for (const layout of layouts) if (!LAYOUTS[layout]) throw new Error(`Unknown layout "${layout}"; use ${Object.keys(LAYOUTS).join(', ')}`);
 
@@ -270,10 +270,10 @@ function pageAgent() {
       const cardId = reserve[intended.reserveIndex];
       if (s.phoneChrome) {
         if (s.phoneZone?.tab === 'reserves') {
-          const tiles = s.zoneModal?.container.list.filter((o) => o.type === 'Zone' && o.name?.startsWith('sheet:')) ?? [];
+          const tiles = agent.sheetTiles(s.zoneModal?.container);
           const pos = tiles.findIndex((o) => o.name === `sheet:${cardId}`);
           if (pos < 0) return { stuck: `no tile for ${cardId}` };
-          if (s.phoneZone.pick !== pos) return { point: agent.centre(tiles[pos]), what: `reserve tile ${cardId}` };
+          if (s.phoneZone.pick !== pos) return agent.sheetTile(pos);
           return agent.primary();
         }
         return agent.textStarting('Warchest Reserves');
@@ -299,9 +299,26 @@ function pageAgent() {
       return found[0] ? { point: agent.centre(found[0]), what: `text "${found[0].text}"` } : null;
     },
     /** The phone sheet's tile at `pos` (src/ui/DuelPhoneSheet.ts names each tile's zone "sheet:<card>"). */
+    sheetTiles(sheet) {
+      return (sheet?.list ?? []).flatMap(function walk(o) {
+        return [o, ...(o.list ? o.list.flatMap(walk) : [])];
+      }).filter((o) => o.type === 'Zone' && o.name?.startsWith('sheet:'));
+    },
+    /**
+     * The phone sheet's tile at `pos`. A long grid scrolls inside the sheet, so
+     * a tile out of view is first dragged into it, as a thumb would.
+     */
     sheetTile(pos, sheet = scene().zoneModal?.container) {
-      const tiles = sheet?.list.filter((o) => o.type === 'Zone' && o.name?.startsWith('sheet:')) ?? [];
-      return tiles[pos] ? { point: agent.centre(tiles[pos]), what: `sheet tile ${pos}` } : null;
+      const tile = agent.sheetTiles(sheet)[pos];
+      const point = agent.centre(tile);
+      if (!point) return null;
+      const view = tile.getData('sheetViewport');
+      if (view && (point.y < view.y + 8 || point.y > view.y + view.height - 8)) {
+        const mid = view.y + view.height / 2;
+        const dy = Math.max(-view.height * 0.4, Math.min(view.height * 0.4, mid - point.y));
+        return { drag: { from: { x: point.x, y: mid - dy / 2 }, to: { x: point.x, y: mid + dy / 2 } }, what: `scroll sheet to tile ${pos}` };
+      }
+      return { point, what: `sheet tile ${pos}` };
     },
     /** A visible text exactly matching `label`, the topmost if several. */
     text(label) {
@@ -503,6 +520,20 @@ async function playDuel(cdp, sessionId, layoutName, seed) {
       await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: page.x, y: page.y, button: 'left', clickCount: 1 }, sessionId);
     }
   };
+  /** A touch drag from one design point to another, in steps, as a thumb scrolls. */
+  const drag = async ({ from, to }) => {
+    const toPage = (p) => evaluate(`JSON.stringify(window.__eq.toPage(${JSON.stringify(p)}))`).then(JSON.parse);
+    const a = await toPage(from);
+    const b = await toPage(to);
+    const at = (t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, radiusX: 4, radiusY: 4, id: 1 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [at(0)] }, sessionId);
+    for (let i = 1; i <= 8; i++) {
+      await sleep(40);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [at(i / 8)] }, sessionId);
+    }
+    await sleep(80);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }, sessionId);
+  };
   const waitFor = async (expression, ms, what) => {
     const deadline = Date.now() + ms;
     while (!(await evaluate(expression).catch(() => false))) {
@@ -596,6 +627,12 @@ async function playDuel(cdp, sessionId, layoutName, seed) {
         break;
       }
       const next = await evaluate(`JSON.stringify(window.__eq.next(${JSON.stringify(intended)}))`).then((v) => JSON.parse(v ?? 'null'));
+      if (next?.drag && layout.touch) {
+        trail.push(next.what);
+        await drag(next.drag);
+        await sleep(500);
+        continue;
+      }
       if (!next || next.stuck || !next.point) {
         outcome = { ok: false, why: next?.stuck ?? `nothing to tap (${next?.what ?? 'no control'})` };
         break;

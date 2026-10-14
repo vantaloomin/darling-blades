@@ -84,6 +84,8 @@ export interface DuelSheetSpec {
   /** Shown in place of the cards when there are none. */
   empty?: string;
   mandate?: SheetMandate;
+  /** Where a long grid of tiles was scrolled to, kept across a redraw (a pick redraws the sheet). */
+  scroll?: { offset: number; onScroll: (offset: number) => void };
 }
 
 /** Art tiles are a little taller than wide, as in the mocks. */
@@ -136,7 +138,7 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
   const body: Rect = { x: rect.x + PAD, y: top, width: rect.width - 2 * PAD, height: rect.y + rect.height - PAD + 4 - top };
   if (spec.mandate) drawMandate(scene, c, body, spec.mandate);
   if (spec.faces) drawFaces(scene, c, body, spec.faces);
-  if (spec.tiles?.length) drawTiles(scene, c, body, spec.tiles);
+  if (spec.tiles?.length) drawTiles(scene, c, body, spec.tiles, spec.scroll);
   else if (spec.empty) {
     c.add(scene.add.text(body.x + body.width / 2, body.y + body.height / 3, spec.empty, {
       fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
@@ -145,7 +147,7 @@ export function drawDuelSheet(scene: Phaser.Scene, rect: Rect, spec: DuelSheetSp
   return c;
 }
 
-function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, tiles: readonly SheetArtTile[]): void {
+function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, tiles: readonly SheetArtTile[], scroll?: DuelSheetSpec['scroll']): void {
   const type = theme.compactType;
   const grid = sheetGrid(body, tiles.length, TILE_ASPECT, 120, 48);
   // A grid taller than the sheet (a long graveyard) scrolls; its tiles sit in a list at local y.
@@ -205,7 +207,8 @@ function drawTiles(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: R
     list.add(tapZone(scene, cell, tile, body).setData('a11yPickBadge', tile.pick ?? null));
   });
   c.add(list);
-  bindMenuScroll(scene, list, body, grid.contentH);
+  const handle = bindMenuScroll(scene, list, body, grid.contentH, undefined, [], 0, undefined, scroll?.offset ?? 0);
+  handle.onScroll = scroll?.onScroll ?? null;
 }
 
 function drawFaces(scene: Phaser.Scene, c: Phaser.GameObjects.Container, body: Rect, faces: readonly SheetFace[]): void {
@@ -430,6 +433,7 @@ function pill(scene: Phaser.Scene, x: number, y: number, text: string, maxW = In
 function tapZone(scene: Phaser.Scene, cell: Rect, card: SheetCard, viewport?: Rect): Phaser.GameObjects.Zone {
   const zone = scene.add.zone(cell.x + cell.width / 2, cell.y + cell.height / 2, cell.width, cell.height).setInteractive({ useHandCursor: true });
   zone.setName(`sheet:${card.card.id}`);
+  if (viewport) zone.setData('sheetViewport', viewport);
   // A tile scrolled out of view keeps its zone; a tap outside the grid's viewport is not its.
   const inView = (p: Phaser.Input.Pointer): boolean => !viewport
     || (p.worldY >= viewport.y && p.worldY <= viewport.y + viewport.height);
