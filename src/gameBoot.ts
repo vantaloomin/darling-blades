@@ -26,7 +26,7 @@ import {
   type ScreenMetrics,
 } from './platform/screenMetrics';
 import { screenFixtureNamed } from './platform/screenFixtures';
-import { applySceneSettings, CANVAS_CLEAR } from './ui/SceneBackdrop';
+import { applySceneSettings, CANVAS_CLEAR, sceneStage } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -290,20 +290,33 @@ signals.start();
 // the canvas stayed at its load size), turning the device, or a browser bar
 // coming or going. Each running scene re-fits its camera to the new window;
 // texts drawn from then on rasterize at the new zoom.
+// A phone held upright shows the rotate screen over the game, so a refit to an
+// upright screen is skipped: the scenes keep the landscape layout they will be
+// seen in. A page loaded upright built its first scenes for the upright screen;
+// the first landscape refit restarts them in the landscape content box (the
+// owner's iPhone, 2026-10-14, kept a portrait-width main menu after turning).
 if (compact && !compactFixture) {
   let pending: number | undefined;
+  let builtUpright = compact.presentation === 'rotate';
   const refit = (): void => {
     pending = undefined;
     const m = readCompactScreen();
-    if (!m) return;
+    if (!m || m.presentation === 'rotate') return;
     const next = compactFit(m);
     if (next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
       && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
     document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
     setActiveSceneZoom(next.zoom, next.widthShare);
     setActiveCompactMetrics(m);
-    game.scale.resize(next.canvas.width, next.canvas.height);
-    for (const scene of game.scene.getScenes(true)) applySceneSettings(scene, { refit: true });
+    // setGameSize, not resize: under FIT, resize keeps the load's aspect ratio, so
+    // a turn from upright drew the canvas at portrait width in a landscape window.
+    game.scale.setGameSize(next.canvas.width, next.canvas.height);
+    const restart = builtUpright;
+    builtUpright = false;
+    for (const scene of game.scene.getScenes(true)) {
+      if (restart && sceneStage(scene).compact) scene.scene.restart();
+      else applySceneSettings(scene, { refit: true });
+    }
   };
   const schedule = (): void => {
     if (pending !== undefined) window.clearTimeout(pending);
