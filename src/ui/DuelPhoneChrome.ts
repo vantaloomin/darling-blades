@@ -2131,7 +2131,7 @@ export class DuelPhoneChrome {
 }
 
 /** A dashed rounded rectangle (the "N more in hand" row, the waiting status). */
-function dashedRoundRect(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, r: number): void {
+export function dashedRoundRect(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, r: number): void {
   const dash = 5;
   const gap = 4;
   const segment = (x1: number, y1: number, x2: number, y2: number): void => {
