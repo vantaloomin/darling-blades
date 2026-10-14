@@ -214,7 +214,7 @@ import { confirmedTargetSelection, removeLastTargetSelection, targetSelectionSte
 import { showDutyPicker, showLootPicker, type ChoiceOverlay } from '../ui/choiceOverlays';
 import { renderManaText } from '../ui/ManaText';
 import { PHASE_TRACK_ROWS, phaseTrackRowForStep, type PhaseTrackRow } from '../ui/phaseTrack';
-import { cardGlossaryEntries, empowerText, manaCostText, romanNumeral } from '../ui/rulesText';
+import { cardGlossaryEntries, empowerText, manaCostText, romanNumeral, rulesText, typeLine } from '../ui/rulesText';
 import { PileView } from '../ui/PileView';
 import { bakeKeywordIcons } from '../ui/KeywordIcons';
 import {
@@ -240,8 +240,8 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { DUEL_PHONE, duelPhoneLayout, duelPhoneReadback, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
-import { DuelPhoneChrome, type PhoneHandRow, type PhoneManaSlot } from '../ui/DuelPhoneChrome';
+import { castLeavesLine, DUEL_PHONE, duelPhoneLayout, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, plainHistoryLine, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { DuelPhoneChrome, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneTargetPanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
 import { colorInt, theme } from '../ui/theme';
 import { backButton, modalShell, pager, panel, themedButton, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
@@ -482,6 +482,12 @@ export class DuelScene extends Phaser.Scene {
   private smartDanger = false;
   /** The phone's command column shows the history instead of the hand. */
   private phoneHistoryOpen = false;
+  /** A hand card opened on the phone (T-04, M17): Cast, Empower or Cancel. */
+  private phoneFocus: { handIndex: number; cardId: string } | null = null;
+  /** A card read in full on the phone (T-05): the column's keyword guide. */
+  private phoneInspect: PhoneInspectPanel | null = null;
+  /** What the phone's Undo toast takes back (M20). */
+  private undoDetail = '';
   /** Desktop-only hover preview markers for the exact auto-tap mana plan. */
   private manaPlanMarks: Phaser.GameObjects.GameObject[] = [];
   private previousManaSignature: string | null = null;
@@ -1819,6 +1825,8 @@ export class DuelScene extends Phaser.Scene {
     this.phone = null;
     this.phoneChrome = null;
     this.phoneHistoryOpen = false;
+    this.phoneFocus = null;
+    this.phoneInspect = null;
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
 
@@ -1913,8 +1921,6 @@ export class DuelScene extends Phaser.Scene {
         if (!this.ended) this.showPauseMenu();
       },
       onBlock: (side) => this.onPhoneBlock(side === 'opp' ? AI : HUMAN),
-      onEndTurn: () => this.startEndTurn(),
-      onPrimary: () => this.onButton(),
     });
   }
 
@@ -2745,6 +2751,7 @@ export class DuelScene extends Phaser.Scene {
         lookingAtHiddenCards: awaiting.kind === 'foresee' && awaiting.player === HUMAN,
       });
       this.undoSnapshot = this.undoBlocked ? null : snapshot;
+      this.undoDetail = undoToastDetail(action.type, playedCardId ? def(CARD_DB, playedCardId).name : null);
       this.selectedAttackers.clear();
       this.blockAssignments = [];
       this.pendingBlocker = null;
@@ -2866,6 +2873,8 @@ export class DuelScene extends Phaser.Scene {
       .map((iid) => ({ kind: 'permanent', iid }));
     if (this.pendingCasts && this.pendingCasts[0]?.type !== 'linkHaunt') {
       const step = this.pendingTargetStep();
+      // A phone's one-target pick waits for Cast, so every target stays tappable to change it (T-06).
+      if (this.phoneRepick(step)) return this.phoneSlotTargets();
       return this.targetPicksUnordered ? [...step.targets, ...this.targetPicks] : step.targets;
     }
     const refs = (this.pendingCasts ?? [])
@@ -2908,6 +2917,8 @@ export class DuelScene extends Phaser.Scene {
       this.syncSacrificePrompt();
       return;
     }
+    // The phone asks in its command column (syncPhoneHand); the board keeps its rings.
+    if (this.phone) return;
     const duty = this.pendingCasts?.[0];
     if (duty && duty.type !== 'linkHaunt') {
       const cardId = duty.type === 'activate'
@@ -3273,9 +3284,16 @@ export class DuelScene extends Phaser.Scene {
     if (!this.pendingCasts) return;
     if (this.pendingCasts[0]?.type !== 'linkHaunt') {
       const actions = this.pendingCasts.filter((a): a is TargetSelectionAction => a.type !== 'linkHaunt');
+      if (this.phoneRepick(this.pendingTargetStep())) {
+        // The picked target again clears it; another takes its place.
+        this.targetPicks = this.targetRefEquals(this.targetPicks[0], ref) ? [] : [ref];
+        this.sync();
+        return;
+      }
       this.targetPicks = toggleTargetSelection(actions, this.targetPicks, ref, this.targetPicksUnordered);
       const next = this.pendingTargetStep();
-      if (next.complete && ((next.count === 1 && !this.targetPicksUnordered) ||
+      // On a phone a target tap selects and Cast confirms (T-06, M17).
+      if (next.complete && ((!this.phone && next.count === 1 && !this.targetPicksUnordered) ||
         (actions[0].type === 'activate' && !this.targetsExact && next.targets.length === 0))) this.confirmPendingTargets();
       else {
         this.sync();
@@ -4901,7 +4919,7 @@ export class DuelScene extends Phaser.Scene {
           // p.button (initiating button of THIS press), not the live
           // rightButtonDown() bitmask -- a chorded left press while the right
           // button is held must act as a left click, not open inspect.
-          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant, undefined, this.permanentNote(iid));
+          if (p.button === 2 && !this.pendingCasts) this.showInspect(d, ownedVariant, undefined, this.permanentNote(iid), iid);
         });
         if (d.activated) {
           view.on('pointerover', (p: Phaser.Input.Pointer) => {
@@ -5241,6 +5259,17 @@ export class DuelScene extends Phaser.Scene {
     this.clearManaPlanPreview();
     if (!ability.targets?.length) this.showDutyConfirm(card, actions[0]);
     else this.beginTargetSelection(actions);
+  }
+
+  /** A phone's single-target pick is made and waiting on Cast. */
+  private phoneRepick(step: { count: number }): boolean {
+    return this.phone !== null && !this.targetPicksUnordered && step.count === 1 && this.targetPicks.length === 1;
+  }
+
+  /** Every target the first slot allows, whatever is picked. */
+  private phoneSlotTargets(): TargetRef[] {
+    const actions = (this.pendingCasts ?? []).filter((action): action is TargetSelectionAction => action.type !== 'linkHaunt');
+    return targetSelectionStep(actions, [], false).targets;
   }
 
   private pendingTargetStep() {
@@ -6191,21 +6220,214 @@ export class DuelScene extends Phaser.Scene {
    * While the foe acts the foot is a waiting line instead (T-10).
    */
   private syncPhoneFoot(chrome: DuelPhoneChrome): void {
-    const primary = this.passArc.visible ? phoneActionLabel(this.hud.button.text) : null;
+    const primaryLabel = this.passArc.visible ? phoneActionLabel(this.hud.button.text) : null;
     const endTurn = this.endTurnBtn.visible;
     this.passArc.setVisible(false);
     this.hud.button.setVisible(false);
     this.endTurnBtn.setVisible(false);
+    const prompt = this.phonePrompt();
+    if (prompt) {
+      chrome.setFoot(prompt.foot);
+      return;
+    }
     const st = this.duel.state;
     const waiting = !this.ended && !this.replayMode && st.turn > 0 && !this.isHumanTurnDecision()
       && this.duel.awaiting.kind !== 'gameOver';
     const name = this.opponentShortName();
     chrome.setFoot({
-      endTurn,
-      primary,
-      danger: this.smartDanger,
+      left: endTurn ? { label: 'End turn', onTap: () => this.startEndTurn() } : null,
+      primary: primaryLabel !== null ? { label: primaryLabel, danger: this.smartDanger, onTap: () => this.onButton() } : null,
       status: waiting ? (st.activePlayer === AI ? `${name}'s turn` : `${name} is answering`) : null,
     });
+  }
+
+  /**
+   * What the phone's command column is asking, if anything, in place of the
+   * hand: a card read in full (T-05), a hand card opened (T-04), or a spell
+   * waiting on its target (T-06). Each brings its own foot.
+   */
+  private phonePrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
+    if (this.phoneInspect) {
+      return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
+    }
+    if (this.phoneFocus) {
+      const focus = this.phoneFocusPrompt(this.phoneFocus);
+      if (focus) return focus;
+    }
+    return this.phoneTargetPrompt();
+  }
+
+  /** T-04: the opened hand card's question, its mana, and Cast (or Empower). */
+  private phoneFocusPrompt(focus: { handIndex: number; cardId: string }): { panel: PhonePanel; foot: PhoneFoot } | null {
+    const hand = this.duel.state.players[HUMAN].hand;
+    if (hand[focus.handIndex] !== focus.cardId || this.ended) return null;
+    const d = def(CARD_DB, focus.cardId);
+    const decision = this.isHumanTurnDecision();
+    const legal = decision ? this.duel.legalActions(HUMAN) : [];
+    const casts = handCastChoices(legal, hand, focus.handIndex);
+    const reason = decision ? reasonUncastable(this.duel.state, CARD_DB, HUMAN, focus.handIndex) : 'Wait for your turn.';
+    const castable = decision && casts.length + this.handSkims(legal, focus.cardId, focus.handIndex).length > 0
+      && (!reason || casts.some((cast) => cast.tithe));
+    const empowerable = casts.some((cast) => cast.empowered) && casts.some((cast) => !cast.empowered) && d.empower && d.cost;
+    const untapped = this.manaSlots(HUMAN).filter((slot) => slot.untapped > 0);
+    const untappedCount = untapped.reduce((sum, slot) => sum + slot.untapped, 0);
+    const empowerCost = empowerable ? combineManaCosts(d.cost!, d.empower!.cost) : null;
+    const panel: PhoneFocusPanel = {
+      kind: 'focus',
+      title: empowerable ? 'Cast, or pay more to Empower?' : `Cast ${d.name}?`,
+      rider: empowerable ? empowerText(d) ?? null : null,
+      untapped: untapped.map((slot) => ({ ...slot })),
+      leaves: castable ? castLeavesLine(untappedCount, manaValue(d.cost), empowerCost ? manaValue(empowerCost) : null) : reason ?? "You can't cast this right now.",
+      leavesTone: castable ? 'muted' : 'danger',
+      empower: castable && empowerCost ? { cost: empowerCost, onTap: () => this.castFromPhoneFocus(true) } : null,
+    };
+    return {
+      panel,
+      foot: {
+        left: { label: 'Cancel', onTap: () => this.closePhoneFocus() },
+        primary: { label: 'Cast', enabled: castable, onTap: () => this.castFromPhoneFocus(empowerable ? false : null) },
+      },
+    };
+  }
+
+  /** T-06: the spell waiting on its target, what is picked, and Cast to confirm. */
+  private phoneTargetPrompt(): { panel: PhonePanel; foot: PhoneFoot } | null {
+    if (this.pendingSacrifice) return null;
+    const pending = this.pendingCasts?.[0];
+    if (pending && pending.type !== 'linkHaunt') {
+      const cardId = pending.type === 'activate'
+        ? this.duel.state.battlefield.find((perm) => perm.iid === pending.iid)?.cardId
+        : this.actionCardId(pending);
+      if (!cardId) return null;
+      const card = def(CARD_DB, cardId);
+      const step = this.pendingTargetStep();
+      const huntPrompt = huntStepPrompt(card, this.huntTargetSource(pending), step.selected.length,
+        pending.type === 'activate' ? pending.abilityIndex ?? 0 : 0);
+      const empowered = pending.type === 'castSpell' && pending.empowered === true;
+      const cost = pending.type === 'activate' ? null
+        : empowered && card.cost && card.empower ? combineManaCosts(card.cost, card.empower.cost) : card.cost ?? null;
+      return {
+        panel: {
+          kind: 'target',
+          card,
+          cost,
+          chip: empowered ? 'Empowered' : null,
+          title: targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText),
+          text: rulesText(card),
+          picks: this.targetPicks.map((ref) => this.phonePickRow(ref)),
+        },
+        foot: {
+          left: { label: 'Cancel', onTap: () => this.cancelPendingTargeting() },
+          primary: {
+            label: pending.type === 'activate' ? this.dutyLabelOf(pending) : 'Cast',
+            enabled: step.complete !== null,
+            onTap: () => this.confirmPendingTargets(),
+          },
+        },
+      };
+    }
+    const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
+    if (!deferred || !this.isHumanChooseTarget()) return null;
+    return {
+      panel: { kind: 'target', card: def(CARD_DB, deferred.sourceCardId), cost: null, chip: null, title: deferred.title, text: deferred.text, picks: [] },
+      foot: { left: null, primary: null },
+    };
+  }
+
+  /** A picked target's row in the phone's column: the card or the player. */
+  private phonePickRow(ref: TargetRef): PhoneTargetPanel['picks'][number] {
+    if (ref.kind === 'player') {
+      const faceId = ref.player === HUMAN ? this.myFaceCardId : this.oppFaceCardId;
+      const life = this.duel.state.players[ref.player].life;
+      return {
+        card: faceId && CARD_DB[faceId] ? def(CARD_DB, faceId) : null,
+        portrait: null,
+        name: ref.player === HUMAN ? 'You' : this.opponentShortName(),
+        detail: `Life ${life}`,
+      };
+    }
+    if (ref.kind === 'permanent') {
+      const perm = this.duel.state.battlefield.find((entry) => entry.iid === ref.iid);
+      if (perm) {
+        const d = def(CARD_DB, perm.cardId);
+        const stats = getEffectiveStats(this.duel.state, CARD_DB, perm.iid);
+        return {
+          card: d,
+          portrait: null,
+          name: d.name,
+          detail: isType(d, 'creature') ? `${stats.attack}/${stats.defense - perm.damage}` : typeLine(d),
+        };
+      }
+    }
+    const graveId = ref.kind === 'grave' ? this.graveTargetCardId(ref) : null;
+    const d = graveId ? def(CARD_DB, graveId) : null;
+    return { card: d, portrait: null, name: d?.name ?? 'A spell', detail: ref.kind === 'grave' ? 'In a graveyard' : 'On the stack' };
+  }
+
+  /** Open a hand card on the phone (M17): a land plays at once; anything else asks first. */
+  private openPhoneFocus(handIndex: number): void {
+    const chrome = this.phoneChrome;
+    const cardId = this.duel.state.players[HUMAN].hand[handIndex];
+    if (!chrome || cardId === undefined || this.ended) return;
+    const d = def(CARD_DB, cardId);
+    if (isType(d, 'land') && this.isHumanTurnDecision()) {
+      this.castFromHand(handIndex, null);
+      return;
+    }
+    this.phoneHistoryOpen = false;
+    this.phoneFocus = { handIndex, cardId };
+    const at = focusCard(this.phone!, CARD_W, CARD_H);
+    const variant = displayVariantFor(Services.save.data, cardId);
+    const view = new CardView(this, at.x, at.y).setScale(at.scale);
+    view.setCard(d, { fx: 'none', variant, fullArt: variant.fullArt });
+    chrome.setStage(view, () => this.closePhoneFocus());
+    this.syncHand();
+    this.syncButton();
+  }
+
+  private closePhoneFocus(): void {
+    if (!this.phoneFocus) return;
+    this.phoneFocus = null;
+    this.phoneChrome?.setStage(null);
+    this.syncHand();
+    this.syncButton();
+  }
+
+  private castFromPhoneFocus(empowered: boolean | null): void {
+    const focus = this.phoneFocus;
+    if (!focus) return;
+    this.closePhoneFocus();
+    this.castFromHand(focus.handIndex, empowered);
+  }
+
+  /** T-05: the card over the board, its live numbers and keyword guide in the column, Close at the foot. */
+  private showPhoneInspect(chrome: DuelPhoneChrome, card: CardDef, variant: CardVariant | undefined, landStyle: string | undefined,
+    note: string | null, iid: number | undefined): void {
+    const perm = iid === undefined ? undefined : this.duel.state.battlefield.find((entry) => entry.iid === iid);
+    let stats: PhoneInspectPanel['stats'] = null;
+    if (perm && isType(card, 'creature')) {
+      const live = getEffectiveStats(this.duel.state, CARD_DB, perm.iid);
+      const now = `${live.attack}/${live.defense - perm.damage}`;
+      const printed = `${card.attack ?? 0}/${card.defense ?? 0}`;
+      stats = { now, printed: now === printed ? null : `Printed ${printed}${perm.damage > 0 ? ` · ${perm.damage} damage marked` : ''}` };
+    }
+    this.phoneInspect = {
+      kind: 'inspect',
+      stats,
+      lines: [...(card.token ? [] : [rarityLine(card)]), ...(note ? [note] : [])],
+      guide: cardGlossaryEntries(card),
+    };
+    const at = focusCard(this.phone!, CARD_W, CARD_H);
+    const view = new CardView(this, at.x, at.y).setScale(at.scale);
+    view.setCard(card, { fx: 'none', variant, fullArt: variant?.fullArt === true, landStyle });
+    chrome.setStage(view, () => this.closeInspect());
+    // A placeholder keeps every "is an inspect open" check true while the column shows it.
+    this.inspect = this.add.container(0, 0);
+    const keep = new Set<Phaser.GameObjects.GameObject>([...chrome.footTargets(), ...chrome.stageTargets()]);
+    this.inspectGuard.open(this.overlayGuardTargets().filter((target) => !keep.has(target)));
+    this.phoneHistoryOpen = false;
+    this.syncHand();
+    this.syncButton();
   }
 
   /** The foe's name up to its title ("Carmilla" of "Carmilla, Crimson Host"), for the phone's short lines. */
@@ -6243,6 +6465,17 @@ export class DuelScene extends Phaser.Scene {
     this.handPoses = new Map();
     for (const o of this.handDecor) o.destroy();
     this.handDecor = [];
+    if (this.phoneFocus && !this.phoneFocusPrompt(this.phoneFocus)) {
+      // The opened card left the hand or the decision passed: back to the hand.
+      this.phoneFocus = null;
+      chrome.setStage(null);
+    }
+    const prompt = this.phonePrompt();
+    if (prompt) {
+      chrome.setPanel(prompt.panel);
+      this.previousHand = [...hand];
+      return;
+    }
     if (this.phoneHistoryOpen) {
       chrome.setHistory(this.history.lines, (cardId) => this.showInspect(def(CARD_DB, cardId)));
       this.previousHand = [...hand];
@@ -6282,9 +6515,14 @@ export class DuelScene extends Phaser.Scene {
       };
     });
     const reserve = this.isReserveDuel() ? this.duel.viewFor(HUMAN).you.landReserve ?? [] : [];
-    const pinned = this.isReserveDuel() && this.landDropAvailable() && reserve.length > 0
-      ? { title: `Warchest Reserves · ${reserve.length}`, detail: 'One land each turn', onTap: () => this.showReserveModal(HUMAN) }
-      : null;
+    const pinned: PhonePinnedRow[] = [];
+    // M20: Undo waits at the top of the column while the move can be taken back.
+    if (decision && this.undoSnapshot && !this.animatingCombat && !this.isMandatoryChoice()) {
+      pinned.push({ title: 'Undo', detail: this.undoDetail, icon: 'turn', onTap: () => this.undoLastAction() });
+    }
+    if (this.isReserveDuel() && this.landDropAvailable() && reserve.length > 0) {
+      pinned.push({ title: `Warchest Reserves · ${reserve.length}`, detail: 'One land each turn', icon: 'deck', onTap: () => this.showReserveModal(HUMAN) });
+    }
     const spots = chrome.setHand(rows, pinned);
     // Played cards leave from their row (the travel animations read these).
     order.forEach((handIdx, i) => {
@@ -6507,9 +6745,9 @@ export class DuelScene extends Phaser.Scene {
     this.drawStackTargetArrows();
     // Cast-targeting arrow (desktop hover): from the live source card to the
     // pointer, snapping to the closest legal target so burn-face vs burn-creature
-    // intent is unmistakable. Touch resolves targets by direct tap — no hover.
+    // intent is unmistakable. Touch and the phone layout pick by tap — no hover.
     const targetRefs = this.targetRefsForInput();
-    if (targetRefs.length > 0 && !this.touch) {
+    if (targetRefs.length > 0 && !this.touch && !this.phone) {
       const p = this.input.activePointer;
       const tip = this.snapTargetTip(p.worldX, p.worldY);
       const origin = this.pendingCasts
@@ -6804,6 +7042,19 @@ export class DuelScene extends Phaser.Scene {
 
   private onHandClick(handIndex: number): void {
     if (this.isHumanChooseTarget() || this.pendingSacrifice) return;
+    if (this.phone) {
+      this.openPhoneFocus(handIndex);
+      return;
+    }
+    this.castFromHand(handIndex, null);
+  }
+
+  /**
+   * Play a hand card: a land at once; a spell through its choosers, then its
+   * targets. `empowered` is the phone's choice already made in the card
+   * focus (T-04); null asks in the desktop chooser when both are legal.
+   */
+  private castFromHand(handIndex: number, empowered: boolean | null): void {
     this.clearManaPlanPreview();
     // Dimmed-card feedback names the reason; enumerated Tithe casts also admit
     // a discounted play when the legacy explanation sees only the full price.
@@ -6859,7 +7110,9 @@ export class DuelScene extends Phaser.Scene {
     // Empower choice comes first: the enumerator only emits the empowered
     // variant when the extra cost is actually payable, so the chooser appears
     // exactly when the option is real (user decision 2026-07-17).
-    this.startCast(normalCasts.length > 0 ? normalCasts : hauntlinkedCasts);
+    const chosen = normalCasts.length > 0 ? normalCasts : hauntlinkedCasts;
+    const narrowed = empowered === null ? chosen : chosen.filter((cast) => (cast.empowered ?? false) === empowered);
+    this.startCast(narrowed.length > 0 ? narrowed : chosen);
   }
 
   private startCast(casts: Extract<Action, { type: 'castSpell' }>[]): void {
@@ -7383,7 +7636,7 @@ export class DuelScene extends Phaser.Scene {
       this.onBattlefieldClick(iid); // assigning a block to this attacker
       return;
     }
-    this.showInspect(d, undefined, undefined, this.permanentNote(iid));
+    this.showInspect(d, undefined, undefined, this.permanentNote(iid), iid);
   }
 
   // ---------------------------------------------------------------------
@@ -7742,9 +7995,13 @@ export class DuelScene extends Phaser.Scene {
   // Inspect overlay: right-click any card for the full CardView
   // ---------------------------------------------------------------------
 
-  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string, note: string | null = null): void {
+  private showInspect(card: CardDef, variant?: CardVariant, landStyle?: string, note: string | null = null, iid?: number): void {
     if (this.ended) return;
     this.closeInspect();
+    if (this.phoneChrome) {
+      this.showPhoneInspect(this.phoneChrome, card, variant, landStyle, note, iid);
+      return;
+    }
     this.zoom.setSuppressed(true);
     // A hovered hand card can't receive pointerout once the guard disables
     // its zone (Phaser drops disabled objects from the over-list silently),
@@ -7836,6 +8093,12 @@ export class DuelScene extends Phaser.Scene {
       this.inspect.destroy();
       this.inspect = null;
       this.inspectGuard.close();
+      if (this.phoneInspect) {
+        this.phoneInspect = null;
+        this.phoneChrome?.setStage(null);
+        this.syncHand();
+        this.syncButton();
+      }
     }
     // Inspect launched from a zone modal returns there on close. Deferred a
     // tick: showInspect's own close-then-replace path must NOT bounce back

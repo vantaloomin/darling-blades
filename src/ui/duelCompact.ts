@@ -19,6 +19,7 @@
  * places.
  */
 
+import type { Action } from '../engine/actions';
 import { COMPACT, compactList, type CompactListLayout } from './compactLayout';
 import type { DUEL_LAYOUT } from './duelLayout';
 import { deckRowDetail } from './deckBuilderCompact';
@@ -216,23 +217,61 @@ export function sideBoard(half: Rect, side: 'opp' | 'mine', creatureCount: numbe
 // ------------------------------------------------------------------ the hand list
 
 export interface HandListLayout extends CompactListLayout {
-  /** A pinned row above the hand (the Warchest drop, T-03b), or null. */
-  pinned: Rect | null;
+  /** Rows pinned above the hand (the Undo toast, the Warchest drop of T-03b), top first. */
+  pinned: Rect[];
 }
 
 /**
- * The hand's rows down the column (M27). A pinned row (the Warchest while a
- * land drop is open) takes the first slot; a hand longer than the pane ends in
- * an "N more in hand" row (T-13a).
+ * The hand's rows down the column (M27). Pinned rows (the Undo toast after an
+ * undoable move, the Warchest while a land drop is open) take the first
+ * slots; a hand longer than the pane ends in an "N more in hand" row (T-13a).
  */
-export function handList(L: DuelPhoneLayout, count: number, pinned: boolean): HandListLayout {
+export function handList(L: DuelPhoneLayout, count: number, pinnedCount = 0): HandListLayout {
   const rowH = L.handRowH;
   const pitch = rowH + (COMPACT.rowPitch - COMPACT.touch);
-  const pinnedRect = pinned ? { x: L.hand.x, y: L.hand.y, width: L.hand.width, height: rowH } : null;
-  const pane = pinned
-    ? { ...L.hand, y: L.hand.y + pitch, height: Math.max(0, L.hand.height - pitch) }
-    : L.hand;
-  return { ...compactList(pane, count, rowH), pinned: pinnedRect };
+  const pins = Math.max(0, Math.floor(pinnedCount));
+  const pinned = Array.from({ length: pins }, (_, i) => ({ x: L.hand.x, y: L.hand.y + i * pitch, width: L.hand.width, height: rowH }));
+  const pane = { ...L.hand, y: L.hand.y + pins * pitch, height: Math.max(0, L.hand.height - pins * pitch) };
+  return { ...compactList(pane, count, rowH), pinned };
+}
+
+// ------------------------------------------------------------------ card focus
+
+/**
+ * Where a card opens over the board (T-04, T-05): as large as the centre
+ * pane allows, centred in it, so the left column and the command column stay
+ * in view.
+ */
+export function focusCard(L: DuelPhoneLayout, cardW: number, cardH: number): { x: number; y: number; scale: number } {
+  const inset = 6;
+  const scale = Math.max(0.1, Math.min((L.main.height - 2 * inset) / cardH, (L.main.width - 2 * inset) / cardW));
+  return { x: L.main.x + L.main.width / 2, y: L.main.y + L.main.height / 2, scale };
+}
+
+/** What a cast leaves untapped (T-04): "Cast leaves 4 · Empower leaves 2". */
+export function castLeavesLine(untapped: number, castCost: number, empowerCost: number | null): string {
+  const left = (cost: number): number => Math.max(0, untapped - cost);
+  const cast = `Cast leaves ${left(castCost)}`;
+  return empowerCost === null ? cast : `${cast} · Empower leaves ${left(empowerCost)}`;
+}
+
+/** The Undo toast's words for the move it takes back (M20). */
+export function undoToastDetail(actionType: Action['type'], cardName: string | null): string {
+  switch (actionType) {
+    case 'castSpell':
+    case 'castDarling':
+      return cardName ? `Cast ${cardName}` : 'Your cast';
+    case 'playLand':
+      return cardName ? `Played ${cardName}` : 'Your land';
+    case 'activate':
+      return cardName ? `Used ${cardName}` : 'Your ability';
+    case 'declareAttackers':
+      return 'Your attack';
+    case 'declareBlockers':
+      return 'Your blocks';
+    default:
+      return cardName ? `Your move with ${cardName}` : 'Your last move';
+  }
 }
 
 // ------------------------------------------------------------------ the left column
