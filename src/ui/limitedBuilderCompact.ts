@@ -82,14 +82,15 @@ export interface LimitedTileGrid {
 /**
  * As many columns as fit tiles of at least the floor (times `k`), the spare
  * shared into the tiles; the scroll thumb's lane is kept clear at the right.
+ * `tile` is the floor and shape (the builder's by default; the draft's pack is taller).
  */
-export function limitedTileGrid(area: Rect, count: number, k: number): LimitedTileGrid {
+export function limitedTileGrid(area: Rect, count: number, k: number, tile: { minW: number; aspect: number } = { minW: LIMITED_BUILDER_COMPACT.tileMinW, aspect: LIMITED_BUILDER_COMPACT.tileAspect }): LimitedTileGrid {
   const B = LIMITED_BUILDER_COMPACT;
   const gap = Math.round(B.tileGap * k);
   const usable = Math.max(0, area.width - 6);
-  const columns = Math.max(1, Math.floor((usable + gap) / (B.tileMinW * k + gap)));
+  const columns = Math.max(1, Math.floor((usable + gap) / (tile.minW * k + gap)));
   const w = Math.floor((usable - gap * (columns - 1)) / columns);
-  const h = Math.round(w * B.tileAspect);
+  const h = Math.round(w * tile.aspect);
   const cells = Array.from({ length: count }, (_, i) => ({
     x: area.x + (i % columns) * (w + gap),
     y: Math.floor(i / columns) * (h + gap),

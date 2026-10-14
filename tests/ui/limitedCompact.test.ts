@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { COMPACT } from '../../src/ui/compactLayout';
 import { limitedHubLayout } from '../../src/ui/limitedCompact';
 import { limitedBuilderLayout, limitedTileGrid } from '../../src/ui/limitedBuilderCompact';
+import { draftPicksGrid, LIMITED_DRAFT_COMPACT, limitedDraftLayout } from '../../src/ui/limitedDraftCompact';
 import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
@@ -45,5 +46,32 @@ describe('the compact Limited screens (mocks S-Limited-Hub, S-Limited-Builder)',
     const phone = landscape.find((l) => l.name === 'phone-island')!.content;
     const l = limitedBuilderLayout(phone);
     expect(limitedTileGrid(l.grid, 45, l.k).columns).toBe(6);
+  });
+
+  it('fits a draft pack’s two rows under the seats on the reference phone, the column clear', () => {
+    const D = LIMITED_DRAFT_COMPACT;
+    for (const { name, content } of landscape) {
+      const l = limitedDraftLayout(content, 16, 22);
+      for (const [a, b] of [[l.seats, l.packHeading], [l.packHeading, l.grid], [l.grid, l.picks], [l.seats, l.picks], [l.picks, l.foot]] as const) {
+        expect(overlap(a, b), name).toBe(false);
+      }
+      // Seats sit inside the pane, far enough apart for their portraits.
+      expect(l.seatXs[1] - l.seatXs[0], name).toBeGreaterThan(l.seatD);
+      expect(l.seatXs[0] - l.seatD / 2 >= l.seats.x && l.seatXs[7] + l.seatD / 2 <= l.seats.x + l.seats.width, name).toBe(true);
+      expect(l.sheet.x + l.sheet.width, name).toBeLessThanOrEqual(l.picks.x);
+    }
+    const l = limitedDraftLayout(landscape.find((x) => x.name === 'phone-island')!.content, 16, 22);
+    const grid = limitedTileGrid(l.grid, 15, l.k, { minW: D.tileMinW, aspect: D.tileAspect });
+    expect(grid.columns).toBe(6);
+    expect(grid.cells[6].y + grid.cells[6].height).toBeLessThanOrEqual(l.grid.height);
+  });
+
+  it('counts the drafted cards that do not fit in the last thumb', () => {
+    const area = { x: 0, y: 0, width: 230, height: 72 };
+    const all = draftPicksGrid(area, 12);
+    expect([all.shown, all.more, all.cells.length]).toEqual([12, 0, 12]);
+    const over = draftPicksGrid(area, 30);
+    expect([over.shown, over.more, over.cells.length]).toEqual([11, 19, 12]);
+    for (const c of over.cells) expect(inside(c, area)).toBe(true);
   });
 });

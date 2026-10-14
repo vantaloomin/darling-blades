@@ -36,6 +36,7 @@ import { CardView } from '../ui/CardView';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { addKeywordGlossaryPanel } from '../ui/KeywordGlossaryPanel';
 import { rarityLine } from '../ui/CardZoomPreview';
+import { cardGlossaryEntries } from '../ui/rulesText';
 import { leaveDraftPrompt } from '../ui/leaveDraftPrompt';
 import {
   LIMITED_PICKS_PANEL,
@@ -52,7 +53,19 @@ import { ModalGuard } from '../ui/Modal';
 import { fitMenuName, type MenuDensity } from '../ui/menuText';
 import { gateOnArt, PagedArt } from '../ui/artGate';
 import { addPortraitArt } from '../ui/portraitArt';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { CARD_H, CARD_W } from '../ui/CardView';
+import { COMPACT } from '../ui/compactLayout';
+import { COMPACT_DRAG_SLOP, compactButton, compactDialog, compactHeader, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { medallionRim } from '../ui/duelCompact';
+import { dashedRoundRect } from '../ui/DuelPhoneChrome';
+import { limitedTileGrid } from '../ui/limitedBuilderCompact';
+import { draftPicksGrid, LIMITED_DRAFT_COMPACT, limitedDraftLayout, type LimitedDraftLayout } from '../ui/limitedDraftCompact';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { PackTile } from '../ui/PackTile';
+import { ellipsizeText } from '../ui/textFit';
+import { bakeUiIcon } from '../ui/uiIcons';
+import type { Rect } from '../ui/layout';
 import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import { currentAccessibility } from '../ui/accessibility';
@@ -123,6 +136,12 @@ export class LimitedDraftScene extends Phaser.Scene {
   private fixture: LimitedDraftA11yFixture | null = null;
   private fixtureSave: SaveData | null = null;
   private touch = false;
+  /** The compact composition's Pick selected, its selection mark, and where its seats sit (for the pass). */
+  private compactPick: CompactButton | null = null;
+  private compactMark: ((index: number) => void) | null = null;
+  private compactSeats: { xs: number[]; y: number; d: number } | null = null;
+  /** The compact inspect's Select, relabelled when the shown card is selected. */
+  private inspectSelect: CompactButton | null = null;
   private get saveData(): SaveData {
     return this.fixtureSave ?? Services.save.data;
   }
@@ -183,6 +202,11 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.inspectHint = null;
     this.leavePrompt = null;
     this.passing = false;
+    this.compactPick = null;
+    this.compactMark = null;
+    this.compactSeats = null;
+    this.inspectSelect = null;
+    const compact = sceneStage(this).compact;
 
     bakeManaSymbols(this);
     applyBackdrop(this, 'packopening', {
@@ -223,7 +247,7 @@ export class LimitedDraftScene extends Phaser.Scene {
       this.scene.start('Limited');
       return;
     }
-    backButton(this, 'Draft', () => this.leaveDraft());
+    if (!compact) backButton(this, 'Draft', () => this.leaveDraft());
     registerSceneBackNavigation(this, () => this.leaveDraft());
     if (run.draft.completed) {
       // Interrupted-save path (confirmPick normally records before this).
@@ -236,11 +260,15 @@ export class LimitedDraftScene extends Phaser.Scene {
     }
 
     const pack = currentDraftPack(run.draft);
-    this.drawHeader(run, pack.length);
-    this.drawSeatTable(run);
-    this.drawPack(run, pack);
-    this.drawPicks(run);
-    this.drawActions(run);
+    if (compact) {
+      this.drawCompact(run, pack);
+    } else {
+      this.drawHeader(run, pack.length);
+      this.drawSeatTable(run);
+      this.drawPack(run, pack);
+      this.drawPicks(run);
+      this.drawActions(run);
+    }
     this.openFixtureState(run, pack);
     this.data.set('a11yReady', true);
   }
@@ -571,6 +599,20 @@ export class LimitedDraftScene extends Phaser.Scene {
       return;
     }
     if (this.leavePrompt) return;
+    if (sceneStage(this).compact) {
+      const dialog = compactDialog(this, {
+        title: 'Leave Draft?',
+        message: 'Your draft run is saved and can be resumed from the Draft hub. Leave now?',
+        secondary: { label: 'Keep drafting', onTap: (close) => close() },
+        primary: { label: 'Leave', onTap: (close) => { close(); this.scene.start('Limited'); } },
+        dismissal: 'dismissible',
+        onClose: () => {
+          if (this.leavePrompt === dialog) this.leavePrompt = null;
+        },
+      });
+      this.leavePrompt = dialog;
+      return;
+    }
     const shell = leaveDraftPrompt(this, {
       stayLabel: 'Keep Drafting',
       onLeave: () => this.scene.start('Limited'),
@@ -587,6 +629,8 @@ export class LimitedDraftScene extends Phaser.Scene {
     this.selectedCell = index;
     this.selectedId = id;
     this.pickButton?.setEnabled(true);
+    this.compactPick?.setEnabled(true);
+    this.compactMark?.(index);
     this.refreshPackSelection();
   }
 
@@ -625,6 +669,9 @@ export class LimitedDraftScene extends Phaser.Scene {
   };
 
   private refreshInspectHint(): void {
+    if (this.inspectSelect && this.inspectIndex !== null) {
+      this.inspectSelect.setLabel(this.selectedCell === this.inspectIndex ? 'Selected' : 'Select');
+    }
     if (!this.inspectHint?.active || this.inspectIndex === null) return;
     const selected = this.selectedCell === this.inspectIndex;
     this.inspectHint
@@ -652,6 +699,10 @@ export class LimitedDraftScene extends Phaser.Scene {
 
   private showPersona(identity: SeatIdentity): void {
     this.closeModal();
+    if (sceneStage(this).compact) {
+      this.showCompactPersona(identity);
+      return;
+    }
     // The reading column flows top to bottom from each line's measured
     // bottom; the release offsets (name 214, the next line 259, colours 302,
     // the blurb or hint 352, familiarity 465) are floors, so the standard
@@ -754,6 +805,10 @@ export class LimitedDraftScene extends Phaser.Scene {
   }
   private showCardInspect(card: CardDef, packIndex: number): void {
     this.closeModal();
+    if (sceneStage(this).compact) {
+      this.showCompactInspect(card, packIndex);
+      return;
+    }
     const shell = modalShell(this, {
       width: 980,
       height: 610,
@@ -949,6 +1004,475 @@ export class LimitedDraftScene extends Phaser.Scene {
     c.add(closeHint);
   }
 
+  // ------------------------------------------------------------------ compact (phone and desktop)
+
+  /** The compact composition (S-Draft-Pick): seats over the pack's tiles, Your Picks in the column. */
+  private drawCompact(run: LimitedRun, pack: readonly string[]): void {
+    const stage = sceneStage(this);
+    const type = theme.compactType;
+    const draft = run.draft!;
+    const probe = this.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w600 });
+    const nameH = probe.height;
+    probe.destroy();
+    const heading = this.add.text(0, 0, `Current Pack (${pack.length})`, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    const layout = limitedDraftLayout(stage.content, nameH, heading.height);
+    heading.setPosition(layout.packHeading.x, layout.packHeading.y);
+    const packSize = Math.max(ECONOMY.limitedPackSize, pack.length + draft.pickIndex);
+    const header = compactHeader(this, layout.shell, {
+      title: run.premium ? 'Premium Draft' : 'Free Draft',
+      subtitle: `Pack ${draft.packIndex + 1}/${DRAFT_PACKS} · Pick ${draft.pickIndex + 1}/${packSize}`,
+      onBack: () => this.leaveDraft(),
+    });
+    header.subtitle?.setColor(theme.colors.gold).setFontStyle(theme.weight.w600);
+    // The pass direction ends over the main pane's right edge, above the seats it describes.
+    const direction = draftDirection(draft.packIndex);
+    const arrow = direction === 'left' ? '←' : '→';
+    const mainRight = layout.grid.x + layout.grid.width;
+    const pass = this.add.text(mainRight, layout.shell.right.y + layout.shell.right.height / 2, `${arrow}  PASS ${direction.toUpperCase()}  ${arrow}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    }).setOrigin(1, 0.5).setLetterSpacing(1);
+    let titleRight = pass.x - pass.width - COMPACT.gap;
+    // At larger text the header keeps only the title; the pack and pick then ride over the pass direction.
+    if (!header.subtitle) {
+      const readout = this.add.text(mainRight, 0, `Pack ${draft.packIndex + 1}/${DRAFT_PACKS} · Pick ${draft.pickIndex + 1}/${packSize}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+      }).setOrigin(1, 0);
+      const top = layout.shell.right.y + (layout.shell.right.height - readout.height - pass.height) / 2;
+      readout.setY(top);
+      pass.setY(top + readout.height + pass.height / 2);
+      titleRight = Math.min(titleRight, readout.x - readout.width - COMPACT.gap);
+    }
+    ellipsizeText(header.title, titleRight - header.title.x);
+    if (header.subtitle) ellipsizeText(header.subtitle, titleRight - header.subtitle.x);
+    this.drawCompactSeats(run, layout, arrow);
+    this.drawCompactPack(run, pack, layout);
+    this.drawCompactPicks(run, layout);
+    this.compactPick = compactButton(this, layout.foot, 'Pick selected', { variant: 'primary', onTap: () => this.confirmPick(run) });
+    this.compactPick.setEnabled(false);
+    this.interactiveTargets.push(this.compactPick.inputZone);
+  }
+
+  /** The table: You, then seats 7 to 1 (seatColumnX's order), round portraits over first names, arrows the way packs flow. */
+  private drawCompactSeats(run: LimitedRun, layout: LimitedDraftLayout, arrow: string): void {
+    const type = theme.compactType;
+    const d = layout.seatD;
+    const y = layout.seatY;
+    const xs = layout.seatXs;
+    const pitch = xs[1] - xs[0];
+    this.compactSeats = { xs, y, d };
+    for (let seat = 0; seat < DRAFT_SEATS; seat++) {
+      const identity = this.identityForSeat(run, seat);
+      const x = xs[seat === 0 ? 0 : DRAFT_SEATS - seat];
+      const ring = identity.human ? colorInt(theme.colors.gold) : theme.graphics.panelStroke;
+      const group = this.add.container(0, 0);
+      group.add(this.add.circle(x, y, d / 2, theme.graphics.panelFill, 1));
+      if (identity.human) {
+        group.add(this.add.image(x, y, bakeUiIcon(this, 'profile')).setDisplaySize(d * 0.55, d * 0.55).setTint(colorInt(theme.colors.gold)));
+      } else {
+        group.add(this.add.text(x, y, initial(identity.name), {
+          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+        }).setOrigin(0.5));
+        this.addPortrait(group, identity.portraitCardId, x, y, d, d, true);
+      }
+      group.add(this.add.circle(x, y, d / 2, theme.graphics.dim, 0).setStrokeStyle(identity.human ? 2 : 1.5, ring, 1));
+      const name = this.add.text(x, y + d / 2 + 2, identity.human ? 'You' : firstName(identity.name), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: identity.human ? theme.weight.w700 : theme.weight.w600,
+        color: identity.human ? theme.colors.gold : theme.colors.body,
+      }).setOrigin(0.5, 0);
+      ellipsizeText(name, pitch - 4);
+      name.setData('a11yFullText', identity.name);
+      const zone = this.add.zone(x, layout.seats.y + layout.seats.height / 2, pitch, Math.max(layout.seats.height, COMPACT.touch))
+        .setInteractive({ useHandCursor: true });
+      bindTapButton(this, zone, () => this.showPersona(identity));
+      this.interactiveTargets.push(zone);
+    }
+    for (let col = 0; col < DRAFT_SEATS - 1; col++) {
+      this.add.text((xs[col] + xs[col + 1]) / 2, y, arrow, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      }).setOrigin(0.5);
+    }
+  }
+
+  /** The pack as art tiles: a tap selects, a hold (or a right-click) opens the card's pick impact. */
+  private drawCompactPack(run: LimitedRun, pack: readonly string[], layout: LimitedDraftLayout): void {
+    const D = LIMITED_DRAFT_COMPACT;
+    const type = theme.compactType;
+    const area = layout.grid;
+    const grid = limitedTileGrid(area, pack.length, layout.k, { minW: D.tileMinW, aspect: D.tileAspect });
+    const list = this.add.container(0, area.y);
+    new PagedArt(this, 'draft-pack').show([], pack);
+    pack.forEach((id, index) => {
+      const variant = this.currentPackVariant(index);
+      list.add(new PackTile(this, grid.cells[index]).showFace(def(CARD_DB, id), variant?.frame ?? 'white'));
+    });
+    // The selection: a gold rim and a check disc in the tile's top-right corner.
+    const mark = this.add.graphics();
+    list.add(mark);
+    const check = this.add.image(0, 0, bakeUiIcon(this, 'check')).setTint(colorInt(theme.colors.onGold)).setVisible(false);
+    list.add(check);
+    this.compactMark = (index: number): void => {
+      mark.clear();
+      const cell = grid.cells[index];
+      if (!cell) {
+        check.setVisible(false);
+        return;
+      }
+      const disc = Math.round(Math.min(type.label * 1.8, cell.width * 0.3));
+      const cx = cell.x + cell.width - disc / 2 - 3;
+      const cy = cell.y + disc / 2 + 3;
+      mark.lineStyle(3.5, colorInt(theme.colors.gold), 1).strokeRoundedRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2, theme.radius.panel);
+      mark.fillStyle(colorInt(theme.colors.gold), 1).fillCircle(cx, cy, disc / 2).lineStyle(1.5, theme.graphics.panelFill, 1).strokeCircle(cx, cy, disc / 2);
+      check.setPosition(cx, cy).setDisplaySize(disc * 0.62, disc * 0.62).setVisible(true);
+    };
+    const blocked = (): boolean => this.modal !== null || this.leavePrompt !== null || this.passing;
+    const scroll = bindMenuScroll(this, list, area, grid.contentH, blocked);
+    const indexAt = (p: Phaser.Input.Pointer): number => {
+      const y = p.worldY - area.y + scroll.offset();
+      return grid.cells.findIndex((c) => p.worldX >= c.x && p.worldX <= c.x + c.width && y >= c.y && y <= c.y + c.height);
+    };
+    const zone = this.add.zone(area.x + area.width / 2, area.y + area.height / 2, area.width, area.height).setInteractive({ useHandCursor: true });
+    this.interactiveTargets.push(zone);
+    let hold: Phaser.Time.TimerEvent | null = null;
+    let held = false;
+    const inspect = (index: number): void => this.showCardInspect(def(CARD_DB, pack[index]), index);
+    zone.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      held = false;
+      hold?.remove(false);
+      if (p.rightButtonDown()) return;
+      const index = indexAt(p);
+      if (index < 0) return;
+      hold = this.time.delayedCall(450, () => {
+        hold = null;
+        if (Math.abs(p.y - p.downY) > COMPACT_DRAG_SLOP) return;
+        held = true;
+        inspect(index);
+      });
+    });
+    zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+      hold?.remove(false);
+      hold = null;
+      if (held || blocked() || Math.abs(p.upY - p.downY) > COMPACT_DRAG_SLOP) return;
+      const index = indexAt(p);
+      if (index < 0) return;
+      if (p.rightButtonReleased()) inspect(index);
+      else this.selectCard(index, pack[index]);
+    });
+    zone.on('pointerout', () => {
+      hold?.remove(false);
+      hold = null;
+    });
+  }
+
+  /** Your Picks: colours, the mana curve, then the drafted cards, most recent first, as many as fit and a "+N". */
+  private drawCompactPicks(run: LimitedRun, layout: LimitedDraftLayout): void {
+    const type = theme.compactType;
+    const box = layout.picks;
+    const picks = [...(run.draft?.picks[0] ?? [])].reverse();
+    const stats = computeDeckStats([...picks], CARD_DB);
+    let y = box.y;
+    const heading = this.add.text(box.x, y, `Your Picks (${picks.length})`, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    y += heading.height + 4;
+    const label = (text: string): number => {
+      const t = this.add.text(box.x, y, text, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+        wordWrap: { width: box.width, useAdvancedWrap: true },
+      });
+      return t.height;
+    };
+    y += label('COLORS') + 4;
+    const pip = Math.round(type.label * 1.3);
+    const colorPitch = box.width / PIE_COLORS.length;
+    let rowH = pip;
+    PIE_COLORS.forEach((color, i) => {
+      const px = box.x + i * colorPitch;
+      this.add.image(px + pip / 2, y + pip / 2, `pip-${color}`).setDisplaySize(pip, pip);
+      const count = this.add.text(px + pip + 4, y + pip / 2, String(stats.colorPips[color]), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+      }).setOrigin(0, 0.5);
+      rowH = Math.max(rowH, count.height);
+    });
+    y += rowH + 6;
+    y += label('MANA CURVE') + 2;
+    const curvePitch = box.width / (CURVE_MAX + 1);
+    let axisH = 0;
+    let countH = 0;
+    for (let mv = 0; mv <= CURVE_MAX; mv++) {
+      const cx = box.x + curvePitch * (mv + 0.5);
+      const axis = this.add.text(cx, y, mv === CURVE_MAX ? '7+' : String(mv), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: theme.colors.muted,
+      }).setOrigin(0.5, 0);
+      axisH = Math.max(axisH, axis.height);
+      const count = this.add.text(cx, y + axis.height, String(stats.curve[mv]), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
+        color: stats.curve[mv] > 0 ? theme.colors.gold : theme.colors.body,
+      }).setOrigin(0.5, 0);
+      countH = Math.max(countH, count.height);
+    }
+    y += axisH + countH + 6;
+    y += label('DRAFTED CARDS · MOST RECENT FIRST') + 6;
+    const area: Rect = { x: box.x, y, width: box.width, height: Math.max(0, box.y + box.height - y) };
+    if (picks.length === 0) {
+      this.add.text(area.x, area.y, 'Your picks will collect here.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: area.width, useAdvancedWrap: true },
+      });
+      return;
+    }
+    const grid = draftPicksGrid(area, picks.length);
+    new PagedArt(this, 'draft-picks').show([], picks.slice(0, grid.shown));
+    const g = this.add.graphics();
+    picks.slice(0, grid.shown).forEach((id, i) => {
+      const card = def(CARD_DB, id);
+      const cell = grid.cells[i];
+      g.fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(cell.x, cell.y, cell.width, cell.height, 4);
+      const art = { x: cell.x + 2, y: cell.y + 2, width: cell.width - 4, height: cell.height - 4 };
+      try {
+        addPortraitArt(this, art.x + art.width / 2, art.y + art.height / 2, id, (img) => coverFitImage(img, art, 0.1), 'half');
+      } catch {
+        // No art: the rim alone marks the slot.
+      }
+      const rim = this.add.graphics();
+      rim.lineStyle(2, colorInt(medallionRim(card.colors, card.types)), 1).strokeRoundedRect(cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2, 4);
+    });
+    if (grid.more > 0) {
+      const cell = grid.cells[grid.cells.length - 1];
+      const dash = this.add.graphics().lineStyle(1.5, colorInt(theme.colors.muted), 0.8);
+      dashedRoundRect(dash, cell.x + 1, cell.y + 1, cell.width - 2, cell.height - 2, 4);
+      const more = this.add.text(cell.x + cell.width / 2, cell.y + cell.height / 2, `+${grid.more}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      }).setOrigin(0.5);
+      ellipsizeText(more, cell.width - 2);
+    }
+  }
+
+  /**
+   * A full-stage shell for a compact sheet over the main pane (the column
+   * stays in view): its own panel, the close button in the sheet's corner.
+   */
+  private compactSheet(depth: number): { shell: ModalShell; sheet: Rect; closeW: number } {
+    const stage = sceneStage(this);
+    const sheet = limitedDraftLayout(stage.content, 0, 0).sheet;
+    const shell = modalShell(this, {
+      width: stage.width, height: stage.height, x: stage.width / 2, y: stage.height / 2,
+      dimAlpha: 0, depth, dismissal: 'dismissible',
+      onClose: () => this.onModalClosed(shell),
+    });
+    shell.panel.clear();
+    const c = shell.container;
+    c.setData('a11ySurface', { x: 0, y: 0, width: stage.width, height: stage.height }).setData('a11yPanel', sheet);
+    const plate = panel(this, sheet.x, sheet.y, sheet.width, sheet.height, { alpha: 1 });
+    c.addAt(plate, 2);
+    let closeW = 0;
+    if (shell.closeButton) {
+      const visual = shell.closeButton.getMeasuredSize().visual;
+      closeW = visual.width;
+      shell.closeButton.container.setPosition(sheet.x + sheet.width - 8 - visual.width / 2, sheet.y + 8 + visual.height / 2);
+      c.bringToTop(shell.closeButton.container);
+    }
+    this.modal = shell;
+    this.guard.open(this.interactiveTargets);
+    return { shell, sheet, closeW };
+  }
+
+  /** A drafter's profile (S-Draft-Drafter): the portrait, then what familiarity has revealed. */
+  private showCompactPersona(identity: SeatIdentity): void {
+    const type = theme.compactType;
+    const { shell, sheet, closeW } = this.compactSheet(theme.depth.modal);
+    const c = shell.container;
+    const pad = 12;
+    const picH = sheet.height - 2 * pad;
+    const picW = Math.min(Math.round(picH * 0.65), Math.round(sheet.width * 0.45));
+    const pic = { x: sheet.x + pad, y: sheet.y + pad, width: picW, height: picH };
+    const picCx = pic.x + pic.width / 2;
+    const picCy = pic.y + pic.height / 2;
+    c.add(this.add.rectangle(picCx, picCy, pic.width, pic.height, theme.graphics.dim, 1));
+    if (identity.human) {
+      c.add(this.add.image(picCx, picCy, bakeUiIcon(this, 'profile')).setDisplaySize(picW * 0.4, picW * 0.4).setTint(colorInt(theme.colors.gold)));
+    } else {
+      c.add(this.add.text(picCx, picCy, initial(identity.name), {
+        fontFamily: theme.fonts.display, fontSize: `${theme.type.display}px`, color: theme.colors.muted,
+      }).setOrigin(0.5));
+      this.addPortrait(c, identity.portraitCardId, picCx, picCy, pic.width, pic.height, false);
+    }
+    c.add(this.add.graphics().lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel));
+    const x = pic.x + pic.width + 16;
+    const width = sheet.x + sheet.width - pad - x;
+    let y = sheet.y + pad + 4;
+    const line = (text: string, style: Phaser.Types.GameObjects.Text.TextStyle, w = width, gapAfter = 10): Phaser.GameObjects.Text => {
+      const t = this.add.text(x, y, text, { ...style, wordWrap: { width: w, useAdvancedWrap: true } });
+      t.setData('a11yFullText', text);
+      c.add(t);
+      y += t.height + gapAfter;
+      return t;
+    };
+    line(identity.name, { fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading },
+      width - closeW - 8, 4);
+    if (identity.tier >= 3) {
+      line(identity.title, { fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: `italic ${theme.weight.w700}`, color: theme.colors.gold });
+    }
+    y += 6;
+    if (identity.tier >= 2) line(`Colors: ${identity.colorHint}`, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, lineSpacing: 4 }, width, 14);
+    if (identity.tier >= 4) line(identity.blurb, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, lineSpacing: 4 });
+    else line(revealHint(identity.tier), { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: 'italic', color: theme.colors.muted, lineSpacing: 4 });
+    const pips = '◆'.repeat(identity.tier) + '◇'.repeat(4 - identity.tier);
+    const familiarity = this.add.text(x, 0, `Familiarity ${pips}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700,
+      color: identity.tier >= 4 ? theme.colors.gold : theme.colors.muted,
+    });
+    familiarity.setY(Math.max(y, pic.y + pic.height - familiarity.height));
+    familiarity.setData('a11yFullText', familiarity.text);
+    c.add(familiarity);
+  }
+
+  /**
+   * A pack card's pick impact (S-Draft-Inspect): the card, then the pool's
+   * colours and curve before and after taking it, its rarity, its keywords,
+   * and Select at the foot.
+   */
+  private showCompactInspect(card: CardDef, packIndex: number): void {
+    const type = theme.compactType;
+    const { shell, sheet, closeW } = this.compactSheet(theme.depth.inspect);
+    this.inspectIndex = packIndex;
+    const c = shell.container;
+    const pad = 12;
+    const scale = Math.min((sheet.height - 2 * pad) / CARD_H, (sheet.width * 0.45) / CARD_W);
+    const cardW = CARD_W * scale;
+    const variant = this.currentPackVariant(packIndex);
+    const view = new CardView(this, sheet.x + pad + cardW / 2, sheet.y + sheet.height / 2).setScale(scale);
+    view.setCard(card, variant ? { fx: 'full', variant, fullArt: variant.fullArt } : { fx: 'full' });
+    c.add(view);
+    const x = sheet.x + pad + cardW + 16;
+    const width = sheet.x + sheet.width - pad - x;
+    let y = sheet.y + pad + 4;
+    const label = (text: string): void => {
+      const t = this.add.text(x, y, text, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w700, color: theme.colors.muted,
+      });
+      c.add(t);
+      y += t.height + 4;
+    };
+    label('PICK IMPACT');
+    y = Math.max(y + 6, sheet.y + pad + closeW * 0.5);
+    const run = this.saveData.limited.activeRun;
+    const stats = computeDeckStats([...(run?.draft?.picks[0] ?? [])], CARD_DB);
+    label('POOL COLORS');
+    // The five colours flow left to right and wrap when a "12→13" will not fit.
+    const pip = Math.round(type.label * 1.2);
+    let px = x;
+    let rowH = pip;
+    PIE_COLORS.forEach((color) => {
+      const before = stats.colorPips[color];
+      const contribution = card.colors.includes(color) ? (card.cost?.pips[color] ?? 0) : 0;
+      const count = this.add.text(0, 0, contribution > 0 ? `${before}→${before + contribution}` : String(before), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: contribution > 0 ? theme.weight.w700 : theme.weight.w600,
+        color: contribution > 0 ? theme.colors.gold : theme.colors.body,
+      }).setOrigin(0, 0.5);
+      const entryW = pip + 4 + count.width;
+      if (px > x && px + entryW > x + width) {
+        px = x;
+        y += rowH + 6;
+      }
+      rowH = Math.max(pip, count.height);
+      c.add(this.add.image(px + pip / 2, y + rowH / 2, `pip-${color}`).setDisplaySize(pip, pip));
+      count.setPosition(px + pip + 4, y + rowH / 2);
+      c.add(count);
+      px += entryW + 12;
+    });
+    y += rowH + 10;
+    label('CURVE');
+    const bucket = card.types.includes('land') ? null : Math.min(manaValue(card.cost), CURVE_MAX);
+    const curvePitch = width / (CURVE_MAX + 1);
+    let curveH = 0;
+    for (let mv = 0; mv <= CURVE_MAX; mv++) {
+      const cx = x + curvePitch * (mv + 0.5);
+      const hot = mv === bucket;
+      const axis = this.add.text(cx, y, mv === CURVE_MAX ? '7+' : String(mv), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: hot ? theme.colors.gold : theme.colors.muted,
+      }).setOrigin(0.5, 0);
+      const count = this.add.text(cx, y + axis.height, hot ? `${stats.curve[mv]}→${stats.curve[mv] + 1}` : String(stats.curve[mv]), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: hot ? theme.weight.w700 : theme.weight.w600,
+        color: hot ? theme.colors.gold : theme.colors.body,
+      }).setOrigin(0.5, 0);
+      // A "4→5" wider than its bucket steps down a size rather than run into its neighbours.
+      if (count.width > curvePitch - 4) count.setFontSize(type.caption);
+      curveH = Math.max(curveH, axis.height + count.height);
+      c.add([axis, count]);
+    }
+    y += curveH + 8;
+    if (!card.token) {
+      const rarity = this.add.text(x, y, rarityLine(card), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+        wordWrap: { width, useAdvancedWrap: true },
+      });
+      c.add(rarity);
+      y += rarity.height + 8;
+    }
+    // Select at the foot; a Premium draft's print and ownership lines above it.
+    const select: Rect = { x, y: sheet.y + sheet.height - pad - COMPACT.touch, width, height: COMPACT.touch };
+    let bottom = select.y - 8;
+    if (run?.premium) {
+      const ownership = this.add.text(x, 0, premiumOwnershipLine(this.saveData, card.id, variant, {
+        picks: run.draft?.picks[0] ?? [],
+        pickVariants: run.draft?.pickVariants,
+      }), { fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: theme.colors.muted, wordWrap: { width, useAdvancedWrap: true } });
+      ownership.setY(bottom - ownership.height);
+      const print = this.add.text(x, 0, premiumVariantLine(variant), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, fontStyle: theme.weight.w600,
+        color: !variant || isPlainVariant(variant) ? theme.colors.body : theme.colors.gold, wordWrap: { width, useAdvancedWrap: true },
+      });
+      print.setY(ownership.y - 2 - print.height);
+      c.add([print, ownership]);
+      bottom = print.y - 8;
+    }
+    this.compactGlossary(c, card, { x, y, width, height: bottom - y });
+    const id = this.currentPack()[packIndex];
+    const button = compactButton(this, select, this.selectedCell === packIndex ? 'Selected' : 'Select', {
+      icon: 'check',
+      onTap: () => {
+        if (id) this.selectCard(packIndex, id);
+        shell.close();
+      },
+    });
+    c.add(button.container);
+    this.inspectSelect = button;
+  }
+
+  /** The card's terms as one box each (name over its reminder), as many as fit in `area`. */
+  private compactGlossary(c: Phaser.GameObjects.Container, card: CardDef, area: Rect): void {
+    const type = theme.compactType;
+    const pad = 8;
+    let y = area.y;
+    for (const entry of cardGlossaryEntries(card)) {
+      const room = area.y + area.height - y;
+      const name = this.add.text(area.x + pad, y + pad, entry.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      });
+      const reminder = this.add.text(area.x + pad, name.y + name.height + 2, entry.reminder, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.body,
+        wordWrap: { width: area.width - 2 * pad, useAdvancedWrap: true },
+      });
+      reminder.setData('a11yFullText', entry.reminder);
+      // A reminder that does not fit is cut to the lines that do; a box without room for one line is left out.
+      const lineH = reminder.height / Math.max(1, reminder.getWrappedText().length);
+      const linesRoom = Math.floor((room - 2 * pad - name.height - 2) / lineH);
+      if (linesRoom < 1) {
+        name.destroy();
+        reminder.destroy();
+        break;
+      }
+      if (reminder.getWrappedText().length > linesRoom) reminder.setMaxLines(linesRoom);
+      const h = name.height + 2 + reminder.height + 2 * pad;
+      const box = this.add.graphics()
+        .fillStyle(theme.graphics.rowFill, 0.9).fillRoundedRect(area.x, y, area.width, h, theme.radius.panel)
+        .lineStyle(1, theme.graphics.panelStroke, 1).strokeRoundedRect(area.x, y, area.width, h, theme.radius.panel);
+      c.add([box, name, reminder]);
+      y += h + 6;
+    }
+  }
+
   private identityForSeat(run: LimitedRun, seat: number): SeatIdentity {
     if (seat === 0) {
       return {
@@ -1027,6 +1551,7 @@ export class LimitedDraftScene extends Phaser.Scene {
     // into the persona modal (the hotkey handlers key off it).
     this.inspectIndex = null;
     this.inspectHint = null;
+    this.inspectSelect = null;
   }
 
   /**
@@ -1083,13 +1608,16 @@ export class LimitedDraftScene extends Phaser.Scene {
    * input is guard-deadened until the scene restarts in `done`.
    */
   private playPassAnimation(direction: 'left' | 'right', done: () => void): void {
-    const seatY = 163;
-    const step = direction === 'left' ? -SEAT_PITCH : SEAT_PITCH;
-    const cols = Array.from({ length: 8 }, (_, col) => SEAT_FIRST_X + col * SEAT_PITCH);
+    const seats = this.compactSeats;
+    const seatY = seats ? seats.y : 163;
+    const pitch = seats ? seats.xs[1] - seats.xs[0] : SEAT_PITCH;
+    const step = direction === 'left' ? -pitch : pitch;
+    const cols = seats ? [...seats.xs] : Array.from({ length: 8 }, (_, col) => SEAT_FIRST_X + col * SEAT_PITCH);
+    const token = seats ? { width: Math.round(seats.d * 0.62), height: Math.round(seats.d * 0.82) } : { width: 34, height: 44 };
     const duration = 380;
     const makeToken = (tx: number, alpha = 1): Phaser.GameObjects.Rectangle =>
       this.add
-        .rectangle(tx, seatY, 34, 44, theme.graphics.rowFillActive, 0.96)
+        .rectangle(tx, seatY, token.width, token.height, theme.graphics.rowFillActive, 0.96)
         .setStrokeStyle(1.5, colorInt(theme.colors.gold), 1)
         .setDepth(60)
         .setAlpha(alpha);
