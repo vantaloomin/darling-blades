@@ -608,6 +608,15 @@ export function handRowLook(
 
 // ------------------------------------------------------------------ words
 
+const COLOR_WORDS: Record<string, string> = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+
+/** Why a mark-spending ability can't be used now (N-21): no marks, or the mana it lacks. */
+export function markAbilityBlockedReason(marks: number, mana: { generic: number; pips: Partial<Record<string, number>> } | undefined): string {
+  if (marks <= 0) return 'No marks left';
+  const colors = Object.keys(mana?.pips ?? {}).filter((c) => (mana?.pips[c] ?? 0) > 0);
+  return colors.length === 1 ? `Needs ${COLOR_WORDS[colors[0]] ?? 'more'} mana` : 'Needs more mana';
+}
+
 /** The turn line (T-03a, T-10): "Turn 8 · Your Morning", or the foe's name in place of "Your". */
 export function turnLineLabel(turn: number, phase: string | null, foeName: string | null): string {
   if (turn === 0 || phase === null) return '';
@@ -633,4 +642,18 @@ export function phoneActionLabel(label: string): string {
 /** A history line for the banner: the [card] marks dropped. */
 export function plainHistoryLine(line: string): string {
   return line.replace(/\[([^\]]+)\]/g, '$1');
+}
+
+/**
+ * A waiting trigger's prompt on the phone (N-08): the card row above already
+ * names the card, so "Hebe, Cupbearer of Olympus at Sunset: choose a creature
+ * you control" reads "Choose a creature you control". A title that does not
+ * lead with the card's name is kept whole.
+ */
+export function phoneTriggerTitle(title: string, cardName: string): string {
+  if (!title.startsWith(cardName)) return title;
+  const at = title.indexOf(': ', cardName.length);
+  if (at < 0) return title;
+  const rest = title.slice(at + 2);
+  return rest.charAt(0).toUpperCase() + rest.slice(1);
 }

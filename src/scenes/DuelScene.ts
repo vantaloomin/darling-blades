@@ -106,11 +106,14 @@ import {
   huntExchangeDraw,
   huntFloatText,
   huntStepPrompt,
+  huntTrade,
+  isHuntSpell,
   planHunts,
   targetStepTitle,
   tookPartInHunt,
   type HuntCreature,
   type HuntedEvent,
+  type HuntSide,
   type HuntStep,
   type HuntTargetSource,
 } from '../ui/huntPresentation';
@@ -247,7 +250,7 @@ import { packRow, type RowPacking } from '../ui/rowPacking';
 import { gateOnArt } from '../ui/artGate';
 import { duelArtIds, nextDuelArt, prefetchDuelArt } from '../ui/duelArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, phoneActionLabel, phoneSealCenter, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
+import { blockForecastLine, castLeavesLine, combatRecap, DUEL_PHONE, duelPhoneLayout, duelSheet, foreseeRank, duelPhoneReadback, focusCard, handRowLook, markAbilityBlockedReason, phoneActionLabel, phoneSealCenter, phoneTriggerTitle, plainHistoryLine, shortReason, sideBoard, turnLineLabel, undoToastDetail, type DuelLayoutShape, type DuelPhoneLayout } from '../ui/duelCompact';
 import { drawDuelSheet, type SheetArtTile } from '../ui/DuelPhoneSheet';
 import { DuelPhoneChrome, type PhoneCombatRow, type PhoneFocusPanel, type PhoneFoot, type PhoneHandRow, type PhoneInspectPanel, type PhoneManaSlot, type PhonePanel, type PhonePinnedRow, type PhoneRecapPanel, type PhoneChoiceOption, type PhoneChoicePanel, type PhoneClaimsPanel, type PhoneCoinPanel, type PhoneMenuPanel, type PhoneResultPanel, type PhoneTargetPanel, type PhoneZonePanel } from '../ui/DuelPhoneChrome';
 import { StackDisplay } from '../ui/StackDisplay';
@@ -524,6 +527,8 @@ export class DuelScene extends Phaser.Scene {
   private phoneMandate = false;
   /** This duel's Mandate claims, oldest first, for that sheet's column. */
   private mandateClaims: MandateClaim[] = [];
+  /** Life each player has gained this turn, summed from `lifeChanged` (the engine keeps only whether they did). */
+  private lifeGainedThisTurn: [number, number] = [0, 0];
   /** Each spell's card by its stack id, so a claim can name the spell that made it. */
   private spellCards = new Map<number, string>();
   private undoDetail = '';
@@ -1879,6 +1884,7 @@ export class DuelScene extends Phaser.Scene {
     this.phoneMandate = false;
     this.phoneBoardFull = { 0: null, 1: null };
     this.mandateClaims = [];
+    this.lifeGainedThisTurn = [0, 0];
     this.spellCards = new Map();
     this.L = DUEL_LAYOUT;
     this.fx = DESKTOP_FX;
@@ -3637,6 +3643,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       case 'lifeChanged': {
         if (e.delta < 0) Sfx.play('lifeLoss');
+        else this.lifeGainedThisTurn[e.player] += e.delta;
         // Spawn near the owner's life total (floats draw at depth 90, so
         // they read over the strip/portrait as they drift up and fade).
         const pos = e.player === HUMAN
@@ -3937,6 +3944,7 @@ export class DuelScene extends Phaser.Scene {
         break;
       }
       case 'turnBegan':
+        this.lifeGainedThisTurn = [0, 0];
         this.log(`Turn ${e.turn}: ${e.player === HUMAN ? 'your' : "opponent's"} turn`);
         this.showTurnBanner(e.turn, e.player === HUMAN);
         if (this.toastHeldForTurnBoundary && !this.replayMode) {
@@ -5318,7 +5326,8 @@ export class DuelScene extends Phaser.Scene {
       // through to the same blocked-reason notice a single-Duty permanent gets.
       if (!dutyChoices(card, iid, this.duel.legalActions(HUMAN)).some((choice) => choice.enabled)) return false;
       if (this.phoneChrome) {
-        this.showPhoneDutyPick(card, iid, null, false);
+        if (activatedAbilitiesOf(card).every((ability) => 'removeMarks' in ability.cost)) this.showPhoneMarkPick(card, iid);
+        else this.showPhoneDutyPick(card, iid, null, false);
         return true;
       }
       this.dutyPicker = showDutyPicker(this, {
@@ -5369,6 +5378,45 @@ export class DuelScene extends Phaser.Scene {
     this.showPhoneChoice(redraw);
     // Enter performs the picked Duty, as it confirms the desktop picker.
     this.dutyConfirm = perform;
+  }
+
+  /**
+   * N-21: a creature whose abilities each spend a mark (Nüwa) lists them one
+   * row each, with the mana it costs; a row goes straight to its targets or
+   * confirm, and one it can't use now says why.
+   */
+  private showPhoneMarkPick(card: CardDef, iid: number): void {
+    const perm = this.duel.state.battlefield.find((entry) => entry.iid === iid);
+    const marks = perm?.plusOneCounters ?? 0;
+    const choices = dutyChoices(card, iid, this.duel.legalActions(HUMAN));
+    const pick = (index: number) => () => {
+      const choice = dutyChoices(card, iid, this.duel.legalActions(HUMAN))[index];
+      if (!choice?.enabled) return;
+      this.closeEmpowerChooser();
+      this.beginDutyActions(card, choice.actions);
+    };
+    const abilities = activatedAbilitiesOf(card);
+    this.phoneChoice = {
+      panel: {
+        kind: 'choice', heading: null, source: null, text: null, box: null, caption: null,
+        count: `${shortCardName(card.name)} · ${marks === 1 ? '1 mark' : `${marks} marks`}`,
+        price: null, hint: null,
+        options: choices.map((choice) => {
+          const ability = abilities[choice.abilityIndex];
+          const effect = choice.line.slice(choice.line.indexOf(': ') + 2);
+          return {
+            label: effect.replace(/\.$/, ''), cost: ability.cost.mana ?? null, enabled: choice.enabled, note: null,
+            card: {
+              def: card, detail: choice.enabled ? 'Remove a mark' : markAbilityBlockedReason(marks, ability.cost.mana),
+              muted: !choice.enabled, dim: !choice.enabled, costLead: true,
+            },
+            onTap: pick(choice.abilityIndex),
+          };
+        }),
+      },
+      foot: { left: null, primary: { label: DUTY_CANCEL_LABEL, ghost: true, onTap: () => this.closeEmpowerChooser() }, wide: true },
+    };
+    this.showPhoneChoice(false);
   }
 
   private beginDutyActions(card: CardDef, actions: DutyAction[]): void {
@@ -6780,9 +6828,14 @@ export class DuelScene extends Phaser.Scene {
           card,
           cost,
           chip: empowered ? 'Empowered' : grave?.name ?? null,
-          title: targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText),
-          text: rulesText(card),
-          picks: this.targetPicks.map((ref) => this.phonePickRow(ref)),
+          // The card row above names the card, so a Hunt's step reads alone (N-13): "Choose its prey. (1 of 1)".
+          title: huntPrompt === null ? targetStepTitle(card.name, huntPrompt, targetPromptTitle(card.name), step.countText)
+            : `${huntPrompt} (${step.countText})`,
+          // An ability's targets read with that ability's words, not the whole card (N-21's five rows).
+          text: pending.type === 'activate'
+            ? dutyChoices(card, pending.iid, [])[pending.abilityIndex ?? 0]?.line ?? rulesText(card)
+            : rulesText(card),
+          ...this.phoneHuntPicks(card, pending),
         },
         foot: {
           left: { label: 'Cancel', onTap: () => this.cancelPendingTargeting() },
@@ -6797,8 +6850,67 @@ export class DuelScene extends Phaser.Scene {
     const deferred = deferredTargetPrompt(this.duel.instanceState, CARD_DB, HUMAN);
     if (!deferred || !this.isHumanChooseTarget()) return null;
     return {
-      panel: { kind: 'target', card: def(CARD_DB, deferred.sourceCardId), cost: null, chip: null, title: deferred.title, text: deferred.text, picks: [] },
+      panel: {
+        kind: 'target', card: def(CARD_DB, deferred.sourceCardId), cost: null, chip: null,
+        title: phoneTriggerTitle(deferred.title, def(CARD_DB, deferred.sourceCardId).name), text: deferred.text, picks: [],
+        condition: this.phoneTriggerCondition(),
+      },
       foot: { left: null, primary: null },
+    };
+  }
+
+  /**
+   * The picks of a pending cast or Duty. A Hunt's prey reads the trade it
+   * would make (N-13, N-14): "Deals 4 · takes 4", Lethal when the hunter's
+   * blow kills it, and a warning when the hunter dies too. A Hunt spell's
+   * hunter reads "Hunter · 4/3".
+   */
+  private phoneHuntPicks(card: CardDef, pending: TargetSelectionAction): Pick<PhoneTargetPanel, 'picks' | 'note'> {
+    const picks = this.targetPicks.map((ref) => this.phonePickRow(ref));
+    const source = this.huntTargetSource(pending);
+    const abilityIndex = pending.type === 'activate' ? pending.abilityIndex ?? 0 : 0;
+    if (huntStepPrompt(card, source, 0, abilityIndex) === null) return { picks, note: null };
+    const spell = source === 'cast' && isHuntSpell(card);
+    const preyAt = spell ? 1 : 0;
+    const st = this.duel.state;
+    const onBoard = (ref: TargetRef | undefined): { name: string; side: HuntSide } | null => {
+      const perm = ref?.kind === 'permanent' ? st.battlefield.find((entry) => entry.iid === ref.iid) : undefined;
+      if (!perm) return null;
+      const stats = getEffectiveStats(st, CARD_DB, perm.iid);
+      return {
+        name: def(CARD_DB, perm.cardId).name,
+        side: { attack: stats.attack, defense: stats.defense, damage: perm.damage, deathblade: stats.keywords.has('deathblade') },
+      };
+    };
+    // The hunter: the spell's first pick, the Duty's creature, or the card being cast (printed stats; it is not on the board yet).
+    const hunter = spell ? onBoard(this.targetPicks[0])
+      : pending.type === 'activate' ? onBoard({ kind: 'permanent', iid: pending.iid })
+        : {
+          name: card.name,
+          side: { attack: card.attack ?? 0, defense: card.defense ?? 0, damage: 0, deathblade: (card.keywords ?? []).includes('deathblade') },
+        };
+    if (spell && hunter && picks[0]) picks[0] = { ...picks[0], detail: `Hunter · ${picks[0].detail}` };
+    const prey = onBoard(this.targetPicks[preyAt]);
+    if (!hunter || !prey || !picks[preyAt]) return { picks, note: null };
+    const trade = huntTrade(hunter.side, prey.side);
+    picks[preyAt] = { ...picks[preyAt], name: shortCardName(picks[preyAt].name), detail: `Deals ${trade.deals} · takes ${trade.takes}`, chip: trade.preyDies ? 'Lethal' : undefined };
+    return { picks, note: trade.hunterDies ? `${shortCardName(hunter.name)} dies too` : null };
+  }
+
+  /** The waiting trigger's condition, shown as met (N-08); only a condition the player can read off this turn is drawn. */
+  private phoneTriggerCondition(): PhoneTargetPanel['condition'] {
+    const pending = this.duel.state.pendingDecisions[0];
+    if (pending?.kind !== 'chooseTarget') return null;
+    const ability = def(CARD_DB, pending.sourceCardId).abilities?.[pending.abilityIndex];
+    if (ability?.condition !== 'youGainedLifeThisTurn') return null;
+    const gained = this.lifeGainedThisTurn[pending.player];
+    const met = this.duel.state.gainedLifeThisTurn?.includes(pending.player) ?? false;
+    const life = this.duel.state.players[pending.player].life;
+    return {
+      met,
+      text: met ? gained > 0 ? `Gained ${gained} life this turn` : 'Gained life this turn' : 'No life gained this turn',
+      // "Life now", not "18 to 22": life lost since the gain would make a from-to line wrong.
+      detail: met ? `Life now ${life}` : null,
     };
   }
 
@@ -9542,6 +9654,10 @@ export class DuelScene extends Phaser.Scene {
   private showPumpTicker(card: CardDef, legal: ManaPumpAction): void {
     const ability = card.manaActivated?.[legal.abilityIndex];
     if (!ability) return;
+    if (this.phoneChrome) {
+      this.showPhonePumpTicker(card, legal);
+      return;
+    }
     let ticker: PumpTicker = pumpTicker(legal.times);
     // The tile's hover preview would outlive the tap that opened this (the
     // guard disables the tile's zone, so no pointerout ever reaches it).
@@ -9642,6 +9758,56 @@ export class DuelScene extends Phaser.Scene {
     };
     this.empowerChooser = c;
     this.empowerChooserGuard.open([...this.overlayGuardTargets(), this.undoBtn]);
+  }
+
+  /**
+   * The pump ticker in the phone's column (N-16, N-17): the creature and its
+   * ability, - count + with the bound and what the count costs and does,
+   * and Activate N times beside Cancel. It submits as the desktop ticker does.
+   */
+  private showPhonePumpTicker(card: CardDef, legal: ManaPumpAction): void {
+    const ability = card.manaActivated?.[legal.abilityIndex];
+    if (!ability) return;
+    let ticker: PumpTicker = pumpTicker(legal.times);
+    const confirm = (): void => {
+      const fresh = pumpActionsFor(this.duel.legalActions(HUMAN), legal.iid)
+        .find((action) => action.abilityIndex === legal.abilityIndex);
+      const action = fresh ? pumpSubmission(fresh, ticker.count) : null;
+      if (!action || validateAction(this.duel.instanceState, CARD_DB, HUMAN, action) !== null) return;
+      this.closeEmpowerChooser();
+      this.act(action);
+    };
+    const step = (delta: number): void => {
+      const next = stepPumpTicker(ticker, delta);
+      if (next.count === ticker.count || !this.phoneChoice) return;
+      ticker = next;
+      draw(true);
+    };
+    const draw = (redraw: boolean): void => {
+      const perm = this.duel.state.battlefield.find((entry) => entry.iid === legal.iid);
+      const live = perm ? getEffectiveStats(this.duel.state, CARD_DB, perm.iid) : null;
+      const source = this.phoneChoiceSource(card);
+      this.phoneChoice = {
+        panel: {
+          kind: 'choice', heading: PUMP_TICKER_TITLE,
+          source: { ...source, detail: live ? `${typeLine(card)} · ${live.attack}/${live.defense}` : source.detail, cost: null },
+          text: `${manaCostText(ability.cost)}: ${manaActivatedEffectText(card, legal.abilityIndex)}`,
+          box: null, caption: null, count: null, price: null, hint: null, options: [],
+          stepper: {
+            count: ticker.count, canDecrease: ticker.canDecrease, canIncrease: ticker.canIncrease,
+            limit: pumpTickerLimitText(ticker.max), summary: pumpSummaryText(ability.cost, ability.ops, ticker.count), onStep: step,
+          },
+        },
+        foot: {
+          left: { label: PUMP_TICKER_CANCEL, onTap: () => this.closeEmpowerChooser() },
+          primary: { label: pumpConfirmLabel(ticker.count), onTap: confirm },
+        },
+      };
+      this.showPhoneChoice(redraw);
+    };
+    this.pumpTickerStep = step;
+    this.dutyConfirm = confirm;
+    draw(false);
   }
 
   /**
