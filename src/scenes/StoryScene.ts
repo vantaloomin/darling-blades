@@ -45,6 +45,7 @@ import { finishClearedRun, storyRoster, storyScreen, type StoryScreen } from '..
 import { isDuelNode, storyMapNodes, type StoryNode } from '../meta/story/storyMap';
 import { runMap, storyActByNumber, type StoryRun, type StoryState } from '../meta/story/storyState';
 import { prefersReducedMotion } from '../platform/clientProfile';
+import { compactSceneMetrics } from '../platform/compactScenes';
 import { IS_DEV } from '../platform/env';
 import { bindTapButton, isTouchDevice, setStickyHost } from '../platform/gestures';
 import { gateOnArt } from '../ui/artGate';
@@ -52,7 +53,7 @@ import { makeCardThumb } from '../ui/CardThumbCache';
 import { CardZoomPreview } from '../ui/CardZoomPreview';
 import { ModalGuard } from '../ui/Modal';
 import { addPortraitArt } from '../ui/portraitArt';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import {
   abandonNote,
@@ -98,6 +99,7 @@ import {
   removeStepCopy,
   MOVE_ON_LABEL,
   storyEventArtIds,
+  storyLineView,
   storySceneArtIds,
   type EventChoiceProgress,
 } from '../ui/storyDialogue';
@@ -113,8 +115,10 @@ import {
   StoryDialoguePlayer,
   StoryStage,
   storyTextureKey,
+  type DialogueOptions,
 } from './StoryDialogue';
 import { bakeUiIcon } from '../ui/uiIcons';
+import { StoryCompact, type StoryCompactHost } from './StoryCompact';
 import { addStopMedallion, bakeBossPortraitMedallion, bakeStopGlow, bossPortraitArtId, reachableNodeIds, stopFace, trailDots, type StopFace } from '../ui/storyMapStops';
 import {
   backButton,
@@ -173,6 +177,11 @@ interface CardPick {
  */
 const STORY_BACKDROP_ART = 'bg-mandate-sky';
 
+/** Whether the scene will draw its compact composition (read before the backdrop sets the stage up). */
+function sceneStageCompact(scene: Phaser.Scene): boolean {
+  return compactSceneMetrics(scene.sys.settings.key) !== null;
+}
+
 /**
  * Story Mode's run screens (docs/plan-story-mode.md, wave 2), behind
  * `FEATURES.storyLive`. Every visit reads `save.story` and shows the one
@@ -197,7 +206,9 @@ export class StoryScene extends Phaser.Scene {
   private backdrop: Phaser.GameObjects.GameObject[] = [];
   /** Root objects drawn before an event's first step; a step clears everything after them. */
   private stepMark: Set<Phaser.GameObjects.GameObject> | null = null;
-  private player: StoryDialoguePlayer | null = null;
+  private player: { destroy(): void } | null = null;
+  /** The compact composition (phone, and desktop's compact pass); null on the 1280x720 layout. */
+  private compact: StoryCompact | null = null;
 
   constructor() {
     super('Story');
@@ -225,6 +236,8 @@ export class StoryScene extends Phaser.Scene {
     this.sys.settings.data = {};
     this.guard = new ModalGuard();
     this.player = null;
+    this.compact = null;
+    this.back = null;
     this.stepMark = null;
     this.restarting = false;
     // Story art lives only while Story runs: a restart onto another Story
@@ -309,7 +322,8 @@ export class StoryScene extends Phaser.Scene {
     applyBackdrop(this, 'gauntlet', {
       textureKey: this.textures.exists(still) ? still : undefined,
       dim: theme.graphics.dim,
-      dimAlpha: 0.55,
+      // The compact screens set text straight on the still, so it sits darker under them.
+      dimAlpha: sceneStageCompact(this) ? 0.7 : 0.55,
       fallback: () => {
         this.add.graphics()
           .fillGradientStyle(theme.graphics.panelFill, theme.graphics.panelFill, theme.graphics.dim, theme.graphics.dim, 1)
@@ -317,6 +331,7 @@ export class StoryScene extends Phaser.Scene {
       },
     });
     this.backdrop = this.children.list.filter((obj) => !before.has(obj));
+    this.compact = sceneStage(this).compact ? new StoryCompact(this.compactHost()) : null;
     this.input.on('gameobjectover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) Sfx.play('hover');
     });
@@ -325,6 +340,9 @@ export class StoryScene extends Phaser.Scene {
     this.zoom = new CardZoomPreview(this, { scale: 1.12, depth: theme.depth.inspect + 5, delayMs: 250 });
     setStickyHost(this, this.zoom);
 
+    registerSceneBackNavigation(this, () => this.leave());
+    // The compact screens draw their own top bar, back chevron included.
+    if (this.compact) return;
     if (title) sceneTitle(this, 'Story');
     this.back = backButton(this, 'Play', () => this.leave()).setDepth(DEPTH.chrome);
     // Over a scene's still (no Story title) the back label gets a plate, as the scene title does, to read on a bright sky.
@@ -338,7 +356,31 @@ export class StoryScene extends Phaser.Scene {
         .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
         .strokeRoundedRect(b.x - padX, b.centerY - h / 2, b.width + 2 * padX, h, theme.radius.panel);
     }
-    registerSceneBackNavigation(this, () => this.leave());
+  }
+
+  /** What the compact screens need from the scene. */
+  private compactHost(): StoryCompactHost {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const scene = this;
+    return {
+      scene,
+      get save() { return scene.save; },
+      get story() { return scene.story; },
+      get fixture() { return scene.fixtureSave !== null; },
+      get guard() { return scene.guard; },
+      get keptCardId() { return scene.keptCardId; },
+      get selectedCharacterId() { return scene.selectedCharacterId; },
+      set selectedCharacterId(id: string | null) { scene.selectedCharacterId = id; },
+      commit: (data) => this.commit(data),
+      leave: () => this.leave(),
+      goTo: (run, node, entered) => this.goTo(run, node, entered),
+      setNotice: (line) => {
+        this.subtitleLine = line;
+      },
+      refused: (reason) => this.refused(reason),
+      interactiveTargets: () => this.interactiveTargets(),
+      bossPortraitKey: (name, face, d, hc) => this.bossPortraitKey(name, face, d, hc),
+    };
   }
 
   private build(screen: StoryScreen): void {
@@ -351,6 +393,24 @@ export class StoryScene extends Phaser.Scene {
     // duel, achievements from the duel's result). Not on event screens, whose
     // steps clear everything drawn after the still, nor over script scenes:
     // their notices wait for the next screen that mounts one.
+    const compact = this.compact;
+    if (compact) {
+      compact.toasts();
+      switch (screen.kind) {
+        case 'select': return compact.buildSelect();
+        case 'boon': return compact.buildBoon(screen.run, screen.offers, (onIds) => compact.deckSheet({
+          title: 'Travel Light', note: 'Choose two cards to remove from your starter deck', deck: screen.run.deck, limit: 2,
+          confirm: (ids) => `Remove ${ids.length} of 2`, onConfirm: onIds,
+        }));
+        case 'reward': return compact.buildReward(screen.run, screen.options, screen.waiting);
+        case 'keep': return compact.buildKeep(screen.run);
+        case 'cleared': return compact.buildCleared(screen.run);
+        case 'shop': return compact.buildShop(screen.run, screen.node);
+        case 'rest': return compact.buildRest(screen.run);
+        case 'duel':
+        case 'map': return compact.buildMap(screen.run, screen.kind === 'duel' ? screen.node : null);
+      }
+    }
     new Toast(this, { modalGuard: this.guard });
     switch (screen.kind) {
       case 'select': return this.buildSelect();
@@ -431,7 +491,7 @@ export class StoryScene extends Phaser.Scene {
         this.commit(this.keptCardId ? { keptCardId: this.keptCardId } : {});
       };
       if (pending.scene.lines.length === 0) return done();
-      this.player = new StoryDialoguePlayer(this, stage, {
+      this.player = this.playLines(stage, pending.scene.title ?? 'Story', run ? this.runLine(run) : 'Story', {
         lines: pending.scene.lines,
         heroineId: run ? this.heroine(run) : null,
         title: pending.scene.title,
@@ -443,6 +503,23 @@ export class StoryScene extends Phaser.Scene {
         onDone: done,
       });
     });
+  }
+
+  /** A scene's lines: the compact layout's, or the 1280x720 player's. */
+  private playLines(stage: StoryStage, header: string, subtitle: string, opts: DialogueOptions): { destroy(): void } {
+    return this.compact ? this.compact.dialogue(stage, { ...opts, header, subtitle }) : new StoryDialoguePlayer(this, stage, opts);
+  }
+
+  /** "Guan Yu · Act 1": the compact top bar's line under a scene's title. */
+  private runLine(run: StoryRun): string {
+    const character = storyCharacterById(run.characterId);
+    return `${character ? shortName(character) : 'Story'} · Act ${run.act}`;
+  }
+
+  /** "Event · Floor 5". */
+  private eventLine(run: StoryRun, node: StoryNode): string {
+    const floor = storyNodeFloor(runMap(run), node.id);
+    return floor ? `Event · Floor ${floor}` : 'Event';
   }
 
   /** A refused meta call is shown, never worked around. */
@@ -832,7 +909,7 @@ export class StoryScene extends Phaser.Scene {
       const ctx: EventCtx = { run, node, event, scene, stage, heroine: this.heroine(run) };
       const at = this.fixtureAt ?? 0;
       if (!scene || scene.lines.length === 0 || at >= scene.lines.length) return this.eventChoices(ctx);
-      this.player = new StoryDialoguePlayer(this, stage, {
+      this.player = this.playLines(stage, scene.title ?? 'Event', this.eventLine(run, node), {
         lines: scene.lines,
         heroineId: ctx.heroine,
         title: scene.title,
@@ -869,25 +946,33 @@ export class StoryScene extends Phaser.Scene {
     const { run, node, event } = ctx;
     const needs = event.choices.map((_, i) => eventChoiceNeeds(run, node, event, i, CARD_DB));
     const stuck = needs.every((n) => !n.available);
-    const panel = drawChoicePanel(this, ctx.stage, ctx.scene ? eventSpeaker(ctx.scene, ctx.heroine) : null,
-      `Run gold ${run.gold} · Run deck ${cardCount(run.deck.length)}`,
-      [
-        ...event.choices.map((choice, i) => {
-          const n = needs[i];
-          return { label: choice.label, reason: n.available ? null : n.reason };
-        }),
-        // Neither choice can be taken: offer a way on so the run is never stuck here.
-        ...(stuck ? [{ label: MOVE_ON_LABEL, reason: null }] : []),
-      ],
-      (i) => {
-        if (i >= needs.length) {
-          const moved = moveOnFromStoryEvent(this.story, CARD_DB);
-          return moved.ok ? this.commit() : this.eventChoices(ctx, moved.reason);
-        }
+    const rows = [
+      ...event.choices.map((choice, i) => {
         const n = needs[i];
-        if (n.available) this.eventStep(ctx, i, n, {});
+        return { label: choice.label, reason: n.available ? null : n.reason };
+      }),
+      // Neither choice can be taken: offer a way on so the run is never stuck here.
+      ...(stuck ? [{ label: MOVE_ON_LABEL, reason: null }] : []),
+    ];
+    const choose = (i: number): void => {
+      if (i >= needs.length) {
+        const moved = moveOnFromStoryEvent(this.story, CARD_DB);
+        return moved.ok ? this.commit() : this.eventChoices(ctx, moved.reason);
+      }
+      const n = needs[i];
+      if (n.available) this.eventStep(ctx, i, n, {});
+    };
+    const speaker = ctx.scene ? eventSpeaker(ctx.scene, ctx.heroine) : null;
+    if (this.compact) {
+      const last = ctx.scene?.lines[ctx.scene.lines.length - 1];
+      this.subtitleLine = this.compact.choices(ctx.stage, {
+        header: ctx.scene?.title ?? 'Event', subtitle: this.eventLine(run, node), run, speaker,
+        line: last ? storyLineView(last, ctx.heroine) : null, rows, onChoose: choose,
       });
-    this.subtitleLine = panel.prompt;
+    } else {
+      const panel = drawChoicePanel(this, ctx.stage, speaker, `Run gold ${run.gold} · Run deck ${cardCount(run.deck.length)}`, rows, choose);
+      this.subtitleLine = panel.prompt;
+    }
     if (refusal) this.refused(refusal);
   }
 
@@ -920,6 +1005,7 @@ export class StoryScene extends Phaser.Scene {
     this.clearStep();
     ctx.stage.setPortrait(null, null);
     ctx.stage.setShade(0.78);
+    if (this.compact) return this.compact.buildEventPick(ctx.run, ctx.scene?.title ?? 'Event', options, () => this.eventChoices(ctx), onTake);
     sceneTitle(this, ctx.scene?.title ?? 'Story');
     const top = this.subtitle('Choose a card to add to your run deck.');
     let selected: string | null = null;
@@ -943,7 +1029,7 @@ export class StoryScene extends Phaser.Scene {
     this.clearStep();
     ctx.stage.setShade(0);
     const portrait = ctx.scene ? eventResultPortrait(ctx.event, ctx.scene, choiceIndex, ctx.heroine) : null;
-    this.player = new StoryDialoguePlayer(this, ctx.stage, {
+    this.player = this.playLines(ctx.stage, ctx.scene?.title ?? 'Event', this.eventLine(ctx.run, ctx.node), {
       lines: [{ speakerId: null, text: eventOutcomeLines(outcome, CARD_DB).join('\n') }],
       heroineId: ctx.heroine,
       title: null,
@@ -1085,11 +1171,13 @@ export class StoryScene extends Phaser.Scene {
 
   /** The run deck, view only, in a modal. */
   private openDeckView(run: StoryRun): void {
+    if (this.compact) return this.compact.viewDeck(run);
     this.openDeckPicker(run, { title: 'Run Deck', note: `${cardCount(run.deck.length)}. Hover or hold a card to read it.`, limit: 0 });
   }
 
   /** The run deck in a modal; with a limit above 0, pick between `min` (default: the limit) and `limit` cards and confirm. */
   private openDeckPicker(run: StoryRun, opts: { title: string; note: string; limit: number; min?: number; confirm?: (ids: string[]) => string; onConfirm?: (ids: string[]) => void }): void {
+    if (this.compact) return this.compact.deckSheet({ ...opts, deck: run.deck });
     const min = Math.min(opts.limit, opts.min ?? opts.limit);
     const ready = (n: number): boolean => n >= min && n <= opts.limit;
     const width = theme.design.safeWidth - theme.space(8);

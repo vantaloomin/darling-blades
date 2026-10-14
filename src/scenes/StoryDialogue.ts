@@ -5,6 +5,7 @@ import { bindTapButton } from '../platform/gestures';
 import { ART_WAIT_TEXT_STYLE } from '../ui/artGate';
 import type { Rect } from '../ui/layout';
 import { menuLineHeight } from '../ui/mainMenuPresentation';
+import { sceneStage } from '../ui/SceneBackdrop';
 import { ModalGuard } from '../ui/Modal';
 import {
   backlogEntries,
@@ -96,7 +97,8 @@ export function releaseStoryArt(textures: Phaser.Textures.TextureManager, keepId
 
 /** The loading line over the backdrop while a scene's art comes in. */
 export function storyArtWaitLabel(scene: Phaser.Scene): Phaser.GameObjects.Text {
-  return scene.add.text(theme.design.centerX, theme.design.centerY, 'Unsheathing Blades…', ART_WAIT_TEXT_STYLE).setOrigin(0.5).setDepth(DEPTH.layer);
+  const stage = sceneStage(scene);
+  return scene.add.text(stage.width / 2, stage.height / 2, 'Unsheathing Blades…', ART_WAIT_TEXT_STYLE).setOrigin(0.5).setDepth(DEPTH.layer);
 }
 
 /**
@@ -124,8 +126,10 @@ export class StoryStage {
     this.background = null;
     const key = storyTextureKey(id);
     if (!this.scene.textures.exists(key)) return false;
-    const img = this.scene.add.image(theme.design.centerX, theme.design.centerY, key).setDepth(DEPTH.still);
-    img.setScale(Math.max(theme.design.width / img.width, theme.design.height / img.height));
+    // The whole design space: the 1280x720 window, or a compact scene's own.
+    const stage = sceneStage(this.scene);
+    const img = this.scene.add.image(stage.width / 2, stage.height / 2, key).setDepth(DEPTH.still);
+    img.setScale(Math.max(stage.width / img.width, stage.height / img.height));
     this.background = img;
     return true;
   }
@@ -133,8 +137,9 @@ export class StoryStage {
   /** A dim over the still (the pick step reads card text over it); 0 removes it. */
   setShade(alpha: number): void {
     this.shade?.destroy();
+    const stage = sceneStage(this.scene);
     this.shade = alpha > 0
-      ? this.scene.add.rectangle(theme.design.centerX, theme.design.centerY, theme.design.width, theme.design.height, theme.graphics.dim, alpha).setDepth(DEPTH.shade)
+      ? this.scene.add.rectangle(stage.width / 2, stage.height / 2, stage.width, stage.height, theme.graphics.dim, alpha).setDepth(DEPTH.shade)
       : null;
   }
 
