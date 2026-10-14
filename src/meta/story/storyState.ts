@@ -68,6 +68,8 @@ export interface StoryState {
   /** Exactly-once reward keys (keeps and permanent buys). */
   claimedRewardKeys: string[];
   seenSceneIds: string[];
+  /** Whether the map key has been shown once (it opens by itself the first time a map is seen, then only from its button). */
+  seenMapKey: boolean;
   endless: {
     bestLoop: Record<string, number>;
     daily: { dateKey: string; bestLoop: number } | null;
@@ -83,6 +85,7 @@ export function freshStoryState(): StoryState {
     wins: {},
     claimedRewardKeys: [],
     seenSceneIds: [],
+    seenMapKey: false,
     endless: { bestLoop: {}, daily: null },
   };
 }
@@ -175,6 +178,7 @@ export function normalizeStoryState(raw: unknown): StoryState {
     wins: characterCounts(raw.wins),
     claimedRewardKeys: uniqueStrings(raw.claimedRewardKeys),
     seenSceneIds: uniqueStrings(raw.seenSceneIds),
+    seenMapKey: raw.seenMapKey === true,
     endless: { bestLoop: characterCounts(endless.bestLoop), daily },
   };
   applyStoryUnlocks(story);

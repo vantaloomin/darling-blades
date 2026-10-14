@@ -71,6 +71,23 @@ export const theme = {
     ssr: '#d9a8ff',
     ur: '#ff9a8a',
   },
+  /**
+   * Story map stop medallions (fixed, like `rarity`): each kind's face and rim,
+   * so the route reads by colour at a glance; `locked` greys a stop the run
+   * can no longer reach, and `ink` is the icon struck on every face. The
+   * medallion derives its bevel shades from these, and high contrast adds a
+   * `heading` edge (StoryMapStops).
+   */
+  storyStop: {
+    fight: { face: '#3f5577', rim: '#93a9c9' },
+    elite: { face: '#7a2424', rim: '#c4733c' },
+    event: { face: '#1d6652', rim: '#78c2a2' },
+    shop: { face: '#86661a', rim: '#e6c062' },
+    rest: { face: '#8c4a18', rim: '#e39a48' },
+    boss: { face: '#2e2114', rim: '#ffd36a' },
+    locked: { face: '#37353f', rim: '#67646f' },
+    ink: '#fff6e2',
+  },
   fonts: {
     display: 'Cinzel, Georgia, serif',
     ui: 'Inter, Arial, sans-serif',

@@ -6,6 +6,7 @@
  */
 
 import type { Color } from '../engine/types';
+import { STORY_STOP_NAMES, STORY_STOP_ORDER, STORY_STOP_SUMMARY } from '../data/glossary';
 import type { StoryCharacter, StoryNodeKind } from '../data/story/types';
 import type { StoryUnlockProgress } from '../meta/story/storyFlow';
 import { RUN_COUNT_FIGHTS, type StoryRun } from '../meta/story/storyState';
@@ -24,25 +25,34 @@ export function shortName(character: Pick<StoryCharacter, 'name'>): string {
   return character.name.split(',')[0].trim();
 }
 
-export const NODE_KIND_LABEL: Readonly<Record<StoryNodeKind, string>> = {
-  fight: 'Fight',
-  elite: 'Elite',
-  event: 'Event',
-  shop: 'Shop',
-  rest: 'Rest',
-  boss: 'Boss',
-};
+/** A stop kind's name (the copy lives with the Glossary's Story Map tab). */
+export const NODE_KIND_LABEL: Readonly<Record<StoryNodeKind, string>> = STORY_STOP_NAMES;
 
-/** What a node offers, in one line, for the map's detail panel (the opponent is named above it). */
+/** What a node offers, in one line, for the map's detail panel and the map key (the opponent is named above it). */
 export function nodeSummary(kind: StoryNodeKind): string {
-  switch (kind) {
-    case 'fight': return 'Win for run gold and a card reward.';
-    case 'elite': return 'A harder duel. Win for more run gold and a card reward.';
-    case 'boss': return 'The last duel of the act. Win it to clear Act 1.';
-    case 'event': return 'A stop on the road, and a choice to make.';
-    case 'shop': return 'Buy cards for this run with run gold.';
-    case 'rest': return 'Rest, and remove a card from your run deck if you like.';
-  }
+  return STORY_STOP_SUMMARY[kind];
+}
+
+/** The map key's rows, in reading order: each stop kind's name and what it does. */
+export function mapKeyRows(): { kind: StoryNodeKind; name: string; summary: string }[] {
+  return STORY_STOP_ORDER.map((kind) => ({ kind, name: STORY_STOP_NAMES[kind], summary: STORY_STOP_SUMMARY[kind] }));
+}
+
+export const MAP_KEY_TITLE = 'Map Key';
+export const MAP_KEY_NOTE = 'Stops marked Next are where you can go now. Hover or tap any stop to read it in the side panel.';
+export const MAP_KEY_CLOSE = 'Got It';
+
+/**
+ * Where a stop the player is only looking at (hovered, or tapped off the
+ * route) stands, ahead of its summary in the map's panel. Next stops need no
+ * line: they are the ones to choose.
+ */
+export function mapStopStanding(current: boolean, next: boolean, face: 'live' | 'pressed' | 'locked'): string {
+  if (current) return 'You are here.';
+  if (next) return '';
+  if (face === 'pressed') return 'Already visited.';
+  if (face === 'locked') return 'Out of reach on this run.';
+  return 'Further along the road.';
 }
 
 /** The map's main action for a chosen node. */

@@ -7,7 +7,7 @@
  * accessibility cells and the compact (phone) shell's touch floor.
  */
 
-import type { Rect } from './layout';
+import { GAP_FLOORS, modalShellLayout, type ModalShellLayout, type Rect } from './layout';
 import { menuLineHeight } from './mainMenuPresentation';
 import { theme } from './theme';
 
@@ -167,8 +167,8 @@ export function storyCardGridLayout(area: Rect, count: number, scale = 0.36, cap
 
 // ------------------------------------------------------------------ the map
 
-/** Node sizes: a 44 px floor in both directions, the boss larger. */
-export const STORY_NODE = { width: 72, height: 48, bossWidth: 88, bossHeight: 56 } as const;
+/** Node sizes: round medallions (their hit squares), over the 44 px floor; the boss larger. */
+export const STORY_NODE = { width: 56, height: 56, bossWidth: 68, bossHeight: 68 } as const;
 export const STORY_SIDE_PANEL_W = 296;
 
 export interface StoryMapGeometry {
@@ -215,6 +215,10 @@ export interface StoryMapPanelLayout {
   /** The heroine, run gold, deck, fights and floor: measured text goes here. */
   info: Rect;
   viewDeckY: number;
+  /** View Deck and Map Key share the View Deck line, side by side: their centres and their shared width. */
+  viewDeckX: number;
+  mapKeyX: number;
+  halfButtonWidth: number;
   /** The chosen node's name and summary. */
   detail: Rect;
   primaryY: number;
@@ -244,5 +248,78 @@ export function storyMapPanelLayout(panel: Rect): StoryMapPanelLayout {
   const viewDeckY = detail.y - theme.space(3) - h / 2;
   const infoTop = panel.y + inset;
   const info = { x, y: infoTop, width, height: viewDeckY - h / 2 - theme.space(3) - infoTop };
-  return { inset, info, viewDeckY, detail, primaryY, note, abandonY, buttonWidth: width };
+  const gap = GAP_FLOORS.ordinary;
+  const halfButtonWidth = (width - gap) / 2;
+  return {
+    inset, info, viewDeckY, detail, primaryY, note, abandonY, buttonWidth: width,
+    viewDeckX: x + halfButtonWidth / 2, mapKeyX: x + width - halfButtonWidth / 2, halfButtonWidth,
+  };
+}
+
+export interface StoryMapKeyLayout {
+  shell: ModalShellLayout;
+  /** The shell's size, as modalShell takes it (centred on the design). */
+  width: number;
+  height: number;
+  note: Rect;
+  /** One per stop kind, in reading order: the cell, the medallion's centre and diameter, and where its text starts and wraps. */
+  rows: { rect: Rect; medallion: { x: number; y: number; d: number }; textX: number; textWidth: number }[];
+}
+
+/** The map key's medallion, a little larger than the smallest map stop so the icon reads. */
+export const MAP_KEY_MEDALLION = 52;
+const MAP_KEY_WIDTH = 960;
+const MAP_KEY_COLUMNS = 2;
+
+function mapKeyShell(height: number): ModalShellLayout {
+  return modalShellLayout({
+    width: Math.min(MAP_KEY_WIDTH, theme.design.safeWidth),
+    height,
+    titleTrackHeight: Math.max(HIT(), Math.ceil(theme.type.h1 * 4 / 3)),
+  });
+}
+
+/** How wide the map key's note, and a stop's name and summary, may wrap (measure at these, then place). */
+export function storyMapKeyWidths(): { note: number; text: number } {
+  const note = mapKeyShell(400).contentBounds.width;
+  const cell = (note - GAP_FLOORS.ordinary * (MAP_KEY_COLUMNS - 1)) / MAP_KEY_COLUMNS;
+  return { note, text: Math.floor(cell - 2 * theme.space(2) - (MAP_KEY_MEDALLION + theme.space(4))) };
+}
+
+/**
+ * The map key modal: the title, a note, the stop kinds in two columns read
+ * down then across (each its medallion beside its name over its summary), and
+ * Got It in the footer. The scene measures the note and each stop's text at
+ * `storyMapKeyWidths()` and passes the heights; the shell grows to hold them,
+ * never past the title-safe frame.
+ */
+export function storyMapKeyLayout(noteHeight: number, rowTextHeights: readonly number[]): StoryMapKeyLayout {
+  const gap = GAP_FLOORS.ordinary;
+  const pad = theme.space(2);
+  const d = MAP_KEY_MEDALLION;
+  const perColumn = Math.ceil(rowTextHeights.length / MAP_KEY_COLUMNS);
+  const lineHeights = Array.from({ length: perColumn }, (_, line) => {
+    let h = d;
+    for (let col = 0; col < MAP_KEY_COLUMNS; col++) h = Math.max(h, rowTextHeights[col * perColumn + line] ?? 0);
+    return Math.ceil(h + 2 * pad);
+  });
+  const gridH = lineHeights.reduce((sum, h) => sum + h, 0) + gap * Math.max(0, perColumn - 1);
+  const content = Math.ceil(noteHeight) + theme.space(3) + gridH;
+  // The chrome round the content: a probe shell's height less its content track.
+  const probe = mapKeyShell(400);
+  const height = Math.min(theme.design.safeHeight, 400 - probe.contentBounds.height + content);
+  const shell = mapKeyShell(height);
+  const c = shell.contentBounds;
+  const note = { x: c.x, y: c.y, width: c.width, height: Math.ceil(noteHeight) };
+  const cellW = (c.width - gap * (MAP_KEY_COLUMNS - 1)) / MAP_KEY_COLUMNS;
+  const textWidth = storyMapKeyWidths().text;
+  const gridTop = note.y + note.height + theme.space(3);
+  const rows = rowTextHeights.map((_, i) => {
+    const col = Math.floor(i / perColumn);
+    const line = i % perColumn;
+    const y = gridTop + lineHeights.slice(0, line).reduce((sum, h) => sum + h + gap, 0);
+    const rect = { x: c.x + col * (cellW + gap), y, width: cellW, height: lineHeights[line] };
+    return { rect, medallion: { x: rect.x + pad + d / 2, y: y + rect.height / 2, d }, textX: rect.x + pad + d + theme.space(4), textWidth };
+  });
+  return { shell, width: shell.panel.width, height, note, rows };
 }
