@@ -507,7 +507,7 @@ export class DuelScene extends Phaser.Scene {
   /** The phone's combat damage recap (T-09), shown through the strikes and a moment after. */
   private phoneRecap: PhoneRecapPanel | null = null;
   /** A zone open on the phone (W-GraveYours, W-Reserves): whose, which tab, and the card the column shows. */
-  private phoneZone: { player: PlayerId; tab: PhoneZoneTab; pick: number } | null = null;
+  private phoneZone: { player: PlayerId; tab: PhoneZoneTab; pick: number; scroll?: number } | null = null;
   /** A cast or Duty question in the phone's column (W-TitheHow, W-Empower, W-DutyPick), in place of the desktop chooser. */
   private phoneChoice: { panel: PhoneChoicePanel; foot: PhoneFoot } | null = null;
   /** The coin flip while it asks in the phone's column (T-01a, T-01b). */
@@ -2035,7 +2035,8 @@ export class DuelScene extends Phaser.Scene {
     this.phoneChrome = new DuelPhoneChrome(this, phone, {
       onHistory: () => this.togglePhoneHistory(),
       onMenu: () => {
-        if (!this.ended) this.showPauseMenu();
+        if (this.replayMode) this.openPhoneReplayMenu();
+        else if (!this.ended) this.showPauseMenu();
       },
       onBlock: (side) => this.onPhoneBlock(side === 'opp' ? AI : HUMAN),
     });
@@ -2599,6 +2600,14 @@ export class DuelScene extends Phaser.Scene {
   // ---------------------------------------------------------------------
 
   private buildReplayControls(): void {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.replayTimer?.remove(false);
+      this.replayTimer = null;
+      this.replayPlaying = false;
+      this.replayGuard.close();
+    });
+    // The phone's replay controls are its foot (Pause or Play, Step or Speed) and its menu (Leave replay).
+    if (this.phoneChrome) return;
     const bar = this.add.container(0, 0).setDepth(theme.depth.results + 10);
     bar.add(
       this.add
@@ -2647,12 +2656,6 @@ export class DuelScene extends Phaser.Scene {
     exit.setDepth(theme.depth.results + 10);
     bar.add([this.replayPlayButton.container, step.container, this.replaySpeedButton.container]);
     this.replayControls = bar;
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.replayTimer?.remove(false);
-      this.replayTimer = null;
-      this.replayPlaying = false;
-      this.replayGuard.close();
-    });
   }
 
   private startReplayPlayback(): void {
@@ -2670,11 +2673,13 @@ export class DuelScene extends Phaser.Scene {
       this.scheduleReplayAction(450);
     }
     this.replayPlayButton?.setLabel(playing ? 'Pause' : 'Play');
+    if (this.phoneChrome) this.syncButton();
   }
 
   private cycleReplaySpeed(): void {
     this.replaySpeed = this.replaySpeed === 1 ? 2 : this.replaySpeed === 2 ? 4 : 1;
     this.replaySpeedButton?.setLabel(`Speed x${this.replaySpeed}`);
+    if (this.phoneChrome) this.syncButton();
   }
 
   private stepReplayAction(): void {
@@ -6488,6 +6493,13 @@ export class DuelScene extends Phaser.Scene {
       chrome.setFoot(prompt.foot);
       return;
     }
+    if (this.replayMode && !this.replayOutcome) {
+      // Playing: the speed and Pause. Paused: one action at a time, and Play.
+      chrome.setFoot(this.replayPlaying
+        ? { left: { label: `Speed x${this.replaySpeed}`, onTap: () => this.cycleReplaySpeed() }, primary: { label: 'Pause', onTap: () => this.setReplayPlaying(false) } }
+        : { left: { label: 'Step', onTap: () => this.stepReplayAction() }, primary: { label: 'Play', onTap: () => this.setReplayPlaying(true) } });
+      return;
+    }
     const st = this.duel.state;
     const waiting = !this.ended && !this.replayMode && st.turn > 0 && !this.isHumanTurnDecision()
       && this.duel.awaiting.kind !== 'gameOver';
@@ -6509,6 +6521,12 @@ export class DuelScene extends Phaser.Scene {
     if (this.phoneMenu) return this.phoneMenuPrompt();
     if (this.phoneInspect) {
       return { panel: this.phoneInspect, foot: { left: null, primary: { label: 'Close', ghost: true, onTap: () => this.closeInspect() } } };
+    }
+    // A replay asks nothing: its column shows only what can be read (a zone, the Mandate, a combat recap).
+    if (this.replayMode) {
+      if (this.phoneZone) return this.phoneZonePrompt(this.phoneZone);
+      if (this.phoneMandate) return this.phoneMandatePrompt();
+      return this.phoneRecap ? { panel: this.phoneRecap, foot: null } : null;
     }
     if (this.phoneCoin) return this.phoneCoin;
     const mulligan = this.phoneMulliganPrompt();
@@ -7112,7 +7130,8 @@ export class DuelScene extends Phaser.Scene {
   private openPhoneFocus(handIndex: number): void {
     const chrome = this.phoneChrome;
     const cardId = this.duel.state.players[HUMAN].hand[handIndex];
-    if (!chrome || cardId === undefined || this.ended) return;
+    // A replay's hand is read-only: nothing in it can be played.
+    if (!chrome || cardId === undefined || this.ended || this.replayMode) return;
     const d = def(CARD_DB, cardId);
     if (isType(d, 'land') && this.isHumanTurnDecision()) {
       this.castFromHand(handIndex, null);
@@ -8614,6 +8633,7 @@ export class DuelScene extends Phaser.Scene {
       subtitle: zone.player === HUMAN && graveyard ? this.untappedManaSubtitle() : '',
       onClose: () => this.closePhoneZone(),
       tiles,
+      scroll: { offset: zone.scroll ?? 0, onScroll: (offset) => { zone.scroll = offset; } },
       empty: zone.tab === 'deck' ? 'No cards left.' : zone.tab === 'severed' ? 'No cards severed.'
         : zone.tab === 'hand' ? 'No cards in hand.'
         : zone.tab === 'reserves' ? 'No lands in the Warchest Reserves.' : zone.tab === 'lands' ? 'No lands yet.' : 'No cards here.',
@@ -8631,7 +8651,7 @@ export class DuelScene extends Phaser.Scene {
     const side = zone.player === HUMAN ? view.you : view.opp;
     const swap = (tab: PhoneZoneTab) => () => {
       if (this.phoneZone !== zone) return;
-      this.phoneZone = { ...zone, tab, pick: 0 };
+      this.phoneZone = { ...zone, tab, pick: 0, scroll: 0 };
       this.drawPhoneZone();
     };
     const grave = zone.tab === 'graveyard' || zone.tab === 'severed';
@@ -9367,6 +9387,23 @@ export class DuelScene extends Phaser.Scene {
     overlay?.destroy();
     this.syncHand();
     this.syncButton();
+    if (this.replayMode) this.reguardReplay();
+  }
+
+  /** A replay's menu: playback pauses, and the column offers Sound, Music and Leave replay. */
+  private openPhoneReplayMenu(): void {
+    if (this.phoneMenu || this.replayOutcome || this.pauseOverlay) return;
+    this.setReplayPlaying(false);
+    this.phoneMenu = true;
+    this.pauseOverlay = this.add.container(0, 0);
+    this.syncHand();
+    this.syncButton();
+    this.reguardReplay();
+  }
+
+  private reguardReplay(): void {
+    this.replayGuard.close();
+    this.replayGuard.open(this.replayGuardTargets());
   }
 
   private phoneMenuPrompt(): { panel: PhoneMenuPanel; foot: PhoneFoot } {
@@ -9389,14 +9426,14 @@ export class DuelScene extends Phaser.Scene {
           },
         })) : undefined,
         toggles: [
-          {
+          ...(this.replayMode ? [] : [{
             label: 'Auto-skip', sub: 'Auto-skip forced turns', on: s.autoSkip,
             onTap: () => {
               s.autoSkip = !s.autoSkip;
               Services.save.touch();
               redraw();
             },
-          },
+          }]),
           {
             label: 'Sound', sub: null, on: s.sfxOn,
             onTap: () => {
@@ -9415,7 +9452,9 @@ export class DuelScene extends Phaser.Scene {
           },
         ],
         // Leaving the lesson loses nothing, so it is a quiet, single-tap exit.
-        exit: tutorial
+        exit: this.replayMode
+          ? { label: 'Leave replay', danger: false, onTap: () => this.exitReplayViewer() }
+          : tutorial
           ? { label: 'Leave Tutorial', danger: false, onTap: () => this.leaveTutorial() }
           : { label: 'Concede', danger: true, onTap: () => this.phoneMenuConcede() },
       },
@@ -10597,7 +10636,14 @@ export class DuelScene extends Phaser.Scene {
 
   /** Replay controls are the only interactive objects left enabled. */
   private replayGuardTargets(): Phaser.GameObjects.GameObject[] {
-    return [...this.overlayGuardTargets(), this.undoBtn];
+    const targets = [...this.overlayGuardTargets(), this.undoBtn];
+    const chrome = this.phoneChrome;
+    if (!chrome) return targets;
+    // The phone's replay controls stay live: the foot, History, the menu, and the menu's rows while it is open.
+    const live = new Set<Phaser.GameObjects.GameObject>([
+      ...chrome.footTargets(), chrome.history.inputZone, chrome.menu.inputZone, ...(this.phoneMenu ? chrome.columnTargets() : []),
+    ]);
+    return targets.filter((target) => !live.has(target));
   }
 
   private syncOverlay(): void {
