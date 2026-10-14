@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  castLeavesLine,
   DUEL_PHONE,
   duelPhoneLayout,
   duelPhoneReadback,
+  focusCard,
   handList,
   handRowLook,
   lifePlate,
@@ -11,6 +13,7 @@ import {
   plainHistoryLine,
   sideBoard,
   turnLineLabel,
+  undoToastDetail,
 } from '../../src/ui/duelCompact';
 import { COMPACT } from '../../src/ui/compactLayout';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
@@ -98,20 +101,46 @@ describe('the phone Duel (mocks T-03a, T-03b, T-10, T-13a)', () => {
 
   it('lists the hand down the column: seven cards at 130% show four rows and "3 more" (T-13a)', () => {
     const L = duelPhoneLayout(island, { largeText: true });
-    const list = handList(L, 7, false);
+    const list = handList(L, 7);
     expect(list.rows).toHaveLength(5);
     expect(list.more).toBe(3);
-    const small = handList(duelPhoneLayout(island), 7, false);
+    const small = handList(duelPhoneLayout(island), 7);
     expect(small.more).toBe(0);
   });
 
-  it('pins the Warchest row above the hand without overlapping it (T-03b)', () => {
+  it('pins the Undo toast and the Warchest row above the hand, apart and in order (M20, T-03b)', () => {
     const L = duelPhoneLayout(island);
-    const list = handList(L, 6, true);
-    expect(list.pinned).not.toBeNull();
-    expect(list.pinned!.y).toBe(L.hand.y);
-    for (const row of list.rows) expect(overlap(row.visual, list.pinned!)).toBe(false);
-    for (const row of list.rows) expect(inside(row.visual, L.hand)).toBe(true);
+    const list = handList(L, 6, 2);
+    expect(list.pinned).toHaveLength(2);
+    expect(list.pinned[0].y).toBe(L.hand.y);
+    expect(list.pinned[1].y).toBeGreaterThan(list.pinned[0].y + list.pinned[0].height);
+    disjoint([...list.pinned, ...list.rows.map((row) => row.visual)], 'pinned');
+    for (const row of [...list.pinned, ...list.rows.map((r) => r.visual)]) expect(inside(row, L.hand)).toBe(true);
+    // Two pinned rows cost the hand two slots: six cards no longer all fit.
+    expect(handList(L, 6, 0).more).toBe(0);
+    expect(list.more).toBeGreaterThan(0);
+  });
+
+  it('opens a card as large as the centre allows, inside it (T-04, T-05)', () => {
+    for (const { name, m } of landscape) {
+      const L = duelPhoneLayout(m.content);
+      const at = focusCard(L, 300, 420);
+      const box = { x: at.x - 150 * at.scale, y: at.y - 210 * at.scale, width: 300 * at.scale, height: 420 * at.scale };
+      expect(inside(box, L.main), name).toBe(true);
+      expect(Math.max(box.height / L.main.height, box.width / L.main.width), name).toBeGreaterThan(0.9);
+    }
+  });
+
+  it('says what a cast and an Empower leave untapped, never below zero (T-04)', () => {
+    expect(castLeavesLine(6, 2, 4)).toBe('Cast leaves 4 · Empower leaves 2');
+    expect(castLeavesLine(3, 2, null)).toBe('Cast leaves 1');
+    expect(castLeavesLine(1, 3, null)).toBe('Cast leaves 0');
+  });
+
+  it('names the move the Undo toast takes back (M20)', () => {
+    expect(undoToastDetail('castSpell', 'Kicked Door')).toBe('Cast Kicked Door');
+    expect(undoToastDetail('playLand', 'Mountain')).toBe('Played Mountain');
+    expect(undoToastDetail('declareAttackers', null)).toBe('Your attack');
   });
 
   it('reads the animations\' anchors back from the phone regions', () => {
