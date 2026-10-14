@@ -33,6 +33,7 @@ import { signals } from '../net/signals';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { ModalGuard } from '../ui/Modal';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { isDesktopStage } from '../ui/compactLayout';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
@@ -402,7 +403,7 @@ export class MainMenuScene extends Phaser.Scene {
     })) : dailyQuestStatuses(save, today);
     const rerollsLeft = dailyRerollsRemaining(save, today);
     const streak = dailyStreakStatus(save, today);
-    panel(this, rect.x, rect.y, rect.width, rect.height);
+    const frame = panel(this, rect.x, rect.y, rect.width, rect.height);
     const pad = L.dailyPad;
     const inner = { x: rect.x + pad, width: rect.width - 2 * pad };
     const heading = this.add.text(inner.x, rect.y + pad, 'Daily Blades', {
@@ -530,6 +531,13 @@ export class MainMenuScene extends Phaser.Scene {
         },
       });
       this.menuItems.push(more.inputZone);
+    }
+    // Desktop: when every quest fits, the panel ends under the last one rather
+    // than running empty to the foot of the screen (the desktop pass).
+    if (!page.fold && isDesktopStage(sceneStage(this))) {
+      const height = Math.min(rect.height, Math.ceil(y - L.dailyRowGap + pad - rect.y));
+      frame.destroy();
+      this.children.moveBelow(panel(this, rect.x, rect.y, rect.width, height), heading);
     }
   }
 

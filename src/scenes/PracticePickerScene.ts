@@ -17,7 +17,7 @@ import { gateOnArt } from '../ui/artGate';
 import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { COMPACT } from '../ui/compactLayout';
+import { COMPACT, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
 import { compactButton, compactDialog, compactHeader, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { ModalGuard } from '../ui/Modal';
@@ -224,7 +224,8 @@ export class PracticePickerScene extends Phaser.Scene {
       wrapTileName(n, rivalShortName(roster[i].name), width);
       return n.width <= width;
     }).every(Boolean);
-    const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)));
+    const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)),
+      isDesktopStage(sceneStage(this)) ? { minTileW: DESKTOP_GRID.practiceTileMinW } : {});
     const nameW = layout.tileW - 2 * PRACTICE_COMPACT.nameInset;
     fitAt(sizes.find((size) => fitAt(size, nameW)) ?? sizes[sizes.length - 1], nameW);
     label.setPosition(layout.difficultyLabel.x, layout.difficultyLabel.y);

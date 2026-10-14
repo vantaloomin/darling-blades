@@ -39,7 +39,7 @@ import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { fitMenuListName, fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
-import { COMPACT, compactShell } from '../ui/compactLayout';
+import { COMPACT, compactShell, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
 import {
   compactButton,
   compactHeader,
@@ -2927,7 +2927,8 @@ export class ShopScene extends Phaser.Scene {
     const pip = Math.round(type.body * 1.3);
     const probeName = this.add.text(0, 0, 'Ag', nameStyle);
     const probeLine = this.add.text(0, 0, 'Ag', lineStyle);
-    const grid = deckGrid(main.width, probeName.height, Math.max(pip, probeLine.height), currentAccessibility().textScale >= 1.3);
+    const grid = deckGrid(main.width, probeName.height, Math.max(pip, probeLine.height), currentAccessibility().textScale >= 1.3,
+      isDesktopStage(sceneStage(this)) ? DESKTOP_GRID.shopDeckMinW : undefined);
     probeName.destroy();
     probeLine.destroy();
     const S = SHOP_COMPACT;

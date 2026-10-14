@@ -4,6 +4,8 @@ import {
   COMPACT_SCENES,
   compactCamera,
   compactSceneMetrics,
+  DESKTOP_DENSITY,
+  desktopCompactMetrics,
   setActiveCompactMetrics,
 } from '../../src/platform/compactScenes';
 import { compactCanvasSize, resolveScreenMetrics } from '../../src/platform/screenMetrics';
@@ -16,16 +18,32 @@ afterEach(() => setActiveCompactMetrics(null));
 
 describe('which scenes draw their compact composition', () => {
   it('only a listed scene, and only under the compact profile', () => {
-    expect(compactSceneMetrics('MainMenu')).toBeNull();
+    expect(compactSceneMetrics('MainMenu', COMPACT_SCENES, new Set())).toBeNull();
     setActiveCompactMetrics(phone);
     expect(compactSceneMetrics('MainMenu')).toBe(phone);
     expect(compactSceneMetrics('Duel', new Set(['MainMenu']))).toBeNull();
   });
 
-  it('the wide profile never activates it', () => {
+  it('the wide profile never activates the phone metrics', () => {
     setActiveCompactMetrics(desktop);
     expect(activeCompactMetrics()).toBeNull();
-    expect(compactSceneMetrics('MainMenu')).toBeNull();
+    expect(compactSceneMetrics('MainMenu', COMPACT_SCENES, new Set())).toBeNull();
+  });
+
+  it('on desktop a listed scene draws the compact composition in 1280x720 over the desktop density', () => {
+    const m = compactSceneMetrics('MainMenu', COMPACT_SCENES, new Set(['MainMenu']));
+    expect(m).toEqual(desktopCompactMetrics());
+    expect(m!.design.width * DESKTOP_DENSITY).toBeCloseTo(1280, -1);
+    expect(m!.design.height * DESKTOP_DENSITY).toBeCloseTo(720, -1);
+    const { content, design } = m!;
+    expect(content.x + content.width).toBeLessThanOrEqual(design.width);
+    expect(content.y + content.height).toBeLessThanOrEqual(design.height);
+    expect(compactSceneMetrics('Duel', COMPACT_SCENES, new Set(['MainMenu']))).toBeNull();
+  });
+
+  it('a phone never gets the desktop metrics, even for a desktop scene', () => {
+    setActiveCompactMetrics(phone);
+    expect(compactSceneMetrics('Duel', new Set(['MainMenu']), new Set(['Duel']))).toBeNull();
   });
 
   it('lists the main menu', () => {
