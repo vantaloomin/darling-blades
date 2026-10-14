@@ -73,6 +73,7 @@ import {
   chooseBoon,
   currentStoryNode,
   enterNode,
+  keepRewardKey,
   legalNextNodes,
   recordFight,
   resolveRest,
@@ -81,7 +82,7 @@ import {
   storyBoonOffers,
   takeCardReward,
 } from '../meta/story/StoryProgress';
-import { openingSceneFor, storyEventFor, storySceneById } from '../meta/story/storyEvents';
+import { openingSceneFor, resolveStoryEventByRule, storyEventFor, storySceneById } from '../meta/story/storyEvents';
 import { isDuelNode } from '../meta/story/storyMap';
 import { freshStoryState, type StoryState } from '../meta/story/storyState';
 
@@ -440,12 +441,42 @@ function storyDialogueProbeScenes(): ProbeScene[] {
   ];
 }
 
+/**
+ * A run walked on from the map, every duel won and every stop passed by,
+ * until it stands at `stop`: a shop or a rest just entered, the keep after
+ * the boss, or the act-cleared summary with the keep claimed.
+ */
+function storyWalkFixture(stop: 'shop' | 'rest' | 'keep' | 'cleared'): StoryState {
+  const story = storyProbeFixture('map');
+  for (let guard = 0; guard < 30; guard++) {
+    const legal = legalNextNodes(story);
+    const next = legal.find((n) => n.kind === stop) ?? legal[0];
+    if (!next) break;
+    enterNode(story, next.id);
+    if (next.kind === stop) return story;
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      if (next.kind === 'boss') {
+        if (stop === 'cleared') story.claimedRewardKeys.push(keepRewardKey(story.activeRun!.runId, story.activeRun!.act));
+        return story;
+      }
+      while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else if (next.kind === 'rest') resolveRest(story, null);
+    else if (next.kind === 'event') resolveStoryEventByRule(story, CARD_DB);
+  }
+  throw new Error(`a11yProbe: the fixture run never reached ${stop}`);
+}
+
 export const STORY_SCENES: readonly ProbeScene[] = [
   ...(['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
     label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
   })),
   { label: 'Story / map key', key: 'Story', data: { a11yFixture: { story: { ...storyProbeFixture('map'), seenMapKey: false } } } },
   ...storyDialogueProbeScenes(),
+  ...(['shop', 'rest', 'keep', 'cleared'] as const).map((stop) => ({
+    label: `Story / ${stop}`, key: 'Story', data: { a11yFixture: { story: storyWalkFixture(stop) } },
+  })),
 ];
 
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
