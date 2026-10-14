@@ -972,8 +972,12 @@ export class AchievementsScene extends Phaser.Scene {
   }
 
   /** The column's totals (M-Achievements): the pool, the special cards and one count per colour. Returns the bottom. */
-  private drawCompactTotals(col: Rect): number {
+  private drawCompactTotals(column: Rect): number {
     const type = theme.compactType;
+    // Desktop: the totals sit inset inside a faded panel drawn exactly on the column, for contrast over the backdrop.
+    const desktop = isDesktopStage(sceneStage(this));
+    const inset = desktop ? ACHIEVEMENTS_COMPACT.desktopPanelInset : { x: 0, y: 0 };
+    const col = { x: column.x + inset.x, y: column.y + inset.y, width: Math.max(0, column.width - inset.x * 2), height: column.height };
     const completion = collectionCompletion(ALL_CARDS, this.saveData);
     const line = (y: number, text: string): Phaser.GameObjects.Text => {
       const t = this.add.text(col.x, y, text, {
@@ -999,12 +1003,12 @@ export class AchievementsScene extends Phaser.Scene {
     const lineH = Math.max(...items.map((item) => item.height));
     const flow = flowItems(col.width, items.map((item) => item.width), lineH, ACHIEVEMENTS_COMPACT.pipGapX, ACHIEVEMENTS_COMPACT.pipGapY);
     items.forEach((item, i) => item.c.setPosition(col.x + flow.at[i].x, top + flow.at[i].y + lineH / 2));
-    if (isDesktopStage(sceneStage(this))) {
-      // Desktop: the faded panel behind the totals, so they keep their contrast over the backdrop's art.
-      const backing = desktopTextPanel(this, { x: col.x, y: col.y, width: col.width, height: top + flow.height - col.y }, 4);
+    const bottom = top + flow.height + inset.y;
+    if (desktop) {
+      const backing = desktopTextPanel(this, { x: column.x, y: column.y, width: column.width, height: bottom - column.y }, 0);
       this.children.moveBelow(backing as Phaser.GameObjects.GameObject, pool as Phaser.GameObjects.GameObject);
     }
-    return top + flow.height;
+    return bottom;
   }
 
   /** The Trophy Hall on a phone: five wing cards, three over two, each opening its wing's list. */

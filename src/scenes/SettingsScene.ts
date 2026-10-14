@@ -330,6 +330,16 @@ export class SettingsScene extends Phaser.Scene {
     const opening = settingsCompactSectionForTab(this.tab, sections);
     const openAt = opening ? tops[sections.findIndex((s) => s.key === opening)] ?? 0 : 0;
     const scroll = bindMenuScroll(this, list, layout.list, contentHeight, undefined, adapters, 0, undefined, openAt);
+    if (layout.listPanel) {
+      // The list fades out into its panel instead of cutting a line in half at the edge.
+      const fadeH = 22;
+      const fade = this.add.graphics();
+      const bands = 8;
+      for (let i = 0; i < bands; i++) {
+        fade.fillStyle(theme.graphics.panelFill, ((i + 1) / bands) * theme.alpha.panel);
+        fade.fillRect(layout.list.x, layout.list.y + layout.list.height - fadeH + (i * fadeH) / bands, layout.rowW, Math.ceil(fadeH / bands));
+      }
+    }
     const highlight = (index: number): void => navButtons.forEach((b, i) => b.setVariant(i === index ? 'selected' : 'ghost'));
     const follow = (): void => highlight(settingsActiveSection(tops, scroll.offset(), layout.list.height, scroll.maxScroll));
     scroll.onScroll = follow;

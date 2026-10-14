@@ -101,16 +101,21 @@ import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { currentAccessibility } from '../ui/accessibility';
 import { COMPACT, compactShell, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
 import {
+  bindPointerState,
   COMPACT_DRAG_SLOP,
   compactButton,
   compactDialog,
   compactIconButton,
   compactSegments,
   coverFitImage,
+  POINTER_WASH,
+  washAlpha,
   type CompactButton,
+  type PointerState,
 } from '../ui/compactWidgets';
 import {
   BUILDER_COMPACT,
+  BUILDER_DESKTOP,
   builderFoot,
   builderTopBar,
   cardsColumn,
@@ -118,11 +123,15 @@ import {
   darlingSplit,
   deckRowDetail,
   decksScreen,
+  deskDeckRow,
+  deskPoolHitAt,
+  poolChipH,
   poolChips,
   poolFilterLayout,
   poolGrid,
   poolHeight,
   poolHitAt,
+  poolInspectRect,
   splitDarlingName,
   stackedRowAt,
   tileGrid,
@@ -232,6 +241,12 @@ interface PoolFilterFacet {
   get: () => string;
   set: (value: string) => void;
 }
+
+/**
+ * MouseManager.disableContextMenu() adds a canvas listener that lives as long
+ * as the game, with no dedupe (DuelScene's note), so the builder adds it once.
+ */
+let builderContextMenuDisabled = false;
 
 /** A held press on a card (the phone builder): held still for BUILDER_COMPACT.holdMs, it inspects instead of acting. */
 interface CompactHold {
@@ -3690,6 +3705,11 @@ export class DeckBuilderScene extends Phaser.Scene {
     this.searchInput = ui.search;
     this.input.on('pointermove', this.onCompactHoldMove, this);
     this.input.on('pointerup', this.onCompactHoldUp, this);
+    // Desktop (R2 A): a right-click removes a copy, so the browser's menu must not open over the canvas.
+    if (isDesktopStage(stage) && !builderContextMenuDisabled) {
+      this.input.mouse?.disableContextMenu();
+      builderContextMenuDisabled = true;
+    }
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.input.off('pointermove', this.onCompactHoldMove, this);
       this.input.off('pointerup', this.onCompactHoldUp, this);
@@ -3886,11 +3906,17 @@ export class DeckBuilderScene extends Phaser.Scene {
     else this.drawCompactPool(layer);
   }
 
-  /** The pool grid (D-Cards): each card over its in-deck count and, when more than one can be added, its +N chip. */
+  /**
+   * The pool grid (D-Cards): each card over its in-deck count and, when more than one can be added, its +N chip.
+   * On the desktop stage (R2 A) a click adds one (Shift fills to the cap), a right-click removes one (Shift: all),
+   * and the chips shrink to a count line (in deck over cap, copies owned); the hovered card washes and shows
+   * its +N chip and an inspect button (a held press still inspects too).
+   */
   private drawCompactPool(layer: Phaser.GameObjects.Container): void {
     const ui = this.compactUi!;
     const type = theme.compactType;
     const save = this.save;
+    const desktop = isDesktopStage(sceneStage(this));
     let pane = ui.main;
     const darlingId = this.activeDarlingId();
     if (this.activeFormat() === 'darlings' && this.activeSavedDeck()) {
@@ -3901,8 +3927,8 @@ export class DeckBuilderScene extends Phaser.Scene {
     const pool = this.pool();
     const chipStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700 };
     const probe = this.add.text(0, 0, '0/4', chipStyle);
-    const grid = poolGrid(pane.width, Math.max(28, probe.height + 10), ui.largeText,
-      isDesktopStage(sceneStage(this)) ? DESKTOP_GRID.cardMinW : undefined);
+    const grid = poolGrid(pane.width, poolChipH(desktop, probe.height), ui.largeText,
+      desktop ? DESKTOP_GRID.cardMinW : undefined);
     probe.destroy();
     const chips = poolChips(grid);
     if (pool.length === 0) {
@@ -3913,6 +3939,7 @@ export class DeckBuilderScene extends Phaser.Scene {
       return;
     }
     const capFor = (id: string): number => Math.min(this.copyLimit(), ownedCount(save, id));
+    const addableFor = (index: number): number => capFor(pool[index].id) - this.countIn(this.deck, pool[index].id);
     const list = this.add.container(0, pane.y);
     layer.add(list);
     const rows: (Phaser.GameObjects.Container | null)[] = Array.from({ length: Math.ceil(pool.length / grid.columns) }, () => null);
@@ -3933,6 +3960,24 @@ export class DeckBuilderScene extends Phaser.Scene {
       }
       return out;
     };
+    // Desktop: the owned count at each card's right, hidden while its hover +N chip shows there.
+    const ownedLabels = new Map<number, Phaser.GameObjects.Text>();
+    const countLine = (x: number, index: number, inDeck: number, cap: number, full: boolean): Phaser.GameObjects.GameObject[] => {
+      const cy = grid.chipY + grid.chipH / 2;
+      const color = inDeck > 0 ? theme.colors.success : theme.colors.muted;
+      const iconSize = full ? Math.round(type.label * 1.1) : 0;
+      const out: Phaser.GameObjects.GameObject[] = [];
+      if (full) {
+        out.push(this.add.image(x + iconSize / 2, cy, bakeUiIcon(this, 'check')).setDisplaySize(iconSize, iconSize).setTint(colorInt(color)));
+      }
+      out.push(this.add.text(x + (full ? iconSize + 3 : 0), cy, `${inDeck}/${cap} in deck`, { ...chipStyle, color }).setOrigin(0, 0.5));
+      const owned = this.add.text(x + grid.cardW, cy, `Own ${ownedCount(save, pool[index].id)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+      }).setOrigin(1, 0.5);
+      ownedLabels.set(index, owned);
+      out.push(owned);
+      return out;
+    };
     const buildRow = (r: number): Phaser.GameObjects.Container => {
       const row = this.add.container(0, r * grid.pitchY);
       pool.slice(r * grid.columns, (r + 1) * grid.columns).forEach((d, k) => {
@@ -3942,6 +3987,10 @@ export class DeckBuilderScene extends Phaser.Scene {
         const cap = capFor(d.id);
         const full = cap > 0 && inDeck >= cap;
         row.add(thumb);
+        if (desktop) {
+          row.add(countLine(x, r * grid.columns + k, inDeck, cap, full));
+          return;
+        }
         row.add(pill(x + chips.count.x, grid.chipY, chips.count.width, `${inDeck}/${cap}`,
           inDeck > 0 ? theme.colors.success : theme.colors.muted, full ? theme.colors.success : null, full));
         const addable = cap - inDeck;
@@ -3949,6 +3998,33 @@ export class DeckBuilderScene extends Phaser.Scene {
       });
       list.add(row);
       return row;
+    };
+    // Desktop hover: a wash over the card, its +N chip and an inspect button, on a layer over the rows.
+    const hoverLayer = desktop ? this.add.container(0, 0) : null;
+    if (hoverLayer) list.add(hoverLayer);
+    let hovered = -1;
+    let hoverState: PointerState = 'idle';
+    const drawHover = (): void => {
+      if (!hoverLayer?.scene) return;
+      hoverLayer.removeAll(true);
+      ownedLabels.forEach((label) => { if (label.scene) label.setVisible(true); });
+      if (hovered < 0 || hoverState === 'idle') return;
+      const x = pane.x + (hovered % grid.columns) * grid.pitchX;
+      const y = Math.floor(hovered / grid.columns) * grid.pitchY;
+      hoverLayer.add(this.add.graphics().fillStyle(POINTER_WASH.color, washAlpha(hoverState))
+        .fillRoundedRect(x - 3, y - 3, grid.cardW + 6, grid.chipY + grid.chipH + 6, theme.radius.panel));
+      const addable = addableFor(hovered);
+      if (addable > 1) {
+        ownedLabels.get(hovered)?.setVisible(false);
+        hoverLayer.add(pill(x + chips.all.x, y + grid.chipY, chips.all.width, `+${addable}`, theme.colors.success, theme.colors.success, false));
+      }
+      const r = poolInspectRect(grid);
+      const cx = x + r.x + r.width / 2;
+      const cy = y + r.y + r.height / 2;
+      hoverLayer.add(this.add.graphics().fillStyle(theme.graphics.panelFill, 0.92).fillCircle(cx, cy, r.width / 2)
+        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, 1).strokeCircle(cx, cy, r.width / 2));
+      const icon = Math.round(r.width * 0.6);
+      hoverLayer.add(this.add.image(cx, cy, bakeUiIcon(this, 'search')).setDisplaySize(icon, icon).setTint(colorInt(theme.colors.heading)));
     };
     const cardsIn = (from: number, to: number): CardDef[] => pool.slice(Math.max(0, from) * grid.columns, Math.max(0, to) * grid.columns);
     const showRows = (at: number): void => {
@@ -3965,16 +4041,32 @@ export class DeckBuilderScene extends Phaser.Scene {
           rows[r] = null;
         }
       });
+      if (hoverLayer) list.bringToTop(hoverLayer);
     };
     const scroll = bindMenuScroll(this, list, pane, poolHeight(grid, pool.length), () => this.compactBlocked(), [], 0, undefined, ui.poolOffset);
-    scroll.onScroll = showRows;
     showRows(scroll.offset());
     ui.poolScroll = scroll;
     // One target over the grid: the card (and which part of it) from where the tap lands.
     const zone = this.add.zone(pane.x + pane.width / 2, pane.y + pane.height / 2, pane.width, pane.height).setInteractive({ useHandCursor: true });
-    const hitAt = (pointer: Phaser.Input.Pointer) => poolHitAt(grid, pool.length, pointer.worldX - pane.x, pointer.worldY - pane.y + scroll.offset(),
-      (i) => capFor(pool[i].id) - this.countIn(this.deck, pool[i].id) > 1);
+    const hitAt = (pointer: Phaser.Input.Pointer) => (desktop ? deskPoolHitAt : poolHitAt)(grid, pool.length,
+      pointer.worldX - pane.x, pointer.worldY - pane.y + scroll.offset(), (i) => addableFor(i) > 1);
+    const inPane = (pointer: Phaser.Input.Pointer): boolean => pointer.worldX >= pane.x && pointer.worldX < pane.x + pane.width
+      && pointer.worldY >= pane.y && pointer.worldY < pane.y + pane.height;
+    const rehover = (): void => {
+      const pointer = this.input.activePointer;
+      const next = !pointer.wasTouch && inPane(pointer) && !this.compactBlocked() ? hitAt(pointer)?.index ?? -1 : -1;
+      if (hoverState === 'idle' && next >= 0) hoverState = 'hover';
+      if (next !== hovered) {
+        hovered = next;
+        drawHover();
+      }
+    };
+    scroll.onScroll = (at) => {
+      showRows(at);
+      if (desktop) rehover();
+    };
     zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (desktop && pointer.rightButtonDown()) return;
       const hit = hitAt(pointer);
       if (hit) this.startCompactHold(pointer, () => this.openCompactInspect(pool[hit.index].id));
     });
@@ -3983,9 +4075,34 @@ export class DeckBuilderScene extends Phaser.Scene {
       const hit = hitAt(pointer);
       if (!hit) return;
       const id = pool[hit.index].id;
+      if (desktop && !pointer.wasTouch) {
+        if (pointer.button === 2) {
+          if (this.countIn(this.deck, id) > 0) this.removeCardOrAll(id, pointer);
+        } else if (pointer.button !== 0) return;
+        else if (hit.part === 'inspect') this.openCompactInspect(id);
+        else if (hit.part === 'all') this.addPlayset(id);
+        else this.addCardOrPlayset(id, pointer);
+        return;
+      }
       if (hit.part === 'all') this.addPlayset(id);
       else this.addCard(id);
     });
+    if (desktop) {
+      bindPointerState(zone, (state) => {
+        hoverState = state;
+        if (state === 'idle') hovered = -1;
+        else if (hovered < 0) {
+          rehover();
+          return;
+        }
+        drawHover();
+      });
+      zone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+        if (!pointer.wasTouch) rehover();
+      });
+      // A deck edit redraws the grid under a still mouse: pick the hover back up without waiting for a move.
+      rehover();
+    }
     layer.add(zone);
   }
 
@@ -4267,10 +4384,16 @@ export class DeckBuilderScene extends Phaser.Scene {
     const ui = this.compactUi!;
     const type = theme.compactType;
     const entries = this.deckRowEntries();
+    const desktop = isDesktopStage(sceneStage(this));
     if (entries.length === 0) {
-      layer.add(this.add.text(view.x + view.width / 2, view.y + view.height / 2, 'Tap a card in your pool to add it.', {
+      const hint = desktop ? 'Click a card in your pool to add it. Right-click removes one.' : 'Tap a card in your pool to add it.';
+      layer.add(this.add.text(view.x + view.width / 2, view.y + view.height / 2, hint, {
         fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, align: 'center', wordWrap: { width: view.width - 16 },
       }).setOrigin(0.5));
+      return;
+    }
+    if (desktop) {
+      this.drawDesktopDeckList(layer, view, entries);
       return;
     }
     const btn = COMPACT.touch;
@@ -4381,6 +4504,172 @@ export class DeckBuilderScene extends Phaser.Scene {
         if (control.kind === 'minus') this.removeCardAt(this.deck.indexOf(entry.cardId), pointer);
         else this.addBasicLand(entry.cardId as BasicLandId);
       } else if (CARD_DB[entry.cardId]) this.openCompactInspect(entry.cardId);
+    });
+  }
+
+  /**
+   * The desktop deck list (R2 A): one slim row per card, its count then its
+   * full name (the cost after it when the row has room), and a faint minus
+   * at the right that turns red while the row is hovered (a Classic basic's
+   * plus beside it). A click on the row opens the card; on the minus it
+   * removes one (Shift: every copy); a right-click anywhere on the row
+   * removes one too. A held press still inspects.
+   */
+  private drawDesktopDeckList(layer: Phaser.GameObjects.Container, view: Rect, entries: CollapsedDeckRow[]): void {
+    const ui = this.compactUi!;
+    const type = theme.compactType;
+    const D = BUILDER_DESKTOP;
+    const rowW = view.width - BUILDER_COMPACT.thumbLane;
+    const heroId = this.deckHeroId();
+    const heroEditable = this.activeFormat() !== 'darlings';
+    const basic = (id: string): boolean => !this.isReserveFormat() && (BASIC_LAND_IDS as readonly string[]).includes(id);
+    const pipSize = Math.round(type.label * 1.2);
+    const starSize = Math.round(type.body * 0.95);
+    const countStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold };
+    // The count lane is as wide as the largest count on show (one digit in most decks), so names keep the room.
+    const probe = this.add.text(0, 0, `${Math.max(1, ...entries.map((entry) => entry.quantity))}`.replace(/\d/g, '0'), countStyle);
+    const countLaneW = probe.width;
+    probe.destroy();
+    const list = this.add.container(0, view.y);
+    layer.add(list);
+    const tops: number[] = [];
+    const heights: number[] = [];
+    type RowControl = { x: number; width: number; kind: 'minus' | 'plus'; enabled: boolean; icon: Phaser.GameObjects.Image };
+    const controls: RowControl[][] = [];
+    let y = 0;
+    for (const entry of entries) {
+      const d = CARD_DB[entry.cardId];
+      const kinds: ('minus' | 'plus')[] = basic(entry.cardId) ? ['minus', 'plus'] : ['minus'];
+      const star = Boolean(d) && heroEditable && heroId === entry.cardId;
+      const fullName = d ? d.name : `Unavailable card: ${entry.cardId}`;
+      const name = this.add.text(0, 0, fullName, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600,
+        color: d ? theme.colors.heading : theme.colors.danger,
+      });
+      const pips = d?.cost ? [...pipsFor(d.cost)] : [];
+      const pipsW = pips.length > 0 ? pips.length * (pipSize + 2) - 2 : 0;
+      const starW = star ? starSize + 4 : 0;
+      let L = deskDeckRow(rowW, name.height, countLaneW, name.width, starW, pipsW, kinds.length);
+      // A name too long for one line takes a second rather than an ellipsis (the row grows); past two it is cut.
+      if (name.width > L.nameW) {
+        const lineH = name.height;
+        name.setWordWrapWidth(L.nameW, true);
+        this.trimToHeight(name, Math.ceil(lineH * 2));
+        L = deskDeckRow(rowW, name.height, countLaneW, name.width, starW, 0, kinds.length);
+      }
+      const h = L.height;
+      const cy = y + h / 2;
+      name.setPosition(view.x + L.nameX, cy).setOrigin(0, 0.5);
+      const qty = this.add.text(view.x + L.countX + countLaneW, cy, `${entry.quantity}`, countStyle).setOrigin(1, 0.5);
+      const plate = this.add.graphics()
+        .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(view.x, y, rowW, h, theme.radius.control);
+      list.add([plate, qty, name]);
+      if (star) {
+        list.add(this.add.image(name.x + Math.min(name.width, L.nameW) + 4 + starSize / 2, cy, bakeUiIcon(this, 'star'))
+          .setDisplaySize(starSize, starSize).setTint(colorInt(theme.colors.gold)));
+      }
+      if (L.pipsX !== null) {
+        pips.forEach((pip, i) => {
+          if (pip.number !== undefined) ensureNumeralPip(this, pip.number);
+          if (!this.textures.exists(pip.texture)) return;
+          list.add(this.add.image(view.x + L.pipsX! + i * (pipSize + 2) + pipSize / 2, cy, pip.texture).setDisplaySize(pipSize, pipSize));
+        });
+      }
+      const rowControls = kinds.map((kind, i): RowControl => {
+        const c = L.controls[i];
+        const iconSize = Math.round(type.body * 1.1);
+        const icon = this.add.image(view.x + c.x + c.width / 2, cy, bakeUiIcon(this, kind)).setDisplaySize(iconSize, iconSize);
+        list.add(icon);
+        return { x: view.x + c.x, width: c.width, kind, enabled: kind === 'plus' || entry.quantity > 0, icon };
+      });
+      tops.push(y);
+      heights.push(h);
+      controls.push(rowControls);
+      y += h + D.rowGap;
+    }
+    const contentH = y - D.rowGap;
+    // The hover layer: the row's wash and, under the mouse, a plate behind the control.
+    const wash = this.add.graphics();
+    list.add(wash);
+    let hovered = -1;
+    let hoverControl: RowControl | null = null;
+    let hoverState: PointerState = 'idle';
+    const paint = (): void => {
+      if (!wash.scene) return;
+      wash.clear();
+      controls.forEach((row, r) => row.forEach((control) => {
+        const lit = r === hovered && hoverState !== 'idle';
+        const color = control.kind === 'minus' ? (lit ? theme.colors.danger : theme.colors.muted) : (lit ? theme.colors.success : theme.colors.muted);
+        control.icon.setTint(colorInt(color)).setAlpha(!control.enabled ? 0.25 : lit ? 1 : 0.45);
+      }));
+      if (hovered < 0 || hoverState === 'idle') return;
+      wash.fillStyle(POINTER_WASH.color, washAlpha(hoverState)).fillRoundedRect(view.x, tops[hovered], rowW, heights[hovered], theme.radius.control);
+      if (hoverControl?.enabled) {
+        wash.fillStyle(colorInt(hoverControl.kind === 'minus' ? theme.colors.danger : theme.colors.success), 0.18)
+          .fillRoundedRect(hoverControl.x, tops[hovered] + 2, hoverControl.width, heights[hovered] - 4, theme.radius.control);
+      }
+    };
+    paint();
+    let offset = ui.listOffset;
+    if (ui.focusList) {
+      const index = entries.findIndex((entry) => entry.cardId === ui.focusList);
+      if (index >= 0) offset = Math.max(0, Math.min(tops[index], tops[index] + heights[index] - view.height));
+      ui.focusList = null;
+    }
+    const scroll = bindMenuScroll(this, list, view, contentH, () => this.compactBlocked(), [], 0, undefined, offset);
+    ui.listScroll = scroll;
+    const zone = this.add.zone(view.x + view.width / 2, view.y + view.height / 2, view.width, view.height)
+      .setInteractive({ useHandCursor: true });
+    layer.add(zone);
+    const rowAt = (pointer: Phaser.Input.Pointer): number => stackedRowAt(tops, heights, pointer.worldY - view.y + scroll.offset());
+    const controlAt = (pointer: Phaser.Input.Pointer, row: number): RowControl | null =>
+      controls[row].find((control) => pointer.worldX >= control.x && pointer.worldX <= control.x + control.width) ?? null;
+    const inView = (pointer: Phaser.Input.Pointer): boolean => pointer.worldX >= view.x && pointer.worldX < view.x + view.width
+      && pointer.worldY >= view.y && pointer.worldY < view.y + view.height;
+    const rehover = (): void => {
+      const pointer = this.input.activePointer;
+      const row = !pointer.wasTouch && inView(pointer) && !this.compactBlocked() ? rowAt(pointer) : -1;
+      const control = row >= 0 ? controlAt(pointer, row) : null;
+      if (hoverState === 'idle' && row >= 0) hoverState = 'hover';
+      if (row === hovered && control === hoverControl) return;
+      hovered = row;
+      hoverControl = control;
+      paint();
+    };
+    scroll.onScroll = () => rehover();
+    bindPointerState(zone, (state) => {
+      hoverState = state;
+      if (state === 'idle') {
+        hovered = -1;
+        hoverControl = null;
+      } else if (hovered < 0) {
+        rehover();
+        return;
+      }
+      paint();
+    });
+    zone.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!pointer.wasTouch) rehover();
+    });
+    rehover();
+    zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown()) return;
+      const row = rowAt(pointer);
+      if (row < 0 || controlAt(pointer, row) || !CARD_DB[entries[row].cardId]) return;
+      this.startCompactHold(pointer, () => this.openCompactInspect(entries[row].cardId));
+    });
+    bindTapButton(this, zone, (pointer) => {
+      if (this.compactHoldFired() || Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP || this.compactBlocked()) return;
+      const row = rowAt(pointer);
+      if (row < 0) return;
+      const entry = entries[row];
+      const control = controlAt(pointer, row);
+      const right = !pointer.wasTouch && pointer.button === 2;
+      if (!pointer.wasTouch && pointer.button !== 0 && !right) return;
+      if (right || control?.kind === 'minus') {
+        if (entry.quantity > 0) this.removeCardAt(this.deck.indexOf(entry.cardId), pointer);
+      } else if (control?.kind === 'plus') this.addBasicLand(entry.cardId as BasicLandId);
+      else if (CARD_DB[entry.cardId]) this.openCompactInspect(entry.cardId);
     });
   }
 

@@ -25,8 +25,8 @@ export const GAUNTLET_COMPACT = {
   infoGap: 12,
   /** Between two stacked lines of the centre's text. */
   lineGap: 4,
-  /** A tower row (the touch floor) and the gap between two rows. */
-  rowH: 44,
+  /** A tower row (the control floor) and the gap between two rows. */
+  get rowH(): number { return COMPACT.touch; },
   rowGap: 8,
   /** Desktop: the portrait takes the pane's height, kept under this share of its width. */
   desktopHeroShare: 0.42,

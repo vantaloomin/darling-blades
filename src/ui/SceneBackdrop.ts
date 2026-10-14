@@ -7,6 +7,7 @@ import { designWindowViewport, type Rect, type ScreenMetrics } from '../platform
 import { currentAccessibility } from './accessibility';
 import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
+import { setCompactTier } from './compactLayout';
 
 /**
  * Per-scene backdrop layer (docs/scene-art.md §3 integration contract).
@@ -138,6 +139,7 @@ function compactStageFor(scene: Phaser.Scene, refit: boolean): SceneStage | null
     metrics,
   };
   COMPACT_STAGES.set(scene, stage);
+  setCompactTier(metrics.device === 'desktop' ? 'pointer' : 'touch');
   return stage;
 }
 

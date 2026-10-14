@@ -108,6 +108,9 @@ const PACK_W = 280;
 const PACK_H = 400;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
+/** Desktop pass: the column's running text inset from its panel's sides, and its panel's top and bottom pad. */
+const COLUMN_TEXT_INSET = 12;
+const COLUMN_TEXT_PAD_Y = 8;
 /**
  * A deck commit rebuilds the strip in place, so the bought card re-renders as
  * Clone Deck under the pointer. The second click of a double-click then landed
@@ -3147,24 +3150,27 @@ export class ShopScene extends Phaser.Scene {
     ui.columnZones.push(buy.inputZone, ...qty.zones);
 
     // From the top down: the name, the blurb, Drop rates, and the shortfall.
-    const room = caption.y - COMPACT.gap - col.y;
-    const name = this.add.text(col.x, col.y, sku.label, {
+    const room = caption.y - COMPACT.gap - col.y - 2 * this.columnTextPadY();
+    const ink = this.columnTextRect();
+    const name = this.add.text(ink.x, col.y, sku.label, {
       fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
-      wordWrap: { width: col.width },
+      wordWrap: { width: ink.width },
     });
-    const blurb = this.add.text(col.x, 0, SET_BLURBS[sku.sku], {
-      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: col.width }, lineSpacing: 2,
+    const blurb = this.add.text(ink.x, 0, SET_BLURBS[sku.sku], {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: ink.width }, lineSpacing: 2,
     });
     const pool = packPoolSummary(this.saveData, CARD_DB, packSetForSku(sku.sku));
     const rowLayer = this.add.container(0, 0);
-    const rowH = this.compactLinkRow(rowLayer, col.x, 0, col.width, 'info', 'Drop rates', `${pool.ownedDistinct}/${pool.poolSize} Owned`,
+    // Drop rates sits inside the text panel on the desktop, so it takes the text's inset.
+    const rowH = this.compactLinkRow(rowLayer, ink.x, 0, ink.width, 'info', 'Drop rates', `${pool.ownedDistinct}/${pool.poolSize} Owned`,
       ui.sheetKind === 'odds', () => {
         if (ui.sheetKind === 'odds') this.closeCompactSheet();
         else this.openCompactOdds(sku.sku);
       });
     const short = gold < total
-      ? this.compactNote(col.x, 0, col.width, 'info', `You need ${formatGold(total - gold)} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`, theme.colors.body)
+      ? this.compactNote(ink.x, 0, ink.width, 'info', `You need ${formatGold(total - gold)} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`, theme.colors.body)
       : null;
+    name.setY(col.y + this.columnTextPadY());
     const fixed = name.height + 4 + COMPACT.gap + rowH + (short ? COMPACT.gap + short.height : 0);
     this.trimToHeight(blurb, room - fixed);
     blurb.setY(name.y + name.height + 4);
@@ -3178,17 +3184,30 @@ export class ShopScene extends Phaser.Scene {
       layer.add(short.objects);
       bottom = shift + short.height;
     }
-    this.addColumnTextPanel(layer, col.y, bottom);
+    this.addColumnTextPanel(layer, col.y, bottom + this.columnTextPadY());
   }
 
   /**
-   * Desktop pass: the faded panel behind the column's running text, from `top`
-   * to `bottom`, so it reads over the backdrop's art. Phones keep the bare text.
+   * Desktop pass: the column's running text sits on a faded panel exactly the
+   * column's width (its edges line up with the buttons under it), inset by
+   * `COLUMN_TEXT_INSET` each side and `columnTextPadY` top and bottom. Phones
+   * keep the bare text on the column's own rect.
    */
+  private columnTextRect(): Rect {
+    const col = this.compactUi!.column;
+    const inset = isDesktopStage(sceneStage(this)) ? COLUMN_TEXT_INSET : 0;
+    return { x: col.x + inset, y: col.y, width: col.width - 2 * inset, height: col.height };
+  }
+
+  private columnTextPadY(): number {
+    return isDesktopStage(sceneStage(this)) ? COLUMN_TEXT_PAD_Y : 0;
+  }
+
+  /** The desktop's panel from `top` to `bottom`, under everything else in the column's layer. */
   private addColumnTextPanel(layer: Phaser.GameObjects.Container, top: number, bottom: number): void {
     if (!isDesktopStage(sceneStage(this)) || bottom <= top) return;
     const col = this.compactUi!.column;
-    layer.addAt(desktopTextPanel(this, { x: col.x, y: top, width: col.width, height: bottom - top }, COMPACT.gap), 0);
+    layer.addAt(desktopTextPanel(this, { x: col.x, y: top, width: col.width, height: bottom - top }, 0), 0);
   }
 
   /** The decks column (S-Shop-Decks, S-Shop-Darlings): the tabs, the chosen deck, Preview deck and its action. */
@@ -3233,31 +3252,34 @@ export class ShopScene extends Phaser.Scene {
     layer.add(rowLayer);
 
     // From the tabs down: the name, the identity line, the archetype, how it plays, and the note.
-    const top = col.y + COMPACT.touch + COMPACT.gap * 1.5;
-    const name = this.add.text(col.x, top, deck.name, {
+    const padY = this.columnTextPadY();
+    const panelTop = col.y + COMPACT.touch + (padY > 0 ? COMPACT.gap : COMPACT.gap * 1.5);
+    const top = panelTop + padY;
+    const ink = this.columnTextRect();
+    const name = this.add.text(ink.x, top, deck.name, {
       fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
-      wordWrap: { width: col.width },
+      wordWrap: { width: ink.width },
     });
     const { info, build, darlingEntry } = deckPreviewModel(deck);
-    const identity = this.compactIdentity(col.x, 0, col.width, deck, buildSizeCopy(build), type.body, theme.colors.body);
-    const archetype = this.add.text(col.x, 0, darlingEntry ? `Darling: ${darlingEntry.d.name}` : info?.archetype ?? '', {
-      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: col.width },
+    const identity = this.compactIdentity(ink.x, 0, ink.width, deck, buildSizeCopy(build), type.body, theme.colors.body);
+    const archetype = this.add.text(ink.x, 0, darlingEntry ? `Darling: ${darlingEntry.d.name}` : info?.archetype ?? '', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: ink.width },
     });
-    const plays = this.add.text(col.x, 0, info?.plays ?? (isDarlingsPrecon(deck) ? deck.blurb : ''), {
-      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: col.width }, lineSpacing: 2,
+    const plays = this.add.text(ink.x, 0, info?.plays ?? (isDarlingsPrecon(deck) ? deck.blurb : ''), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: ink.width }, lineSpacing: 2,
     });
     const note = owned
-      ? this.compactNote(col.x, 0, col.width, 'check', save.decks.some((d) => d.id === deck.id)
+      ? this.compactNote(ink.x, 0, ink.width, 'check', save.decks.some((d) => d.id === deck.id)
         ? 'Owned. Clone Deck saves a fresh copy of the original list.'
         : 'You hold every card in it. Clone Deck adds it to your library, free.', theme.colors.success)
       : freeClaim
-        ? this.compactNote(col.x, 0, col.width, 'star', isDarlingsPrecon(deck)
+        ? this.compactNote(ink.x, 0, ink.width, 'star', isDarlingsPrecon(deck)
           ? `Your one free Darling deck. The other Darling decks cost ${formatGold(ECONOMY.darlingsPreconPrice)}.`
           : `Your one free starter. The other starters cost ${formatGold(ECONOMY.starterDeckPrice)} once you claim it.`, theme.colors.gold)
         : !affordable
-          ? this.compactNote(col.x, 0, col.width, 'info', `You need ${formatGold(price - save.gold)} more to buy this deck.`, theme.colors.danger)
+          ? this.compactNote(ink.x, 0, ink.width, 'info', `You need ${formatGold(price - save.gold)} more to buy this deck.`, theme.colors.danger)
           : null;
-    const room = rowY - COMPACT.gap - top;
+    const room = rowY - COMPACT.gap - top - padY;
     const gap = 4;
     const heights = (): number => name.height + gap + identity.height + (archetype.visible && archetype.text ? gap + archetype.height : 0)
       + (note ? COMPACT.gap + note.height : 0);
@@ -3281,7 +3303,7 @@ export class ShopScene extends Phaser.Scene {
       layer.add(note.objects);
       y += COMPACT.gap + note.height;
     }
-    this.addColumnTextPanel(layer, top, y);
+    this.addColumnTextPanel(layer, panelTop, y + padY);
   }
 
   /** A deck's colours as pips, then `text`, on one line from (x, y). */
@@ -3649,21 +3671,23 @@ export class ShopScene extends Phaser.Scene {
 
     const block = this.add.container(0, 0);
     layer.add(block);
-    let y = 0;
-    const heading = this.add.text(col.x, y, 'WHAT YOU GET', {
+    const ink = this.columnTextRect();
+    const padY = this.columnTextPadY();
+    let y = padY;
+    const heading = this.add.text(ink.x, y, 'WHAT YOU GET', {
       fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.muted, letterSpacing: 1,
     });
     y += heading.height + 4;
-    const grant = this.add.text(col.x, y, deckGrantText(save, deck), {
-      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: col.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
+    const grant = this.add.text(ink.x, y, deckGrantText(save, deck), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: ink.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
     });
     y += grant.height + 12;
-    const rule = this.add.graphics().lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome).lineBetween(col.x, y, col.x + col.width, y);
+    const rule = this.add.graphics().lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome).lineBetween(ink.x, y, ink.x + ink.width, y);
     y += 12;
     block.add([heading, grant, rule]);
     const line = (text: string, color: string): Phaser.GameObjects.Text => {
-      const t = this.add.text(col.x, y, text, {
-        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color, wordWrap: { width: col.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
+      const t = this.add.text(ink.x, y, text, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color, wordWrap: { width: ink.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
       });
       block.add(t);
       y += t.height + 4;
@@ -3684,7 +3708,7 @@ export class ShopScene extends Phaser.Scene {
     } else {
       decision = line(`Price ${formatGold(price)} · Balance ${formatGold(save.gold)} · ${formatGold(price - save.gold)} short`, theme.colors.danger);
     }
-    const contentH = y - 4;
+    const contentH = y - 4 + padY;
     const view = { x: col.x, y: col.y, width: col.width, height: Math.max(0, footY - COMPACT.gap - col.y) };
     block.setY(col.y);
     this.addColumnTextPanel(layer, col.y, col.y + Math.min(contentH, view.height));

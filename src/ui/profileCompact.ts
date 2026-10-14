@@ -51,6 +51,8 @@ export const PROFILE_COMPACT = {
   /** Desktop: the stats table's widest, and the gap between it and the replay column beside it. */
   desktopStatsMax: 480,
   desktopColumnGap: 16,
+  /** Desktop: the replays' inset inside their panel, which sits exactly on the column. */
+  desktopPanelInset: { x: 12, y: 10 },
 } as const;
 
 export interface CompactProfileLayout {

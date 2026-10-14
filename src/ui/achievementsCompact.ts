@@ -41,6 +41,8 @@ export const ACHIEVEMENTS_COMPACT = {
   /** Between two totals in the column's colour grid, across and down. */
   pipGapX: 14,
   pipGapY: 8,
+  /** Desktop: the totals' text inset inside their panel, which sits exactly on the column. */
+  desktopPanelInset: { x: 12, y: 10 },
 } as const;
 
 export interface CompactAchievementsLayout {

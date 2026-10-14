@@ -10,10 +10,13 @@ import {
   compactSheet,
   compactShell,
   compactSwitchTrack,
+  compactTier,
+  setCompactTier,
   type CompactControl,
 } from '../../src/ui/compactLayout';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 
 const landscape = SCREEN_FIXTURES.filter((f) => f.viewportWidth > f.viewportHeight).map((f) => ({ name: f.name, m: resolveScreenMetrics(f) }));
 const reference = resolveScreenMetrics(SCREEN_FIXTURES.find((f) => f.name === 'phone-island')!);
@@ -128,5 +131,25 @@ describe('the hit check itself', () => {
 
   it('allows controls that touch or sit 8 px apart', () => {
     expect(compactHitProblems([c(0, 0), c(44, 0), c(96, 0)], box)).toEqual([]);
+  });
+});
+
+describe('the pointer tier (desktop pass)', () => {
+  it('steps the control floor down for a mouse and back up for touch', () => {
+    const desktop = desktopCompactMetrics();
+    try {
+      setCompactTier('pointer');
+      expect(compactTier()).toBe('pointer');
+      const shell = compactShell(desktop.content, { back: true });
+      expect(shell.back!.visual.height).toBe(34);
+      expect(COMPACT.switchTrack.height).toBeLessThan(32);
+      // A 34 px control passes under the pointer tier and fails the touch floor.
+      const control = { visual: { x: desktop.content.x, y: desktop.content.y, width: 34, height: 34 }, hit: { x: desktop.content.x, y: desktop.content.y, width: 34, height: 34 } };
+      expect(compactHitProblems([control], desktop.content)).toEqual([]);
+      setCompactTier('touch');
+      expect(compactHitProblems([control], desktop.content).map((p) => p.kind)).toContain('small');
+    } finally {
+      setCompactTier('touch');
+    }
   });
 });

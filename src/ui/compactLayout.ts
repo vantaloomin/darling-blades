@@ -17,17 +17,39 @@
 
 import { inactiveGap, inflateHitRect, type Rect } from './layout';
 
+/**
+ * The control sizes that change with the pointer. Phones and tablets use the
+ * touch tier (the mocks' 44 px floor). The desktop pass draws the same
+ * compositions for a mouse, so its controls step down to the pointer tier:
+ * 34 design px is 40 px at a 1280 window, Material's dense desktop size
+ * (owner ruling R1 A, 2026-10-14; review in docs/plan-mobile-overhaul.md).
+ */
+const TOUCH_TIER = { touch: 44, topBarH: 44, rowPitch: 48, switchTrack: { width: 52, height: 32 } } as const;
+const POINTER_TIER = { touch: 34, topBarH: 44, rowPitch: 38, switchTrack: { width: 37, height: 20 } } as const;
+export type CompactTier = 'touch' | 'pointer';
+let tier: typeof TOUCH_TIER | typeof POINTER_TIER = TOUCH_TIER;
+
+/** Set as each compact scene starts (src/ui/SceneBackdrop.ts): pointer on the desktop pass, touch everywhere else. */
+export function setCompactTier(next: CompactTier): void {
+  tier = next === 'pointer' ? POINTER_TIER : TOUCH_TIER;
+}
+
+/** The tier the next layout reads. */
+export function compactTier(): CompactTier {
+  return tier === POINTER_TIER ? 'pointer' : 'touch';
+}
+
 export const COMPACT = {
-  /** The touch floor: every control's hit area is at least this square. */
-  touch: 44,
+  /** The control floor: every control's hit area is at least this square (44 touch, 34 pointer). */
+  get touch(): number { return tier.touch; },
   /** The minimum clear space between two controls' hit areas, unless they touch by design. */
   gap: 8,
   /** The command column's width on every screen. */
   columnW: 230,
   /** The top bar's height (back chevron, title, right slot). */
-  topBarH: 44,
+  get topBarH(): number { return tier.topBarH; },
   /** List rows sit on this pitch, their hit areas touching (M27). */
-  rowPitch: 48,
+  get rowPitch(): number { return tier.rowPitch; },
   /** A dialog's default size, centred on the design space. */
   dialogW: 440,
   dialogH: 220,
@@ -35,7 +57,7 @@ export const COMPACT = {
   /** A sheet's header: title and close button, inset from the sheet's edge. */
   sheetHeaderInset: 8,
   /** The track of an On/Off switch. */
-  switchTrack: { width: 52, height: 32 },
+  get switchTrack(): { readonly width: number; readonly height: number } { return tier.switchTrack; },
 } as const;
 
 /**
@@ -46,8 +68,8 @@ export const COMPACT = {
 export const DESKTOP_GRID = {
   /** Collection binder and deck-builder pool faces. */
   cardMinW: 140,
-  /** Shop deck tiles. */
-  shopDeckMinW: 170,
+  /** Shop deck tiles: three across on desktop (owner ruling R4 A, 2026-10-14). */
+  shopDeckMinW: 220,
   /** Practice rival tiles. */
   practiceTileMinW: 112,
 } as const;

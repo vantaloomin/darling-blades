@@ -57,6 +57,9 @@ const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
 /** Desktop pass: the picked rival's name and title inset on their panel (at most COMPACT.gap beside the grid). */
 const HERO_TEXT_INSET = COMPACT.gap;
+/** Desktop pass: the column's blurb and "Difficulty" inset on their panel (sides, then top and bottom). */
+const COLUMN_TEXT_INSET = 12;
+const COLUMN_TEXT_PAD_Y = 8;
 
 /**
  * Practice opponent picker. Practice is one decision flow: choose an avatar,
@@ -100,7 +103,6 @@ export class PracticePickerScene extends Phaser.Scene {
     tiles: { id: string; plate: Phaser.GameObjects.Graphics; name: Phaser.GameObjects.Text; badge: Phaser.GameObjects.Container; rect: Rect }[];
     hero: Phaser.GameObjects.GameObject[];
     blurb: Phaser.GameObjects.Container | null;
-    blurbPanel: Phaser.GameObjects.Graphics | null;
     launch: CompactButton;
     difficulty: Difficulty;
   } | null = null;
@@ -228,10 +230,14 @@ export class PracticePickerScene extends Phaser.Scene {
       return n.width <= width;
     }).every(Boolean);
     const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)),
-      isDesktopStage(sceneStage(this)) ? { minTileW: DESKTOP_GRID.practiceTileMinW, wholeRows: true } : {});
+      isDesktopStage(sceneStage(this))
+        ? { minTileW: DESKTOP_GRID.practiceTileMinW, wholeRows: true, textPanel: { inset: COLUMN_TEXT_INSET, padY: COLUMN_TEXT_PAD_Y } }
+        : {});
     const nameW = layout.tileW - 2 * PRACTICE_COMPACT.nameInset;
     fitAt(sizes.find((size) => fitAt(size, nameW)) ?? sizes[sizes.length - 1], nameW);
     label.setPosition(layout.difficultyLabel.x, layout.difficultyLabel.y);
+    // Desktop pass: the blurb and "Difficulty" read over one faded panel, the column's width.
+    if (layout.textPanel) this.children.moveBelow(desktopTextPanel(this, layout.textPanel, 0), label);
     const header = compactHeader(this, layout.shell, {
       title: 'Practice',
       subtitle: 'Choose a rival, then choose how hard they fight.',
@@ -249,7 +255,7 @@ export class PracticePickerScene extends Phaser.Scene {
       variant: 'primary', fontSize: type.h2, onTap: () => this.startPractice(this.compact?.difficulty ?? 'medium'),
     });
     this.compactTargets.push(launch.inputZone);
-    this.compact = { layout, tiles: [], hero: [], blurb: null, blurbPanel: null, launch, difficulty: 'medium' };
+    this.compact = { layout, tiles: [], hero: [], blurb: null, launch, difficulty: 'medium' };
     this.buildCompactGrid(layout, roster, names);
     this.selectCompactRival(this.selectedAvatarId);
   }
@@ -413,11 +419,11 @@ export class PracticePickerScene extends Phaser.Scene {
     const compact = this.compact;
     if (!compact) return;
     compact.blurb?.destroy();
-    compact.blurbPanel?.destroy();
-    compact.blurbPanel = null;
-    const blurb = this.add.text(rect.x + 2, 0, text, {
+    // On the desktop's panel the rect is already the inset text's own.
+    const panelled = compact.layout.textPanel !== null;
+    const blurb = this.add.text(rect.x + (panelled ? 0 : 2), 0, text, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, color: theme.colors.body,
-      lineSpacing: theme.space(1), wordWrap: { width: rect.width - 10 },
+      lineSpacing: theme.space(1), wordWrap: { width: rect.width - (panelled ? 0 : 10) },
     });
     const lines = Math.max(1, blurb.getWrappedText().length);
     const lineHeight = (blurb.height - blurb.lineSpacing * (lines - 1)) / lines;
@@ -427,12 +433,6 @@ export class PracticePickerScene extends Phaser.Scene {
     container.add(blurb);
     // A viewport of whole lines, so no line is ever cut in half at its foot.
     const viewport = { ...rect, height: Math.max(lineHeight, Math.floor((rect.height + blurb.lineSpacing) / linePitch) * linePitch - blurb.lineSpacing) };
-    // Desktop pass: the faded panel behind the blurb, beneath its lines.
-    if (isDesktopStage(sceneStage(this))) {
-      const panel = desktopTextPanel(this, { ...viewport, height: Math.min(blurb.height, viewport.height) }, COMPACT.gap);
-      this.children.moveBelow(panel, container);
-      compact.blurbPanel = panel;
-    }
     bindMenuScroll(this, container, viewport, blurb.height, () => this.guard.isOpen, undefined, linePitch);
     compact.blurb = container;
   }
