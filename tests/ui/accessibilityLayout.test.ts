@@ -65,7 +65,7 @@ import {
   settingsTextSizeCaption,
 } from '../../src/ui/settingsPresentation';
 import { RARITY_ORDER } from '../../src/meta/collectionFilter';
-import { storyCaptionBand, storyCardGridLayout, storyMapPanelLayout, storySelectLayout } from '../../src/ui/storyLayout';
+import { storyCaptionBand, storyCardGridLayout, storyMapKeyLayout, storyMapKeyWidths, storyMapPanelLayout, storySelectLayout } from '../../src/ui/storyLayout';
 import { theme } from '../../src/ui/theme';
 import { A11Y_CELLS } from './a11yCells';
 
@@ -144,7 +144,7 @@ const ENROLLED: readonly Enrolled[] = [
     inset: { here: 'Play: deck plate and paged deck selection' },
   } },
   { module: 'src/ui/storyLayout.ts (Story: character select, choices, deck grid, map and run panel)', rules: {
-    frame: { file: 'tests/ui/storyPresentation.test.ts', tests: ['keeps the three heroine tiles inside the frame, apart, with the measured text below the portrait and above the footer', 'puts every node of every generated Act 1 map on screen, inside the frame, apart, and clear of the run panel (200 seeds)'] },
+    frame: { file: 'tests/ui/storyPresentation.test.ts', tests: ['keeps the three heroine tiles inside the frame, apart, with the measured text below the portrait and above the footer', 'puts every node of every generated Act 1 map on screen, inside the frame, apart, and clear of the run panel (200 seeds)', 'holds the note and every stop row inside the shell, apart, above the footer, with the shell inside the title-safe frame'] },
     gap: { file: 'tests/ui/storyPresentation.test.ts', tests: ['fits a row of offered cards and their caption band between the content top and the footer, apart', 'stacks the run panel in reading order with room for its text, every action a 44px target, Abandon a destructive gap from the main action'] },
     inset: { file: 'tests/ui/storyPresentation.test.ts', tests: ['pages the run deck grid with every card and caption inside its area, apart, above the pager'] },
   } },
@@ -1062,7 +1062,7 @@ describe('the matrix itself', () => {
         mainMenu: [mainMenuHeaderRow([180, 220], 180, 160), mainMenuNavRows(), mainMenuDailyLayout(menuLineHeight(theme.type.h1), menuLineHeight(theme.type.label), [{ title: menuLineHeight(theme.type.label), description: menuLineHeight(theme.type.caption), progress: menuLineHeight(theme.type.caption), action: HIT }])],
         play: [playMenuLayout(), playMenuLayout(4), playDeckPickerLayout(28), practicePickerLayout(), gauntletPresentation(), gauntletTowerLayout(28, gauntletPresentation().tower)],
         story: [storySelectLayout(130, 160), storyMapPanelLayout({ x: 920, y: 130, width: 296, height: 554 }), storyCaptionBand(2),
-          storyCardGridLayout({ x: 64, y: 130, width: 1152, height: 480 }, 30)],
+          storyCardGridLayout({ x: 64, y: 130, width: 1152, height: 480 }, 30), storyMapKeyLayout(44, [60, 60, 60, 60, 60, 60]), storyMapKeyWidths()],
         profile: [PROFILE_HEADER, PROFILE_RECORD, PROFILE_SHOWCASE, PROFILE_PANELS, PROFILE_REPLAYS, PROFILE_REPLAY_ROW, profileReplayCell(9)],
       });
     const bySize: string[] = [];

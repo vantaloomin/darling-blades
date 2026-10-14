@@ -393,6 +393,8 @@ export { WAVE_3C_SCENES } from './wave3DialogFixtures';
 function storyProbeFixture(stage: 'select' | 'boon' | 'reward' | 'map'): StoryState {
   const story = freshStoryState();
   story.countedRuns['guan-yu'] = 2;
+  // The map key has its own probe entry; every other fixture is past it.
+  story.seenMapKey = true;
   if (stage === 'select') return story;
   startRun(story, 'guan-yu', 77, 0);
   if (stage === 'boon') return story;
@@ -442,6 +444,7 @@ export const STORY_SCENES: readonly ProbeScene[] = [
   ...(['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
     label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
   })),
+  { label: 'Story / map key', key: 'Story', data: { a11yFixture: { story: { ...storyProbeFixture('map'), seenMapKey: false } } } },
   ...storyDialogueProbeScenes(),
 ];
 

@@ -494,3 +494,13 @@ export function applyStoryDuelResult(
 export function markSceneSeen(story: StoryState, sceneId: string): void {
   if (!story.seenSceneIds.includes(sceneId)) story.seenSceneIds.push(sceneId);
 }
+
+/** Whether the map key should open by itself: only the first time a map is ever seen. */
+export function mapKeyDue(story: StoryState): boolean {
+  return !story.seenMapKey;
+}
+
+/** Record that the map key has been shown; it never opens by itself again. */
+export function markMapKeySeen(story: StoryState): void {
+  story.seenMapKey = true;
+}

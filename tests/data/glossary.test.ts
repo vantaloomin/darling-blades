@@ -10,11 +10,14 @@ import {
   cardMechanics,
   cardTermNames,
   glossarySection,
+  glossarySections,
   sectionOfTerm,
   termMatchesQuery,
   type MechanicId,
 } from '../../src/data/glossary';
 import { CARD_DB } from '../../src/data/catalog';
+import { FEATURES } from '../../src/config/features';
+import { mapKeyRows } from '../../src/ui/storyPresentation';
 import { classifyPermanent } from '../../src/data/permanentClass';
 import { cardGlossaryEntries, rulesText } from '../../src/ui/rulesText';
 import type { CardDef, Keyword } from '../../src/engine/types';
@@ -26,6 +29,22 @@ const mechanicFixture: CardDef = {
 };
 
 describe('glossary vocabulary', () => {
+  it('shows the Story Map tab only while Story Mode is live, with the map key\'s stops in its order', () => {
+    const was = FEATURES.storyLive;
+    try {
+      FEATURES.storyLive = false;
+      expect(glossarySections().map((s) => s.id)).not.toContain('storyMap');
+      expect(sectionOfTerm('Elite')).toBeNull();
+      FEATURES.storyLive = true;
+      expect(glossarySections().map((s) => s.id)).toContain('storyMap');
+      expect(sectionOfTerm('Elite')).toBe('storyMap');
+      const rows = glossarySection('storyMap').terms.map((t) => ({ name: t.name, description: t.description, icon: t.icon }));
+      expect(rows).toEqual(mapKeyRows().map((r) => ({ name: r.name, description: r.summary, icon: { kind: 'storyStop', key: r.kind } })));
+    } finally {
+      FEATURES.storyLive = was;
+    }
+  });
+
   it('gives every keyword a name, a reminder, and a Combat Traits row', () => {
     const combat = glossarySection('combat');
     const keywords = Object.keys(KEYWORD_NAMES) as Keyword[];

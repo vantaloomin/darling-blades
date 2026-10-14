@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { theme } from '../../src/ui/theme';
+import { GLOSSARY_SECTIONS } from '../../src/data/glossary';
 import { DECK_SHOP_GRID, DECK_SHOP_LAYOUT, deckShopLayout } from '../../src/ui/deckShopLayout';
 import { gauntletPresentation, practicePickerLayout } from '../../src/ui/playPresentation';
 import { SHOP_STRIP_ARROW_Y, SHOP_TAB_GAP, shopTabCenters } from '../../src/ui/shopPresentation';
@@ -726,8 +727,8 @@ describe('glossary frame', () => {
   it('gives every rail tab the hit-height floor and a real gap between tabs', () => {
     expect(frame.railRowHeight).toBeGreaterThanOrEqual(theme.control.minHitHeight);
     expect(frame.railRowPitch - frame.railRowHeight).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
-    // All Terms plus six sections, all inside the rail.
-    const lastBottom = frame.railFirstRowY + 6 * frame.railRowPitch + frame.railRowHeight;
+    // All Terms plus every section (Story Map included, as when Story Mode is live), all inside the rail.
+    const lastBottom = frame.railFirstRowY + GLOSSARY_SECTIONS.length * frame.railRowPitch + frame.railRowHeight;
     expect(lastBottom).toBeLessThanOrEqual(frame.rail.y + frame.rail.height);
   });
 });

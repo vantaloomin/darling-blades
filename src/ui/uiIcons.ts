@@ -7,7 +7,7 @@ import type Phaser from 'phaser';
  * largest display size. The coin keeps its own colours; the rest are white
  * silhouettes, tinted to the text they sit beside.
  */
-export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass', 'shield', 'flag', 'crown'] as const;
+export const UI_ICON_NAMES = ['gold', 'profile', 'help', 'book', 'gear', 'pin', 'lock', 'dice', 'sort', 'pencil', 'expand', 'shrink', 'shop', 'cards', 'deck', 'trophy', 'sword', 'chevron', 'info', 'back', 'check', 'external', 'play', 'copy', 'download', 'star', 'close', 'eye', 'search', 'filter', 'share', 'plus', 'minus', 'warning', 'history', 'turn', 'grave', 'bolt', 'scroll', 'hourglass', 'shield', 'flag', 'crown', 'swords', 'helm', 'eventScroll', 'purse', 'campfire', 'bossCrown'] as const;
 export type UiIconName = (typeof UI_ICON_NAMES)[number];
 
 const SIZE = 64;
@@ -748,6 +748,166 @@ const drawCrown: Draw = (ctx, c) => {
   ctx.stroke();
 };
 
+// The Story map's stops (each struck on its medallion; the map's side panel names the stop).
+
+/** Two blades crossed point-up, each with a crossguard and pommel (a fight). */
+const drawSwords: Draw = (ctx, c) => {
+  stroked(ctx);
+  for (const s of [1, -1]) {
+    ctx.beginPath();
+    ctx.moveTo(c + s * 23, c - 23);
+    ctx.lineTo(c - s * 9, c + 9);
+    ctx.moveTo(c - s * 16, c + 4);
+    ctx.lineTo(c - s * 4, c + 16);
+    ctx.moveTo(c - s * 9, c + 9);
+    ctx.lineTo(c - s * 17, c + 17);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c - s * 20, c + 20, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+};
+
+/** A horned war helm with its visor cut out (an elite). */
+const drawHelm: Draw = (ctx, c) => {
+  ctx.fillStyle = WHITE;
+  // Horns, sweeping up and out from the dome.
+  for (const s of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(c + s * 13, c - 6);
+    ctx.quadraticCurveTo(c + s * 27, c - 8, c + s * 27, c - 28);
+    ctx.quadraticCurveTo(c + s * 21, c - 15, c + s * 9, c - 15);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // Dome and cheek guards.
+  ctx.beginPath();
+  ctx.moveTo(c - 18, c + 24);
+  ctx.lineTo(c - 18, c);
+  ctx.arc(c, c, 18, Math.PI, 0);
+  ctx.lineTo(c + 18, c + 24);
+  ctx.lineTo(c + 6, c + 24);
+  ctx.lineTo(c + 6, c + 14);
+  ctx.lineTo(c - 6, c + 14);
+  ctx.lineTo(c - 6, c + 24);
+  ctx.closePath();
+  ctx.fill();
+  // Eye slits either side of the nose guard.
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillRect(c - 14, c + 2, 11, 6);
+  ctx.fillRect(c + 3, c + 2, 11, 6);
+  ctx.globalCompositeOperation = 'source-over';
+};
+
+/** A scroll, rolled at both ends, with a question mark on it (an event). */
+const drawEventScroll: Draw = (ctx, c) => {
+  stroked(ctx);
+  ctx.lineWidth = 4;
+  roundRect(ctx, c - 17, c - 20, 34, 40, 2);
+  ctx.stroke();
+  for (const y of [c - 22, c + 22]) {
+    roundRect(ctx, c - 23, y - 4, 46, 8, 4);
+    ctx.fill();
+  }
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.arc(c, c - 5, 7, Math.PI * 1.1, Math.PI * 2.3);
+  ctx.quadraticCurveTo(c, c + 1, c, c + 6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(c, c + 13, 3.2, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+/** A coin purse tied at the neck, a coin cut into its face (a shop). */
+const drawPurse: Draw = (ctx, c) => {
+  ctx.fillStyle = WHITE;
+  // The gathered cloth above the tie.
+  ctx.beginPath();
+  ctx.moveTo(c - 8, c - 13);
+  ctx.lineTo(c - 15, c - 25);
+  ctx.quadraticCurveTo(c, c - 19, c + 15, c - 25);
+  ctx.lineTo(c + 8, c - 13);
+  ctx.closePath();
+  ctx.fill();
+  // The sack.
+  ctx.beginPath();
+  ctx.moveTo(c - 8, c - 10);
+  ctx.bezierCurveTo(c - 30, c - 2, c - 28, c + 26, c, c + 26);
+  ctx.bezierCurveTo(c + 28, c + 26, c + 30, c - 2, c + 8, c - 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = 'destination-out';
+  // The tie, a cut between cloth and sack.
+  ctx.fillRect(c - 12, c - 13.5, 24, 3);
+  // A coin stamped on the cloth.
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(c, c + 9, 8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+};
+
+/** A flame over two crossed logs (a rest). */
+const drawCampfire: Draw = (ctx, c) => {
+  ctx.fillStyle = WHITE;
+  ctx.beginPath();
+  ctx.moveTo(c, c - 27);
+  ctx.bezierCurveTo(c + 6, c - 16, c + 17, c - 10, c + 15, c + 2);
+  ctx.bezierCurveTo(c + 14, c + 10, c + 7, c + 13, c, c + 13);
+  ctx.bezierCurveTo(c - 7, c + 13, c - 14, c + 10, c - 15, c + 2);
+  ctx.bezierCurveTo(c - 16, c - 8, c - 9, c - 11, c - 7, c - 19);
+  ctx.bezierCurveTo(c - 3, c - 14, c - 2, c - 20, c, c - 27);
+  ctx.closePath();
+  ctx.fill();
+  // The flame's heart, cut out.
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.moveTo(c + 1, c - 7);
+  ctx.bezierCurveTo(c + 6, c - 1, c + 8, c + 3, c + 7, c + 6);
+  ctx.bezierCurveTo(c + 6, c + 9, c + 3, c + 10, c, c + 10);
+  ctx.bezierCurveTo(c - 3, c + 10, c - 6, c + 9, c - 7, c + 6);
+  ctx.bezierCurveTo(c - 8, c + 1, c - 3, c - 1, c + 1, c - 7);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  stroked(ctx);
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.moveTo(c - 22, c + 25);
+  ctx.lineTo(c + 22, c + 15);
+  ctx.moveTo(c + 22, c + 25);
+  ctx.lineTo(c - 22, c + 15);
+  ctx.stroke();
+};
+
+/** A five-point crown on a band, jewels on its points (the boss). */
+const drawBossCrown: Draw = (ctx, c) => {
+  ctx.fillStyle = WHITE;
+  ctx.beginPath();
+  ctx.moveTo(c - 22, c + 12);
+  ctx.lineTo(c - 25, c - 12);
+  ctx.lineTo(c - 12, c);
+  ctx.lineTo(c, c - 18);
+  ctx.lineTo(c + 12, c);
+  ctx.lineTo(c + 25, c - 12);
+  ctx.lineTo(c + 22, c + 12);
+  ctx.closePath();
+  ctx.fill();
+  roundRect(ctx, c - 23, c + 14, 46, 9, 2);
+  ctx.fill();
+  for (const [x, y] of [[c - 25, c - 16], [c, c - 22], [c + 25, c - 16]]) {
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.beginPath();
+  ctx.arc(c, c + 18.5, 2.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+};
+
 const DRAW: Record<UiIconName, Draw> = {
   gold: drawGold,
   profile: drawProfile,
@@ -792,6 +952,12 @@ const DRAW: Record<UiIconName, Draw> = {
   shield: drawShield,
   flag: drawFlag,
   crown: drawCrown,
+  swords: drawSwords,
+  helm: drawHelm,
+  eventScroll: drawEventScroll,
+  purse: drawPurse,
+  campfire: drawCampfire,
+  bossCrown: drawBossCrown,
 };
 
 export function bakeUiIcon(scene: Phaser.Scene, name: UiIconName): string {

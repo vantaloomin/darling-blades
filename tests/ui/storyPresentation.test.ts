@@ -15,6 +15,8 @@ import {
   storyContentBottom,
   storyContentTop,
   storyFooterRow,
+  storyMapKeyLayout,
+  storyMapKeyWidths,
   storyMapLayout,
   storyMapPanelLayout,
   storySelectLayout,
@@ -23,6 +25,10 @@ import {
   abandonNote,
   colourWords,
   deckEntries,
+  MAP_KEY_CLOSE,
+  MAP_KEY_NOTE,
+  MAP_KEY_TITLE,
+  mapKeyRows,
   NODE_KIND_LABEL,
   nodeActionLabel,
   nodeSummary,
@@ -171,8 +177,14 @@ describe('Story screens: layout rules in every accessibility cell', () => {
       const geo = storyMapLayout(runMap({ seed: 1, act: 1 }).floors, top);
       const l = storyMapPanelLayout(geo.panel);
       const button = (y: number): Rect => ({ x: geo.panel.x + l.inset, y: y - HIT / 2, width: l.buttonWidth, height: HIT });
+      const half = (x: number): Rect => ({ x: x - l.halfButtonWidth / 2, y: l.viewDeckY - HIT / 2, width: l.halfButtonWidth, height: HIT });
+      // Map Key shares View Deck's line: inside the panel, a gap apart, each still a 44px target.
+      const mapKey = half(l.mapKeyX);
+      expect(isRectContained(mapKey, geo.panel), `${cell.name}: map key inside the panel`).toBe(true);
+      expect(mapKey.x - right(half(l.viewDeckX)), `${cell.name}: map key beside view deck`).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+      expect(l.halfButtonWidth).toBeGreaterThanOrEqual(theme.control.minHitWidth);
       const stack: [string, Rect][] = [
-        ['info', l.info], ['view deck', button(l.viewDeckY)], ['detail', l.detail], ['main action', button(l.primaryY)],
+        ['info', l.info], ['view deck', half(l.viewDeckX)], ['detail', l.detail], ['main action', button(l.primaryY)],
         ['note', l.note], ['abandon', button(l.abandonY)],
       ];
       for (const [name, rect] of stack) {
@@ -190,7 +202,48 @@ describe('Story screens: layout rules in every accessibility cell', () => {
   });
 });
 
+describe('Story map key: layout in every accessibility cell', () => {
+  it('holds the note and every stop row inside the shell, apart, above the footer, with the shell inside the title-safe frame', () => {
+    forEachA11yCell((cell) => {
+      // Measured stand-ins: a two-line note, and each row a bold name over a two-line summary.
+      const note = 2 * menuLineHeight(theme.type.label);
+      const rowText = menuLineHeight(theme.type.label) + theme.space(1) + 2 * menuLineHeight(theme.type.caption);
+      const l = storyMapKeyLayout(note, mapKeyRows().map(() => rowText));
+      expect(l.height, `${cell.name}: the shell grows to its content, not past the frame`).toBeLessThan(theme.design.safeHeight);
+      expect(isInsideTitleSafe(l.shell.panel), cell.name).toBe(true);
+      expect(l.shell.fits && l.shell.tracksInsidePanel, cell.name).toBe(true);
+      const content = l.shell.contentBounds;
+      const blocks: [string, Rect][] = [['note', l.note], ...l.rows.map((r, i): [string, Rect] => [`row ${i}`, r.rect])];
+      for (const [name, rect] of blocks) {
+        expect(isRectContained(rect, content), `${cell.name}: ${name} inside the content track`).toBe(true);
+      }
+      expectApart(blocks, GAP_FLOORS.ordinary, cell.name);
+      expect(l.shell.footerTrack.y - bottom(l.rows[l.rows.length - 1].rect), cell.name).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+      for (const r of l.rows) {
+        const m = r.medallion;
+        expect(isRectContained({ x: m.x - m.d / 2, y: m.y - m.d / 2, width: m.d, height: m.d }, r.rect), `${cell.name}: medallion inside its row`).toBe(true);
+        expect(r.rect.height, cell.name).toBeGreaterThanOrEqual(rowText);
+        expect(r.textX - (m.x + m.d / 2), `${cell.name}: text clear of the medallion`).toBeGreaterThanOrEqual(GAP_FLOORS.ordinary);
+        expect(r.textX + r.textWidth, cell.name).toBeLessThanOrEqual(right(r.rect));
+        expect(r.textWidth).toBe(storyMapKeyWidths().text);
+      }
+    });
+  });
+});
+
 describe('Story screens: copy and view state', () => {
+  it('keys every stop kind the Act 1 maps place, once each, with its name and a line (200 seeds)', () => {
+    const placed = new Set<string>();
+    for (let seed = 1; seed <= 200; seed++) for (const node of runMap({ seed, act: 1 }).floors.flat()) placed.add(node.kind);
+    const keyed = mapKeyRows().map((row) => row.kind);
+    expect(new Set(keyed).size).toBe(keyed.length);
+    expect(new Set(keyed)).toEqual(placed);
+    for (const row of mapKeyRows()) {
+      expect(row.name.length).toBeGreaterThan(0);
+      expect(row.summary.endsWith('.'), row.kind).toBe(true);
+    }
+  });
+
   it('names colours and the short name from the character data', () => {
     const guanYu = STORY_CHARACTERS.find((c) => c.id === GUAN_YU_ID)!;
     expect(colourWords(guanYu.colors)).toBe('White and Red');
@@ -258,6 +311,7 @@ describe('Story screens: copy and view state', () => {
       ...[0, 2, 3].flatMap((n) => [abandonNote({ fightsPlayed: n }, true), abandonNote({ fightsPlayed: n }, false)]),
       ...STORY_CHARACTERS.flatMap((c) => Object.values(unlockLines(storyUnlockProgress(story, c)))),
       ...STORY_BOONS.flatMap((b) => [b.name, b.text]),
+      MAP_KEY_TITLE, MAP_KEY_NOTE, MAP_KEY_CLOSE,
     ];
     for (const line of copy) expect(line, line).not.toMatch(/[—–]/);
   });
