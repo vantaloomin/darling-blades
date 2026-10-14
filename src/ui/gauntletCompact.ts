@@ -32,6 +32,8 @@ export const GAUNTLET_COMPACT = {
   desktopHeroShare: 0.42,
   /** Desktop: room kept under the portrait for her deck's theme. */
   desktopCaptionH: 30,
+  /** Desktop: the centre's text sits this far inside its panel. */
+  desktopInfoPad: 14,
 } as const;
 
 export interface CompactGauntletLayout {
@@ -40,6 +42,8 @@ export interface CompactGauntletLayout {
   hero: Rect;
   /** The centre's text column, its foot row included. */
   info: Rect;
+  /** Desktop: the panel behind the centre's text (its height is cut to the text by the scene). */
+  infoPanel: Rect | null;
   /** The run's actions row at the centre's foot (Abandon run, or Reroll and Set). */
   actions: Rect;
   /** Where the tower scrolls (above the primary). */
@@ -62,11 +66,13 @@ export function compactGauntletLayout(content: Rect, opts: { desktop?: boolean }
     : Math.round(Math.min(G.heroMax, Math.max(G.heroMin, main.width * G.heroShare)));
   const hero = { x: main.x, y: main.y, width: heroW, height: main.height };
   const infoX = main.x + heroW + G.infoGap;
-  const info = { x: infoX, y: main.y, width: Math.max(0, main.x + main.width - infoX), height: main.height };
+  const infoPanel = opts.desktop ? { x: infoX, y: main.y, width: Math.max(0, main.x + main.width - infoX), height: main.height } : null;
+  const pad = opts.desktop ? G.desktopInfoPad : 0;
+  const info = { x: infoX + pad, y: main.y + pad, width: Math.max(0, main.x + main.width - infoX - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
   const actions = { x: info.x, y: info.y + info.height - COMPACT.touch, width: info.width, height: COMPACT.touch };
   const launch = shell.primary?.visual ?? { x: column.x, y: column.y + column.height - COMPACT.touch, width: column.width, height: COMPACT.touch };
   const tower = { x: column.x, y: column.y, width: column.width, height: Math.max(0, launch.y - COMPACT.gap - column.y) };
-  return { shell, hero, info, actions, tower, launch };
+  return { shell, hero, info, infoPanel, actions, tower, launch };
 }
 
 export interface GauntletInfoStack {

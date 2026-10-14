@@ -48,10 +48,15 @@ export const PROFILE_COMPACT = {
   /** The save card art grid: columns at the mocks' width, and the label under a thumb. */
   gridColumns: 5,
   gridGap: 10,
+  /** Desktop: the stats table's widest, and the gap between it and the replay column beside it. */
+  desktopStatsMax: 480,
+  desktopColumnGap: 16,
 } as const;
 
 export interface CompactProfileLayout {
   shell: CompactShell;
+  /** The replay column, foot included: the shell's column, or on desktop the room beside the capped stats. */
+  column: Rect;
   /** The record, the win rate and the showcase. */
   record: Rect;
   /** The stat tabs' bar, or both bars when there are two. */
@@ -77,16 +82,28 @@ export function compactProfileLayout(
   footNeeds: { importSave: number; exportSave: number },
   /** The stat tabs' rows: two (two tabs each) when the four labels cannot share one bar (Largest text on the smallest phone). */
   tabRows: 1 | 2 = 1,
+  /**
+   * The desktop pass: the stats table stops near 480 wide instead of
+   * stretching its short rows across the pane, and the replay column (foot
+   * included) moves in beside it, taking the width the table gave up.
+   */
+  opts: { desktop?: boolean } = {},
 ): CompactProfileLayout {
   const P = PROFILE_COMPACT;
   const { touch, gap } = COMPACT;
   const shell = compactShell(content, { back: true });
   const main = shell.main;
-  const column = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
+  const shellColumn = shell.column ?? { x: main.x + main.width, y: main.y, width: 0, height: main.height };
   const recordW = Math.round(Math.min(P.recordMax, Math.max(P.recordMin, main.width * P.recordShare)));
   const record = { x: main.x, y: main.y, width: recordW, height: main.height };
   const statsX = main.x + recordW + P.paneGap;
-  const statsW = Math.max(0, main.x + main.width - statsX);
+  const fullStatsW = Math.max(0, main.x + main.width - statsX);
+  const statsW = opts.desktop ? Math.min(fullStatsW, P.desktopStatsMax) : fullStatsW;
+  let column = shellColumn;
+  if (opts.desktop && statsW < fullStatsW) {
+    const x = statsX + statsW + P.desktopColumnGap;
+    column = { x, y: shellColumn.y, width: shellColumn.x + shellColumn.width - x, height: shellColumn.height };
+  }
   const tabs = { x: statsX, y: main.y, width: statsW, height: touch * tabRows + gap * (tabRows - 1) };
   const rowsY = tabs.y + tabs.height + P.tabsGap;
   const rows = { x: statsX, y: rowsY, width: statsW, height: Math.max(0, main.y + main.height - rowsY) };
@@ -105,6 +122,7 @@ export function compactProfileLayout(
   const footTop = Math.min(importSave.y, exportSave.y);
   return {
     shell,
+    column,
     record,
     tabs,
     rows,

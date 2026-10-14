@@ -43,8 +43,8 @@ import {
 } from '../ui/achievementPresentation';
 import { CardView } from '../ui/CardView';
 import { ACHIEVEMENTS_COMPACT, achievementHallFrames, achievementHallNarrowWidth, achievementRowColumns, compactAchievementsLayout, flowItems } from '../ui/achievementsCompact';
-import { COMPACT } from '../ui/compactLayout';
-import { compactButton, compactHeader, compactSegments, COMPACT_DRAG_SLOP, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
+import { compactButton, compactHeader, compactRowHover, compactSegments, COMPACT_DRAG_SLOP, coverFitImage, desktopTextPanel, type CompactButton } from '../ui/compactWidgets';
 import type { Rect } from '../ui/layout';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -999,6 +999,11 @@ export class AchievementsScene extends Phaser.Scene {
     const lineH = Math.max(...items.map((item) => item.height));
     const flow = flowItems(col.width, items.map((item) => item.width), lineH, ACHIEVEMENTS_COMPACT.pipGapX, ACHIEVEMENTS_COMPACT.pipGapY);
     items.forEach((item, i) => item.c.setPosition(col.x + flow.at[i].x, top + flow.at[i].y + lineH / 2));
+    if (isDesktopStage(sceneStage(this))) {
+      // Desktop: the faded panel behind the totals, so they keep their contrast over the backdrop's art.
+      const backing = desktopTextPanel(this, { x: col.x, y: col.y, width: col.width, height: top + flow.height - col.y }, 4);
+      this.children.moveBelow(backing as Phaser.GameObjects.GameObject, pool as Phaser.GameObjects.GameObject);
+    }
     return top + flow.height;
   }
 
@@ -1009,6 +1014,7 @@ export class AchievementsScene extends Phaser.Scene {
     const owned = Object.keys(this.saveData.collection);
     const byId = new Map(statuses.map((status) => [status.def.id, status]));
     const wings = wingSummaries(statuses);
+    const desktop = isDesktopStage(sceneStage(this));
     const content = this.add.container(main.x, main.y);
     const build = (width: number): { cards: { wing: WingSummary; c: Phaser.GameObjects.Container; head: number; plinth: Phaser.GameObjects.Container; plinthH: number }[]; frames: Rect[]; height: number } => {
       const narrow = achievementHallNarrowWidth(width);
@@ -1104,7 +1110,7 @@ export class AchievementsScene extends Phaser.Scene {
         return { wing, c, head, plinth, plinthH };
       });
       const need = (i: number): number => cards[i].head + cards[i].plinthH + C.wingPad;
-      const hall = achievementHallFrames(width, main.height, [Math.max(need(0), need(1), need(2)), Math.max(need(3), need(4))]);
+      const hall = achievementHallFrames(width, main.height, [Math.max(need(0), need(1), need(2)), Math.max(need(3), need(4))], { desktop });
       return { cards, frames: hall.frames, height: hall.height };
     };
     let built = build(main.width);
@@ -1127,6 +1133,19 @@ export class AchievementsScene extends Phaser.Scene {
       ? bindMenuScroll(this, content, main, built.height, undefined, [], 0, undefined, this.route.scroll ?? 0)
       : null;
     if (scroll) scroll.onScroll = (offset) => { this.route.scroll = offset; };
+    const openWing = (index: number): void => {
+      this.restartAt({ page: 0, filter: 'all', view: 'list', bucket: built.cards[index].wing.bucket, scroll: 0 });
+    };
+    if (desktop && !scroll) {
+      // Desktop, nothing to scroll: a target per card, so each one answers the pointer on its own.
+      built.frames.forEach((f, i) => {
+        const zone = this.add.zone(f.x + f.width / 2, f.y + f.height / 2, f.width, f.height).setInteractive({ useHandCursor: true });
+        content.add(zone);
+        bindTapButton(this, zone, () => openWing(i));
+        compactRowHover(this, zone, f, content);
+      });
+      return;
+    }
     // One tap target over the pane, fixed while the hall scrolls under it: the wing is the card under the tap,
     // so a card half out of view still opens, and nothing reaches past the pane into the top bar.
     const tap = this.add.zone(main.x + main.width / 2, main.y + main.height / 2, main.width, main.height).setInteractive({ useHandCursor: true });
@@ -1135,7 +1154,7 @@ export class AchievementsScene extends Phaser.Scene {
       const x = pointer.worldX - main.x;
       const y = pointer.worldY - main.y + (scroll?.offset() ?? 0);
       const hit = built.frames.findIndex((f) => x >= f.x && x <= f.x + f.width && y >= f.y && y <= f.y + f.height);
-      if (hit >= 0) this.restartAt({ page: 0, filter: 'all', view: 'list', bucket: built.cards[hit].wing.bucket, scroll: 0 });
+      if (hit >= 0) openWing(hit);
     });
   }
 

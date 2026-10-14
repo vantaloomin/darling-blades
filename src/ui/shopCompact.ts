@@ -32,6 +32,8 @@ export const SHOP_COMPACT = {
   deckGap: 8,
   deckPad: 6,
   deckArtAspect: 0.54,
+  /** Desktop: the tallest the art may grow (height over width) while the tiles fill the pane; still a crop of the 2:3 portrait. */
+  deckArtAspectMax: 1.2,
   /** The grid's scroll thumb lane. */
   thumbLane: 7,
   /** The sheets' inner padding, and the gap between their two columns. */
@@ -112,18 +114,42 @@ export interface DeckGrid {
   pitchY: number;
 }
 
+/** Desktop: grow the tiles' art so `count` tiles fill a pane `paneH` tall. */
+export interface DeckGridFill {
+  paneH: number;
+  count: number;
+}
+
 /**
  * The deck tiles across the main pane (S-Shop-Decks): art over the name over
  * the pips and the price. Tiles keep `deckMinW` (the desktop passes its larger floor); at the largest text the
- * grid drops a column so the names keep their room.
+ * grid drops a column so the names keep their room. With `fill` (the desktop)
+ * a short list's art grows, up to `deckArtAspectMax`, so its rows fill the
+ * pane's height instead of leaving its lower half empty; a list that already
+ * scrolls keeps the phone's art.
  */
-export function deckGrid(paneWidth: number, nameH: number, lineH: number, largeText: boolean, minTileW: number = SHOP_COMPACT.deckMinW): DeckGrid {
+export function deckGrid(
+  paneWidth: number,
+  nameH: number,
+  lineH: number,
+  largeText: boolean,
+  minTileW: number = SHOP_COMPACT.deckMinW,
+  fill?: DeckGridFill,
+): DeckGrid {
   const S = SHOP_COMPACT;
   const width = Math.max(0, paneWidth - S.thumbLane);
   const fit = Math.max(1, Math.floor((width + S.deckGap) / (minTileW + S.deckGap)));
   const columns = Math.max(1, fit - (largeText ? 1 : 0));
   const tileW = Math.floor((width - S.deckGap * (columns - 1)) / columns);
-  const artH = Math.round((tileW - S.deckPad * 2) * S.deckArtAspect);
+  const artW = tileW - S.deckPad * 2;
+  let artH = Math.round(artW * S.deckArtAspect);
+  const rows = fill ? Math.ceil(fill.count / columns) : 0;
+  if (fill && rows > 0) {
+    // Everything in a tile but its art, then the art that fills the pane's rows.
+    const chrome = Math.ceil(S.deckPad + 6 + nameH + 4 + lineH + S.deckPad);
+    const fillArt = Math.floor((fill.paneH + S.deckGap) / rows - S.deckGap - chrome);
+    artH = Math.max(artH, Math.min(Math.round(artW * S.deckArtAspectMax), fillArt));
+  }
   const nameY = S.deckPad + artH + 6;
   const lineY = nameY + nameH + 4 + lineH / 2;
   const tileH = Math.ceil(lineY + lineH / 2 + S.deckPad);

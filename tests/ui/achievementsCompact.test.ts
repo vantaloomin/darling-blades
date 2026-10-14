@@ -57,4 +57,15 @@ describe('the compact Achievements (mocks M-Achievements, M-AchievementsList)', 
     for (const p of flow.at) expect(p.x + 90).toBeLessThanOrEqual(230);
     expect(flow.height).toBe(76);
   });
+
+  it('on desktop sizes each row of wings to its cards instead of filling the pane; a phone still fills it', () => {
+    const desk = achievementHallFrames(780, 500, [120, 110], { desktop: true });
+    expect(desk.frames[0].height).toBe(120);
+    expect(desk.frames[3].height).toBe(110);
+    expect(desk.frames[3].y).toBe(120 + ACHIEVEMENTS_COMPACT.wingGap);
+    expect(desk.height).toBe(120 + ACHIEVEMENTS_COMPACT.wingGap + 110);
+    const phone = achievementHallFrames(780, 500, [120, 110]);
+    expect(phone.height).toBe(500);
+    expect(phone.frames[3].height).toBeGreaterThan(110);
+  });
 });

@@ -8,7 +8,7 @@ import { menuNoticeLayout } from './mainMenuPresentation';
 import { sceneStage } from './SceneBackdrop';
 import { bindMenuScroll } from './menuScroll';
 import { createSearchInput, type SearchInputHandle } from './SearchInput';
-import { goldBadge, modalShell, type GoldBadge, type ModalShell, type ModalShellOptions } from './themeWidgets';
+import { goldBadge, modalShell, panel, type GoldBadge, type ModalShell, type ModalShellOptions } from './themeWidgets';
 import { controlStrokeWidth, themedButtonColors, type ThemedButtonVariant } from './controlStyle';
 import { colorInt, theme } from './theme';
 import { bakeUiIcon, uiIconSize, uiIconTinted, type UiIconName } from './uiIcons';
@@ -121,26 +121,26 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
   applyText(text);
   place();
 
-  let hovered = false;
+  let pointerState: PointerState = 'idle';
+  let enabled = true;
   const redraw = (): void => {
+    if (!plate.scene) return;
+    // A faded (disabled) button shows no pointer state.
+    const state = enabled ? pointerState : 'idle';
+    const hovered = state !== 'idle';
     plate.clear()
       .fillStyle(colorInt(colors.bg), 1)
-      .fillRoundedRect(0, 0, rect.width, rect.height, radius)
-      .lineStyle(controlStrokeWidth(hovered, variant), colorInt(hovered ? colors.hoverStroke : colors.stroke),
-        hovered ? 1 : theme.alpha.chrome)
+      .fillRoundedRect(0, 0, rect.width, rect.height, radius);
+    if (hovered) plate.fillStyle(POINTER_WASH.color, washAlpha(state)).fillRoundedRect(0, 0, rect.width, rect.height, radius);
+    plate.lineStyle(controlStrokeWidth(hovered, variant), colorInt(hovered ? colors.hoverStroke : colors.stroke),
+      hovered ? 1 : theme.alpha.chrome)
       .strokeRoundedRect(0, 0, rect.width, rect.height, radius);
   };
-  let enabled = true;
   bindTapButton(scene, inputZone, (pointer) => {
     if (enabled && !dragged(pointer)) opts.onTap(pointer);
   });
-  inputZone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
-    if (pointer.wasTouch) return;
-    hovered = true;
-    redraw();
-  });
-  inputZone.on('pointerout', () => {
-    hovered = false;
+  bindPointerState(inputZone, (state) => {
+    pointerState = state;
     redraw();
   });
   redraw();
@@ -167,6 +167,7 @@ export function compactButton(scene: Phaser.Scene, rect: Rect, text: string, opt
       enabled = next;
       container.setAlpha(next ? 1 : 0.45);
       if (inputZone.input) inputZone.input.cursor = next ? 'pointer' : 'default';
+      redraw();
     },
   };
 }
@@ -331,6 +332,90 @@ export function compactScrim(scene: Phaser.Scene, rect: Rect, from = 0.4, alpha 
     scrim.fillRect(rect.x, top + i * bandH, rect.width, Math.ceil(bandH));
   }
   return scrim;
+}
+
+/**
+ * Desktop pass (docs/plan-mobile-overhaul.md, "Desktop pass"): the faded
+ * panel behind a block of running text in a side column or pane, so body
+ * text keeps its contrast over the backdrop's art. `pad` grows the panel past
+ * the text's rect; keep it at or under `COMPACT.gap` where the rect sits next
+ * to another pane.
+ */
+export function desktopTextPanel(scene: Phaser.Scene, rect: Rect, pad = 8): Phaser.GameObjects.Graphics {
+  return panel(scene, rect.x - pad, rect.y - pad, rect.width + 2 * pad, rect.height + 2 * pad);
+}
+
+/** The pointer's state layer on a desktop plate: a light wash, deeper while pressed (Material: hover 8%, pressed 10%). */
+export const POINTER_WASH = { color: 0xffffff, hover: 0.08, pressed: 0.1 } as const;
+
+/** Where a mouse is relative to a control: away, over it, or holding it down. */
+export type PointerState = 'idle' | 'hover' | 'pressed';
+
+/** The wash's alpha for a pointer state (none at rest). */
+export function washAlpha(state: PointerState): number {
+  return state === 'pressed' ? POINTER_WASH.pressed : state === 'hover' ? POINTER_WASH.hover : 0;
+}
+
+/**
+ * The one pointer state machine behind every compact control's hover and
+ * press (the button, each segment, the switch's row, a plain row). Touch
+ * pointers never enter it: a tap's synthetic over/down is ignored, and its
+ * up or out only ever settles the state back, so nothing sticks after a tap
+ * and phones draw exactly as before. `onChange` fires on each transition.
+ */
+export function bindPointerState(zone: Phaser.GameObjects.Zone, onChange: (state: PointerState) => void): void {
+  let over = false;
+  let pressed = false;
+  let last: PointerState = 'idle';
+  const emit = (): void => {
+    const next: PointerState = pressed ? 'pressed' : over ? 'hover' : 'idle';
+    if (next === last) return;
+    last = next;
+    onChange(next);
+  };
+  zone.on('pointerover', (pointer: Phaser.Input.Pointer) => {
+    if (pointer.wasTouch) return;
+    over = true;
+    emit();
+  });
+  zone.on('pointerout', () => {
+    over = false;
+    pressed = false;
+    emit();
+  });
+  zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+    if (pointer.wasTouch) return;
+    pressed = true;
+    emit();
+  });
+  zone.on('pointerup', () => {
+    pressed = false;
+    emit();
+  });
+}
+
+/**
+ * Desktop pass: hover feedback for a plain list row or card that has a zone
+ * but no plate of its own (a Settings row, a Glossary term, a trophy card).
+ * Draws the pointer wash over `rect` (in `parent`'s coordinates, or the
+ * scene's) while a mouse is over the zone; a no-op on touch screens and off
+ * the desktop profile, so phones are unchanged.
+ */
+export function compactRowHover(
+  scene: Phaser.Scene,
+  zone: Phaser.GameObjects.Zone,
+  rect: Rect,
+  parent?: Phaser.GameObjects.Container,
+  radius: number = theme.radius.panel,
+): void {
+  if (sceneStage(scene).metrics?.device !== 'desktop') return;
+  const wash = scene.add.graphics();
+  if (parent) parent.addAt(wash, Math.max(0, parent.getIndex(zone)));
+  bindPointerState(zone, (state) => {
+    if (!wash.scene) return;
+    wash.clear();
+    if (state !== 'idle') wash.fillStyle(POINTER_WASH.color, washAlpha(state)).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, radius);
+  });
 }
 
 export interface CompactDialogAction {
@@ -585,7 +670,9 @@ export function compactSegments(
   const type = theme.compactType;
   const container = scene.add.container(rect.x, rect.y);
   const plate = scene.add.graphics();
-  container.add(plate);
+  // The pointer wash, over the plate and under the labels.
+  const wash = scene.add.graphics();
+  container.add([plate, wash]);
   const n = Math.max(1, labels.length);
   const inset = 4;
   const inner = rect.width - inset * 2;
@@ -624,9 +711,13 @@ export function compactSegments(
     container.add(lock);
   });
   let current = selected;
+  let pointed = -1;
+  let pointerState: PointerState = 'idle';
   const draw = (): void => {
+    if (!plate.scene) return;
     const ghost = themedButtonColors('ghost');
     const chosen = themedButtonColors('selected');
+    const active = pointerState !== 'idle' && pointed >= 0 && pointed < n;
     plate.clear()
       .fillStyle(colorInt(ghost.bg), 1)
       .fillRoundedRect(0, 0, rect.width, rect.height, theme.radius.panel)
@@ -634,10 +725,16 @@ export function compactSegments(
       .strokeRoundedRect(0, 0, rect.width, rect.height, theme.radius.panel);
     if (current >= 0 && current < n) {
       const x = segXs[current];
+      const lit = active && pointed === current;
       plate.fillStyle(colorInt(chosen.bg), 1)
         .fillRoundedRect(x, inset, segWs[current], rect.height - inset * 2, theme.radius.control)
-        .lineStyle(theme.control.borderWidth, colorInt(chosen.stroke), 1)
+        .lineStyle(controlStrokeWidth(lit, 'selected'), colorInt(lit ? chosen.hoverStroke : chosen.stroke), 1)
         .strokeRoundedRect(x, inset, segWs[current], rect.height - inset * 2, theme.radius.control);
+    }
+    wash.clear();
+    if (active) {
+      wash.fillStyle(POINTER_WASH.color, washAlpha(pointerState))
+        .fillRoundedRect(segXs[pointed], inset, segWs[pointed], rect.height - inset * 2, theme.radius.control);
     }
     texts.forEach((t, i) => t.setColor(i === current ? chosen.fg : disabled[i] ? theme.colors.muted : ghost.fg));
   };
@@ -649,6 +746,12 @@ export function compactSegments(
       current = i;
       draw();
       onPick(i);
+    });
+    bindPointerState(zone, (state) => {
+      if (state === 'idle' && pointed !== i) return;
+      pointed = i;
+      pointerState = state;
+      draw();
     });
     return zone;
   });
@@ -669,6 +772,12 @@ export interface CompactSwitch {
   /** The drawn width, the On/Off word included, measured from the right edge. */
   width: number;
   set(on: boolean): void;
+  /**
+   * Give the switch the shared pointer state from the row zone that takes its
+   * tap: the wash over the track and, while off, the brighter outline. Call
+   * once with the row's zone; touch never shows it.
+   */
+  bindHover(zone: Phaser.GameObjects.Zone): void;
 }
 
 /**
@@ -686,8 +795,13 @@ export function compactSwitch(scene: Phaser.Scene, right: number, centerY: numbe
   }).setOrigin(1, 0.5);
   container.add([track, word]);
   const knob = trackH / 2 - 4;
+  let current = on;
+  let pointerState: PointerState = 'idle';
   const set = (value: boolean): void => {
+    current = value;
+    if (!track.scene) return;
     const ghost = themedButtonColors('ghost');
+    const hovered = pointerState !== 'idle';
     word.setText(value ? 'On' : 'Off').setColor(value ? theme.colors.gold : theme.colors.muted);
     track.clear();
     if (value) {
@@ -695,14 +809,26 @@ export function compactSwitch(scene: Phaser.Scene, right: number, centerY: numbe
         .fillStyle(colorInt(theme.colors.onGold), 1).fillCircle(-trackH / 2, 0, knob);
     } else {
       track.fillStyle(colorInt(ghost.bg), 1).fillRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
-        .lineStyle(theme.control.borderWidth, colorInt(ghost.stroke), 1)
+        .lineStyle(controlStrokeWidth(hovered), colorInt(hovered ? ghost.hoverStroke : ghost.stroke), 1)
         .strokeRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
         .fillStyle(colorInt(theme.colors.body), 1).fillCircle(-trackW + trackH / 2, 0, knob);
+    }
+    if (hovered) {
+      track.fillStyle(POINTER_WASH.color, washAlpha(pointerState))
+        .fillRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2);
     }
   };
   set(on);
   // The widest word, so a row can leave room whichever is showing.
   const widest = Math.max(word.width, (word.setText('Off'), word.width), (word.setText('On'), word.width));
   set(on);
-  return { container, width: trackW + 10 + widest, set };
+  const bindHover = (zone: Phaser.GameObjects.Zone): void => {
+    if (!zone.input) zone.setInteractive({ useHandCursor: true });
+    else zone.input.cursor = 'pointer';
+    bindPointerState(zone, (state) => {
+      pointerState = state;
+      set(current);
+    });
+  };
+  return { container, width: trackW + 10 + widest, set, bindHover };
 }

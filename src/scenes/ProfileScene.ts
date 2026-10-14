@@ -31,8 +31,8 @@ import { artTextureTier } from '../art/artWatch';
 import { artMissing, liveArtStore } from '../art/artLoader';
 import { ART_WAIT_TEXT_STYLE, awaitArt, PagedArt } from '../ui/artGate';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
-import { COMPACT } from '../ui/compactLayout';
-import { compactButton, compactDialog, compactHeader, compactSegments, compactSwitch, COMPACT_DRAG_SLOP, coverFitImage } from '../ui/compactWidgets';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
+import { compactButton, compactDialog, compactHeader, compactSegments, compactSwitch, COMPACT_DRAG_SLOP, coverFitImage, desktopTextPanel } from '../ui/compactWidgets';
 import { replayOpponentAvatar } from '../ui/duelArt';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -244,8 +244,9 @@ export class ProfileScene extends Phaser.Scene {
       probe.destroy();
       return sum + width;
     }, 8);
-    const statsW = compactProfileLayout(content, { importSave: 0, exportSave: 0 }).tabs.width;
-    const layout = compactProfileLayout(content, { importSave: footNeed('Import save'), exportSave: footNeed('Export save') }, tabsNeed > statsW ? 2 : 1);
+    const desktop = isDesktopStage(sceneStage(this));
+    const statsW = compactProfileLayout(content, { importSave: 0, exportSave: 0 }, 1, { desktop }).tabs.width;
+    const layout = compactProfileLayout(content, { importSave: footNeed('Import save'), exportSave: footNeed('Export save') }, tabsNeed > statsW ? 2 : 1, { desktop });
     const header = compactHeader(this, layout.shell, { title: 'Profile', onBack: () => this.scene.start('MainMenu') });
     this.profileInteractiveTargets.push(header.back.inputZone);
     if (notice) {
@@ -414,10 +415,17 @@ export class ProfileScene extends Phaser.Scene {
     });
     const top = heading.y + heading.height + P.headingGap;
     const view = { x: area.x, y: top, width: area.width, height: Math.max(0, area.y + area.height - top) };
+    // Desktop: the faded panel behind the column's words, so they keep their contrast over the backdrop's art.
+    const backing = (bottom: number): void => {
+      if (!isDesktopStage(sceneStage(this))) return;
+      const g = desktopTextPanel(this, { x: area.x, y: area.y, width: area.width, height: Math.min(area.y + area.height, bottom) - area.y }, 8);
+      this.children.moveBelow(g as Phaser.GameObjects.GameObject, heading as Phaser.GameObjects.GameObject);
+    };
     if (replays.length === 0) {
-      this.add.text(view.x, view.y, 'No replays yet. Finish a duel and it will appear here.', {
+      const empty = this.add.text(view.x, view.y, 'No replays yet. Finish a duel and it will appear here.', {
         fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: view.width },
       });
+      backing(empty.y + empty.height);
       return;
     }
     const build = (cardW: number): { list: Phaser.GameObjects.Container; height: number; adapters: ThemedButton[] } => {
@@ -440,6 +448,7 @@ export class ProfileScene extends Phaser.Scene {
       built.list.destroy();
       built = build(view.width - P.thumbLane);
     }
+    backing(view.y + built.height);
     bindMenuScroll(this, built.list, view, built.height, undefined, built.adapters);
   }
 
@@ -708,6 +717,7 @@ export class ProfileScene extends Phaser.Scene {
     ellipsizeText(rowLabel, inner.width - toggle.width - 8);
     const rowZone = this.add.zone(inner.x + inner.width / 2, y + COMPACT.touch / 2, inner.width, COMPACT.touch).setInteractive({ useHandCursor: true });
     stack.add([rowLabel, toggle.container, rowZone]);
+    toggle.bindHover(rowZone);
     adapters.push(this.compactAdapter(rowZone, stack, rowRect));
     y += COMPACT.touch + 6;
     const status = this.add.text(inner.x, y, 'Replays are excluded by default.', {

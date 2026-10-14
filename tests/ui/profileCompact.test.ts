@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { compactProfileLayout, compactSaveDialogLayout, profileArtGrid, profileStatColumns } from '../../src/ui/profileCompact';
+import { compactProfileLayout, compactSaveDialogLayout, profileArtGrid, profileStatColumns, PROFILE_COMPACT } from '../../src/ui/profileCompact';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import type { Rect } from '../../src/ui/layout';
 
 const landscape = SCREEN_FIXTURES.filter((f) => f.viewportWidth > f.viewportHeight).map((f) => ({ name: f.name, m: resolveScreenMetrics(f) }));
@@ -63,6 +64,27 @@ describe('the compact Profile (mock M-Profile)', () => {
       expect(l.side.width).toBe(l.primary.width);
       // Five across still leaves each card's art big enough to tell apart (the sheet's 24 px padding either side).
       expect(profileArtGrid(l.sheet.width - 48).thumbW, name).toBeGreaterThanOrEqual(60);
+    }
+  });
+
+  it('caps the stats near 480 on desktop with the replay column beside them, and leaves every phone as it was', () => {
+    const foot = { importSave: 98, exportSave: 102 };
+    const desk = compactProfileLayout(desktopCompactMetrics().content, foot, 1, { desktop: true });
+    const column = desk.shell.column!;
+    expect(desk.rows.width).toBe(PROFILE_COMPACT.desktopStatsMax);
+    expect(desk.tabs.width).toBe(PROFILE_COMPACT.desktopStatsMax);
+    // The replays start just past the stats, not at the far edge, and run to the content's right edge.
+    expect(desk.replays.x).toBe(desk.rows.x + desk.rows.width + PROFILE_COMPACT.desktopColumnGap);
+    expect(desk.replays.x).toBeLessThan(column.x);
+    expect(desk.replays.x + desk.replays.width).toBe(column.x + column.width);
+    expect(desk.exportSave.x + desk.exportSave.width).toBe(column.x + column.width);
+    expect(desk.importSave.x).toBe(desk.replays.x);
+    expect(desk.importSave.height).toBeGreaterThanOrEqual(44);
+    for (const { name, m } of landscape) {
+      const phone = compactProfileLayout(m.content, foot);
+      expect(phone.column, name).toEqual(phone.shell.column);
+      expect(phone.replays.x, name).toBe(phone.shell.column!.x);
+      expect(phone.rows.x + phone.rows.width, name).toBe(phone.shell.main.x + phone.shell.main.width);
     }
   });
 });

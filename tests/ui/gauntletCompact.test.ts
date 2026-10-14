@@ -10,6 +10,7 @@ import {
 import { rivalShortName } from '../../src/ui/practiceCompact';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import type { Rect } from '../../src/ui/layout';
 
 const landscape = SCREEN_FIXTURES.filter((f) => f.viewportWidth > f.viewportHeight).map((f) => ({ name: f.name, m: resolveScreenMetrics(f) }));
@@ -40,6 +41,18 @@ describe('the compact Avatar Gauntlet (mock M-Gauntlet)', () => {
         for (let j = i + 1; j < parts.length; j++) expect(overlap(parts[i], parts[j]), `${name} ${i}/${j}`).toBe(false);
       }
     }
+  });
+});
+
+describe('the desktop Avatar Gauntlet', () => {
+  it('sizes the rival by the pane height and keeps the text inside its panel, clear of her and the tower', () => {
+    const m = desktopCompactMetrics();
+    const phone = compactGauntletLayout(m.content);
+    const l = compactGauntletLayout(m.content, { desktop: true });
+    expect(phone.infoPanel).toBeNull();
+    expect(l.hero.width).toBeGreaterThan(phone.hero.width);
+    expect(inside(l.info, l.infoPanel!)).toBe(true);
+    for (const r of [l.hero, l.tower, l.launch]) expect(overlap(l.infoPanel!, r)).toBe(false);
   });
 });
 

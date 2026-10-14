@@ -31,6 +31,8 @@ export const PRACTICE_COMPACT = {
   nameInset: 3,
   /** How far the picked rival's column narrows at a time to give the grid room. */
   heroStep: 8,
+  /** Desktop: how far whole rows may stretch or squash a tile from `tileAspect`. */
+  wholeRowsSlack: 0.12,
 } as const;
 
 export interface CompactPracticeLayout {
@@ -39,6 +41,10 @@ export interface CompactPracticeLayout {
   hero: Rect;
   /** Where the rival grid scrolls. */
   grid: Rect;
+  /** The grid's viewport: the grid, or its whole rows (`wholeRows`). */
+  gridView: Rect;
+  /** The scroll's step: 0 (free), or a row's pitch (`wholeRows`). */
+  gridStep: number;
   columns: number;
   tileW: number;
   tileH: number;
@@ -59,6 +65,12 @@ export interface PracticeLayoutOptions {
   maxColumns?: number;
   /** The narrowest tile, in place of `minTileW` (the desktop's is larger). */
   minTileW?: number;
+  /**
+   * Desktop: tiles a little taller or shorter (within `wholeRowsSlack`) so the
+   * grid shows whole rows, no name cut at the pane's foot; `gridView` is then
+   * those rows' height and the scroll steps a row at a time.
+   */
+  wholeRows?: boolean;
 }
 
 /** `labelH` is the measured "Difficulty" line. */
@@ -75,12 +87,23 @@ export function compactPracticeLayout(content: Rect, labelH: number, opts: Pract
   const columns = Math.max(1, Math.min(opts.maxColumns ?? fitColumns, fitColumns));
   // A scroll thumb runs down the grid's right edge; the tiles leave it room.
   const tileW = Math.max(0, Math.floor((grid.width - 6 - P.tileGap * (columns - 1)) / columns));
-  const tileH = Math.round(tileW * P.tileAspect);
+  let tileH = Math.round(tileW * P.tileAspect);
+  let gridView = grid;
+  let gridStep = 0;
+  if (opts.wholeRows && tileH > 0) {
+    const rows = Math.max(1, Math.round((grid.height + P.tileGap) / (tileH + P.tileGap)));
+    const fitH = Math.floor((grid.height - P.tileGap * (rows - 1)) / rows);
+    if (Math.abs(fitH / tileW - P.tileAspect) <= P.tileAspect * P.wholeRowsSlack) {
+      tileH = fitH;
+      gridView = { ...grid, height: rows * tileH + (rows - 1) * P.tileGap };
+      gridStep = tileH + P.tileGap;
+    }
+  }
   const launch = shell.primary?.visual ?? { x: column.x, y: column.y + column.height - COMPACT.touch, width: column.width, height: COMPACT.touch };
   const segments = { x: column.x, y: launch.y - COMPACT.gap * 3 - COMPACT.touch, width: column.width, height: COMPACT.touch };
   const labelY = segments.y - P.labelGap - labelH;
   const blurb = { x: column.x, y: column.y, width: column.width, height: Math.max(0, labelY - P.blurbGap - column.y) };
-  return { shell, hero, grid, columns, tileW, tileH, blurb, difficultyLabel: { x: column.x + 2, y: labelY }, segments, launch };
+  return { shell, hero, grid, gridView, gridStep, columns, tileW, tileH, blurb, difficultyLabel: { x: column.x + 2, y: labelY }, segments, launch };
 }
 
 /**
@@ -93,7 +116,7 @@ export function compactPracticeLayoutFitting(
   content: Rect,
   labelH: number,
   namesFit: (nameWidth: number) => boolean,
-  base: Pick<PracticeLayoutOptions, 'minTileW'> = {},
+  base: Pick<PracticeLayoutOptions, 'minTileW' | 'wholeRows'> = {},
 ): CompactPracticeLayout {
   const P = PRACTICE_COMPACT;
   const nameWidth = (l: CompactPracticeLayout): number => l.tileW - 2 * P.nameInset;

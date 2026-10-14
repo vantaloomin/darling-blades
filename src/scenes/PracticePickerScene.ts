@@ -18,7 +18,7 @@ import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { COMPACT, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
-import { compactButton, compactDialog, compactHeader, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { compactButton, compactDialog, compactHeader, compactSegments, coverFitImage, desktopTextPanel, type CompactButton } from '../ui/compactWidgets';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { ModalGuard } from '../ui/Modal';
 import { compactPracticeLayoutFitting, PRACTICE_COMPACT, practiceGridHeight, rivalShortName, practiceTilePosition, type CompactPracticeLayout } from '../ui/practiceCompact';
@@ -55,6 +55,8 @@ import {
  */
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
+/** Desktop pass: the picked rival's name and title inset on their panel (at most COMPACT.gap beside the grid). */
+const HERO_TEXT_INSET = COMPACT.gap;
 
 /**
  * Practice opponent picker. Practice is one decision flow: choose an avatar,
@@ -98,6 +100,7 @@ export class PracticePickerScene extends Phaser.Scene {
     tiles: { id: string; plate: Phaser.GameObjects.Graphics; name: Phaser.GameObjects.Text; badge: Phaser.GameObjects.Container; rect: Rect }[];
     hero: Phaser.GameObjects.GameObject[];
     blurb: Phaser.GameObjects.Container | null;
+    blurbPanel: Phaser.GameObjects.Graphics | null;
     launch: CompactButton;
     difficulty: Difficulty;
   } | null = null;
@@ -225,7 +228,7 @@ export class PracticePickerScene extends Phaser.Scene {
       return n.width <= width;
     }).every(Boolean);
     const layout = compactPracticeLayoutFitting(content, label.height, (w) => sizes.some((size) => fitAt(size, w)),
-      isDesktopStage(sceneStage(this)) ? { minTileW: DESKTOP_GRID.practiceTileMinW } : {});
+      isDesktopStage(sceneStage(this)) ? { minTileW: DESKTOP_GRID.practiceTileMinW, wholeRows: true } : {});
     const nameW = layout.tileW - 2 * PRACTICE_COMPACT.nameInset;
     fitAt(sizes.find((size) => fitAt(size, nameW)) ?? sizes[sizes.length - 1], nameW);
     label.setPosition(layout.difficultyLabel.x, layout.difficultyLabel.y);
@@ -246,14 +249,14 @@ export class PracticePickerScene extends Phaser.Scene {
       variant: 'primary', fontSize: type.h2, onTap: () => this.startPractice(this.compact?.difficulty ?? 'medium'),
     });
     this.compactTargets.push(launch.inputZone);
-    this.compact = { layout, tiles: [], hero: [], blurb: null, launch, difficulty: 'medium' };
+    this.compact = { layout, tiles: [], hero: [], blurb: null, blurbPanel: null, launch, difficulty: 'medium' };
     this.buildCompactGrid(layout, roster, names);
     this.selectCompactRival(this.selectedAvatarId);
   }
 
   /** Every rival, summit first, in a grid that scrolls vertically. */
   private buildCompactGrid(layout: CompactPracticeLayout, roster: readonly (typeof AVATARS)[number][], names: Phaser.GameObjects.Text[]): void {
-    const { grid, columns, tileW, tileH } = layout;
+    const { grid, gridView, gridStep, columns, tileW, tileH } = layout;
     // Even one column too narrow for a name: it keeps its first line whole.
     const nameW = tileW - 2 * PRACTICE_COMPACT.nameInset;
     names.forEach((n) => {
@@ -308,7 +311,7 @@ export class PracticePickerScene extends Phaser.Scene {
     // Start scrolled so the picked rival is in view.
     const index = Math.max(0, roster.findIndex((av) => av.id === this.selectedAvatarId));
     const bottom = practiceTilePosition(index, columns, tileW, tileH).y + tileH;
-    bindMenuScroll(this, content, grid, total, () => this.guard.isOpen, adapters, 0, undefined, Math.max(0, bottom - grid.height));
+    bindMenuScroll(this, content, gridView, total, () => this.guard.isOpen, adapters, gridStep, undefined, Math.max(0, bottom - gridView.height));
   }
 
   /** Pick a rival: her tile, her column on the left, her blurb, and the launch label follow. */
@@ -354,17 +357,22 @@ export class PracticePickerScene extends Phaser.Scene {
     if (!compact) return;
     for (const obj of compact.hero) obj.destroy();
     const type = theme.compactType;
-    const name = this.add.text(hero.x, 0, av.name, {
+    // Desktop pass: her name and title sit inset on a faded panel as wide as the portrait.
+    const desktop = isDesktopStage(sceneStage(this));
+    const inset = desktop ? HERO_TEXT_INSET : 0;
+    const textX = hero.x + inset;
+    const textW = hero.width - 2 * inset;
+    const name = this.add.text(textX, 0, av.name, {
       fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700,
-      color: theme.colors.heading, wordWrap: { width: hero.width },
+      color: theme.colors.heading, wordWrap: { width: textW },
     });
-    const title = this.add.text(hero.x, 0, av.title, {
+    const title = this.add.text(textX, 0, av.title, {
       fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: 'italic',
-      color: theme.colors.gold, wordWrap: { width: hero.width },
+      color: theme.colors.gold, wordWrap: { width: textW },
     }).setPadding({ right: 2 });
     // The portrait keeps the mock's proportion while the words fit under it;
     // long names step down before the portrait shrinks under its floor.
-    const portraitH = (): number => Math.min(Math.round(hero.width * 1.17), hero.height - 8 - name.height - 2 - title.height);
+    const portraitH = (): number => Math.min(Math.round(hero.width * 1.17), hero.height - 8 - name.height - 2 - title.height - inset);
     if (portraitH() < hero.width * 0.8) name.setFontSize(type.h2);
     if (portraitH() < hero.width * 0.8) title.setFontSize(type.label);
     const artRect = { x: hero.x, y: hero.y, width: hero.width, height: Math.max(COMPACT.touch, portraitH()) };
@@ -385,10 +393,16 @@ export class PracticePickerScene extends Phaser.Scene {
     name.setY(artRect.y + artRect.height + 8);
     title.setY(name.y + name.height + 2);
     // Anything still past the column's foot gives way on one line each.
-    if (title.y + title.height > hero.y + hero.height) {
-      name.setWordWrapWidth(0); ellipsizeText(name, hero.width);
-      title.setWordWrapWidth(0); ellipsizeText(title, hero.width);
+    if (title.y + title.height + inset > hero.y + hero.height) {
+      name.setWordWrapWidth(0); ellipsizeText(name, textW);
+      title.setWordWrapWidth(0); ellipsizeText(title, textW);
       title.setY(name.y + name.height + 2);
+    }
+    if (desktop) {
+      const words = { x: textX, y: name.y, width: textW, height: title.y + title.height - name.y };
+      const panel = desktopTextPanel(this, words, inset);
+      this.children.moveBelow(panel, name);
+      objects.push(panel);
     }
     objects.push(name, title);
     compact.hero = objects;
@@ -399,6 +413,8 @@ export class PracticePickerScene extends Phaser.Scene {
     const compact = this.compact;
     if (!compact) return;
     compact.blurb?.destroy();
+    compact.blurbPanel?.destroy();
+    compact.blurbPanel = null;
     const blurb = this.add.text(rect.x + 2, 0, text, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, color: theme.colors.body,
       lineSpacing: theme.space(1), wordWrap: { width: rect.width - 10 },
@@ -411,6 +427,12 @@ export class PracticePickerScene extends Phaser.Scene {
     container.add(blurb);
     // A viewport of whole lines, so no line is ever cut in half at its foot.
     const viewport = { ...rect, height: Math.max(lineHeight, Math.floor((rect.height + blurb.lineSpacing) / linePitch) * linePitch - blurb.lineSpacing) };
+    // Desktop pass: the faded panel behind the blurb, beneath its lines.
+    if (isDesktopStage(sceneStage(this))) {
+      const panel = desktopTextPanel(this, { ...viewport, height: Math.min(blurb.height, viewport.height) }, COMPACT.gap);
+      this.children.moveBelow(panel, container);
+      compact.blurbPanel = panel;
+    }
     bindMenuScroll(this, container, viewport, blurb.height, () => this.guard.isOpen, undefined, linePitch);
     compact.blurb = container;
   }

@@ -7,6 +7,8 @@ import {
   practiceTilePosition,
 } from '../../src/ui/practiceCompact';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
+import { DESKTOP_GRID } from '../../src/ui/compactLayout';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
 import type { Rect } from '../../src/ui/layout';
 
@@ -74,5 +76,24 @@ describe('the rival grid', () => {
     expect(practiceTilePosition(4, 3, 90, 100)).toEqual({ x: 90 + PRACTICE_COMPACT.tileGap, y: 100 + PRACTICE_COMPACT.tileGap });
     expect(practiceGridHeight(7, 3, 100)).toBe(3 * 100 + 2 * PRACTICE_COMPACT.tileGap);
     expect(practiceGridHeight(0, 3, 100)).toBe(0);
+  });
+});
+
+describe('the desktop rival grid (whole rows)', () => {
+  it('shows only whole rows on desktop, the tiles near their shape, and scrolls a row at a time; a phone keeps the free grid', () => {
+    const content = desktopCompactMetrics().content;
+    const free = compactPracticeLayout(content, 17, { minTileW: DESKTOP_GRID.practiceTileMinW });
+    const whole = compactPracticeLayout(content, 17, { minTileW: DESKTOP_GRID.practiceTileMinW, wholeRows: true });
+    expect(whole.columns).toBe(free.columns);
+    expect(whole.tileW).toBe(free.tileW);
+    expect(Math.abs(whole.tileH / whole.tileW - PRACTICE_COMPACT.tileAspect)).toBeLessThanOrEqual(PRACTICE_COMPACT.tileAspect * PRACTICE_COMPACT.wholeRowsSlack);
+    const rows = Math.round((whole.gridView.height + PRACTICE_COMPACT.tileGap) / (whole.tileH + PRACTICE_COMPACT.tileGap));
+    expect(whole.gridView.height).toBe(practiceGridHeight(rows * whole.columns, whole.columns, whole.tileH));
+    expect(whole.gridView.height).toBeLessThanOrEqual(whole.grid.height);
+    expect(whole.gridStep).toBe(whole.tileH + PRACTICE_COMPACT.tileGap);
+    // Unchanged on a phone.
+    const phone = compactPracticeLayout(reference.content, 17);
+    expect(phone.gridView).toEqual(phone.grid);
+    expect(phone.gridStep).toBe(0);
   });
 });
