@@ -4,7 +4,7 @@
 
 > **Record, not spec.** The one owner-approved re-baseline of every test gate floor at the new starting life ([plan-2.0.md](plan-2.0.md) P8, ruled 2026-10-08; the life ruling 2026-10-08, "flip at the reset" 2026-10-09). Branch `feat/20-floor-reset-25` from `release/2.0` 9dcf528b. Rule: floor = 200-seed mean - 6.5, rounded down to the half point; every floor that drops is listed. After this PR floors only ratchet up again.
 
-**Status: review point (a), the flip and the inventory. No floor has been measured or changed yet.**
+**Status: review point (b), the gate measured (sections 4-5). No floor is changed yet: the R14/R15 order check fails at 25 and is with the owner (section 5).**
 
 ## 1. The flip
 
@@ -50,3 +50,67 @@
 ## 3. How it is run
 
 A local resumable runner (not committed): each rung is one unit that calls the committed `runAvatarMatrix` or `runAvatarReserveMatrix` for that rung alone, so every cell keeps the committed harness's per-(rung, column) seed and the first 40 seeds are CI's. One JSON per unit on disk; a stopped run resumes. Four workers, below-normal priority, `OMP_NUM_THREADS=1 ORT_NUM_THREADS=1`, one job at a time. A passive hook on the telemetry finish records how each game ended (life, deck, draw) and its length; checked to leave the results byte-identical.
+
+## 4. The gate at 25 (`--avatars`, 200 seeds/cell)
+
+Measured 2026-10-16 at `feat/20-floor-reset-25` 5c76ad5e (25 life, Zhurong's `burnFaceLife` 25). 28,000 games, 5 draws, about 23 minutes wall on four workers. "20 now" is the same harness on the same commit with `RULES.startingLife` set to 20 in the measuring process, for the summit only; it reproduces the 1.9 wave-4 reading within 0.5 points on every rung, so the moves below come from the life change, not from drift since 1.9. "Deck" is games (of 1,000) that ended by a player drawing from an empty deck. Cells in Muster / Communion / Tides / Mandate / Harvest order.
+
+| Rung | Boss | 25 life (cells) | 1.9 at 20 | 20 now | Deck at 25 (at 20) | Mean turns 25 (20) | 40 seeds at 25 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| R1 | Meng Huo | 19.3 (12/10/23/41/12) | 23.7 | | 0 | 17.5 | |
+| R2 | Hestia | 5.7 (6/4/3/14/3) | 7.8 | | 2 | 20.9 | |
+| R3 | Lupa, Wolfqueen | 18.8 (9/2/26/42/16) | 24.1 | | 0 | 15.8 | |
+| R4 | Hera | 34.2 (21/51/27/32/41) | 38.2 | | 70 | 24.6 | |
+| R5 | Zhurong | 40.8 (40/31/38/55/40) | 43.6 | | 0 | 19.4 | |
+| R6 | Sima Yi | 46.1 (48/86/27/32/39) | 42.3 | | 14 | 25.8 | |
+| R7 | Yohime | 76.3 (63/87/76/72/85) | 77.2 | | 3 | 20.1 | |
+| R8 | Cao Cao | 70.4 (41/94/68/87/63) | 63.1 | | 0 | 19.0 | |
+| R9 | Hel | 67.6 (62/86/64/73/54) | 69.0 | | 151 | 19.9 | |
+| R10 | Brunhild | 79.5 (73/87/55/92/92) | 72.3 | | 0 | 19.1 | |
+| R11 | The Morrigan | 71.2 (79/91/36/55/95) | 64.8 | | 0 | 22.1 | |
+| R12 | Titania | 66.1 (38/98/73/63/60) | 63.1 | | 4 | 23.2 | |
+| R13 | Morgan | 56.8 (52/88/46/59/40) | 54.4 | | 21 | 27.2 | |
+| R14 | Artoria | 73.2 (35/97/73/81/81) | 67.2 | | 0 | 21.2 | 76.0 |
+| R15 | Carmilla | 68.8 (55/70/46/85/89) | 67.6 | 67.5 | 0 (0) | 17.2 (15.7) | 71.5 |
+| R16 | The Bride | 77.0 (76/81/53/82/94) | 71.0 | 71.0 | 0 (0) | 19.8 (18.2) | 75.5 |
+| R17 | Glass-Coffin Queen | 84.4 (85/82/70/95/91) | 78.0 | 78.0 | 0 (0) | 23.8 (21.9) | 86.5 |
+| R18 | Abyssal Songstress | 90.7 (94/96/76/92/96) | 89.1 | 89.1 | 0 (0) | 19.2 (17.7) | 89.0 |
+| R19 | Lanterned Roof | 77.9 (74/92/62/80/82) | 74.8 | 73.5 | 18 (10) | 24.0 (21.8) | 73.0 |
+| R20 | Kitsune Neon Tyrant | 90.0 (76/95/88/95/97), 2 draws | 90.2 | 90.2 | 0 (0) | 14.6 (13.2) | 91.5 |
+| R21 | Anubis | 67.3 (76/89/70/57/45) | 62.8 | 61.2 | 0 (0) | 23.8 (21.8) | 70.0 |
+| R22 | Bastet | 78.5 (60/91/67/86/90) | 75.2 | 75.2 | 1 (2) | 17.9 (16.9) | 77.0 |
+| R23 | Chrome Broodmother | 80.9 (70/91/73/74/97) | 74.1 | 75.6 | 0 (0) | 20.5 (19.1) | 80.5 |
+| R24 | Violet Signal Queen | 76.5 (61/95/67/64/96), 1 draw | 72.9 | 72.6 | 3 (3) | 22.8 (20.9) | 80.0 |
+| R25 | The Drowned Deacon | 68.4 (49/69/64/88/73) | 66.2 | 65.5 | 57 (40) | 19.8 (18.3) | 70.5 |
+| R26 | The Marsh-Mother | 76.1 (61/89/71/76/84) | 75.0 | 74.8 | 5 (2) | 20.4 (18.4) | 73.5 |
+| R27 | Shepherdess of Giants | 71.2 (50/97/77/58/75) | 68.7 | 68.7 | 27 (18) | 28.0 (25.7) | 70.0 |
+| R28 | The Tyrant Queen | 81.2 (72/87/71/90/88) | 76.0 | 75.8 | 0 (0) | 17.3 (15.7) | 83.0 |
+
+**What 25 does.** The summit gains (13 of 14 rungs up, by 1 to 7 points); the low aggro rungs R1-R5 lose 3 to 5 points (the starters survive their rush); games run 1.5 to 2.5 turns longer. Decking stays small except where it is the plan: Hel (R9, mill-reanimator) ends 151 of 1,000 games by deck and Hera (R4) 70; the summit's grind decks deck a little more than at 20 (Deacon 57 against 40). Draws stay negligible (5 in 28,000; at 40 seeds, CI's sample, none).
+
+## 5. Candidates and the one failing check
+
+Candidate = 200-seed mean at 25 - 6.5, rounded down to the half point. Each passes at CI's 40 seeds (the last column above).
+
+| Rung | Standing floor | Candidate | Direction |
+| --- | --- | --- | --- |
+| **R15 Carmilla** | **.655** | **.62** | **down** |
+| R16 | .645 | .705 | up |
+| R17 | .715 | .775 | up |
+| R18 | .825 | .84 | up |
+| R19 | .68 | .71 | up |
+| R20 | .835 | .835 | same |
+| R21 | .585 | .605 | up |
+| R22 | .685 | .72 | up |
+| R23 | .675 | .74 | up |
+| R24 | .66 | .70 | up |
+| R25 | .605 | .615 | up |
+| R26 | .685 | .695 | up |
+| R27 | .62 | .645 | up |
+| R28 | .695 | .745 | up |
+
+**R15 Carmilla's reading:** 68.8 at 200 seeds (67.5 at 20 on this commit, 67.6 at 1.9). Her mean rose, but her .655 floor sat above her own candidate since 1.9 (61.0) and was kept only by the ratchet, so the reset brings it to .62.
+
+**The R14/R15 order check fails at 25.** `rung 15 must clear rung 14` (`winrate.test.ts:271`): R14 Artoria gains 6 points (67.2 -> 73.2) and Carmilla 1.2, so R14 tops R15 by 4.4 points at 200 seeds and by 4.5 at CI's 40 (76.0 against 71.5). At 20 the margin was 0.4. This is an ordering assertion, not a floor, so the reset does not cover it; options are with the owner. Every other order check holds: R16 >= R14 - .05 (77.0 against 68.2), R17 > R16, R18 > R17, R20 >= R19, and R28 still tops R26 and R27.
+
+**`RUNG_BANDS` 1-14** (harness bands; the same rule, downs allowed, the 1-6 ceilings kept): R4 .315 -> .275 down, R5 .37 -> .34 down, R6 .355 -> .395, R7 .705 -> .695 down, R8 .565 -> .635, R9 .625 -> .61 down, R10 .655 -> .73, R11 .58 -> .645, R12 .565 -> .595, R13 .475 -> .50, R14 .565 -> .665. 15-28 follow the gate floors.
