@@ -2,7 +2,7 @@
 
 # Story Mode endless (2.0)
 
-**Status: owner rulings E1 to E7 given 2026-10-16; the headless half (wave 1) and the screens and achievements (wave 3) are built; tuning waits on the P8 floor reset.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
+**Status: owner rulings E1 to E7 given 2026-10-16; the headless half (wave 1) and the screens and achievements (wave 3) are built; measured again after the P8 floor reset, and tuning waits on real runs.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
 
 ## Rulings
 
@@ -51,6 +51,21 @@ Headless, MediumAI heroine against each opponent's (capped) brain, seeds 1 to 10
 
 Reading: the headless pilot reaches loop 1's claimant about half the time and beats her about three times in four; with about five duels a loop and one loss ending the run, few headless runs pass loop 2. The proposed target in the planning file (about half of runs from an Act 1 clear reaching loop 3) is out of reach for the headless pilot without making early loops much easier: holding Hard back to loop 4 moved the mean by about 0.1 loop. A human plays far better than MediumAI, so final tuning waits on the P8 floor reset and is better judged against real play; the numbers above are a baseline, not a target.
 
+## Measurement at 25 life, 2026-10-16
+
+The same matrix after the P8 reset (#694, starting life 25 for both seats), seeds 1 to 100 per heroine.
+
+| Start | Heroine | Reached endless | Median loops | Mean loops (at 20) | Loop 3+ |
+| --- | --- | --- | --- | --- | --- |
+| act1 | Guan Yu | 47 | 0 | 0.38 (0.58) | 0 |
+| act1 | Persephone | 50 | 1 | 0.82 (0.74) | 2 (4.0%) |
+| act1 | Yutu | 52 | 1 | 0.94 (0.78) | 4 (7.7%) |
+| menu | Guan Yu | 100 | 0 | 0.48 (0.52) | 0 |
+| menu | Persephone | 100 | 1 | 0.88 (0.85) | 7 (7.0%) |
+| menu | Yutu | 100 | 1 | 1.12 (1.12) | 11 (11.0%) |
+
+Reading: the reset barely moves endless, because both seats gain the same life. No headless run reaches loop 6. Guan Yu is the outlier: loop 1's claimant beats her about 4 times in 10 (59% and 65% wins from Act 1 and the menu), against 80% to 92% for the other two. Tuning still waits on real runs, per the owner's ruling.
+
 ## Screens (built)
 
 - **Going on.** The Act 1 cleared summary (after the keep) offers Finish run or Continue to endless (`enterEndless`). The approved `endless-intro` scene plays the first time any run reaches endless (`endlessIntroSceneDue`), whether from Act 1 or the menu.
@@ -61,5 +76,5 @@ Reading: the headless pilot reaches loop 1's claimant about half the time and be
 
 ## Not built yet
 
-- **Tuning** at the new starting life, after the P8 reset (owner ruling 2026-10-16: wait for the reset, then judge against real runs and play stats).
+- **Tuning** against real runs and play stats (owner ruling 2026-10-16). The reset is in and measured above; the headless numbers did not move enough to tune from on their own.
 - Claimant medallions on endless maps use the crown icon: only Act 1's boss has a dialogue portrait.
