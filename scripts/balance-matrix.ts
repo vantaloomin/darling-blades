@@ -50,6 +50,13 @@
  *                        kind, boss win rate, mean turns, deck-outs vs life
  *                        losses and impossible seeds. Not a gate.
  *   --character <id>     With --story: one story character only.
+ *   --endless <start>    With --story: endless runs instead (start act1: play
+ *                        Act 1 first, only clears reach endless; start menu:
+ *                        loop 1 with the menu head start), reporting loops
+ *                        cleared and W-L per loop (src/meta/story/
+ *                        endlessMatrix.ts). Not a gate.
+ *   --max-loops <n>      With --endless: stop a run after n cleared loops
+ *                        (default 15).
  *   --seeds <n>          Games per cell (default 20).
  *   --telemetry          Collect read-only per-game Warchest diagnostic data.
  *   --telemetry-out <p>  Also write full per-deck/per-cell telemetry JSON.
@@ -115,6 +122,14 @@ import { MechanicUsageCollector, type UsageBossInfo } from './mechanicUsageColle
 import { STORY_CHARACTERS } from '../src/data/story/characters';
 import { ACT1 } from '../src/data/story/act1';
 import { foldStoryMatrix, playStoryMatrixRun, renderStoryMatrix, type StoryMatrixRun } from '../src/meta/story/storyMatrix';
+import {
+  ENDLESS_MATRIX_MAX_LOOPS,
+  foldEndlessMatrix,
+  playEndlessMatrixRun,
+  renderEndlessMatrix,
+  type EndlessMatrixRun,
+  type EndlessStart,
+} from '../src/meta/story/endlessMatrix';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -1972,6 +1987,17 @@ function runStoryMatrix(seeds: number, characterIds: readonly string[]): { table
   return { table: renderStoryMatrix(foldStoryMatrix(runs, ACT1.mapTemplate.floors.length), seeds) };
 }
 
+/** --story --endless: seeded headless endless runs per character (src/meta/story/endlessMatrix.ts). */
+function runEndlessMatrix(seeds: number, characterIds: readonly string[], start: EndlessStart, maxLoops: number): { table: string } {
+  const runs: EndlessMatrixRun[] = [];
+  for (const characterId of characterIds) {
+    const started = Date.now();
+    for (let seed = 1; seed <= seeds; seed++) runs.push(playEndlessMatrixRun(characterId, seed, start, maxLoops, CARD_DB));
+    process.stderr.write(`  endless ${characterId}: ${seeds} runs in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  }
+  return { table: renderEndlessMatrix(foldEndlessMatrix(runs), seeds, start, maxLoops) };
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   const flag = (name: string): boolean => argv.includes(`--${name}`);
@@ -2135,7 +2161,24 @@ function main(): void {
       process.exitCode = 1;
       return;
     }
-    reports.push(runStoryMatrix(seeds, characterId === undefined ? ids : [characterId]));
+    const chosen = characterId === undefined ? ids : [characterId];
+    if (flag('endless')) {
+      const start = opt('endless');
+      if (start !== 'act1' && start !== 'menu') {
+        console.error(`--endless must be act1 | menu (got ${start})`);
+        process.exitCode = 1;
+        return;
+      }
+      const maxLoops = Number(opt('max-loops') ?? ENDLESS_MATRIX_MAX_LOOPS);
+      if (!Number.isInteger(maxLoops) || maxLoops <= 0) {
+        console.error(`--max-loops must be a positive integer (got ${opt('max-loops')})`);
+        process.exitCode = 1;
+        return;
+      }
+      reports.push(runEndlessMatrix(seeds, chosen, start, maxLoops));
+    } else {
+      reports.push(runStoryMatrix(seeds, chosen));
+    }
   }
 
   for (const r of reports) {

@@ -81,6 +81,8 @@ export interface StoryAct {
   /** Stronger opponents for elites (Story-only ones in src/data/story/opponents.ts, or Tower avatars). */
   eliteAvatarIds: readonly string[];
   bossAvatarId: string;
+  /** When set, the boss is picked from these by the boss node's seed (endless claimants); else `bossAvatarId`. */
+  bossAvatarIds?: readonly string[];
   economy: StoryActEconomy;
 }
 

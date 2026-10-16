@@ -44,7 +44,10 @@ import { RULES, type GameFormat, type ReserveFormat } from '../config/rules';
 // a log recorded against other cards, so v17 still maps to rules revision 4.
 // Story Mode duels (2.0) record `context.mode: 'story'` with `context.story`
 // inside v17: the context is metadata the replayer never reads, so it needs no
-// bump of its own.
+// bump of its own. Story Mode's endless claimants (2.0, still inside v17,
+// which has not shipped) may start with extra life (`lifeBonus`) or holding
+// the Mandate (`mandateHolder`); both are game setup the replayer passes back
+// to `new Game`, and a log without them is an ordinary game.
 export const REPLAY_LOG_VERSION = 17 as const;
 /** Every log before v17 was recorded at this starting life. */
 const LEGACY_REPLAY_STARTING_LIFE = 20;
@@ -88,6 +91,10 @@ export interface ReplayLog {
   startingHandSize?: number;
   /** Each player's starting life. Always recorded from v17; absent means 20. */
   startingLife?: number;
+  /** Extra starting life per seat (Story endless claimants); absent means none. */
+  lifeBonus?: [number, number];
+  /** The seat that began holding the Mandate (Story endless claimants); absent means unclaimed. */
+  mandateHolder?: PlayerId;
   /** Present only for reserve-format logs. Classic logs retain their old shape. */
   format?: ReserveFormat;
   /** Ordered reserve payload reconstructed before replaying reserve choices. */
@@ -128,6 +135,8 @@ export function startReplayDraft(init: {
   startingHandSize?: number;
   /** Defaults to the current `RULES.startingLife`, the total `new Game` uses. */
   startingLife?: number;
+  lifeBonus?: [number, number];
+  mandateHolder?: PlayerId;
   context: ReplayContext;
   format?: GameFormat;
   landReserves?: [string[], string[]];
@@ -143,6 +152,10 @@ export function startReplayDraft(init: {
     actions: [],
   };
   if (init.startingHandSize !== undefined) draft.startingHandSize = init.startingHandSize;
+  if (init.lifeBonus !== undefined && (init.lifeBonus[0] !== 0 || init.lifeBonus[1] !== 0)) {
+    draft.lifeBonus = [init.lifeBonus[0], init.lifeBonus[1]];
+  }
+  if (init.mandateHolder !== undefined) draft.mandateHolder = init.mandateHolder;
   if (init.format === 'warchest') {
     if (!init.landReserves) throw new Error('Reserve replay drafts require landReserves.');
     draft.format = 'warchest';
@@ -239,6 +252,8 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
       : log.v >= 11 ? 4 : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
     startingLife: replayStartingLife(log),
+    ...(log.lifeBonus === undefined ? {} : { lifeBonus: [log.lifeBonus[0], log.lifeBonus[1]] as [number, number] }),
+    ...(log.mandateHolder === undefined ? {} : { startingMandateHolder: log.mandateHolder }),
     ...(format === 'warchest'
       ? {
           format,
@@ -277,6 +292,11 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
   const startingLifeShape = log.startingLife === undefined ||
     (Number.isSafeInteger(log.startingLife) && log.startingLife > 0);
+  const lifeBonusShape = log.lifeBonus === undefined || (
+    Array.isArray(log.lifeBonus) && log.lifeBonus.length === 2 &&
+    log.lifeBonus.every((n) => Number.isSafeInteger(n) && n >= 0)
+  );
+  const mandateHolderShape = log.mandateHolder === undefined || log.mandateHolder === 0 || log.mandateHolder === 1;
   // v5 added the Darlings command-zone payload. Keep old blobs structurally
   // valid for save preservation and revision-specific replay.
   const currentPayloadShape = rawFormat === undefined
@@ -300,6 +320,8 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     typeof log.seed === 'number' &&
     startingHandSizeShape &&
     startingLifeShape &&
+    lifeBonusShape &&
+    mandateHolderShape &&
     Array.isArray(log.decks) &&
     log.decks.length === 2 &&
     log.decks.every((d) => Array.isArray(d) && d.every((id) => typeof id === 'string')) &&

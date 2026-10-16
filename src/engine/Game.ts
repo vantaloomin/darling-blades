@@ -92,6 +92,19 @@ export interface GameConfig {
   startingHandSize?: number;
   /** Each player's starting life. Defaults to `RULES.startingLife`; replays pass their recorded total. */
   startingLife?: number;
+  /**
+   * Extra life per seat on top of `startingLife` (Story Mode's endless
+   * claimants, plan-story-mode.md E2). Game setup, not a rule: absent means
+   * [0, 0]. Each entry is a whole number of 0 or more.
+   */
+  lifeBonus?: [number, number];
+  /**
+   * The seat that begins the game holding the Mandate (Story Mode's endless
+   * claimants from loop 7). Absent: the Mandate begins unclaimed, as in every
+   * other game. Setting it emits nothing and fires no claim abilities: the
+   * holder starts with it, they never claimed it.
+   */
+  startingMandateHolder?: PlayerId;
   /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
@@ -244,6 +257,13 @@ export class Game {
     if (!Number.isSafeInteger(this.startingLife) || this.startingLife <= 0) {
       throw new Error('startingLife must be a positive integer.');
     }
+    const lifeBonus = cfg.lifeBonus ?? [0, 0];
+    if (lifeBonus.length !== 2 || !lifeBonus.every((n) => Number.isSafeInteger(n) && n >= 0)) {
+      throw new Error('lifeBonus must be two whole numbers of 0 or more.');
+    }
+    if (cfg.startingMandateHolder !== undefined && cfg.startingMandateHolder !== 0 && cfg.startingMandateHolder !== 1) {
+      throw new Error('startingMandateHolder must be 0 or 1.');
+    }
     this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
     const rulesRev = cfg.rulesRev ?? CURRENT_RULES_REV;
@@ -295,7 +315,9 @@ export class Game {
       nextSid: 1,
       winner: null,
       winReason: null,
+      ...(cfg.startingMandateHolder === undefined ? {} : { mandateHolder: cfg.startingMandateHolder }),
     };
+    for (const p of [0, 1] as const) this.st.players[p].life += lifeBonus[p];
 
     const emit: Emit = (e) => {
       this.initialEvents.push(e);

@@ -11,6 +11,7 @@
 
 import { CARD_DB } from '../../data/catalog';
 import { BOON_OFFER_COUNT, STORY_ACTS, STORY_BOONS } from '../../data/story/act1';
+import { endlessLoopAct } from '../../data/story/endless';
 import { FIRST_STORY_CHARACTER_ID, STORY_CHARACTERS } from '../../data/story/characters';
 import type { StoryAct, StoryBoonId } from '../../data/story/types';
 import { createRngState, rngShuffle } from '../../engine/rng';
@@ -94,11 +95,23 @@ export function storyActByNumber(act: number): StoryAct | undefined {
   return STORY_ACTS.find((entry) => entry.act === act);
 }
 
-/** The run's map for its current act (regenerated, never saved). */
-export function runMap(run: Pick<StoryRun, 'seed' | 'act'>): StoryMap {
+/** The part of a run the map, duels, shops and rests read from (no phase: an act). */
+export type StoryRunStage = Pick<StoryRun, 'seed' | 'act'> & Partial<Pick<StoryRun, 'phase' | 'endlessLoop'>>;
+
+/**
+ * The act a run is playing: its act, or in endless its current loop dressed as
+ * an act (src/data/story/endless.ts). Throws for an act that does not exist.
+ */
+export function runStageAct(run: Omit<StoryRunStage, 'seed'>): StoryAct {
+  if (run.phase === 'endless') return endlessLoopAct(run.endlessLoop ?? 0);
   const act = storyActByNumber(run.act);
   if (!act) throw new Error(`No story act ${run.act}`);
-  return generateStoryMap(act, run.seed);
+  return act;
+}
+
+/** The run's map for its current act or endless loop (regenerated, never saved). */
+export function runMap(run: StoryRunStage): StoryMap {
+  return generateStoryMap(runStageAct(run), run.seed);
 }
 
 const BOON_SALT = 0x5300;
@@ -206,9 +219,11 @@ export function normalizeStoryRun(raw: unknown, unlockedCharacterIds: readonly s
   if (!isCount(r.seed) || r.seed === 0 || clampSeed(r.seed) !== r.seed) return null;
   if (r.dailyDateKey !== null && (typeof r.dailyDateKey !== 'string' || r.dailyDateKey.length === 0)) return null;
   if (typeof r.characterId !== 'string' || !unlockedCharacterIds.includes(r.characterId)) return null;
-  if (r.phase !== 'act') return null; // endless runs arrive with the endless wave
+  if (r.phase !== 'act' && r.phase !== 'endless') return null;
+  const phase: StoryRunPhase = r.phase;
   if (!isCount(r.act) || !storyActByNumber(r.act)) return null;
-  if (!isCount(r.endlessLoop) || r.endlessLoop !== 0) return null;
+  if (!isCount(r.endlessLoop) || (phase === 'act' ? r.endlessLoop !== 0 : r.endlessLoop < 1)) return null;
+  if (r.dailyDateKey !== null && phase !== 'endless') return null; // the daily seed is an endless run
   if (!isCount(r.gold) || !isCount(r.fightsPlayed) || typeof r.counted !== 'boolean') return null;
   if (typeof r.nodeResolved !== 'boolean') return null;
   if (!Array.isArray(r.deck) || !r.deck.every((id) => typeof id === 'string' && isStoryDeckCard(CARD_DB, id))) return null;
@@ -222,19 +237,21 @@ export function normalizeStoryRun(raw: unknown, unlockedCharacterIds: readonly s
   }
   if (!Array.isArray(r.visitedNodeIds) || !r.visitedNodeIds.every((id) => typeof id === 'string')) return null;
   const visited = r.visitedNodeIds as string[];
-  const map = runMap({ seed: r.seed, act: r.act });
+  const map = runMap({ seed: r.seed, act: r.act, phase, endlessLoop: r.endlessLoop });
   if (!isLegalPath(map, visited)) return null;
   const nodeId = visited.length > 0 ? visited[visited.length - 1] : null;
   if (r.nodeId !== nodeId) return null;
   if (nodeId !== null && r.boonId === null) return null; // the boon comes before the first node
   if (nodeId === null && r.nodeResolved !== false) return null;
 
-  // Fights recorded can never exceed the duel nodes entered, and the count flag
-  // must agree with R9's threshold (counted exactly when three fights were reached).
+  // Fights recorded agree with the duel nodes entered: exactly, inside Act 1;
+  // in endless at least this loop's, since earlier loops' paths are not kept.
+  // The count flag must agree with R9's threshold (counted exactly when three
+  // fights were reached).
   const duelNodes = visited.filter((id) => isDuelNode(storyNodeById(map, id)!)).length;
   const current = nodeId ? storyNodeById(map, nodeId)! : null;
   const resolvedDuels = duelNodes - (current && isDuelNode(current) && !r.nodeResolved ? 1 : 0);
-  if (r.fightsPlayed !== resolvedDuels) return null;
+  if (phase === 'act' ? r.fightsPlayed !== resolvedDuels : r.fightsPlayed < resolvedDuels) return null;
   if (r.counted !== (r.fightsPlayed >= RUN_COUNT_FIGHTS)) return null;
 
   return {
@@ -243,9 +260,9 @@ export function normalizeStoryRun(raw: unknown, unlockedCharacterIds: readonly s
     dailyDateKey: r.dailyDateKey as string | null,
     characterId: r.characterId,
     boonId: r.boonId as StoryBoonId | null,
-    phase: 'act',
+    phase,
     act: r.act,
-    endlessLoop: 0,
+    endlessLoop: r.endlessLoop,
     nodeId,
     visitedNodeIds: [...visited],
     nodeResolved: r.nodeResolved,

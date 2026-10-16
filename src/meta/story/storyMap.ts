@@ -127,8 +127,14 @@ function connectFloors(rng: RngState, from: StoryNode[], to: StoryNode[]): void 
 }
 
 function avatarFor(act: StoryAct, node: StoryNode): string | null {
-  if (node.kind === 'boss') return act.bossAvatarId;
-  const pool = node.kind === 'fight' ? act.fightAvatarIds : node.kind === 'elite' ? act.eliteAvatarIds : null;
+  if (node.kind === 'boss' && !act.bossAvatarIds?.length) return act.bossAvatarId;
+  const pool = node.kind === 'fight'
+    ? act.fightAvatarIds
+    : node.kind === 'elite'
+      ? act.eliteAvatarIds
+      : node.kind === 'boss'
+        ? act.bossAvatarIds!
+        : null;
   if (!pool || pool.length === 0) return null;
   return pool[rngInt(createRngState(node.seed), pool.length)];
 }

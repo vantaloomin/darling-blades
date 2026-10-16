@@ -14,6 +14,7 @@ import {
   abandonRun,
   currentStoryNode,
   isAct1Cleared,
+  isEndlessLoopCleared,
   keepRewardKey,
   type StoryResult,
 } from './StoryProgress';
@@ -21,8 +22,9 @@ import { storyBoonOffers, type StoryRun, type StoryState } from './storyState';
 
 /**
  * The one screen a run is at, in priority order: no run, the opening boon,
- * waiting card rewards (oldest first), the act-clear keep and its summary, an
- * entered node whose encounter is not over, then the map.
+ * waiting card rewards (oldest first), the act-clear keep and its summary
+ * (where the run can go on into endless), a beaten endless claimant (go on to
+ * the next loop), an entered node whose encounter is not over, then the map.
  */
 export type StoryScreen =
   | { kind: 'select' }
@@ -30,6 +32,7 @@ export type StoryScreen =
   | { kind: 'reward'; run: StoryRun; options: string[]; waiting: number }
   | { kind: 'keep'; run: StoryRun }
   | { kind: 'cleared'; run: StoryRun }
+  | { kind: 'loopCleared'; run: StoryRun; loop: number }
   | { kind: 'duel'; run: StoryRun; node: StoryNode }
   | { kind: 'event'; run: StoryRun; node: StoryNode }
   | { kind: 'shop'; run: StoryRun; node: StoryNode }
@@ -45,6 +48,7 @@ export function storyScreen(story: StoryState): StoryScreen {
   if (isAct1Cleared(run)) {
     return story.claimedRewardKeys.includes(keepRewardKey(run.runId, run.act)) ? { kind: 'cleared', run } : { kind: 'keep', run };
   }
+  if (isEndlessLoopCleared(run)) return { kind: 'loopCleared', run, loop: run.endlessLoop };
   const node = currentStoryNode(run);
   if (node && !run.nodeResolved) {
     if (isDuelNode(node)) return { kind: 'duel', run, node };
@@ -54,9 +58,9 @@ export function storyScreen(story: StoryState): StoryScreen {
 }
 
 /**
- * End a run whose act is cleared, once its keep is claimed. Endless is not
- * built yet, so a cleared Act 1 ends the run here (through `abandonRun`, the
- * meta's "leave by choice" path, which never counts a run twice). Refused,
+ * End a run whose act is cleared, once its keep is claimed, instead of going
+ * on into endless (`enterEndless`). It ends through `abandonRun`, the meta's
+ * "leave by choice" path, which never counts a run twice. Refused,
  * changing nothing, before the clear or while the keep is unclaimed, so the
  * keep can never be skipped by leaving.
  */
