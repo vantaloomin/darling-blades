@@ -56,6 +56,7 @@ import {
   pushReplay,
   recordReplayAction,
   replayDbStamp,
+  replayPlayDrawChoice,
   replayStartingLife,
   startReplayDraft,
   undoReplayAction,
@@ -1293,7 +1294,9 @@ export class DuelScene extends Phaser.Scene {
         : {}),
       // The fixed tutorial scripts its opening and auto-keeps both hands.
       // Every normal duel path, including Limited and gauntlet, opts in.
-      playDrawChoice: !this.tutorial,
+      // A replay opens the way its game did (the duel screen's logs start
+      // with the choice; the headless runners' logs do not).
+      playDrawChoice: this.replayLog ? replayPlayDrawChoice(this.replayLog) : !this.tutorial,
       ...(this.tutorial ? { rulesRev: 1 as const } : {}),
     });
     // Anonymous duel digest (src/net/signals.ts): the launched human list, kept
