@@ -69,6 +69,7 @@ function recordBotGame(
   replayVersion: number = REPLAY_LOG_VERSION,
   startingHandSize?: number,
   startingLife?: number,
+  playDrawChoice = false,
 ): {
   log: ReplayLog;
   finalState: string;
@@ -83,6 +84,7 @@ function recordBotGame(
     rulesRev,
     ...(startingHandSize === undefined ? {} : { startingHandSize }),
     ...(startingLife === undefined ? {} : { startingLife }),
+    playDrawChoice,
   });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
   const draft = startReplayDraft({
@@ -123,6 +125,14 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       expect(JSON.stringify(game.state)).toBe(finalState);
       expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
     }
+  });
+
+  it('golden replay: a game opened by the play/draw choice, as every duel-screen game is', () => {
+    const { log, finalState, events } = recordBotGame(5, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, undefined, true);
+    expect(log.actions[0].a.type).toBe('choosePlayDraw');
+    const { game, eventLog } = replayGame(log, TEST_DB);
+    expect(JSON.stringify(game.state)).toBe(finalState);
+    expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
   });
 
   it('goldens a chooseTarget arrival decision through replayGame', () => {

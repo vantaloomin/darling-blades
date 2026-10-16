@@ -304,6 +304,20 @@ const DB: CardDb = {
       ops: [{ op: 'moveMark' }],
     }],
   }),
+  moveTwice: card('moveTwice', ['charm'], {
+    cost: ZERO,
+    abilities: [{
+      when: 'spell',
+      targets: [{ what: 'yourCreature' }, { what: 'yourCreature' }],
+      ops: [{ op: 'moveMark' }, { op: 'moveMark' }],
+    }],
+  }),
+  markedForesee: card('markedForesee', ['creature'], {
+    cost: ZERO,
+    attack: 2,
+    defense: 8,
+    abilities: [{ when: 'yourCreatureMarked', ops: [{ op: 'foresee', n: 1 }] }],
+  }),
   moveAny: card('moveAny', ['charm'], {
     cost: ZERO,
     abilities: [{
@@ -1080,6 +1094,19 @@ describe('Starborne mark operations and deferred ownership', () => {
     expect(game.state.battlefield.find((p) => p.iid === 1)?.plusOneCounters).toBe(0);
     expect(game.state.battlefield.find((p) => p.iid === 2)?.plusOneCounters).toBe(1);
     expect(events.some((event) => event.e === 'triggerFired' && event.when === 'gainsMark')).toBe(true);
+  });
+
+  it('finishes a two-mark move when the first mark sets off a Foresee (Deepfield Array with Static Reef)', () => {
+    const game = gameWithHand(['moveTwice'], [
+      permanent(1, 'markedCarrier', 0, 2),
+      permanent(2, 'markedCarrier'),
+      permanent(3, 'markedForesee'),
+    ], [['bear', 'bear', 'bear'], []]);
+    cast(game, 0, [ref(1), ref(2)]);
+    for (let i = 0; i < 4 && game.awaiting.kind === 'foresee'; i++) game.submit(0, { type: 'foresee', bottomIndices: [] });
+    expect(game.awaiting.kind).not.toBe('foresee');
+    expect(game.state.battlefield.find((p) => p.iid === 1)?.plusOneCounters).toBe(0);
+    expect(game.state.battlefield.find((p) => p.iid === 2)?.plusOneCounters).toBe(2);
   });
 
   it('enumerates moveMark only with caster-controlled targets', () => {
