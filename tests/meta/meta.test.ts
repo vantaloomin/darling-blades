@@ -602,6 +602,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       statsNoticeVersion: 0,
       textScale: 1, // v36 default
       highContrast: false, // v36 default
+      soundStyle: 'classic', // v38 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -694,6 +695,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       statsNoticeVersion: 0,
       textScale: 1, // v36 default
       highContrast: false, // v36 default
+      soundStyle: 'classic', // v38 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);
