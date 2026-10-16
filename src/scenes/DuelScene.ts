@@ -10,6 +10,7 @@ import { buildAI } from '../ai/personality';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
+import { deckCodeOpponent, deckCodeSeatIssue, type DeckCodeLevel, type DeckCodeOpponent } from '../meta/deckCodeDuel';
 import { TUTORIAL_OPPONENT_NAME, TUTORIAL_OPPONENT_PORTRAIT, tutorialCue, type TutorialCueInput, type TutorialCueKind } from '../data/tutorial';
 import { avatarById, avatarForRung, AVATARS, type Avatar } from '../data/opponents';
 import { storyAvatarById } from '../data/story/opponents';
@@ -261,6 +262,10 @@ import { showZoneContents, type ZoneContentsAction, type ZoneContentsEntry, type
 
 const HUMAN: PlayerId = 0;
 const AI: PlayerId = 1;
+/** Every card id this build reads, for decoding a Duel Deck Codes launch. */
+const DUEL_CARD_IDS: readonly string[] = Object.keys(CARD_DB);
+/** The AI seat's name in a Duel Deck Codes duel: the code carries no deck name. */
+const DECK_CODE_OPPONENT_NAME = 'Shared Deck';
 
 /** Duel launch contract — see `DuelScene.create` / `DuelScene.build`. */
 export interface DuelSceneData {
@@ -287,6 +292,8 @@ export interface DuelSceneData {
   limited?: LimitedDuelData['limited'];
   /** Story Mode (docs/plan-story-mode.md): the duel at this node of the active run, resolved through `storyDuelSetup`. */
   story?: { runId: string; nodeId: string };
+  /** Duel Deck Codes: the AI pilots the pasted code's deck at this level, against the active deck. */
+  deckCode?: { code: string; level: DeckCodeLevel };
   replay?: ReplayLog;
   /** Dev-only, with `replay`: trailer footage, no replay chrome (src/dev/showcase.ts). */
   showcase?: { speed: number; deckName: string };
@@ -699,6 +706,8 @@ export class DuelScene extends Phaser.Scene {
    */
   private story: StoryDuelRef | null = null;
   private storySetup: StoryDuelSetup | null = null;
+  /** A Duel Deck Codes duel: the code (for the way back) and the deck it fields for the AI. */
+  private codeDuel: { code: string; deck: DeckCodeOpponent } | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -831,6 +840,13 @@ export class DuelScene extends Phaser.Scene {
    */
   private duelArtFor(data: DuelSceneData): string[] {
     const save = Services.save.data;
+    const code = data.deckCode && !data.replay ? deckCodeOpponent(data.deckCode.code, CARD_DB, DUEL_CARD_IDS) : null;
+    if (code?.ok) {
+      const ids = duelArtIds({ ...data, oppDeckOverride: code.deck.cards }, save, FEATURES.reserveFormats);
+      ids.push(...code.deck.landReserve);
+      if (code.deck.darlingId) ids.push(code.deck.darlingId);
+      return ids;
+    }
     const resolved = data.story && !data.replay ? storyDuelSetupFor(save.story, CARD_DB, data.story) : null;
     if (!resolved?.ok) return duelArtIds(data, save, FEATURES.reserveFormats);
     const { config, avatarId } = resolved.setup;
@@ -862,6 +878,23 @@ export class DuelScene extends Phaser.Scene {
     }
     this.story = { runId: data.story.runId, nodeId: data.story.nodeId };
     this.storySetup = resolved.setup;
+    return true;
+  }
+
+  /**
+   * Resolve a Duel Deck Codes launch before anything is built. A code that no
+   * longer reads (a restart after the card list changed cannot happen, but a
+   * hand-made launch can) goes back to the code screen with the reason.
+   */
+  private resolveCodeLaunch(data: DuelSceneData): boolean {
+    this.codeDuel = null;
+    if (!data.deckCode || data.replay) return true;
+    const resolved = deckCodeOpponent(data.deckCode.code, CARD_DB, DUEL_CARD_IDS);
+    if (!resolved.ok) {
+      this.scene.start('DeckCode', { code: data.deckCode.code, notice: resolved.message });
+      return false;
+    }
+    this.codeDuel = { code: data.deckCode.code, deck: resolved.deck };
     return true;
   }
 
@@ -901,6 +934,8 @@ export class DuelScene extends Phaser.Scene {
     this.replayMode = this.replayLog !== null;
     if (!this.resolveStoryLaunch(data)) return;
     const story = this.storySetup;
+    if (!this.resolveCodeLaunch(data)) return;
+    const codeDuel = this.codeDuel;
     // storyDuelSetup builds plain card-id lists (GameConfig types them wider).
     const storyDecks = story ? [story.config.decks[0] as string[], story.config.decks[1] as string[]] : null;
     this.showcase = import.meta.env.DEV && this.replayMode && data.showcase ? data.showcase : null;
@@ -928,7 +963,7 @@ export class DuelScene extends Phaser.Scene {
     this.gauntletRosterOrder = null;
     this.difficulty = resolveDuelDifficulty(
       data.replay?.context.difficulty,
-      story ? story.difficulty : data.difficulty,
+      story ? story.difficulty : codeDuel ? 'hard' : data.difficulty,
       this.opponent?.difficulty,
       this.gauntletRung,
     );
@@ -1145,7 +1180,7 @@ export class DuelScene extends Phaser.Scene {
     // mirror survives only when no avatar is selected (dev overrides);
     // replays keep their recorded seats.
     const aiReserveSide =
-      reserveFormat && !this.replayMode && !data.oppDeckOverride && !story
+      reserveFormat && !this.replayMode && !data.oppDeckOverride && !story && !codeDuel
         ? avatarReserveSide(
             this.opponent ?? null,
             reserveFormat,
@@ -1157,6 +1192,7 @@ export class DuelScene extends Phaser.Scene {
     const aiDeck =
       data.replay?.decks[1].slice() ??
       storyDecks?.[1].slice() ??
+      codeDuel?.deck.cards.slice() ??
       data.oppDeckOverride ??
       (aiReserveSide
         ? aiReserveSide.deck
@@ -1183,7 +1219,7 @@ export class DuelScene extends Phaser.Scene {
               ? data.landReserveOverride?.[1]?.slice() ?? buildAiLandReserve(aiDeck, CARD_DB)
               : tutorialReserveFormat
                 ? data.landReserveOverride![1].slice()
-                : aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
+                : codeDuel?.deck.landReserve.slice() ?? aiReserveSide?.reserve ?? buildAiLandReserve(aiDeck, CARD_DB),
         ]
       : undefined;
     const darlings: [string | null, string | null] | undefined = storyReserveFormat && story?.config.darlings
@@ -1191,18 +1227,22 @@ export class DuelScene extends Phaser.Scene {
       : reserveFormat === 'darlings'
       ? this.replayMode
         ? [this.replayDarlingAt(data.replay?.darlings, 0), this.replayDarlingAt(data.replay?.darlings, 1)]
-        : [myDeckEntry?.darlingId ?? null, aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
+        : [myDeckEntry?.darlingId ?? null, codeDuel ? codeDuel.deck.darlingId : aiReserveSide?.darlingId ?? myDeckEntry?.darlingId ?? null]
       : undefined;
     // Limited and the tutorial play fixed lists, not a SavedDeck, so the
     // saved-deck legality gate does not apply to them; both reserve payloads
     // are still validated.
-    const launchIssue = reserveFormat
+    const launchIssue = (codeDuel ? deckCodeSeatIssue(codeDuel.deck, myDeckEntry ?? null) : null) ?? (reserveFormat
       ? (this.replayMode || limitedReserveFormat || tutorialReserveFormat || storyReserveFormat
           ? null
           : firstDuelLaunchIssue(CARD_DB, save, myDeckEntry ?? null)) ??
         firstReserveConfigIssue(CARD_DB, landReserves)
-      : null;
+      : null);
     if (launchIssue) {
+      if (codeDuel) {
+        this.scene.start('DeckCode', { code: codeDuel.code, notice: launchIssue });
+        return;
+      }
       if (story) {
         queueToast(storyDuelUnavailableNotice(launchIssue));
         this.scene.start('Story');
@@ -1273,6 +1313,7 @@ export class DuelScene extends Phaser.Scene {
       this.opponent?.portraitCardId ??
       this.limitedPersona?.portraitCardId ??
       (this.tutorial ? TUTORIAL_OPPONENT_PORTRAIT : null) ??
+      codeDuel?.deck.darlingId ??
       faceCardFor(aiDeck, CARD_DB);
     // Warchest deals a 5-card opener (2026-08-07 ratification); classic and
     // Darlings keep 7. Replays always defer to their recorded value, so
@@ -1341,7 +1382,8 @@ export class DuelScene extends Phaser.Scene {
     }
     // A story duel reports the run deck under its own `story` format, so its
     // savedFormat is null (there is no saved deck behind it).
-    this.signalDeck = {
+    // A code duel's opposing deck is no avatar the stats know, so it sends no digest.
+    this.signalDeck = codeDuel ? null : {
       cards: myDeck.slice(),
       landReserve: landReserves?.[0] ?? null,
       darlingId: darlings?.[0] ?? null,
@@ -1372,7 +1414,8 @@ export class DuelScene extends Phaser.Scene {
             mode: story ? 'story' : this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
             difficulty: this.difficulty,
             opponentId: this.opponent?.id ?? null,
-            opponentName: this.opponent?.name ?? this.limitedPersona?.name ?? `Practice AI (${this.difficulty})`,
+            opponentName: this.opponent?.name ?? this.limitedPersona?.name ??
+              (codeDuel ? DECK_CODE_OPPONENT_NAME : `Practice AI (${this.difficulty})`),
             gauntletRung: this.gauntletRung,
             ...(story ? { story: this.storyReplayLabels(story) } : {}),
           },
@@ -2079,7 +2122,8 @@ export class DuelScene extends Phaser.Scene {
    * unnamed practice AI, whose callers pick their own fallback.
    */
   private opponentName(): string | undefined {
-    return this.a11yFixture?.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ?? (this.tutorial ? TUTORIAL_OPPONENT_NAME : undefined);
+    return this.a11yFixture?.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ??
+      (this.tutorial ? TUTORIAL_OPPONENT_NAME : this.codeDuel ? DECK_CODE_OPPONENT_NAME : undefined);
   }
 
   private matchupLabel(): string {
@@ -2088,6 +2132,7 @@ export class DuelScene extends Phaser.Scene {
       return `${this.showcase ? '' : 'Replay · '}vs ${this.replayLog.context.opponentName}`;
     }
     if (this.story && this.opponent) return `Story · vs ${this.opponent.name}`;
+    if (this.codeDuel) return `Deck Code · ${this.difficulty[0].toUpperCase()}${this.difficulty.slice(1)} AI`;
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
     }
@@ -11779,6 +11824,14 @@ export class DuelScene extends Phaser.Scene {
       this.showLimitedResults(won, reason);
       return;
     }
+    if (this.codeDuel) {
+      // A pasted deck can be made as weak as anyone likes, so it pays no gold.
+      Services.save.flush();
+      Music.duck(1.8);
+      Sfx.play(won ? 'win' : 'loss');
+      this.showPracticeResultPanel(won, reason, 'Deck code duels pay no gold');
+      return;
+    }
     const save = Services.save.data;
     const today = todayString();
     const reward = applyMatchResult(save, this.difficulty, won, today, this.duel.state.turn);
@@ -11911,6 +11964,11 @@ export class DuelScene extends Phaser.Scene {
     rewardCopy: string,
     breakdown: { rows: RewardBreakdownRow[]; total: string } | null = null,
   ): void {
+    // A code duel goes back to its code, so a rematch at another level or with another deck is one tap away.
+    const codeDuel = this.codeDuel;
+    const back = codeDuel
+      ? { label: 'Deck Code', go: () => this.scene.start('DeckCode', { code: codeDuel.code }) }
+      : { label: 'Menu', go: () => this.scene.start('MainMenu') };
     if (this.phoneChrome) {
       this.showPhoneResults({
         won,
@@ -11919,9 +11977,9 @@ export class DuelScene extends Phaser.Scene {
         gold: breakdown ? rewardCopy : null,
         breakdown,
         note: breakdown ? null : `${rewardCopy}.`,
-        left: { label: 'Menu', onTap: () => this.scene.start('MainMenu') },
+        left: { label: back.label, onTap: back.go },
         primary: { label: 'Rematch', onTap: () => this.restartDuel() },
-        leave: () => this.scene.start('MainMenu'),
+        leave: back.go,
       });
       return;
     }
@@ -11934,7 +11992,7 @@ export class DuelScene extends Phaser.Scene {
       onClose: () => {
         this.guard.close();
         this.zoom.setSuppressed(false);
-        this.scene.start('MainMenu');
+        back.go();
       },
     });
     const c = shell.container;
@@ -11992,7 +12050,7 @@ export class DuelScene extends Phaser.Scene {
       c.add(btn.container);
     };
     mk(520, 'Rematch', 'primary', () => this.restartDuel());
-    mk(760, 'Menu', 'ghost', () => this.scene.start('MainMenu'));
+    mk(760, back.label, 'ghost', back.go);
     fitDuelModal(this, shell, { width: 560, height: 330, rows: [{ y: 278 }, { y: 342, wrapWidth: 480 },
       { y: 388, wrapWidth: 500 }, { y: 456 }] });
     this.guard.open(this.overlayGuardTargets());

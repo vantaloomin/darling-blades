@@ -1,8 +1,14 @@
-<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-multiplayer.md, docs/plan-player-replays.md, docs/plan-save-cards.md, src/meta/DeckCode.ts, src/meta/Replay.ts, src/meta/SaveImage.ts, src/meta/DeckStorage.ts, src/ai/tiers.ts, src/ai/personality.ts, src/engine/view.ts, src/scenes/DuelScene.ts, src/scenes/PracticePickerScene.ts, src/meta/Economy.ts · last-verified: 2026-09-29 · proposal: post-2.0, not scheduled, nothing built -->
+<!-- source-of-truth: docs/plan-road-to-2.0.md, docs/plan-multiplayer.md, docs/plan-player-replays.md, docs/plan-save-cards.md, src/meta/DeckCode.ts, src/meta/Replay.ts, src/meta/SaveImage.ts, src/meta/DeckStorage.ts, src/ai/tiers.ts, src/ai/personality.ts, src/engine/view.ts, src/scenes/DuelScene.ts, src/scenes/PracticePickerScene.ts, src/meta/Economy.ts, src/meta/deckCodeDuel.ts, src/scenes/DeckCodeScene.ts, src/ui/deckCodeCompact.ts · last-verified: 2026-10-16 · moved into 2.0 as Duel Deck Codes (2026-10-16); first slice built -->
 
 # Async PvP: challenge codes piloted by the Hard AI
 
-**Status: Proposal, 2026-09-29; post-2.0; nothing built.** Added to the
+**Status: moved into 2.0 as "Duel Deck Codes" (owner, 2026-10-16); first slice built.** The owner's 2026-10-16 request: "So people can share their decks, and then you can duel their deck code (or your own!) when it's controlled by AI. I want 3 difficulty settings: Hard AI is the 'Base', and then 2 harder levels."
+
+**Built (2026-10-16):** a Deck Code tile on the Play screen opens the Deck Code screen (`src/scenes/DeckCodeScene.ts`, one composition for phone and desktop, `src/ui/deckCodeCompact.ts`). It takes a plain `DBD3-` deck code (no new prefix), checks it as it is typed or pasted against its format's deck rules without ownership (`src/meta/deckCodeDuel.ts`), refuses unreleased cards and retired Constructed lists, plays a pre-1.9 40-spell list as Standard with a Warchest built from its colors, previews the deck (its Darling or face card, colors, costliest cards), and starts the duel with the AI piloting the code's deck against the player's active deck, which must be of the code's format. The duel runs at today's Hard with the neutral personality, records its replay, pays no gold (pending the owner's rewards answer) and sends no play-stats digest. The two harder levels wait on the owner's pick of an AI approach: options and the recommendation are in the project's `plans/duel-deck-codes/ai-options.md`. Not built: a display name in the code, a result line, a recent-codes list.
+
+The proposal below is the 2026-09-29 design record.
+
+**Original status: Proposal, 2026-09-29; post-2.0; nothing built.** Added to the
 roadmap at the owner's request; placement 2.1 or later, not scheduled.
 
 ## Goal

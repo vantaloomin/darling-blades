@@ -56,6 +56,8 @@ const PLAY_ITEMS: { label: string; scene: string; data?: object }[] = [
   // The three difficulty rows collapsed into the opponent picker (1.2): pick
   // any tower avatar (their difficulty applies) or a plain training duel.
   { label: 'Practice', scene: 'PracticePicker' },
+  // Duel Deck Codes (2.0): the AI pilots a pasted deck.
+  { label: 'Deck Code', scene: 'DeckCode' },
 ];
 
 /** Story Mode (2.0) leads the list while its flag is on; it plays its own run deck, so no deck check applies. */
@@ -71,6 +73,7 @@ const COMPACT_TILE_COPY: Record<string, { title: string; line: string }> = {
   Gauntlet: { title: 'Avatar Gauntlet', line: 'Climb the tower' },
   Limited: { title: 'Draft', line: 'Draft against the table' },
   PracticePicker: { title: 'Practice', line: 'Spar freely' },
+  DeckCode: { title: 'Deck Code', line: 'Duel a shared deck' },
 };
 
 /** The phone tiles' paintings (manifest scene keys); Practice shows a rival instead. */
@@ -81,6 +84,7 @@ const COMPACT_TILE_ART: Record<string, string> = {
   Gauntlet: 'scene-gauntlet',
   Limited: 'pack-art',
   PracticePicker: 'scene-duel',
+  DeckCode: 'scene-duel',
 };
 
 /** The Practice tile's rival: the tower's summit, which the picker lists first. */
