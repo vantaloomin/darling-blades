@@ -2,7 +2,7 @@
 
 # Story Mode endless (2.0)
 
-**Status: owner rulings E1 to E7 given 2026-10-16; the headless half (wave 1) and the screens and achievements (wave 3) are built; measured again after the P8 floor reset, and tuning waits on real runs.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
+**Status: owner rulings E1 to E7 given 2026-10-16; the headless half (wave 1) and the screens and achievements (wave 3) are built; measured again after the P8 floor reset and early loops eased (owner pick); further tuning waits on real runs.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
 
 ## Rulings
 
@@ -22,7 +22,7 @@ Asked as two groups in the "Story endless mode plan" project thread and answered
 
 **Loops.** `src/data/story/endless.ts`. A loop is an ordinary act to the rest of the code (`endlessLoopAct(loop)`), so maps, duels, shops and rests run unchanged: floor 1 fight; 2 fight or rest; 3 shop or fight; 4 elite or fight; 5 rest or shop; 6 the claimant. Loop N's map seed and node ids use act number 100 + N (`a101-f1-n0`), so every loop's map differs. Endless has **no event floors**: the nine Act 1 events are scenes on the road to Sima Yi's crater, which is behind the player by then, and E7 adds no writing. Gold, prices and reward sizes are Act 1's.
 
-**Opponents (E2).** `ENDLESS_ROSTER` is the Tower roster by rung without Sima Yi (Act 1's boss never comes back; check-story enforces it, by id and by portrait). Each loop draws fights, elites and claimants from three adjacent bands of 3 roster places that climb 2 places a loop, so the roster tops out at loop 10 and every later loop fields its strongest 9. The claimant is picked from her band by the boss node's seed. Before loop 2 no opponent plays above a Medium brain (`endlessBrain`); from loop 2 each plays its own Tower brain. From loop 7 the claimant starts holding the Mandate, and from loop 8 she starts with 3 more life per loop (3 at loop 8, 6 at loop 9, and so on), which never runs out.
+**Opponents (E2).** `ENDLESS_ROSTER` is the Tower roster by rung without Sima Yi (Act 1's boss never comes back; check-story enforces it, by id and by portrait). Each loop draws fights, elites and claimants from three adjacent bands of 2 roster places. The bands climb 1 place a loop through loop 3 and 2 places a loop after that, so the roster tops out at loop 13 and every later loop fields its strongest 6. Loop 1's claimant is Zhurong or Yohime; loop 10's is Bastet or the Chrome Broodmother. The claimant is picked from her band by the boss node's seed. Before loop 4 no opponent plays above a Medium brain (`endlessBrain`); from loop 4 each plays its own Tower brain. From loop 7 the claimant starts holding the Mandate, and from loop 8 she starts with 3 more life per loop (3 at loop 8, 6 at loop 9, and so on), which never runs out.
 
 **Engine options.** Two pieces of game setup, not rules, in `GameConfig`: `startingMandateHolder` (the seat that begins holding the Mandate; no event, no claim abilities) and `lifeBonus` (extra starting life per seat). The replay log records them (`mandateHolder`, `lifeBonus`) inside v17, which has not shipped, and an ordinary game records neither. The duel screen passes both through from `storyDuelSetup` and back from a replay.
 
@@ -66,6 +66,21 @@ The same matrix after the P8 reset (#694, starting life 25 for both seats), seed
 
 Reading: the reset barely moves endless, because both seats gain the same life. No headless run reaches loop 6. Guan Yu is the outlier: loop 1's claimant beats her about 4 times in 10 (59% and 65% wins from Act 1 and the menu), against 80% to 92% for the other two. Tuning still waits on real runs, per the owner's ruling.
 
+## Early loops eased, 2026-10-16
+
+The owner picked "ease early loops" after the reading above. Four setups were measured side by side (100 seeds per heroine, both starts): Hard from loop 4 alone; plus a 1-place climb; bands of 2; and bands of 2 with a 1-place climb. The last moved runs most and is built, with the climb back to 2 places a loop after loop 3 so late loops still reach the top of the roster.
+
+| Start | Heroine | Median loops | Mean loops (before) | Loop 3+ | Loop 6+ |
+| --- | --- | --- | --- | --- | --- |
+| act1 | Guan Yu | 0 | 0.72 (0.38) | 1 (2.1%) | 0 |
+| act1 | Persephone | 1 | 1.24 (0.82) | 9 (18.0%) | 0 |
+| act1 | Yutu | 2 | 1.77 (0.94) | 13 (25.0%) | 1 (1.9%) |
+| menu | Guan Yu | 0 | 0.59 (0.48) | 1 (1.0%) | 0 |
+| menu | Persephone | 1 | 1.16 (0.88) | 11 (11.0%) | 0 |
+| menu | Yutu | 1 | 1.47 (1.12) | 24 (24.0%) | 2 (2.0%) |
+
+Reading: headless runs from an Act 1 clear now clear about 1.5 to 1.9 times as many loops, and menu runs about 1.2 to 1.3 times as many, but the loop 3 target stays out of reach for it. Fights against the weakest avatars are already won about 9 times in 10, and with about 5 duels a loop and one loss ending the run, no roster or brain setting gets most headless runs to loop 3. Further easing would have to change the run's shape (fewer duels a loop, or a second chance), which the rulings don't allow. Guan Yu still lags: from an Act 1 clear she wins about 85% of loop 1's fights against 95% to 97% for the others, and beats loop 1's claimant about 7 times in 10 against 8 to 9.
+
 ## Screens (built)
 
 - **Going on.** The Act 1 cleared summary (after the keep) offers Finish run or Continue to endless (`enterEndless`). The approved `endless-intro` scene plays the first time any run reaches endless (`endlessIntroSceneDue`), whether from Act 1 or the menu.
@@ -76,5 +91,5 @@ Reading: the reset barely moves endless, because both seats gain the same life. 
 
 ## Not built yet
 
-- **Tuning** against real runs and play stats (owner ruling 2026-10-16). The reset is in and measured above; the headless numbers did not move enough to tune from on their own.
+- **Tuning** against real runs and play stats (owner ruling 2026-10-16). Early loops are eased (above); anything further waits on real runs.
 - Claimant medallions on endless maps use the crown icon: only Act 1's boss has a dialogue portrait.
