@@ -4,7 +4,7 @@
 
 > **Record, not spec.** The one owner-approved re-baseline of every test gate floor at the new starting life ([plan-2.0.md](plan-2.0.md) P8, ruled 2026-10-08; the life ruling 2026-10-08, "flip at the reset" 2026-10-09). Branch `feat/20-floor-reset-25` from `release/2.0` 9dcf528b. Rule: floor = 200-seed mean - 6.5, rounded down to the half point; every floor that drops is listed. After this PR floors only ratchet up again.
 
-**Status: review point (b), the gate measured (sections 4-5). No floor is changed yet: the R14/R15 order check fails at 25 and is with the owner (section 5).**
+**Status: review point (c), done. Every floor, ceiling and band is set (sections 5-7); R15 Carmilla was lifted over R14 (section 6). The PR opens from the cloud thread.**
 
 ## 1. The flip
 
@@ -88,13 +88,13 @@ Measured 2026-10-16 at `feat/20-floor-reset-25` 5c76ad5e (25 life, Zhurong's `bu
 
 **What 25 does.** The summit gains (13 of 14 rungs up, by 1 to 7 points); the low aggro rungs R1-R5 lose 3 to 5 points (the starters survive their rush); games run 1.5 to 2.5 turns longer. Decking stays small except where it is the plan: Hel (R9, mill-reanimator) ends 151 of 1,000 games by deck and Hera (R4) 70; the summit's grind decks deck a little more than at 20 (Deacon 57 against 40). Draws stay negligible (5 in 28,000; at 40 seeds, CI's sample, none).
 
-## 5. Candidates and the one failing check
+## 5. The gate floors (`tests/ai/winrate.test.ts`)
 
-Candidate = 200-seed mean at 25 - 6.5, rounded down to the half point. Each passes at CI's 40 seeds (the last column above).
+Floor = 200-seed mean at 25 - 6.5, rounded down to the half point. Each passes at CI's 40 seeds (the last column above). **No gate floor drops.** R15 is set from her reading after the lift in section 6; before it her candidate was .62, a drop from .655.
 
-| Rung | Standing floor | Candidate | Direction |
+| Rung | Old floor | New floor | Direction |
 | --- | --- | --- | --- |
-| **R15 Carmilla** | **.655** | **.62** | **down** |
+| R15 Carmilla (lifted, 77.7) | .655 | .71 | up |
 | R16 | .645 | .705 | up |
 | R17 | .715 | .775 | up |
 | R18 | .825 | .84 | up |
@@ -109,8 +109,48 @@ Candidate = 200-seed mean at 25 - 6.5, rounded down to the half point. Each pass
 | R27 | .62 | .645 | up |
 | R28 | .695 | .745 | up |
 
-**R15 Carmilla's reading:** 68.8 at 200 seeds (67.5 at 20 on this commit, 67.6 at 1.9). Her mean rose, but her .655 floor sat above her own candidate since 1.9 (61.0) and was kept only by the ratchet, so the reset brings it to .62.
+**R15 Carmilla's reading:** 68.8 at 200 seeds before the lift (67.5 at 20 on this commit, 67.6 at 1.9), **77.7 after it**; floor .71. Her old .655 sat above her own candidate since 1.9 (61.0) and was held only by the ratchet.
 
-**The R14/R15 order check fails at 25.** `rung 15 must clear rung 14` (`winrate.test.ts:271`): R14 Artoria gains 6 points (67.2 -> 73.2) and Carmilla 1.2, so R14 tops R15 by 4.4 points at 200 seeds and by 4.5 at CI's 40 (76.0 against 71.5). At 20 the margin was 0.4. This is an ordering assertion, not a floor, so the reset does not cover it; options are with the owner. Every other order check holds: R16 >= R14 - .05 (77.0 against 68.2), R17 > R16, R18 > R17, R20 >= R19, and R28 still tops R26 and R27.
+**Medium >= .80 vs Easy and Hard >= .70 vs Medium** are plan targets, measured and kept (section 7).
 
-**`RUNG_BANDS` 1-14** (harness bands; the same rule, downs allowed, the 1-6 ceilings kept): R4 .315 -> .275 down, R5 .37 -> .34 down, R6 .355 -> .395, R7 .705 -> .695 down, R8 .565 -> .635, R9 .625 -> .61 down, R10 .655 -> .73, R11 .58 -> .645, R12 .565 -> .595, R13 .475 -> .50, R14 .565 -> .665. 15-28 follow the gate floors.
+**Order checks at 25, after the lift:** R15 > R14 (77.7 against 73.2; 40 seeds 77.0 against 76.0), R16 >= R14 - .05, R17 > R16, R18 > R17, R20 >= R19 all hold; R28 still tops R26 and R27. R15 now reads 0.7 above R16 at 200 seeds (no check asserts that order).
+
+## 6. The R14/R15 order and the Carmilla lift
+
+At 25, `rung 15 must clear rung 14` (`winrate.test.ts`) failed: R14 Artoria gains 6 points (67.2 -> 73.2) and Carmilla 1.2, so R14 topped R15 by 4.4 at 200 seeds and by 4.5 at CI's 40 (76.0 against 71.5); at 20 the margin was 0.4. Ruling (default, 2026-10-16): lift the higher rung, never weaken the lower (the 1.9 R28-over-R27 precedent); the check stays as it is.
+
+Measured at 25 life, 200 seeds/cell, cells Muster / Communion / Tides / Mandate / Harvest:
+
+| Variant | Avg | Cells |
+| --- | --- | --- |
+| Standing list | 68.8 | 55/70/46/85/89 |
+| Three personality variants (aggression, attackThreshold, removalBias) | 68.9-69.0 | no move |
+| Eighteen card-list variants (singletons for Dragonmaid / Bog Banshee / Xuchu / Rainflash Duelist playsets, Elizabeth or Heiress swaps, a full rebuild) | 62.2-73.4 | best 59/80/50/91/89 |
+| **Basics for her four Burning Luoyang (taken)** | **77.7** | **68/80/56/93/93** |
+| One Luoyang kept | 77.0 | 66/80/56/92/93 |
+| Best lists plus basics | 81.0-83.7 | (past R16, near R17) |
+
+The tapped duals were the lever: every Luoyang enters tapped. The taken change is lands only, every card list unchanged: her classic `deck` lands become 12 Swamp + 12 Mountain, and her `landReserve` (which the converter derives from them, pinned by `tests/data/avatarReserveDecks.test.ts`) becomes 5 Swamp + 5 Mountain. CI's 40 seeds 71.5 -> 77.0; the 15-column matrix 68.6 -> 77.1, up in all 15 columns; 0 draws, 0 decked games. Artoria is untouched. It also changes her Darlings land base (not gated at R15).
+
+## 7. Darlings, the TEST_DB targets and `RUNG_BANDS`
+
+**Darlings summit** (`--avatars-darlings --seeds 200` at 25, Red Cliffs / Queen Below / Sunwell / Mirror-Blood / Sable order; 1.9 at 20 in brackets):
+
+| Rung | Reading at 25 | Draws in 1,000 | Floor | Draw ceiling |
+| --- | --- | --- | --- | --- |
+| R23 | 59.6 (49/48/98/46/57) [58.3] | 30 [18] | .515 -> .53 | 10 -> **14** (loosens) |
+| R24 | 59.7 (47/40/96/53/64) [55.4] | 0 | .485 -> .53 | 2 |
+| R25 | 61.1 (45/44/95/54/68) [57.3] | 0 | .505 -> .545 | 2 |
+| R26 | 61.8 (51/44/98/53/64) [56.8] | 0 | .50 -> .55 | 2 |
+| R27 | 87.7 (89/79/91/84/96) [84.0] | 4 [3] | .775 -> .81 | 3 -> 4 (loosens) |
+| R28 | 72.6 (64/59/99/64/78) [69.5] | 1 [0] | .63 -> .66 | 2 |
+
+Ceiling = the 200-seed draw rate scaled to 200 games plus three standard deviations, rounded up, at least 2 (1.9 Q5). Two ceilings rise with the longer games; R27 still tops R28 in Darlings.
+
+**TEST_DB targets** at 25 (the tests' own 200 seeds, kept as plan targets): Medium vs Easy 166/200 = 83.0% (target .80), Hard vs Medium 147/200 = 73.5% (target .70; 78.0 when it was set, 2026-07-02). Both pass with about 3 points to spare.
+
+**The gate run:** `npx vitest run tests/ai/winrate.test.ts` at the new floors, 10 of 10 pass (621 s locally, four workers).
+
+**`RUNG_BANDS` 1-14** (harness bands; same rule, downs allowed, the 1-6 ceilings kept): R4 .315 -> .275 down, R5 .37 -> .34 down, R6 .355 -> .395, R7 .705 -> .695 down, R8 .565 -> .635, R9 .625 -> .61 down, R10 .655 -> .73, R11 .58 -> .645, R12 .565 -> .595, R13 .475 -> .50, R14 .565 -> .665. 15-28 equal the new gate floors. `FLOOR_BANDS` (the tier dial, no CI test) were not re-measured.
+
+**Everything that comes down, for the PR:** no gate floor. Two Darlings draw ceilings loosen (R23 10 -> 14, R27 3 -> 4). Four harness bands (R4, R5, R7, R9).

@@ -468,14 +468,23 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // R5 and R8 are unchanged; the other seven go UP. Superseded 2026-09-21
   // values, for the record: R4 .22 · R6 .155 · R7 .695 · R9 .61 · R10 .69 ·
   // R11 .365 · R12 .52 · R13 .43. These are harness bands, not CI floors.
-  4: { minAvg: 0.315, maxAvg: 0.62 },
-  5: { minAvg: 0.37, maxAvg: 0.67 },
-  6: { minAvg: 0.355, maxAvg: 0.72 },
-  7: { minAvg: 0.705 },
-  8: { minAvg: 0.565 },
-  9: { minAvg: 0.625 },
-  10: { minAvg: 0.655 },
-  11: { minAvg: 0.58 },
+  // 4-14 RE-CENTRED 2026-10-16 (2.0 P8 reset at 25 life,
+  // docs/plan-2.0-floor-reset.md), `--avatars --seeds 200` at 25 life, same
+  // method, downs allowed, the 1-6 ceilings kept. Measured: R4 34.2 ·
+  // R5 40.8 · R6 46.1 · R7 76.3 · R8 70.4 · R9 67.6 · R10 79.5 · R11 71.2 ·
+  // R12 66.1 · R13 56.8 · R14 73.2. Four come DOWN, the low aggro rungs the
+  // starters now survive and Hel: R4 .315 -> .275, R5 .37 -> .34, R7 .705 ->
+  // .695, R9 .625 -> .61. The other seven go UP. Superseded 2026-10-05
+  // values: R6 .355 · R8 .565 · R10 .655 · R11 .58 · R12 .565 · R13 .475 ·
+  // R14 .565.
+  4: { minAvg: 0.275, maxAvg: 0.62 },
+  5: { minAvg: 0.34, maxAvg: 0.67 },
+  6: { minAvg: 0.395, maxAvg: 0.72 },
+  7: { minAvg: 0.695 },
+  8: { minAvg: 0.635 },
+  9: { minAvg: 0.61 },
+  10: { minAvg: 0.73 },
+  11: { minAvg: 0.645 },
   // 12-20 re-centred 2026-07-31 from the W7 combined re-baseline (200
   // seeds/cell on the post-balance-pass field): each min is the 200-seed
   // average minus a 6.5pp 40-seed noise band, rounded down to the half
@@ -513,7 +522,7 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   //     cheap removal to offset four taplands she cannot change.
   // The ladder still dips at R19 (61) and R21 (57) relative to R18/R20; that
   // shape is the accepted, documented non-monotonic summit, not a regression.
-  12: { minAvg: 0.565 },
+  12: { minAvg: 0.595 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
   // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
@@ -521,9 +530,9 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // measured 76%), so a non-monotonic summit continues the accepted pattern.
   // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
-  // (13's value is the 2026-10-05 re-centre above; 14 keeps its own.)
-  13: { minAvg: 0.475 },
-  14: { minAvg: 0.565 },
+  // (13 and 14 carry the 2026-10-16 re-centre above.)
+  13: { minAvg: 0.5 },
+  14: { minAvg: 0.665 },
   // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
   // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
@@ -541,20 +550,22 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // gate floors and not these bands, so R16-R20, R23 and R25 had fallen
   // behind; the wave-4 ratchet then raised R19 and R24, and R27-R28 got their
   // first floors. Every value below now equals its gate floor (all up).
-  15: { minAvg: 0.655 },
-  16: { minAvg: 0.645 },
-  17: { minAvg: 0.715 },
-  18: { minAvg: 0.825 },
-  19: { minAvg: 0.68 },
+  // SYNCED 2026-10-16 to the 2.0 P8 reset at 25 life (the gate's table in
+  // tests/ai/winrate.test.ts); all up or unchanged (R20).
+  15: { minAvg: 0.71 },
+  16: { minAvg: 0.705 },
+  17: { minAvg: 0.775 },
+  18: { minAvg: 0.84 },
+  19: { minAvg: 0.71 },
   20: { minAvg: 0.835 },
-  21: { minAvg: 0.585 },
-  22: { minAvg: 0.685 },
-  23: { minAvg: 0.675 },
-  24: { minAvg: 0.66 },
-  25: { minAvg: 0.605 },
-  26: { minAvg: 0.685 },
-  27: { minAvg: 0.62 },
-  28: { minAvg: 0.695 },
+  21: { minAvg: 0.605 },
+  22: { minAvg: 0.72 },
+  23: { minAvg: 0.74 },
+  24: { minAvg: 0.7 },
+  25: { minAvg: 0.615 },
+  26: { minAvg: 0.695 },
+  27: { minAvg: 0.645 },
+  28: { minAvg: 0.745 },
 });
 
 // ---------------------------------------------------------------------------
