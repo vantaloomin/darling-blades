@@ -2192,7 +2192,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
   build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
   (it had been deferred to 1.9 by the 1.8 ruling D7).
-- **Duel Deck Codes, in 2.0 (owner, 2026-10-16).** The async PvP proposal below moved into 2.0: paste a deck code, someone else's or your own, and duel it with the AI piloting it, at three levels: Hard (today's), Expert and Master. First slice built: the "Duel any Deck" Play tile and screen, the code check and the duel at Hard. Expert and Master are being built as new brains for this mode only; code duels pay no gold. Status in [plan-async-pvp.md](plan-async-pvp.md).
+- **Duel Deck Codes, in 2.0 (owner, 2026-10-16).** The async PvP proposal below moved into 2.0: paste a deck code, someone else's or your own, and duel it with the AI piloting it, at three levels: Hard (today's), Expert and Master. First slice built: the "Duel any Deck" Play tile and screen, the code check and the duel at Hard. Expert (58.6% vs Hard) and Master (53.7% vs Expert) are built for this mode only; code duels pay no gold. Status in [plan-async-pvp.md](plan-async-pvp.md).
 - **Async PvP: challenge codes piloted by the Hard AI (proposal,
   2026-09-29; moved into 2.0 as Duel Deck Codes above).** The owner's request: share a deck
   code, and a Hard AI pilots that deck against whoever pastes it, "a

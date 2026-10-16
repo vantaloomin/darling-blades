@@ -13,6 +13,7 @@
  *   --seeds <n>    games per deck pair (even; default 40)
  *   --pairs <n>    only the first n deck pairs of the 15 (for quick reads)
  *   --shard i/n    play only pairs with index % n === i (for parallel runs)
+ *   --seed-base <n> first game seed (default 900000; change it to confirm a pick on fresh games)
  *   --json <path>  also write the totals as JSON
  *   --b-opts <json> the same for B
  *   --a-opts <json> try search options for A instead of its level ("ownDeck": true gives it its list)
@@ -96,7 +97,7 @@ for (const { pair: [i, j], index } of chosen) {
   let cellA = 0;
   let cellB = 0;
   for (let g = 0; g < seeds; g++) {
-    const seed = 900_000 + index * 10_000 + g;
+    const seed = Number(flag('seed-base') ?? 900_000) + index * 10_000 + g;
     // Game g: A on deck i when g % 4 < 2; A in seat 0 on even games.
     const aDeck = decks[g % 4 < 2 ? i : j];
     const bDeck = decks[g % 4 < 2 ? j : i];
