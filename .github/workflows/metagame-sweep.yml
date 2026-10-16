@@ -167,6 +167,11 @@ concurrency:
   group: metagame-sweep
   cancel-in-progress: false
 
+# `--pool dev` is every live card plus Core Set II, the dev build's pool, so a
+# sweep on release/2.0 measures the set before the cut flips coreSet2Live; after
+# the flip it equals `--pool all`. A dispatch takes at most ten inputs, so the
+# pool is fixed here rather than chosen.
+#
 # Built once, here, so no step interpolates a dispatch input into a shell
 # command. Every craft job runs the same measurement configuration. A called
 # workflow cannot see this block, and `env` is not available where a job
@@ -176,7 +181,7 @@ env:
     --personas ${{ inputs.personas }}
     --rounds ${{ inputs.rounds }}
     --field ${{ inputs.field }}
-    --pool all
+    --pool dev
     --seeds ${{ inputs.seeds }}
     --iterations ${{ inputs.iterations }}
     --seed ${{ inputs.seed }}
