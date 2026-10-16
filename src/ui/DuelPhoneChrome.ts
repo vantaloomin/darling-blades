@@ -2010,6 +2010,16 @@ export class DuelPhoneChrome {
     return zone;
   }
 
+  /** Whether a hand row's name fits a width at the smallest step its row allows (85% of the body size). */
+  private handNameFits(name: string, width: number): boolean {
+    const probe = this.scene.add.text(0, 0, name, {
+      fontFamily: theme.fonts.ui, fontSize: `${Math.ceil(this.type.body * 0.85)}px`, fontStyle: theme.weight.w600,
+    });
+    const fits = probe.width <= width;
+    probe.destroy();
+    return fits;
+  }
+
   private drawHandRow(rect: { x: number; y: number; width: number; height: number }, hit: { x: number; y: number; width: number; height: number }, row: PhoneHandRow): void {
     const scene = this.scene;
     const alpha = row.look.dim ? 0.5 : 1;
@@ -2019,16 +2029,16 @@ export class DuelPhoneChrome {
     const cy = rect.y + rect.height / 2;
     const art = this.thumbArt(row.card, tx + thumb / 2, cy, thumb);
     art.setAlpha(alpha);
-    // Cost pips at the right, generic first.
-    const pip = 18;
+    // Cost pips at the right, generic first; a long name gets them a size smaller.
     const specs = row.card.cost ? pipsFor(row.card.cost as ManaCost) : [];
+    const pip = this.handNameFits(row.card.name, rect.width - thumb - 30 - specs.length * 20) ? 18 : 15;
     let px = rect.x + rect.width - 10 - pip / 2;
     for (const spec of [...specs].reverse()) {
       const key = spec.number !== undefined ? ensureNumeralPip(scene, spec.number) : spec.texture;
       if (scene.textures.exists(key)) {
         this.handObjects.push(scene.add.image(px, cy, key).setDisplaySize(pip, pip).setAlpha(alpha).setDepth(theme.depth.hand));
       }
-      px -= pip + 2;
+      px -= pip + (pip < 18 ? 1 : 2);
     }
     const textX = tx + thumb + 8;
     const textW = px + pip / 2 - 6 - textX;
