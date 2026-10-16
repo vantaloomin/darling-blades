@@ -2132,7 +2132,7 @@ export class DuelScene extends Phaser.Scene {
       return `${this.showcase ? '' : 'Replay · '}vs ${this.replayLog.context.opponentName}`;
     }
     if (this.story && this.opponent) return `Story · vs ${this.opponent.name}`;
-    if (this.codeDuel) return `Deck Code · ${this.difficulty[0].toUpperCase()}${this.difficulty.slice(1)} AI`;
+    if (this.codeDuel) return `Duel any Deck · ${this.difficulty[0].toUpperCase()}${this.difficulty.slice(1)} AI`;
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
     }
@@ -11967,7 +11967,7 @@ export class DuelScene extends Phaser.Scene {
     // A code duel goes back to its code, so a rematch at another level or with another deck is one tap away.
     const codeDuel = this.codeDuel;
     const back = codeDuel
-      ? { label: 'Deck Code', go: () => this.scene.start('DeckCode', { code: codeDuel.code }) }
+      ? { label: 'Other Deck', go: () => this.scene.start('DeckCode', { code: codeDuel.code }) }
       : { label: 'Menu', go: () => this.scene.start('MainMenu') };
     if (this.phoneChrome) {
       this.showPhoneResults({

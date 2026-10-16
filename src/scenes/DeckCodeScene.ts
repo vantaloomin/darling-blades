@@ -105,7 +105,7 @@ export class DeckCodeScene extends Phaser.Scene {
 
     const back = (): void => { this.scene.start('Play'); };
     compactHeader(this, L.shell, {
-      title: 'Deck Code',
+      title: 'Duel any Deck',
       subtitle: 'Paste a shared deck and duel it.',
       gold: Services.save.data.gold,
       onBack: back,
