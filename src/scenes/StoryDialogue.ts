@@ -60,31 +60,52 @@ export function loadStoryArt(scene: Phaser.Scene, ids: readonly string[], onDone
     onDone();
     return;
   }
-  const tier = qualityTier();
-  const onError = (file: Phaser.Loader.File): void => {
-    const key = String(file.key);
-    if (key.startsWith(TEXTURE_PREFIX)) {
-      failedArt.add(key.slice(TEXTURE_PREFIX.length));
+  // An image already on its way (a Play screen started again before its
+  // first load landed: a stopped scene's loader still finishes the file) is
+  // waited for, not queued twice, which Phaser refuses ("Texture key already in use").
+  const fresh = missing.filter((id) => !loadingArt.has(id));
+  for (const id of fresh) loadingArt.set(id, storyArtArrival(scene, id));
+  let live = true;
+  const cancel = (): void => {
+    live = false;
+  };
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, cancel);
+  if (fresh.length > 0) {
+    const tier = qualityTier();
+    for (const id of fresh) scene.load.image(storyTextureKey(id), storyArtUrl(id, tier));
+    scene.load.start();
+  }
+  void Promise.all(missing.map((id) => loadingArt.get(id))).then(() => {
+    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, cancel);
+    if (live && scene.sys.isActive()) onDone();
+  });
+}
+
+/** Story images on their way, each settling when its texture lands, its load fails, or after 20 s. */
+const loadingArt = new Map<string, Promise<void>>();
+
+function storyArtArrival(scene: Phaser.Scene, id: string): Promise<void> {
+  const key = storyTextureKey(id);
+  const textures = scene.textures;
+  const loader = scene.load;
+  return new Promise<void>((resolve) => {
+    const settle = (): void => {
+      textures.off(Phaser.Textures.Events.ADD_KEY + key, settle);
+      loader.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
+      window.clearTimeout(timer);
+      loadingArt.delete(id);
+      resolve();
+    };
+    const onError = (file: Phaser.Loader.File): void => {
+      if (String(file.key) !== key) return;
+      failedArt.add(id);
       console.warn(`Story art did not load: ${String(file.url)}`);
-    }
-  };
-  let settled = false;
-  const stop = (): void => {
-    settled = true;
-    scene.load.off(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
-    scene.load.off(Phaser.Loader.Events.COMPLETE, onComplete);
-    scene.events.off(Phaser.Scenes.Events.SHUTDOWN, stop);
-  };
-  const onComplete = (): void => {
-    if (settled) return;
-    stop();
-    if (scene.sys.isActive()) onDone();
-  };
-  scene.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
-  scene.load.once(Phaser.Loader.Events.COMPLETE, onComplete);
-  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, stop);
-  for (const id of missing) scene.load.image(storyTextureKey(id), storyArtUrl(id, tier));
-  scene.load.start();
+      settle();
+    };
+    const timer = window.setTimeout(settle, 20_000);
+    textures.once(Phaser.Textures.Events.ADD_KEY + key, settle);
+    loader.on(Phaser.Loader.Events.FILE_LOAD_ERROR, onError);
+  });
 }
 
 /** Free every loaded story texture except those for `keepIds`. */

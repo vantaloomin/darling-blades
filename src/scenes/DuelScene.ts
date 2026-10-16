@@ -334,6 +334,8 @@ interface DuelStageFx {
   /** Opponent's casts and turn banners. */
   oppCast: { y: number; scale: number; labelDy: number };
   bannerY: number;
+  /** The widest the turn banner's frame may grow: the board it sits over. */
+  bannerMaxW: number;
 }
 
 /** The foe's portrait rim on the phone (T-03a); yours is gold. */
@@ -351,6 +353,7 @@ const DESKTOP_FX: DuelStageFx = {
   handSource: { x: BOARD_CENTER_X, y: 680, scale: 0.35 },
   oppCast: { y: 250, scale: 0.8, labelDy: -150 },
   bannerY: 74,
+  bannerMaxW: 560,
 };
 const TARGET_SNAP_R = 60;
 /** How long the phone's combat recap (T-09) stays after the last strike lands. */
@@ -2043,6 +2046,8 @@ export class DuelScene extends Phaser.Scene {
         labelDy: -(phone.main.height * 0.31) - 14,
       },
       bannerY: phone.line.y + phone.line.height / 2,
+      // The board, not the 340 desktop floor: on an iPhone SE the board is narrower than that.
+      bannerMaxW: phone.main.width - 8,
     };
     this.phoneChrome = new DuelPhoneChrome(this, phone, {
       onHistory: () => this.togglePhoneHistory(),
@@ -2638,7 +2643,7 @@ export class DuelScene extends Phaser.Scene {
         })
         .setOrigin(0, 0.5),
     );
-    this.replayPlayButton = themedButton(this, 492, 61, 'Pause', {
+    this.replayPlayButton = themedButton(this, 0, 61, 'Pause', {
       variant: 'primary',
       size: 'sm',
       minWidth: 92,
@@ -2646,15 +2651,7 @@ export class DuelScene extends Phaser.Scene {
         if (!p.rightButtonReleased()) this.setReplayPlaying(!this.replayPlaying);
       },
     });
-    this.replaySpeedButton = themedButton(this, 640, 61, 'Speed x1', {
-      variant: 'ghost',
-      size: 'sm',
-      minWidth: 104,
-      onTap: (p) => {
-        if (!p.rightButtonReleased()) this.cycleReplaySpeed();
-      },
-    });
-    const step = themedButton(this, 568, 61, 'Step', {
+    const step = themedButton(this, 0, 61, 'Step', {
       variant: 'ghost',
       size: 'sm',
       minWidth: 64,
@@ -2662,10 +2659,27 @@ export class DuelScene extends Phaser.Scene {
         if (!p.rightButtonReleased()) this.stepReplayAction();
       },
     });
+    this.replaySpeedButton = themedButton(this, 0, 61, 'Speed x1', {
+      variant: 'ghost',
+      size: 'sm',
+      minWidth: 104,
+      onTap: (p) => {
+        if (!p.rightButtonReleased()) this.cycleReplaySpeed();
+      },
+    });
+    // Side by side at their measured widths: fixed centres let the 40 px desktop
+    // controls run into each other (Speed over Step).
+    let x = 446;
+    for (const button of [this.replayPlayButton, step, this.replaySpeedButton]) {
+      const { width } = button.getMeasuredSize().visual;
+      button.container.setX(x + width / 2);
+      x += width + 10;
+    }
+    // The way out sits in the bar's right end, clear of the hand pile in the top-left corner.
     const exit = backButton(this, 'Profile', (p) => {
       if (!p.rightButtonReleased()) this.exitReplayViewer();
     });
-    exit.setDepth(theme.depth.results + 10);
+    exit.setPosition(948 - 18 - exit.width, 61).setDepth(theme.depth.results + 10);
     bar.add([this.replayPlayButton.container, step.container, this.replaySpeedButton.container]);
     this.replayControls = bar;
   }
@@ -4714,7 +4728,9 @@ export class DuelScene extends Phaser.Scene {
       this.tweens.killTweensOf(this.turnBanner);
       this.turnBanner.destroy();
     }
-    const who = isYou ? 'Your Turn' : `${this.opponentName() ?? 'Opponent'}'s Turn`;
+    // The phone's board is too narrow for a full title ("Guan Xing, Heir of the Green Dragon Blade"): its short name.
+    const foe = this.phone ? this.opponentShortName() : this.opponentName() ?? 'Opponent';
+    const who = isYou ? 'Your Turn' : `${foe}'s Turn`;
     const accent = isYou ? theme.colors.gold : theme.colors.body;
     const bannerY = this.fx.bannerY;
     const banner = this.add.container(this.fx.centerX, bannerY).setDepth(theme.depth.banner).setAlpha(0);
@@ -4735,12 +4751,13 @@ export class DuelScene extends Phaser.Scene {
     // measure the rendered Text — grow the frame up to a cap, and only past
     // the cap shrink the type to fit.
     const framePad = 28;
-    const frameMaxW = 560;
+    const frameMaxW = this.fx.bannerMaxW;
     if (title.width + framePad * 2 > frameMaxW) {
       title.setFontSize(Math.max(duelHudType(17, 'h1'), Math.floor((duelHudType(26, 'h1') * (frameMaxW - framePad * 2)) / title.width)));
       title.setData('a11yFitToBox', true);
+      ellipsizeText(title, frameMaxW - framePad * 2);
     }
-    const frameW = Math.max(340, Math.min(frameMaxW, Math.ceil(Math.max(title.width, sub.width)) + framePad * 2));
+    const frameW = Math.max(Math.min(340, frameMaxW), Math.min(frameMaxW, Math.ceil(Math.max(title.width, sub.width)) + framePad * 2));
     const bg = this.add
       .rectangle(0, 0, frameW, 66, colorInt(theme.colors.panelFill), 0.82)
       .setStrokeStyle(1.5, colorInt(accent));
@@ -6237,6 +6254,8 @@ export class DuelScene extends Phaser.Scene {
     this.clearManaPlanPreview();
     if (this.phoneChrome) {
       this.phoneChrome.setBoardVisible(!this.phoneOpening());
+      // The result band takes the board's middle; the turn line stays hidden under it.
+      if (this.phoneResult) this.phoneChrome.setTurnLineVisible(false);
       this.syncPhoneHand(this.phoneChrome);
       return;
     }
