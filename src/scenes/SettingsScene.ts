@@ -4,6 +4,7 @@ import { Sfx } from '../audio/sfx';
 import { normalizeTextScale } from '../meta/accessibilitySettings';
 import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
 import { Services } from '../meta/services';
+import { normalizeSoundStyle, type SoundStyle } from '../meta/soundStyle';
 import { readSignalsGateInput, signalsAllowed } from '../net/signalsGate';
 import { isTauri } from '../platform/desktopWindow';
 import { IS_DEV } from '../platform/env';
@@ -43,6 +44,8 @@ import { createStatsPrivacyPanel } from '../ui/StatsPrivacyPanel';
 import {
   ANIM_CHIP_WIDTH,
   NO_BLOCK_CHIPS,
+  SOUND_STYLE_CAPTION,
+  SOUND_STYLE_CHIPS,
   RENDER_CHIP_WIDTH,
   SETTINGS_HEADER_ACTION,
   SETTINGS_HEADER_LEGAL,
@@ -490,6 +493,10 @@ export class SettingsScene extends Phaser.Scene {
         return this.compactVolumeRow(list, at, adapters);
       case 'music':
         return sw('Music', () => settings().musicOn, () => Music.setEnabled(!Music.enabled));
+      case 'soundStyle':
+        return seg('Sound style', SOUND_STYLE_CHIPS, () => normalizeSoundStyle(settings().soundStyle), (value) => {
+          this.pickSoundStyle(value);
+        }, SOUND_STYLE_CAPTION);
       case 'fullScreen':
         return sw('Full screen', () => isFullScreen(), () => { void toggleFullScreen(); });
       case 'instantCast':
@@ -732,6 +739,18 @@ export class SettingsScene extends Phaser.Scene {
           Music.setEnabled(!Music.enabled);
           this.refreshToggles();
         });
+      case 'soundStyle':
+        return this.chipRow(
+          frame,
+          'Sound style',
+          SOUND_STYLE_CHIPS.map(({ value, label, baseWidth }) => ({ value, label, baseWidth })),
+          () => normalizeSoundStyle(settings().soundStyle),
+          (value) => {
+            this.pickSoundStyle(value);
+            this.refreshChipGroups();
+          },
+          SOUND_STYLE_CAPTION,
+        );
       // Both "Your turn" rows decide how a turn's actions get committed.
       case 'instantCast':
         return this.rightToggleRow(
@@ -852,6 +871,20 @@ export class SettingsScene extends Phaser.Scene {
         );
       }
     }
+  }
+
+  /**
+   * Switch Classic / New sound: persist, start loading New's samples, swap the
+   * music bed over, and play a click in the new style so the change is heard.
+   */
+  private pickSoundStyle(value: SoundStyle): void {
+    const settings = Services.save.data.settings;
+    if (normalizeSoundStyle(settings.soundStyle) === value) return;
+    settings.soundStyle = value;
+    Services.save.touch();
+    Sfx.preloadSamples();
+    Music.refreshStyle();
+    Sfx.play('click');
   }
 
   /**

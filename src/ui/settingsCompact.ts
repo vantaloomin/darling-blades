@@ -60,7 +60,7 @@ export function settingsCompactSections(shown: AccessibilityControlsShown, fullS
       key: 'audio',
       title: fullScreen ? 'Audio & screen' : 'Audio',
       nav: 'Audio',
-      rows: fullScreen ? ['sfx', 'volume', 'music', 'fullScreen'] : ['sfx', 'volume', 'music'],
+      rows: fullScreen ? ['sfx', 'volume', 'music', 'soundStyle', 'fullScreen'] : ['sfx', 'volume', 'music', 'soundStyle'],
     },
     { key: 'yourTurn', title: 'Your turn', nav: 'Your turn', rows: ['instantCast', 'landDrop'] },
     {

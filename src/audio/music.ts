@@ -11,6 +11,7 @@ import {
   type MoodPreset,
   type ProgressionState,
 } from './musicPatterns';
+import { musicStem, SAMPLE_MUSIC_GAIN } from './soundSet';
 import { Sfx } from './sfx';
 
 /** Where the music on/off preference is read from / persisted to (SaveManager in prod). */
@@ -29,6 +30,8 @@ const TICK_MS = 300;
 const LOOKAHEAD_S = 2.8;
 /** Time constant when a mood swap releases the old chords early. */
 const SWAP_FADE_S = 0.7;
+/** How long a recorded loop takes to swell in (New style). */
+const TRACK_FADE_S = 1.5;
 
 /**
  * Generative ambient music director. One engine, mood-parameterized: a slow
@@ -52,6 +55,12 @@ export class MusicDirector {
   /** Chords currently scheduled/sounding — `fade` is automation-free so swaps ramp it cleanly. */
   private activeChords: { fade: GainNode; until: number }[] = [];
 
+  /**
+   * The New style's looping track, while one plays. It rides its own fade
+   * node into the music bus, so duck/toggle/master volume apply unchanged.
+   */
+  private track: { mood: MoodName; src: AudioBufferSourceNode; fade: GainNode } | null = null;
+
   /** Debug counters (mirrors Sfx.playCount): live source nodes / chords scheduled. */
   activeSources = 0;
   chordCount = 0;
@@ -69,6 +78,11 @@ export class MusicDirector {
     return this.mood;
   }
 
+  /** The mood whose recorded loop is playing (New style), or null (runtime verification hook). */
+  get trackMood(): MoodName | null {
+    return this.track?.mood ?? null;
+  }
+
   /** Current music bus gain (runtime verification hook); null before unlock. */
   get busGain(): number | null {
     return this.bus ? this.bus.gain.value : null;
@@ -83,6 +97,7 @@ export class MusicDirector {
     if (this.mood === mood) return;
     this.mood = mood;
     this.releaseActive();
+    this.releaseTrack();
     const bus = this.audio.bus;
     if (bus) this.nextChordAt = Math.min(this.nextChordAt, bus.ctx.currentTime + 0.5);
     this.ensureTimer();
@@ -93,6 +108,16 @@ export class MusicDirector {
   stop(): void {
     this.mood = null;
     this.releaseActive();
+    this.releaseTrack();
+  }
+
+  /**
+   * Re-read the sound style after the setting changes: New fades the
+   * generative bed into the mood's recorded loop (once it loads), Classic
+   * fades the loop back into the generative bed.
+   */
+  refreshStyle(): void {
+    this.tick();
   }
 
   /** Persisted music toggle; ramps the sub-gain so flips never click. */
@@ -153,6 +178,18 @@ export class MusicDirector {
       this.bus.gain.value = this.enabled ? MUSIC_LEVEL : 0;
       this.bus.connect(master);
     }
+    if (this.audio.soundStyle() === 'new') {
+      if (this.track?.mood === this.mood) return;
+      const buf = this.audio.sample(musicStem(this.mood));
+      if (buf) {
+        this.releaseActive();
+        this.startTrack(ctx, this.mood, buf);
+        return;
+      }
+      // Still loading (or failed): keep the generative bed going meanwhile.
+    } else if (this.track) {
+      this.releaseTrack();
+    }
     const preset = MOODS[this.mood];
     if (!this.state || this.stateMood !== this.mood) {
       this.state = initProgression((Math.random() * 2 ** 31) | 0);
@@ -165,6 +202,37 @@ export class MusicDirector {
       this.scheduleChord(ctx, chord, preset, this.nextChordAt);
       this.nextChordAt += preset.chordDur;
     }
+  }
+
+  private startTrack(ctx: AudioContext, mood: MoodName, buf: AudioBuffer): void {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const fade = ctx.createGain();
+    const t = ctx.currentTime;
+    fade.gain.setValueAtTime(0.0001, t);
+    fade.gain.setTargetAtTime(SAMPLE_MUSIC_GAIN, t, TRACK_FADE_S / 3);
+    src.connect(fade);
+    fade.connect(this.bus!);
+    src.start(t);
+    this.activeSources++;
+    src.onended = () => {
+      this.activeSources--;
+      fade.disconnect();
+    };
+    this.track = { mood, src, fade };
+  }
+
+  /** Fade the recorded loop out and stop it (mood swap, stop, or back to Classic). */
+  private releaseTrack(): void {
+    const track = this.track;
+    this.track = null;
+    const bus = this.audio.bus;
+    if (!track || !bus) return;
+    const t = bus.ctx.currentTime;
+    track.fade.gain.cancelScheduledValues(t);
+    track.fade.gain.setTargetAtTime(0.0001, t, SWAP_FADE_S);
+    track.src.stop(t + SWAP_FADE_S * 5);
   }
 
   private scheduleChord(ctx: AudioContext, chord: Chord, preset: MoodPreset, t: number): void {

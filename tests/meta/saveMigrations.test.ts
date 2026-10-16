@@ -1103,7 +1103,8 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
     expect(migrated).toStrictEqual({
       ...GOLDEN_V35_BLOB,
       version: CURRENT_SAVE_VERSION,
-      settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false },
+      // v38's sound style arrives as Classic on any older save.
+      settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false, soundStyle: 'classic' },
       // v38's Story Mode record arrives fresh on any older save.
       story: freshSave(0).story,
     });
@@ -1222,7 +1223,7 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
       const imported = decodedSave(codeForRawPayload(goldenV35()));
 
       expect(imported.version).toBe(CURRENT_SAVE_VERSION);
-      expect(imported.settings).toEqual({ ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false });
+      expect(imported.settings).toEqual({ ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false, soundStyle: 'classic' });
     });
 
     it('snaps garbage in an imported v36 code instead of refusing it', () => {
@@ -1628,5 +1629,41 @@ describe('SaveData v38 migration (Story Mode record)', () => {
     if (!decoded.ok) throw new Error(decoded.error.message);
     expect(decoded.save.story).toEqual(save.story);
     expect(decoded.preview.storySummary).toEqual({ charactersUnlocked: 2, actClears: 2, runInProgress: false });
+  });
+});
+
+/**
+ * The Classic / New sound style shares the v37 -> v38 step. Older saves keep
+ * the sound they were hearing (Classic); a v38 save keeps its choice, and
+ * anything else stored there reads as Classic rather than failing the load.
+ */
+describe('SaveData v38 migration (sound style)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+  function blobWith(version: number, soundStyle: unknown): Record<string, unknown> {
+    const raw = JSON.parse(JSON.stringify(freshSave(1))) as Record<string, unknown> & { settings: Record<string, unknown> };
+    raw.settings.soundStyle = soundStyle;
+    return { ...raw, version };
+  }
+
+  it('starts a v37 save on Classic, whatever its blob carries', () => {
+    expect(load(blobWith(37, 'new')).settings.soundStyle).toBe('classic');
+  });
+
+  it('keeps a v38 choice and reads garbage or a missing field as Classic', () => {
+    expect(load(blobWith(38, 'new')).settings.soundStyle).toBe('new');
+    expect(load(blobWith(38, 'loud')).settings.soundStyle).toBe('classic');
+    expect(load(blobWith(38, undefined)).settings.soundStyle).toBe('classic');
+  });
+
+  it('survives a reload', () => {
+    const storage = fakeStorage();
+    const first = new SaveManager(storage, 456);
+    first.data.settings.soundStyle = 'new';
+    first.flush();
+    expect(new SaveManager(storage, 456).data.settings.soundStyle).toBe('new');
   });
 });

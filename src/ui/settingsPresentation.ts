@@ -1,6 +1,7 @@
 import { FEATURES } from '../config/features';
 import { DEFAULT_TEXT_SCALE, TEXT_SCALES, type TextScale } from '../meta/accessibilitySettings';
 import type { ConfirmNoBlockSetting } from '../meta/SaveManager';
+import type { SoundStyle } from '../meta/soundStyle';
 import { setAccessibility, type AccessibilityInput, type AccessibilitySettings } from './accessibility';
 import { theme } from './theme';
 
@@ -261,6 +262,7 @@ export type SettingsRowKey =
   | 'sfx'
   | 'volume'
   | 'music'
+  | 'soundStyle'
   | 'instantCast'
   | 'landDrop'
   | 'stats'
@@ -316,7 +318,11 @@ export const SETTINGS_RIGHT_SECTIONS: readonly SettingsSectionSpec[] = [
 ];
 
 export const SETTINGS_AUDIO_SECTIONS: readonly SettingsSectionSpec[] = [
-  { key: 'audio', title: 'Audio', rows: [{ key: 'sfx' }, { key: 'volume', caption: true }, { key: 'music' }] },
+  {
+    key: 'audio',
+    title: 'Audio',
+    rows: [{ key: 'sfx' }, { key: 'volume', caption: true }, { key: 'music' }, { key: 'soundStyle', caption: true }],
+  },
 ];
 
 /**
@@ -667,6 +673,13 @@ export const NO_BLOCK_CHIPS: readonly SettingsChipSpec<ConfirmNoBlockSetting>[] 
 ];
 /** Animations, render size and text size: three equal chips at 100%. */
 export const ANIM_CHIP_WIDTH = 82;
+
+/** Classic: the procedural sounds and generative music. New: recorded samples and music loops. */
+export const SOUND_STYLE_CHIPS: readonly SettingsChipSpec<SoundStyle>[] = [
+  { value: 'classic', label: 'Classic', baseWidth: 82 },
+  { value: 'new', label: 'New', baseWidth: 82 },
+];
+export const SOUND_STYLE_CAPTION = 'New swaps the synthesized sounds and music for recorded ones.';
 export const RENDER_CHIP_WIDTH = 84;
 export const TEXT_SIZE_CHIP_WIDTH = 82;
 /** A toggle sits at the 90px hit floor. */

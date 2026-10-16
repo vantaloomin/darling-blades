@@ -1335,6 +1335,7 @@ export class PackOpeningScene extends Phaser.Scene {
   // Beat 2: the tear.
   private tear(pack: Phaser.GameObjects.Image): void {
     Sfx.play('cast'); // the whoosh doubles as the foil tearing open
+    Sfx.playTexture('packOpen'); // New sound style: a real foil tear under it
     this.cameras.main.shake(200, 0.01);
     this.cameras.main.flash(180, 255, 235, 180);
     const count = Math.max(1, Math.round(42 * fxPolicy(this).particleScale));
@@ -1364,6 +1365,7 @@ export class PackOpeningScene extends Phaser.Scene {
 
   // Beat 3+4: the c/r grid cascades; sr+ specials wait with tier-hint glows.
   private dealCards(): void {
+    Sfx.playTexture('packTakeOut'); // New sound style only
     if (this.compactUi) {
       this.dealCompact();
       return;

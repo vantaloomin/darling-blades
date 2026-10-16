@@ -12,6 +12,7 @@ import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 import { normalizeStatsNoticeVersion } from './statsNotice';
 import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
+import { DEFAULT_SOUND_STYLE, normalizeSoundStyle, type SoundStyle } from './soundStyle';
 import { freshStoryState, normalizeStoryState, type StoryState } from './story/storyState';
 
 export const CURRENT_SAVE_VERSION = 38 as const;
@@ -415,6 +416,12 @@ export interface SaveData {
     textScale: number;
     /** High-contrast palette. v36 addition; defaults off. */
     highContrast: boolean;
+    /**
+     * Classic (procedural) or New (recorded CC0 samples and music loops) sound.
+     * v38 addition, riding the 2.0 train's one save bump; defaults to Classic
+     * for fresh and migrated saves alike. Garbage normalizes to Classic.
+     */
+    soundStyle: SoundStyle;
   };
 }
 
@@ -488,6 +495,7 @@ export function freshSave(now: number): SaveData {
       statsNoticeVersion: 0,
       textScale: DEFAULT_TEXT_SCALE,
       highContrast: false,
+      soundStyle: DEFAULT_SOUND_STYLE,
     },
   };
 }
@@ -583,7 +591,8 @@ export class SaveManager {
    * v37 -> v38 adds the optional `openDuel` record (absent for older saves)
    * and the Story Mode `story` record (fresh for older saves: only the first
    * character unlocked, no counts, no run; a v38 save without one, or with a
-   * malformed one, normalizes to the same default).
+   * malformed one, normalizes to the same default) and `settings.soundStyle`
+   * (Classic for older saves; a v38 save's own value, normalized).
    * An unknown/garbage version starts fresh rather than crash.
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
@@ -1156,7 +1165,12 @@ export class SaveManager {
       // a v38 save keeps its own, normalized. Dev saves at v38 from before the
       // field existed have none, and normalization gives them the fresh one.
       const story = arrivedAtVersion >= 38 ? normalizeStoryState(rest.story) : freshStoryState();
-      cur = { ...rest, version: 38, story, ...(openDuel ? { openDuel } : {}) };
+      // The sound style shares the step too: an older save starts on Classic,
+      // the sound it was already hearing.
+      const s = (rest.settings ?? {}) as { soundStyle?: unknown };
+      const soundStyle = arrivedAtVersion >= 38 ? normalizeSoundStyle(s.soundStyle) : DEFAULT_SOUND_STYLE;
+      const settings = { ...(rest.settings as object), soundStyle };
+      cur = { ...rest, version: 38, story, settings, ...(openDuel ? { openDuel } : {}) };
     }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
