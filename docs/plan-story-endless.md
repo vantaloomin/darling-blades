@@ -1,8 +1,8 @@
-<!-- source-of-truth: src/data/story/endless.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyState.ts, src/meta/story/storyFlow.ts, src/meta/story/headlessRun.ts, src/meta/story/endlessMatrix.ts, src/meta/story/storyContent.ts, src/engine/Game.ts, src/meta/Replay.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-10-16 · design/plan doc - re-verify when the referenced code changes -->
+<!-- source-of-truth: src/data/story/endless.ts, src/meta/story/StoryProgress.ts, src/meta/story/storyState.ts, src/meta/story/storyFlow.ts, src/meta/story/headlessRun.ts, src/meta/story/endlessMatrix.ts, src/meta/story/storyContent.ts, src/meta/story/storyEvents.ts, src/meta/Achievements.ts, src/scenes/StoryScene.ts, src/scenes/StoryCompact.ts, src/ui/storyPresentation.ts, src/ui/duelCopy.ts, src/engine/Game.ts, src/meta/Replay.ts, src/scenes/DuelScene.ts, scripts/balance-matrix.ts · last-verified: 2026-10-16 · design/plan doc - re-verify when the referenced code changes -->
 
 # Story Mode endless (2.0)
 
-**Status: owner rulings E1 to E7 given 2026-10-16; the headless half is built (wave 1), the screens are not.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
+**Status: owner rulings E1 to E7 given 2026-10-16; the headless half (wave 1) and the screens and achievements (wave 3) are built; tuning waits on the P8 floor reset.** Endless is the run that follows Story Mode's Act 1 ([plan-story-mode.md](plan-story-mode.md), P9 in [plan-2.0.md](plan-2.0.md)). This doc holds endless's rulings, design and measurements; the Act 1 plan stays in plan-story-mode.md.
 
 ## Rulings
 
@@ -51,8 +51,15 @@ Headless, MediumAI heroine against each opponent's (capped) brain, seeds 1 to 10
 
 Reading: the headless pilot reaches loop 1's claimant about half the time and beats her about three times in four; with about five duels a loop and one loss ending the run, few headless runs pass loop 2. The proposed target in the planning file (about half of runs from an Act 1 clear reaching loop 3) is out of reach for the headless pilot without making early loops much easier: holding Hard back to loop 4 moved the mean by about 0.1 loop. A human plays far better than MediumAI, so final tuning waits on the P8 floor reset and is better judged against real play; the numbers above are a baseline, not a target.
 
+## Screens (built)
+
+- **Going on.** The Act 1 cleared summary (after the keep) offers Finish run or Continue to endless (`enterEndless`). The approved `endless-intro` scene plays the first time any run reaches endless (`endlessIntroSceneDue`), whether from Act 1 or the menu.
+- **The Endless screen (Version C frame N-38).** Once any heroine has cleared Act 1, character select's column gets an Act 1 / Endless switch. Endless shows the chosen heroine's portrait, a Daily seed / Random seed switch, what the seed means, her best run and today's daily best, and what a menu run starts with; the column lists the heroines and starts the run. The mock's "One try" line is gone (E6), floors became loops cleared, and its "Yesterday" record is not kept (the save holds today's daily only). The daily's date is the player's local calendar day, as the Tower's daily roster.
+- **Each loop.** A fresh loop's map opens under a title card naming the claimant (E7), with what she starts the duel holding from loop 7 and her extra life from loop 8. The heroine's opening scene plays only at Act 1's start. Top bars say "Loop N" in place of "Act 1".
+- **A beaten claimant.** After her card reward, the loop cleared screen shows who fell, the run's numbers and the records, then Go on to loop N+1 or End run (asked first). The duel result names the loop cleared, and an endless loss says how many loops the run cleared.
+- **Achievements (E4).** Third, Fifth and Tenth Claimant: clear loop 3, 5 or 10 with any heroine (150, 300 and 600 gold). Hidden while `FEATURES.storyLive` is off, so the public build never lists goals it cannot reach.
+
 ## Not built yet
 
-- **Screens (wave 3 of the planning file):** the go-on-or-stop choice after the Act 1 keep (playing `endless-intro` the first time), the Endless and daily entry on Story's character select (Version C frame N-38, without its "One try" line, which E6 retired, and with "Best: loop N" for floors), the `loopCleared` screen and the loop title card, records on character select.
-- **Achievements:** reach loop 3, 5 and 10 (E4).
-- **Tuning** at the new starting life, after the P8 reset.
+- **Tuning** at the new starting life, after the P8 reset (owner ruling 2026-10-16: wait for the reset, then judge against real runs and play stats).
+- Claimant medallions on endless maps use the crown icon: only Act 1's boss has a dialogue portrait.

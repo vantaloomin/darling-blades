@@ -11,17 +11,25 @@ import {
   abandonRun,
   chooseBoon,
   claimKeep,
+  dailyBestLoop,
+  dailyEndlessSeed,
+  endlessDateKey,
+  enterEndless,
+  isEndlessOpen,
   keepOptions,
   legalNextNodes,
   mapKeyDue,
   markMapKeySeen,
+  nextEndlessLoop,
   resolveRest,
   resolveShop,
   shopStock,
+  startEndlessRun,
   startRun,
   takeCardReward,
 } from '../meta/story/StoryProgress';
-import { endingSceneFor } from '../meta/story/storyEvents';
+import { endingSceneFor, endlessIntroSceneDue } from '../meta/story/storyEvents';
+import { ENDLESS_HEAD_START_GOLD, ENDLESS_HEAD_START_PICKS } from '../data/story/endless';
 import { finishClearedRun, storyRoster } from '../meta/story/storyFlow';
 import { storyMapNodes, type StoryNode } from '../meta/story/storyMap';
 import { runMap, storyActByNumber, type StoryRun, type StoryState } from '../meta/story/storyState';
@@ -32,7 +40,7 @@ import { awaitArt } from '../ui/artGate';
 import { CARD_H, CARD_W, CardView } from '../ui/CardView';
 import { COMPACT, type CompactShell } from '../ui/compactLayout';
 import { dutyRowPips } from '../ui/duelPresentation';
-import { COMPACT_DRAG_SLOP, compactButton, compactHeader, compactScrim, coverFitImage, type CompactButton } from '../ui/compactWidgets';
+import { COMPACT_DRAG_SLOP, compactButton, compactDialog, compactHeader, compactScrim, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
 import type { Rect } from '../ui/layout';
 import { limitedTileGrid } from '../ui/limitedBuilderCompact';
 import { ensureNumeralPip, pipsFor } from '../ui/ManaSymbols';
@@ -50,7 +58,14 @@ import {
   abandonNote,
   cardCount,
   colourWords,
+  dailyBestLine,
   deckEntries,
+  ENDLESS_GO_ON_NOTE,
+  ENDLESS_SUBTITLE,
+  endlessBestLine,
+  endlessSeedCopy,
+  endlessStartNote,
+  loopsCleared,
   MAP_KEY_CLOSE,
   MAP_KEY_TITLE,
   mapKeyRows,
@@ -61,8 +76,11 @@ import {
   recordLine,
   shopCartState,
   shortName,
+  stageLabel,
+  STORY_SELECT_MODES,
   togglePick,
   unlockLines,
+  type StorySelectMode,
 } from '../ui/storyPresentation';
 import { colorInt, theme } from '../ui/theme';
 import { modalShell, panel, sceneHasOpenModal, type ModalShell } from '../ui/themeWidgets';
@@ -94,6 +112,10 @@ export interface StoryCompactHost {
   readonly guard: ModalGuard;
   readonly keptCardId: string | null;
   selectedCharacterId: string | null;
+  /** Character select's mode (Act 1, endless or the daily); kept by the scene across restarts. */
+  selectMode: StorySelectMode;
+  /** The endless screen's seed: the shared daily (default) or a random one. */
+  endlessDaily: boolean;
   commit(data?: { keptCardId?: string; storyScene?: { id: string; then: 'screen' | 'duel' } }): void;
   leave(): void;
   goTo(run: StoryRun, node: StoryNode | null, alreadyEntered: boolean): void;
@@ -455,6 +477,10 @@ export class StoryCompact {
     if (!this.host.selectedCharacterId || !roster.some((r) => r.unlocked && r.character.id === this.host.selectedCharacterId)) {
       this.host.selectedCharacterId = roster.find((r) => r.unlocked)?.character.id ?? null;
     }
+    // Endless opens once any heroine has cleared Act 1 (P9).
+    const endlessOpen = isEndlessOpen(story);
+    if (!endlessOpen) this.host.selectMode = 'act';
+    if (this.host.selectMode === 'endless') return this.buildEndlessSelect(roster);
     const layout = this.layout();
     const type = this.type;
     this.header(layout, 'Choose a character', 'Each has her own run deck and story', null);
@@ -500,6 +526,7 @@ export class StoryCompact {
     });
     this.scene.children.bringToTop(marks);
     const col = layout.column;
+    const body = endlessOpen ? this.modeSwitch(col.body) : col.body;
     let detail: Phaser.GameObjects.GameObject[] = [];
     const view = compactButton(this.scene, col.secondary, 'View deck', { onTap: () => this.viewStarter() });
     const begin = compactButton(this.scene, col.primary, 'Begin run', { variant: 'primary', onTap: () => this.beginRun() });
@@ -512,7 +539,7 @@ export class StoryCompact {
       nameTexts.forEach((t, j) => t.setColor(j === i ? theme.colors.gold : theme.colors.heading));
       begin.setEnabled(i >= 0);
       view.setEnabled(i >= 0);
-      detail = i >= 0 ? this.selectDetail(col.body, roster[i], roster) : [];
+      detail = i >= 0 ? this.selectDetail(body, roster[i], roster) : [];
     };
     refresh();
   }
@@ -549,6 +576,130 @@ export class StoryCompact {
     return this.scene.children.list.filter((o) => !before.has(o));
   }
 
+  /** Act 1 or Endless, at the top of character select's column; returns the column left under it. */
+  private modeSwitch(body: Rect): Rect {
+    const bar = { x: body.x, y: body.y, width: body.width, height: COMPACT.touch };
+    const at = STORY_SELECT_MODES.findIndex((m) => m.mode === this.host.selectMode);
+    compactSegments(this.scene, bar, STORY_SELECT_MODES.map((m) => m.label), Math.max(0, at), (i) => {
+      if (STORY_SELECT_MODES[i].mode === this.host.selectMode) return;
+      this.host.selectMode = STORY_SELECT_MODES[i].mode;
+      this.host.commit();
+    });
+    const drop = bar.height + COMPACT.gap;
+    return { ...body, y: body.y + drop, height: Math.max(0, body.height - drop) };
+  }
+
+  /**
+   * Endless and the daily seed (N-38): the chosen heroine's portrait beside
+   * the seed choice, what it means and her records; the column switches back
+   * to Act 1, lists the heroines and starts the run.
+   */
+  private buildEndlessSelect(roster: ReturnType<typeof storyRoster>): void {
+    const layout = this.layout();
+    const type = this.type;
+    const story = this.host.story;
+    this.header(layout, 'Endless', ENDLESS_SUBTITLE, null);
+    const main = layout.shell.main;
+    const daily = this.host.endlessDaily;
+    const dateKey = endlessDateKey(Date.now());
+    const chosen = roster.find((r) => r.character.id === this.host.selectedCharacterId)?.character ?? null;
+    // The portrait: 3:4, as tall as the pane allows but never more than a third of its width.
+    const picH = Math.min(main.height, Math.round((main.width / 3) * (4 / 3)));
+    const pic = { x: main.x, y: main.y, width: Math.round(picH * 0.75), height: picH };
+    this.scene.add.graphics().fillStyle(theme.graphics.dim, 1).fillRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+    if (chosen) this.portrait(chosen.darlingId, { x: pic.x + 2, y: pic.y + 2, width: pic.width - 4, height: pic.height - 4 });
+    this.scene.add.graphics().lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+    const tx = pic.x + pic.width + COMPACT.gap * 2;
+    const tw = main.x + main.width - tx;
+    const segW = Math.min(tw, Math.round(300 * Math.min(layout.k, 1.25)));
+    compactSegments(this.scene, { x: tx, y: main.y, width: segW, height: COMPACT.touch }, ['Daily seed', 'Random seed'], daily ? 0 : 1, (i) => {
+      if ((i === 0) === this.host.endlessDaily) return;
+      this.host.endlessDaily = i === 0;
+      this.host.commit();
+    });
+    let y = main.y + COMPACT.touch + 10;
+    const seed = endlessSeedCopy(daily, dateKey);
+    const heading = this.text(tx, y, seed.heading, type.h2, theme.colors.heading, { display: true, bold: true, wrap: tw });
+    y += heading.height + 6;
+    const best = chosen ? story.endless.bestLoop[chosen.id] ?? 0 : 0;
+    const lines: { copy: string; color: string; size: number }[] = [
+      { copy: seed.note, color: theme.colors.body, size: type.body },
+      { copy: endlessBestLine(best), color: theme.colors.body, size: type.body },
+      ...(daily ? [{ copy: dailyBestLine(dailyBestLoop(story, dateKey)), color: theme.colors.body, size: type.body }] : []),
+      { copy: endlessStartNote(ENDLESS_HEAD_START_PICKS, ENDLESS_HEAD_START_GOLD), color: theme.colors.muted, size: type.label },
+    ];
+    for (const line of lines) {
+      const t = this.text(tx, y, line.copy, line.size, line.color, { wrap: tw });
+      const room = main.y + main.height - y;
+      if (t.height > room) {
+        const lineH = t.height / Math.max(1, t.getWrappedText().length);
+        if (room < lineH) {
+          t.destroy();
+          break;
+        }
+        t.setMaxLines(Math.floor(room / lineH));
+      }
+      y += t.height + 6;
+    }
+
+    const col = layout.column;
+    const body = this.modeSwitch(col.body);
+    const rowsTop = this.eyebrow(body.x, body.y, 'Character', body.width);
+    const room = body.y + body.height - rowsTop;
+    const rowH = Math.max(COMPACT.touch, Math.min(Math.round(56 * Math.min(layout.k, 1.25)), Math.floor((room - COMPACT.gap * (roster.length - 1)) / roster.length)));
+    roster.forEach((entry, i) => {
+      const r = { x: body.x, y: rowsTop + i * (rowH + COMPACT.gap), width: body.width, height: rowH };
+      const selected = entry.character.id === chosen?.id;
+      this.scene.add.graphics()
+        .fillStyle(selected ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+        .fillRoundedRect(r.x, r.y, r.width, r.height, theme.radius.control)
+        .lineStyle(selected ? theme.outline.state : theme.control.borderWidth, selected ? colorInt(theme.colors.goldHover) : theme.graphics.panelStroke, 1)
+        .strokeRoundedRect(r.x, r.y, r.width, r.height, theme.radius.control);
+      const d = r.height - 12;
+      const face = { x: r.x + 6, y: r.y + 6, width: d, height: d };
+      this.portrait(entry.character.darlingId, face)?.setAlpha(entry.unlocked ? 1 : 0.35);
+      const nx = face.x + d + 8;
+      const lock = entry.unlocked ? 0 : Math.round(type.body * 1.1) + 8;
+      const nw = r.x + r.width - nx - 8 - lock;
+      const name = this.text(nx, 0, shortName(entry.character), type.body, entry.unlocked ? theme.colors.heading : theme.colors.muted, { bold: true });
+      fitMenuListName(name, nw, type.body, type.label);
+      const sub = this.text(nx, 0, entry.unlocked ? heroineTitle(entry.character) : 'Locked', type.label, theme.colors.muted);
+      ellipsizeText(sub, nw);
+      const block = name.height + sub.height;
+      name.setY(r.y + (r.height - block) / 2);
+      sub.setY(name.y + name.height);
+      if (sub.y + sub.height > r.y + r.height) sub.setVisible(false);
+      if (!entry.unlocked) {
+        const size = Math.round(type.body * 1.1);
+        this.scene.add.image(r.x + r.width - 8 - size / 2, r.y + r.height / 2, bakeUiIcon(this.scene, 'lock')).setDisplaySize(size, size).setTint(colorInt(theme.colors.muted));
+        return;
+      }
+      const zone = this.scene.add.zone(r.x + r.width / 2, r.y + r.height / 2, r.width, r.height).setInteractive({ useHandCursor: true });
+      bindTapButton(this.scene, zone, () => {
+        if (this.host.selectedCharacterId === entry.character.id) return;
+        this.host.selectedCharacterId = entry.character.id;
+        this.host.commit();
+      });
+    });
+    this.noticeLine(col.body);
+    const start = compactButton(this.scene, col.foot, daily ? 'Start daily run' : 'Start random run', { variant: 'primary', onTap: () => this.beginEndless(daily) });
+    start.setEnabled(!!chosen);
+  }
+
+  /** Start endless from the menu (P9, E3): the day's shared seed for the daily, else a random one. */
+  private beginEndless(daily: boolean): void {
+    const id = this.host.selectedCharacterId;
+    if (!id) return;
+    const now = Date.now();
+    const dateKey = endlessDateKey(now);
+    // UI may roll the seed; the run derives everything else from it.
+    const seed = daily ? dailyEndlessSeed(dateKey) : Math.floor(Math.random() * 2 ** 31);
+    const result = startEndlessRun(this.host.story, id, seed, now, daily ? { dailyDateKey: dateKey } : {});
+    if (!result.ok) return this.host.refused(result.reason);
+    const intro = endlessIntroSceneDue(this.host.story);
+    this.host.commit(intro ? { storyScene: { id: intro.id, then: 'screen' } } : {});
+  }
+
   /** A Darling's art cover-fitted into `rect`, faces biased up. */
   private portrait(darlingId: string, rect: Rect): Phaser.GameObjects.Image | null {
     try {
@@ -581,7 +732,7 @@ export class StoryCompact {
     const character = storyCharacterById(run.characterId);
     const layout = this.layout();
     const type = this.type;
-    this.header(layout, 'Choose an opening boon', `${character ? shortName(character) : 'Your heroine'} · Act ${run.act}`, run);
+    this.header(layout, 'Choose an opening boon', `${character ? shortName(character) : 'Your heroine'} · ${stageLabel(run)}`, run);
     const boons = offers.map((id) => STORY_BOONS.find((b) => b.id === id)!).filter(Boolean);
     const tiles = storyTiles(layout.shell.main, boons.length);
     let selected: StoryBoonId | null = null;
@@ -937,6 +1088,11 @@ export class StoryCompact {
       const t = this.text(box.x + STORY_COMPACT.pad, y, copy, type.body, theme.colors.body, { wrap: inner });
       y += t.height + 4;
     }
+    y += 8;
+    const offer = this.text(box.x + STORY_COMPACT.pad, y, ENDLESS_GO_ON_NOTE, type.label, theme.colors.muted, { wrap: inner });
+    const lineH = offer.height / Math.max(1, offer.getWrappedText().length);
+    const room = box.y + box.height - STORY_COMPACT.pad - y;
+    if (offer.height > room) offer.setMaxLines(Math.max(1, Math.floor(room / lineH)));
     const col = layout.column;
     const kept = this.host.keptCardId && CARD_DB[this.host.keptCardId] ? this.host.keptCardId : null;
     let cy = this.eyebrow(col.body.x, col.body.y, 'Kept for your collection', col.body.width);
@@ -955,11 +1111,84 @@ export class StoryCompact {
       this.text(col.body.x, cy, 'Your kept card is in your collection.', type.body, theme.colors.body, { wrap: col.body.width });
     }
     this.noticeLine(col.body);
-    compactButton(this.scene, col.foot, 'Finish run', { variant: 'primary', onTap: () => {
+    compactButton(this.scene, col.secondary, 'Finish run', { onTap: () => {
       const result = finishClearedRun(this.host.story);
       if (!result.ok) return this.host.refused(result.reason);
       this.host.commit();
     } });
+    compactButton(this.scene, col.primary, 'Continue', { variant: 'primary', onTap: () => {
+      const result = enterEndless(this.host.story);
+      if (!result.ok) return this.host.refused(result.reason);
+      const intro = endlessIntroSceneDue(this.host.story);
+      this.host.commit(intro ? { storyScene: { id: intro.id, then: 'screen' } } : {});
+    } });
+  }
+
+  /**
+   * A beaten endless claimant: the heroine, who fell, the run's numbers and
+   * records, then go on to the next loop or end the run there (asked first:
+   * ending cannot be undone).
+   */
+  buildLoopCleared(run: StoryRun, loop: number): void {
+    const layout = this.layout();
+    const type = this.type;
+    const story = this.host.story;
+    const character = storyCharacterById(run.characterId);
+    const who = character ? shortName(character) : 'Your heroine';
+    const boss = storyMapNodes(runMap(run)).find((node) => node.kind === 'boss');
+    const claimant = boss?.avatarId ? storyAvatarById(boss.avatarId).name : 'the claimant';
+    this.header(layout, `Loop ${loop} cleared`, `${who} · ${loopsCleared(loop)}`, run);
+    const main = layout.shell.main;
+    const picW = Math.min(Math.round(main.height * STORY_COMPACT.portraitShare), Math.round(main.width * 0.4));
+    const pic = { x: main.x, y: main.y, width: picW, height: main.height };
+    this.scene.add.graphics().fillStyle(theme.graphics.dim, 1).fillRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+    if (character) this.portrait(character.darlingId, { x: pic.x + 2, y: pic.y + 2, width: pic.width - 4, height: pic.height - 4 });
+    this.scene.add.graphics().lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(pic.x, pic.y, pic.width, pic.height, theme.radius.panel);
+    const box = { x: pic.x + pic.width + COMPACT.gap, y: main.y, width: main.width - pic.width - COMPACT.gap, height: main.height };
+    this.panelAt(box);
+    const inner = box.width - 2 * STORY_COMPACT.pad;
+    let y = box.y + STORY_COMPACT.pad;
+    const head = this.text(box.x + STORY_COMPACT.pad, y, `${who} defeated ${claimant}.`, type.h2, theme.colors.heading, { display: true, bold: true, wrap: inner });
+    y += head.height + 10;
+    for (const copy of [`Fights played: ${run.fightsPlayed}`, `Run deck: ${cardCount(run.deck.length)}`]) {
+      const t = this.text(box.x + STORY_COMPACT.pad, y, copy, type.body, theme.colors.body, { wrap: inner });
+      y += t.height + 4;
+    }
+    const col = layout.column;
+    let cy = this.eyebrow(col.body.x, col.body.y, 'Records', col.body.width);
+    const records = [endlessBestLine(story.endless.bestLoop[run.characterId] ?? 0)];
+    if (run.dailyDateKey !== null) records.push(dailyBestLine(dailyBestLoop(story, run.dailyDateKey)));
+    for (const copy of records) {
+      const t = this.text(col.body.x, cy, copy, type.body, theme.colors.body, { wrap: col.body.width });
+      cy += t.height + 6;
+    }
+    this.noticeLine(col.body);
+    compactButton(this.scene, col.secondary, 'End run', { onTap: () => this.confirmEndRun(loop) });
+    compactButton(this.scene, col.primary, `Go on to loop ${loop + 1}`, { variant: 'primary', onTap: () => {
+      const result = nextEndlessLoop(story);
+      if (!result.ok) return this.host.refused(result.reason);
+      this.host.commit();
+    } });
+  }
+
+  /** Ask before ending an endless run between loops; the records are already kept. */
+  private confirmEndRun(loop: number): void {
+    if (this.sheet) return;
+    const under = this.host.interactiveTargets();
+    compactDialog(this.scene, {
+      title: 'End this run?',
+      message: `The run ends here with ${loopsCleared(loop)}. Your best run is already saved.`,
+      secondary: { label: 'Keep going', onTap: (close) => close() },
+      primary: { label: 'End run', variant: 'danger', onTap: (close) => {
+        close();
+        const result = abandonRun(this.host.story);
+        if (!result.ok) return this.host.refused(result.reason);
+        this.host.commit();
+      } },
+      dismissal: 'dismissible',
+      onClose: () => this.host.guard.close(),
+    });
+    this.host.guard.open(under);
   }
 
   // ------------------------------------------------------------------ the run deck sheet
@@ -1037,8 +1266,9 @@ export class StoryCompact {
     const map = runMap(run);
     const legal = openDuel ? [] : legalNextNodes(this.host.story);
     const floorNow = run.nodeId ? map.floors.findIndex((f) => f.some((n) => n.id === run.nodeId)) + 1 : 0;
-    const where = floorNow > 0 ? `Floor ${floorNow} of ${map.floors.length}` : `${map.floors.length} floors to the boss`;
-    this.header(layout, `Act ${run.act}`, `${character ? shortName(character) : 'Story'} · ${where}`, run);
+    const goal = run.phase === 'endless' ? 'the claimant' : 'the boss';
+    const where = floorNow > 0 ? `Floor ${floorNow} of ${map.floors.length}` : `${map.floors.length} floors to ${goal}`;
+    this.header(layout, stageLabel(run), `${character ? shortName(character) : 'Story'} · ${where}`, run);
     // The map key's button left of the deck chip would crowd the title: it lives in the column instead.
     const main = layout.shell.main;
     this.panelAt(main);

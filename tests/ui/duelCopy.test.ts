@@ -5,6 +5,7 @@ import {
   defeatReasonCopy,
   resultReasonCopy,
   rewardBreakdown,
+  storyResultCopy,
 } from '../../src/ui/duelCopy';
 
 describe('Duel player-facing copy', () => {
@@ -63,5 +64,21 @@ describe('rewardBreakdown', () => {
     const { rows, total } = rewardBreakdown({ label: 'Loss', gold: 20, firstWinBonus: null, streak: { count: 2, gold: 0 } });
     expect(rows).toEqual([{ label: 'Loss', value: '+20' }]);
     expect(total).toBe('+20 gold');
+  });
+});
+
+describe('storyResultCopy in endless', () => {
+  const base = { alreadyRecorded: false, act1Cleared: false, unlockedNames: [] };
+
+  it('names the loop a claimant win cleared', () => {
+    expect(storyResultCopy({ ...base, won: true, loopCleared: 4, endlessLoopsBefore: 3 })).toMatchObject({
+      headline: 'LOOP CLEARED', runLine: 'Loop 4 is cleared. Your run goes on.',
+    });
+  });
+
+  it('tells an endless loss how far the run got, and an Act 1 loss only that it is over', () => {
+    expect(storyResultCopy({ ...base, won: false, endlessLoopsBefore: 1 }).runLine).toBe('Your run is over: 1 loop cleared.');
+    expect(storyResultCopy({ ...base, won: false, endlessLoopsBefore: 0 }).runLine).toBe('Your run is over: 0 loops cleared.');
+    expect(storyResultCopy({ ...base, won: false }).runLine).toBe('Your run is over.');
   });
 });

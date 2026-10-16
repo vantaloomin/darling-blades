@@ -72,12 +72,14 @@ import { COMPACT } from '../ui/compactLayout';
 import {
   chooseBoon,
   currentStoryNode,
+  endlessDateKey,
   enterNode,
   keepRewardKey,
   legalNextNodes,
   recordFight,
   resolveRest,
   resolveShop,
+  startEndlessRun,
   startRun,
   storyBoonOffers,
   takeCardReward,
@@ -468,6 +470,48 @@ function storyWalkFixture(stop: 'shop' | 'rest' | 'keep' | 'cleared'): StoryStat
   throw new Error(`a11yProbe: the fixture run never reached ${stop}`);
 }
 
+/**
+ * Endless (2.0, docs/plan-story-endless.md): Guan Yu has cleared Act 1 and
+ * reached loop 4, with today's daily at loop 2; `loop` walks a menu-started
+ * run to that loop's fresh map (its title card), or `cleared` to that loop's
+ * beaten claimant with her card reward taken.
+ */
+function storyEndlessFixture(stop: 'select' | { loop: number; at: 'map' | 'cleared' }): StoryState {
+  const story = storyProbeFixture('select');
+  story.wins['guan-yu'] = 1;
+  story.unlockedCharacterIds = [...new Set([...story.unlockedCharacterIds, 'persephone'])];
+  story.endless.bestLoop['guan-yu'] = 4;
+  story.endless.daily = { dateKey: endlessDateKey(Date.now()), bestLoop: 2 };
+  if (stop === 'select') return story;
+  startEndlessRun(story, 'guan-yu', 4242, 0);
+  chooseBoon(story, CARD_DB, storyBoonOffers(4242).find((id) => id !== 'trim-two')!);
+  const run = story.activeRun!;
+  while (run.pendingCardRewards.length > 0) takeCardReward(story, run.pendingCardRewards[0][0]);
+  run.endlessLoop = stop.loop;
+  run.fightsPlayed = 4 * stop.loop;
+  if (stop.at === 'map') return story;
+  for (let guard = 0; guard < 20; guard++) {
+    const next = legalNextNodes(story)[0];
+    enterNode(story, next.id);
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      while (run.pendingCardRewards.length > 0) takeCardReward(story, null);
+      if (next.kind === 'boss') return story;
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else resolveRest(story, null);
+  }
+  throw new Error('a11yProbe: the endless fixture never beat its claimant');
+}
+
+export const STORY_ENDLESS_SCENES: readonly ProbeScene[] = [
+  { label: 'Story / select with endless', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'act' } } },
+  { label: 'Story / endless daily', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'endless', endlessDaily: true } } },
+  { label: 'Story / endless random', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'endless', endlessDaily: false } } },
+  { label: 'Story / loop 1 title', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 1, at: 'map' }) } } },
+  { label: 'Story / loop 9 title', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 9, at: 'map' }) } } },
+  { label: 'Story / loop cleared', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 3, at: 'cleared' }) } } },
+];
+
 export const STORY_SCENES: readonly ProbeScene[] = [
   ...(['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
     label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
@@ -477,6 +521,7 @@ export const STORY_SCENES: readonly ProbeScene[] = [
   ...(['shop', 'rest', 'keep', 'cleared'] as const).map((stop) => ({
     label: `Story / ${stop}`, key: 'Story', data: { a11yFixture: { story: storyWalkFixture(stop) } },
   })),
+  ...STORY_ENDLESS_SCENES,
 ];
 
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];

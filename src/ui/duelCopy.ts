@@ -111,6 +111,10 @@ export interface StoryResultCopyInput {
   /** recordFight refused: the result was already in the run. */
   alreadyRecorded: boolean;
   act1Cleared: boolean;
+  /** The endless loop this win cleared, or null. */
+  loopCleared?: number | null;
+  /** On an endless run: the loops it had cleared before this duel; null outside endless. */
+  endlessLoopsBefore?: number | null;
   /** Names of characters this result unlocked. */
   unlockedNames: readonly string[];
 }
@@ -125,14 +129,18 @@ export interface StoryResultCopy {
 
 /** Copy for the story duel results overlay. A loss ends the run (recordFight). */
 export function storyResultCopy(input: StoryResultCopyInput): StoryResultCopy {
-  const headline = input.won ? (input.act1Cleared ? 'ACT CLEARED' : 'VICTORY') : 'DEFEAT';
+  const loop = input.loopCleared ?? null;
+  const before = input.endlessLoopsBefore ?? null;
+  const headline = input.won ? (input.act1Cleared ? 'ACT CLEARED' : loop !== null ? 'LOOP CLEARED' : 'VICTORY') : 'DEFEAT';
   const runLine = input.alreadyRecorded
     ? 'This duel was already recorded.'
     : !input.won
-      ? 'Your run is over.'
+      ? before === null ? 'Your run is over.' : `Your run is over: ${before} ${before === 1 ? 'loop' : 'loops'} cleared.`
       : input.act1Cleared
         ? 'Act 1 is cleared. Keep one card from your run deck.'
-        : 'Your run goes on.';
+        : loop !== null
+          ? `Loop ${loop} is cleared. Your run goes on.`
+          : 'Your run goes on.';
   const names = input.unlockedNames;
   const unlockLine = names.length === 0
     ? null

@@ -22,6 +22,7 @@ import {
   claimKeep,
   dailyBestLoop,
   dailyEndlessSeed,
+  endlessDateKey,
   endlessHeadStartOffers,
   enterEndless,
   enterNode,
@@ -30,6 +31,7 @@ import {
   isEndlessOpen,
   keepOptions,
   legalNextNodes,
+  markSceneSeen,
   nextEndlessLoop,
   recordFight,
   resolveRest,
@@ -41,7 +43,9 @@ import {
   takeCardReward,
 } from '../../src/meta/story/StoryProgress';
 import { storyScreen } from '../../src/meta/story/storyFlow';
-import { resolveStoryEventByRule } from '../../src/meta/story/storyEvents';
+import { endlessIntroSceneDue, resolveStoryEventByRule } from '../../src/meta/story/storyEvents';
+import { evaluateAchievements, syncAchievements } from '../../src/meta/Achievements';
+import { FEATURES } from '../../src/config/features';
 import { generateStoryMap, isDuelNode, storyMapNodes, validateStoryMap } from '../../src/meta/story/storyMap';
 import { normalizeStoryState, type StoryState } from '../../src/meta/story/storyState';
 import { checkStoryContent, SHIPPED_STORY_CONTENT } from '../../src/meta/story/storyContent';
@@ -334,5 +338,42 @@ describe('check-story covers endless', () => {
       checkStoryContent(CARD_DB, { content: { ...SHIPPED_STORY_CONTENT, endlessActs: [act] } }).errors;
     expect(broken({ ...loop, bossAvatarIds: ['simayi'] }).join('\n')).toMatch(/simayi is an act boss/);
     expect(broken({ ...loop, bossAvatarIds: [loop.fightAvatarIds[0]] }).join('\n')).toMatch(/stronger avatar than every elite/);
+  });
+});
+
+describe('endless screens\' meta pieces', () => {
+  it('plays the endless intro once ever, whichever way the first run reaches endless', () => {
+    const save = openSave();
+    const scene = endlessIntroSceneDue(save.story);
+    expect(scene?.kind).toBe('endless-intro');
+    markSceneSeen(save.story, scene!.id);
+    expect(endlessIntroSceneDue(save.story)).toBeUndefined();
+  });
+
+  it('keys the daily on the local calendar date, so a run started just before local midnight is that day\'s', () => {
+    const lateEvening = new Date(2026, 0, 5, 23, 59).getTime();
+    expect(endlessDateKey(lateEvening)).toBe('2026-01-05');
+    expect(endlessDateKey(lateEvening + 2 * 60_000)).toBe('2026-01-06');
+    expect(() => dailyEndlessSeed(endlessDateKey(lateEvening))).not.toThrow();
+  });
+
+  it('unlocks the loop 3 achievement from any heroine\'s best loop, and hides the goals while Story is not live', () => {
+    const previous = FEATURES.storyLive;
+    const save = openSave();
+    try {
+      FEATURES.storyLive = false;
+      save.story.endless.bestLoop[PERSEPHONE_ID] = 10;
+      expect(syncAchievements(save, CARD_DB).filter((id) => id.startsWith('story-endless'))).toEqual([]);
+      expect(evaluateAchievements(save, CARD_DB).some((s) => s.def.id.startsWith('story-endless'))).toBe(false);
+
+      FEATURES.storyLive = true;
+      save.story.endless.bestLoop[PERSEPHONE_ID] = 3;
+      save.story.endless.bestLoop[GUAN_YU_ID] = 2;
+      expect(syncAchievements(save, CARD_DB).filter((id) => id.startsWith('story-endless'))).toEqual(['story-endless-loop-3']);
+      const five = evaluateAchievements(save, CARD_DB).find((s) => s.def.id === 'story-endless-loop-5')!;
+      expect([five.current, five.target, five.unlocked]).toEqual([3, 5, false]);
+    } finally {
+      FEATURES.storyLive = previous;
+    }
   });
 });

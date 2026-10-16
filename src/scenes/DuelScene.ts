@@ -12147,6 +12147,9 @@ export class DuelScene extends Phaser.Scene {
   private showStoryResults(won: boolean, reason: string): void {
     const save = Services.save.data;
     const today = todayString();
+    // Read before the result: a loss ends the run, and its loop goes with it.
+    const runBefore = save.story.activeRun;
+    const endlessLoopsBefore = runBefore?.phase === 'endless' ? runBefore.endlessLoop - 1 : null;
     const applied = applyStoryDuelResult(save, this.story!, won, this.difficulty, today);
     // The daily streak and achievements follow the result, as for Limited; a
     // refused apply (already recorded) pays and counts nothing again.
@@ -12157,12 +12160,14 @@ export class DuelScene extends Phaser.Scene {
     Services.save.flush();
     if (checkpoint.changed) queueAchievementUnlockToasts(checkpoint.ids);
     Music.duck(1.8);
-    Sfx.play(won ? (applied.ok && applied.act1Cleared ? 'win' : 'rungClear') : 'loss');
+    Sfx.play(won ? (applied.ok && (applied.act1Cleared || applied.loopCleared !== null) ? 'win' : 'rungClear') : 'loss');
 
     const copy = storyResultCopy({
       won,
       alreadyRecorded: !applied.ok,
       act1Cleared: applied.ok && applied.act1Cleared,
+      loopCleared: applied.ok ? applied.loopCleared : null,
+      endlessLoopsBefore,
       unlockedNames: applied.ok
         ? applied.unlocked.map((id) => storyCharacterById(id)?.name ?? id)
         : [],

@@ -37,6 +37,8 @@ import {
   shortName,
   togglePick,
   unlockLines,
+  loopTitleCard,
+  stageLabel,
 } from '../../src/ui/storyPresentation';
 import { theme } from '../../src/ui/theme';
 import { forEachA11yCell } from './a11yCells';
@@ -314,5 +316,19 @@ describe('Story screens: copy and view state', () => {
       MAP_KEY_TITLE, MAP_KEY_NOTE, MAP_KEY_CLOSE,
     ];
     for (const line of copy) expect(line, line).not.toMatch(/[—–]/);
+  });
+});
+
+describe('endless copy', () => {
+  it('names the run\'s stage by act, then by loop once it is in endless', () => {
+    expect(stageLabel({ phase: 'act', act: 1, endlessLoop: 0 })).toBe('Act 1');
+    expect(stageLabel({ phase: 'endless', act: 1, endlessLoop: 3 })).toBe('Loop 3');
+  });
+
+  it('adds what the claimant starts with to the title card only once the levers apply', () => {
+    expect(loopTitleCard(2, 'Hel', false, 0)).toEqual({ title: 'Loop 2', lines: ['Hel holds the Mandate.'] });
+    expect(loopTitleCard(7, 'Hel', true, 0).lines[1]).toBe('She starts the duel holding it.');
+    expect(loopTitleCard(9, 'Hel', true, 6).lines[1]).toBe('She starts the duel holding it, with 6 extra life.');
+    expect(loopTitleCard(1, 'Brunhild, the Last Valkyrie', false, 0).lines[0]).toBe('Brunhild, the Last Valkyrie, holds the Mandate.');
   });
 });
