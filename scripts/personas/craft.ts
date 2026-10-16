@@ -15,7 +15,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAI } from '../../src/ai/personality';
 import { ALL_CARDS, CARD_DB } from '../../src/data/catalog';
-import { isLiveCollectible } from '../../src/data/liveness';
+import { CORE_SET_2_SET, isLiveCollectible } from '../../src/data/liveness';
 import { STARTER_DECKS, THEME_DECKS, type DeckList } from '../../src/data/starterDecks';
 import { createRngState, rngInt, rngNext, type RngState } from '../../src/engine/rng';
 import { manaValue, type CardDef, type Color } from '../../src/engine/types';
@@ -60,7 +60,9 @@ export const CLI_HELP = `Persona deck-crafting harness
 
 Single-round mode (the v1 default):
   --persona <id> | --all     Craft against --field prefabs|starters
-  --pool <id>                Card pool (default: all)
+  --pool <id>                Card pool (default: all). all = the live public
+                             pool; dev = the dev build's pool, which adds
+                             Core Set II before its 2.0 flip; or one set id
   --seeds <n>                Games per matchup (default: 150)
   --iterations <n>           Hill-climb swaps (default: 80)
   --seed <n>                 Deterministic craft seed (default: 13003)
@@ -557,13 +559,22 @@ function colorsRequiredByFloor(
 const includesColors = (card: CardDef, required: readonly Color[]): boolean =>
   required.every((color) => card.colors.includes(color));
 
+/**
+ * `dev` is the pool the dev build boots with (src/main.ts turns Core Set II on
+ * there), so a sweep on the release branch can measure the set before the 2.0
+ * cut flips `coreSet2Live`. After the flip it is the same pool as `all`. The
+ * pool id enters the journal config, so a `dev` craft never merges or resumes
+ * with an `all` one.
+ */
 export function cardsForPool(pool: string): CardDef[] {
   const knownSets = new Set(ALL_CARDS.map((card) => card.set).filter((set): set is NonNullable<CardDef['set']> => Boolean(set)));
-  if (pool !== 'all' && !knownSets.has(pool as NonNullable<CardDef['set']>)) {
-    throw new Error(`Unknown pool: ${pool}. Expected all or one of ${[...knownSets].sort().join(', ')}`);
+  if (pool !== 'all' && pool !== 'dev' && !knownSets.has(pool as NonNullable<CardDef['set']>)) {
+    throw new Error(`Unknown pool: ${pool}. Expected all, dev or one of ${[...knownSets].sort().join(', ')}`);
   }
+  const live = (card: CardDef): boolean =>
+    isLiveCollectible(card) || (pool === 'dev' && card.set === CORE_SET_2_SET);
   return ALL_CARDS.filter((card) =>
-    !card.token && (isBasic(card) || (isLiveCollectible(card) && (pool === 'all' || card.set === pool))),
+    !card.token && (isBasic(card) || (live(card) && (pool === 'all' || pool === 'dev' || card.set === pool))),
   );
 }
 
