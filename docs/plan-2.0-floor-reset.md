@@ -16,10 +16,10 @@
 
 **Taste-sensitive, listed rather than decided:**
 
-1. **The AI's life curve** (`src/ai/evaluate.ts`, `14 * tanh(life / 9)`, knee `LIFE_CURVE_KNEE`; the clock terms use `their.life * 0.5`). Not scaled with starting life. At 25 the top 5 points are worth almost nothing to the evaluator. Plan-2.0 D3 says "the scorer's life-related terms re-derived"; that is an AI tune and would move every reading, so it is not in this PR. The readings below are the AI as it stands.
-2. **`burnFaceLife: 20`** on R5 Zhurong (`src/data/opponents.ts:1292`) meant "burn face from the first turn" at 20 life; at 25 she holds burn until the foe is at 20. Default `burnFaceLife` is 8. Story opponents use 30 and are unaffected.
+1. **The AI's life curve** (left as is: the AI is frozen and the P14 retune follows the life change) (`src/ai/evaluate.ts`, `14 * tanh(life / 9)`, knee `LIFE_CURVE_KNEE`; the clock terms use `their.life * 0.5`). Not scaled with starting life. At 25 the top 5 points are worth almost nothing to the evaluator. Plan-2.0 D3 says "the scorer's life-related terms re-derived"; that is an AI tune and would move every reading, so it is not in this PR. The readings below are the AI as it stands.
+2. **`burnFaceLife: 20`** on R5 Zhurong (`src/data/opponents.ts`) meant "burn face from the first turn" at 20 life; at 25 she would hold burn until the foe is at 20. **Scaled to 25** (the recommended default, its own commit, before R5 is measured), pending the owner's pick. Default `burnFaceLife` is 8. Story opponents use 30 and are unaffected.
 3. **`docs/ai.md`** and the evaluator comments say "nearly worthless at 20"; still true, left.
-4. **Medium >= .80 vs Easy and Hard >= .70 vs Medium** (`winrate.test.ts`) are plan targets on TEST_DB decks, not mean-6.5 floors. They are measured below and kept unless the owner wants them reset by the rule too.
+4. **Medium >= .80 vs Easy and Hard >= .70 vs Medium** (`winrate.test.ts`) are plan targets on TEST_DB decks, not mean-6.5 floors. Kept as targets: measured and reported, not moved.
 
 ## 2. Inventory of gates with a measured floor, band or ceiling
 

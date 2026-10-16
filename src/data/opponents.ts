@@ -1289,7 +1289,9 @@ export const AVATARS: readonly Avatar[] = [
     tier: 5,
     difficulty: 'medium',
     portraitCardId: 'tk-other-zhurong',
-    personality: makePersonality({ burnFaceLife: 20, removalBias: 1, holdback: 0.6 }),
+    // burnFaceLife scaled 20 -> 25 with 2.0's starting life, so she still
+    // burns face from turn one (recommended default, plan-2.0 P8 reset).
+    personality: makePersonality({ burnFaceLife: 25, removalBias: 1, holdback: 0.6 }),
     deck: expand([
       ['land-mountain', 24],
       ['tk-other-zhurong', 4],
