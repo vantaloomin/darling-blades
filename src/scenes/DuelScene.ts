@@ -293,7 +293,8 @@ export interface DuelSceneData {
   /** Story Mode (docs/plan-story-mode.md): the duel at this node of the active run, resolved through `storyDuelSetup`. */
   story?: { runId: string; nodeId: string };
   /** Duel Deck Codes: the AI pilots the pasted code's deck at this level, against the active deck. */
-  deckCode?: { code: string; level: DeckCodeLevel };
+  /** A Duel any Deck duel; `name` is set when the player picked one of their own decks. */
+  deckCode?: { code: string; level: DeckCodeLevel; name?: string };
   replay?: ReplayLog;
   /** Dev-only, with `replay`: trailer footage, no replay chrome (src/dev/showcase.ts). */
   showcase?: { speed: number; deckName: string };
@@ -707,7 +708,7 @@ export class DuelScene extends Phaser.Scene {
   private story: StoryDuelRef | null = null;
   private storySetup: StoryDuelSetup | null = null;
   /** A Duel Deck Codes duel: the code (for the way back) and the deck it fields for the AI. */
-  private codeDuel: { code: string; deck: DeckCodeOpponent } | null = null;
+  private codeDuel: { code: string; deck: DeckCodeOpponent; name: string } | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -894,7 +895,7 @@ export class DuelScene extends Phaser.Scene {
       this.scene.start('DeckCode', { code: data.deckCode.code, notice: resolved.message });
       return false;
     }
-    this.codeDuel = { code: data.deckCode.code, deck: resolved.deck };
+    this.codeDuel = { code: data.deckCode.code, deck: resolved.deck, name: data.deckCode.name?.trim() || DECK_CODE_OPPONENT_NAME };
     return true;
   }
 
@@ -1415,7 +1416,7 @@ export class DuelScene extends Phaser.Scene {
             difficulty: this.difficulty,
             opponentId: this.opponent?.id ?? null,
             opponentName: this.opponent?.name ?? this.limitedPersona?.name ??
-              (codeDuel ? DECK_CODE_OPPONENT_NAME : `Practice AI (${this.difficulty})`),
+              (codeDuel ? codeDuel.name : `Practice AI (${this.difficulty})`),
             gauntletRung: this.gauntletRung,
             ...(story ? { story: this.storyReplayLabels(story) } : {}),
           },
@@ -2123,7 +2124,7 @@ export class DuelScene extends Phaser.Scene {
    */
   private opponentName(): string | undefined {
     return this.a11yFixture?.opponentName ?? this.opponent?.name ?? this.limitedPersona?.name ??
-      (this.tutorial ? TUTORIAL_OPPONENT_NAME : this.codeDuel ? DECK_CODE_OPPONENT_NAME : undefined);
+      (this.tutorial ? TUTORIAL_OPPONENT_NAME : this.codeDuel ? this.codeDuel.name : undefined);
   }
 
   private matchupLabel(): string {

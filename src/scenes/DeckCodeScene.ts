@@ -38,6 +38,8 @@ const WIDE_CONTENT: Rect = { x: 20, y: 14, width: 1240, height: 692 };
 
 /** The last code on this screen, kept for the session so a deck change or a finished duel comes back to it. */
 let rememberedCode = '';
+/** The player's own deck last picked under My decks: while the field holds its code, the duel names the opponent after it. */
+let rememberedPick: { code: string; name: string } | null = null;
 
 export interface DeckCodeSceneData {
   /** A code to show, replacing the remembered one (a duel's way back). */
@@ -397,6 +399,7 @@ export class DeckCodeScene extends Phaser.Scene {
             if (!inView || Math.abs(pointer.upY - pointer.downY) > COMPACT.touch / 4) return;
             shell.close();
             if (this.field) this.field.value = row.code;
+            rememberedPick = { code: row.code, name: row.deck.name };
             this.check();
           });
           column.add(zone);
@@ -414,6 +417,7 @@ export class DeckCodeScene extends Phaser.Scene {
 
   private launch(): void {
     if (!this.ready) return;
-    this.scene.start('Duel', { deckCode: { code: this.ready, level: this.level } });
+    const name = rememberedPick?.code === this.ready ? rememberedPick.name : undefined;
+    this.scene.start('Duel', { deckCode: { code: this.ready, level: this.level, ...(name ? { name } : {}) } });
   }
 }
