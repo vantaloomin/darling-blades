@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-22 · DRAFT legal notices template — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md, src/audio/soundSet.ts · last-verified: 2026-10-16 · DRAFT legal notices template — not live, not legal advice -->
 
 <!--
 DRAFT. Not published.
@@ -33,6 +33,20 @@ admin@bladedarlings.com.
 
 The card and scene art was created with the help of AI image generation tools
 and then selected, directed, and edited for the game.
+
+## Sound and music
+
+The Classic sound style is made by the game's own code. The recorded sounds
+and music in the New sound style come from free packs released under CC0 1.0,
+a public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/),
+so no credit is required. We thank their makers anyway:
+
+- Sound effects and jingles: Kenney (https://kenney.nl): Casino Audio, Impact
+  Sounds, Interface Sounds, Music Jingles, RPG Audio and UI Audio.
+- Music: Not Jam (https://not-jam.itch.io): Not Jam Music Pack and Not Jam
+  Music Pack 2.
+
+The files were trimmed, volume matched and re-encoded for the game.
 
 ## Mythology and history
 

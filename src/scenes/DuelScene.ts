@@ -4038,6 +4038,10 @@ export class DuelScene extends Phaser.Scene {
       case 'mulliganTaken':
         if (e.player === AI) this.log('Opponent takes a mulligan');
         break;
+      case 'drew':
+        // New sound style only; a batch of draws collapses to one slide.
+        if (!this.replayMode && e.player === HUMAN) Sfx.playTexture('draw');
+        break;
       case 'gameEnded':
         this.ended = true;
         if (this.replayMode) this.completeReplayPlayback();
@@ -11439,6 +11443,7 @@ export class DuelScene extends Phaser.Scene {
     onDone: () => void,
   ): void {
     const motion = riffleShuffleMotion(this.motionLevel());
+    Sfx.playTexture('shuffle'); // New sound style only
     if (motion.totalMs === 0 || plates.length === 0) {
       onDone();
       return;

@@ -44,7 +44,13 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. **2.0 adds a Classic / New "Sound style" setting**
+  (`settings.soundStyle`, riding the v38 bump): New plays recorded CC0
+  placeholder samples and one music loop per mood (`src/audio/soundSet.ts`,
+  built into `public/assets/audio/` by `scripts/build-sound-set.ts` from the
+  Kenney and Not Jam packs), falls back to Classic for anything not loaded,
+  and adds card shuffle, draw and pack-tear sounds Classic has no recipe for.
+  Classic stays the default and fetches nothing. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona

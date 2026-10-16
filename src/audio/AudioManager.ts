@@ -1,4 +1,6 @@
-import { SFX, type SfxName, type Voice } from './recipes';
+import { DEFAULT_SOUND_STYLE, type SoundStyle } from '../meta/soundStyle';
+import { SFX, SFX_NAMES, type SfxName, type Voice } from './recipes';
+import { pickSoundFormat, SAMPLE_SFX_LEVEL, sfxStem, TEXTURE_CUES, type SoundFormat, type TextureCue } from './soundSet';
 
 /** Where the master volume is read from / persisted to (the SaveManager in prod). */
 export interface VolumeStore {
@@ -37,6 +39,7 @@ export class AudioManager {
   private noiseBuf: AudioBuffer | null = null;
   private readonly supported: boolean;
   private lastPlayedAt = new Map<SfxName, number>();
+  private textureLastAt = new Map<string, number>();
   private muted = false;
 
   /** Count of SFX actually scheduled — a cheap hook for dev-tool verification. */
@@ -46,6 +49,15 @@ export class AudioManager {
   resumeAttempts = 0;
 
   private unlockArmed = false;
+
+  /** Decoded "New" style samples by stem (`sfx/click`, `music/duel`); see soundSet.ts. */
+  private readonly samples = new Map<string, AudioBuffer>();
+  /** Stems being fetched, and stems that failed once (never retried this session). */
+  private readonly loading = new Set<string>();
+  private readonly failed = new Set<string>();
+  private format: SoundFormat | null = null;
+  /** Count of sample voices actually started — a dev-tool hook like playCount. */
+  samplePlayCount = 0;
 
   /**
    * `sfxEnabled` is the persisted SFX on/off preference
@@ -57,6 +69,8 @@ export class AudioManager {
   constructor(
     private readonly store: VolumeStore,
     private readonly sfxEnabled: () => boolean = () => true,
+    /** The persisted sound style (SaveData.settings.soundStyle): Classic recipes or New samples. */
+    readonly soundStyle: () => SoundStyle = () => DEFAULT_SOUND_STYLE,
   ) {
     this.supported =
       typeof window !== 'undefined' && typeof globalThis.AudioContext !== 'undefined';
@@ -172,7 +186,53 @@ export class AudioManager {
     this.lastPlayed = name;
     const t0 = this.ctx.currentTime + 0.005;
     const pitch = normalizeSfxPitch(options.pitch);
+    // New style: the recorded sample once it has loaded; until then (or if it
+    // failed to load) the Classic recipe still sounds, so nothing goes quiet.
+    const buf = this.soundStyle() === 'new' ? this.sample(sfxStem(name)) : null;
+    if (buf) {
+      this.spawnSample(buf, t0, pitch);
+      return;
+    }
     for (const v of SFX[name]) this.spawnVoice(v, t0, pitch);
+  }
+
+  /**
+   * A card-handling moment only the New style voices (shuffle, draw, pack
+   * tear). Silent under Classic, which has no recipe for these, and silent
+   * until the sample has loaded. Same gates and retrigger window as play().
+   */
+  playTexture(cue: TextureCue): void {
+    if (!this.ctx || !this.master || this.ctx.state !== 'running') return;
+    if (!this.sfxEnabled() || this.soundStyle() !== 'new') return;
+    const buf = this.sample(sfxStem(cue));
+    if (!buf) return;
+    const key = `texture:${cue}`;
+    const now = Date.now();
+    if (now - (this.textureLastAt.get(key) ?? -Infinity) < RETRIGGER_MS) return;
+    this.textureLastAt.set(key, now);
+    this.spawnSample(buf, this.ctx.currentTime + 0.005, 1);
+  }
+
+  /**
+   * The decoded sample for a stem, or null while it loads (the call starts the
+   * load) or after it failed. Shared with the music layer for its loops.
+   */
+  sample(stem: string): AudioBuffer | null {
+    const buf = this.samples.get(stem);
+    if (buf) return buf;
+    this.loadSample(stem);
+    return null;
+  }
+
+  /**
+   * Start fetching every New-style sound effect, so the first press of each
+   * button already has its sample. Called on unlock and when the setting
+   * flips to New; music loops load on demand, one mood at a time.
+   */
+  preloadSamples(): void {
+    if (this.soundStyle() !== 'new') return;
+    for (const name of SFX_NAMES) this.loadSample(sfxStem(name));
+    for (const cue of TEXTURE_CUES) this.loadSample(sfxStem(cue));
   }
 
   // -----------------------------------------------------------------------
@@ -188,6 +248,7 @@ export class AudioManager {
       this.noiseBuf = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
       const data = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      this.preloadSamples();
     }
     // Resume from any non-running state — iOS reports the non-standard
     // 'interrupted' (not in the TS union), which the old 'suspended'-only
@@ -201,6 +262,43 @@ export class AudioManager {
     // Short ramp instead of a jump: avoids a click if anything is mid-decay.
     this.master.gain.cancelScheduledValues(this.ctx.currentTime);
     this.master.gain.setTargetAtTime(target, this.ctx.currentTime, 0.015);
+  }
+
+  private loadSample(stem: string): void {
+    const ctx = this.ctx;
+    if (!ctx || this.samples.has(stem) || this.loading.has(stem) || this.failed.has(stem)) return;
+    if (typeof globalThis.fetch !== 'function') return;
+    this.format ??= pickSoundFormat((mime) =>
+      typeof document !== 'undefined' && typeof document.createElement === 'function'
+        ? document.createElement('audio').canPlayType(mime)
+        : '');
+    this.loading.add(stem);
+    void globalThis
+      .fetch(`assets/audio/${stem}.${this.format}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.arrayBuffer();
+      })
+      .then((bytes) => ctx.decodeAudioData(bytes))
+      .then(
+        (buf) => this.samples.set(stem, buf),
+        () => this.failed.add(stem),
+      )
+      .finally(() => this.loading.delete(stem));
+  }
+
+  private spawnSample(buf: AudioBuffer, t0: number, pitch: number): void {
+    const ctx = this.ctx!;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = pitch;
+    const gain = ctx.createGain();
+    gain.gain.value = SAMPLE_SFX_LEVEL;
+    src.connect(gain);
+    gain.connect(this.master!);
+    src.onended = () => gain.disconnect();
+    src.start(t0);
+    this.samplePlayCount++;
   }
 
   private spawnVoice(v: Voice, t0: number, pitch: number): void {
