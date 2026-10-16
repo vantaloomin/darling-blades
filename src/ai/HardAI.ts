@@ -45,6 +45,8 @@ export interface HardSearchOptions {
   attackCycles?: number;
   /** Search every ordinary cast in the main phase, not only Medium's pick and the mechanic casts. */
   wideMain?: boolean;
+  /** Search which land to play, from hand or the Warchest Reserves, as well. */
+  wideLand?: boolean;
   /** Ordinary main-phase lines searched per decision; Hard ships 8. */
   mainSlots?: number;
   /** Evaluation weights; Hard ships DEFAULT_EVAL_WEIGHTS. */
@@ -343,6 +345,7 @@ export class HardAI implements AIPlayer {
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
           (a.type === 'castSpell' && this.search.wideMain === true && a.hauntlinked !== true) ||
+          (a.type === 'playLand' && this.search.wideLand === true) ||
           (a.type === 'castSpell' &&
             (a.empowered === true || a.retell === true || a.whispers === true ||
               isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a) || isVocabularyCast(view, this.db, a))) ||

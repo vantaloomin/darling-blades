@@ -31,6 +31,10 @@ import type { PlayerView } from '../engine/view';
  *    filled from its real deck list (`ownDeck`), with 1 or 3 worlds: 50.8% /
  *    51.2% vs Hard, and 50.0% on top of Expert. The one-turn horizon rarely
  *    draws, so knowing what is left changes almost no decision.
+ *  - (same ladder) Master's opponent's hidden hand and library drawn from the
+ *    spells they have SHOWN (battlefield, graveyard, Severed), with 1 or 3
+ *    worlds: 47.3% / 49.8% vs Expert. The old lesson holds at a two-turn
+ *    horizon too: a busier opponent model taxes the lines that win.
  * Hard's edge lives in engine-exact combat math on the PUBLIC battlefield;
  * an inert hidden-card model keeps that signal clean. The category/prior
  * machinery stays as the tuning surface for future pools where real decks

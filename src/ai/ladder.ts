@@ -19,19 +19,24 @@ export type LadderLevel = 'hard' | 'expert' | 'master';
  * seed range and confirmed on fresh seeds (1,200 games each):
  *  - Expert, a wide main-phase search (every ordinary cast, not only Medium's
  *    pick) with each line played out to the end of its own turn: 58.6% vs Hard.
- *  - Master, the same search played on through the opponent's turn to its own
- *    next main phase, scoring life higher and cards and its own clock double:
- *    53.7% vs Expert, 62.7% vs Hard (600 games).
+ *  - Master, the same search over which land to play as well, each line played
+ *    on through the opponent's turn to its own next main phase, scoring life
+ *    higher and cards and its own clock double: 58.3% vs Expert.
+ * Land search alone lifts Expert to 63.6% vs Hard, but then Master's step over
+ * it shrinks to 53.6%, so it stays Master's.
  * Measured and NOT kept (within noise of the level below, or worse): knowing
  * its own library (1 or 3 worlds), a second attack-search turn cycle, rollouts
  * without the wide search, 14 main-phase slots, every subset of attackers,
  * smaller search margins, averaging both horizons, Hard itself playing the
- * rollouts (also 3-4x slower), and single-weight changes besides these.
+ * rollouts (also 3-4x slower), guessing the opponent's hidden cards from the
+ * spells they have shown (47-50%), assuming the worst of three counterattacks,
+ * and single-weight changes besides these.
  */
 export const LADDER_SEARCH: Readonly<Record<Exclude<LadderLevel, 'hard'>, HardSearchOptions>> = {
   expert: { wideMain: true, rollout: 'turn' },
   master: {
     wideMain: true,
+    wideLand: true,
     rollout: 'cycle',
     weights: { ...DEFAULT_EVAL_WEIGHTS, life: 22.4, card: 2.4, myClock: 1.2 },
   },
