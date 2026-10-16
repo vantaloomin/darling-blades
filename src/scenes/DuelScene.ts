@@ -56,6 +56,7 @@ import {
   pushReplay,
   recordReplayAction,
   replayDbStamp,
+  replayPlayDrawChoice,
   replayStartingLife,
   startReplayDraft,
   undoReplayAction,
@@ -1299,7 +1300,9 @@ export class DuelScene extends Phaser.Scene {
         : {}),
       // The fixed tutorial scripts its opening and auto-keeps both hands.
       // Every normal duel path, including Limited and gauntlet, opts in.
-      playDrawChoice: !this.tutorial,
+      // A replay opens the way its game did (the duel screen's logs start
+      // with the choice; the headless runners' logs do not).
+      playDrawChoice: this.replayLog ? replayPlayDrawChoice(this.replayLog) : !this.tutorial,
       ...(this.tutorial ? { rulesRev: 1 as const } : {}),
     });
     // Anonymous duel digest (src/net/signals.ts): the launched human list, kept
@@ -4700,7 +4703,9 @@ export class DuelScene extends Phaser.Scene {
 
   /**
    * Transient center banner announcing a turn change ("Your Turn" / "<Name>'s
-   * Turn" + the turn number). Fades in, holds, fades out and self-destroys;
+   * Turn" + the turn number). Turn 1's caption also says who goes first: the
+   * coin flip settles under the mulligan screen, so nothing else on the board
+   * says it. Fades in, holds, fades out and self-destroys;
    * a new one supersedes any still on screen so they can't stack. Non-
    * interactive, so taps pass straight through to the board below.
    */
@@ -4714,7 +4719,7 @@ export class DuelScene extends Phaser.Scene {
     const bannerY = this.fx.bannerY;
     const banner = this.add.container(this.fx.centerX, bannerY).setDepth(theme.depth.banner).setAlpha(0);
     const sub = this.add
-      .text(0, -16, `TURN ${turn}`, {
+      .text(0, -16, turn === 1 ? `TURN 1  \u00b7  ${isYou ? 'YOU GO FIRST' : 'THEY GO FIRST'}` : `TURN ${turn}`, {
         fontFamily: theme.fonts.ui,
         fontSize: `${theme.type.caption}px`,
         fontStyle: '700',
@@ -4735,7 +4740,7 @@ export class DuelScene extends Phaser.Scene {
       title.setFontSize(Math.max(duelHudType(17, 'h1'), Math.floor((duelHudType(26, 'h1') * (frameMaxW - framePad * 2)) / title.width)));
       title.setData('a11yFitToBox', true);
     }
-    const frameW = Math.max(340, Math.min(frameMaxW, Math.ceil(title.width) + framePad * 2));
+    const frameW = Math.max(340, Math.min(frameMaxW, Math.ceil(Math.max(title.width, sub.width)) + framePad * 2));
     const bg = this.add
       .rectangle(0, 0, frameW, 66, colorInt(theme.colors.panelFill), 0.82)
       .setStrokeStyle(1.5, colorInt(accent));

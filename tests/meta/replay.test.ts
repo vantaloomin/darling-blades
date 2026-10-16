@@ -69,6 +69,7 @@ function recordBotGame(
   replayVersion: number = REPLAY_LOG_VERSION,
   startingHandSize?: number,
   startingLife?: number,
+  playDrawChoice = false,
   setup: { lifeBonus?: [number, number]; mandateHolder?: PlayerId } = {},
 ): {
   log: ReplayLog;
@@ -86,6 +87,7 @@ function recordBotGame(
     ...(startingLife === undefined ? {} : { startingLife }),
     ...(setup.lifeBonus === undefined ? {} : { lifeBonus: setup.lifeBonus }),
     ...(setup.mandateHolder === undefined ? {} : { startingMandateHolder: setup.mandateHolder }),
+    playDrawChoice,
   });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
   const draft = startReplayDraft({
@@ -127,6 +129,14 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       expect(JSON.stringify(game.state)).toBe(finalState);
       expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
     }
+  });
+
+  it('golden replay: a game opened by the play/draw choice, as every duel-screen game is', () => {
+    const { log, finalState, events } = recordBotGame(5, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, undefined, true);
+    expect(log.actions[0].a.type).toBe('choosePlayDraw');
+    const { game, eventLog } = replayGame(log, TEST_DB);
+    expect(JSON.stringify(game.state)).toBe(finalState);
+    expect(JSON.stringify(eventLog)).toBe(JSON.stringify(events));
   });
 
   it('goldens a chooseTarget arrival decision through replayGame', () => {
@@ -217,7 +227,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
   });
 
   it('records a Story endless claimant\'s extra life and starting Mandate, and replays the game with them', () => {
-    const original = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, { lifeBonus: [0, 6], mandateHolder: 1 });
+    const original = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, false, { lifeBonus: [0, 6], mandateHolder: 1 });
     expect(original.log.lifeBonus).toEqual([0, 6]);
     expect(original.log.mandateHolder).toBe(1);
     const stored = JSON.parse(JSON.stringify(original.log)) as ReplayLog;
@@ -226,7 +236,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
     expect(JSON.stringify(replayed.game.instanceState)).toBe(original.instanceFinalState);
     expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
     // An ordinary game records neither field.
-    const plain = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, { lifeBonus: [0, 0] });
+    const plain = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, false, { lifeBonus: [0, 0] });
     expect('lifeBonus' in plain.log || 'mandateHolder' in plain.log).toBe(false);
     for (const bad of [{ lifeBonus: [0, -1] }, { lifeBonus: [3] }, { mandateHolder: 2 }]) {
       expect(isReplayLog({ ...stored, ...bad })).toBe(false);

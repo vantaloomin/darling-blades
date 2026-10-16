@@ -175,6 +175,16 @@ export function replayStartingLife(log: Pick<ReplayLog, 'startingLife'>): number
   return log.startingLife ?? LEGACY_REPLAY_STARTING_LIFE;
 }
 
+/**
+ * Whether a log's game opened with the coin-flip winner's play/draw choice.
+ * The duel screen records that choice as its first action; the headless
+ * runners deal straight to the mulligan. The choice draws no randomness, so
+ * the log itself says which opening to build.
+ */
+export function replayPlayDrawChoice(log: Pick<ReplayLog, 'actions'>): boolean {
+  return log.actions[0]?.a.type === 'choosePlayDraw';
+}
+
 /** Record one successful submit. The action is deep-copied so later mutation
  *  of the caller's object can never corrupt the log. */
 export function recordReplayAction(draft: ReplayDraft, p: PlayerId, a: Action): void {
@@ -254,6 +264,7 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
     startingLife: replayStartingLife(log),
     ...(log.lifeBonus === undefined ? {} : { lifeBonus: [log.lifeBonus[0], log.lifeBonus[1]] as [number, number] }),
     ...(log.mandateHolder === undefined ? {} : { startingMandateHolder: log.mandateHolder }),
+    playDrawChoice: replayPlayDrawChoice(log),
     ...(format === 'warchest'
       ? {
           format,

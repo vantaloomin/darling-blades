@@ -102,8 +102,8 @@ export interface ShowcaseOptions {
 /**
  * The Game a showcase log plays in, built as DuelScene builds a replay's:
  * the coin flip and play/draw choice included, and the format's opening hand.
- * (Replay.replayGame builds without the play/draw choice, so it cannot check
- * a log the duel screen will play; `checkShowcase` below does.)
+ * `checkShowcase` below replays a log through it; the recorder also observes
+ * its events.
  */
 function showcaseGame(log: Pick<ReplayLog, 'decks' | 'seed' | 'format' | 'landReserves' | 'darlings' | 'startingHandSize'>, eventObserver?: (e: Readonly<GameEvent>) => void): Game {
   return new Game({

@@ -66,7 +66,7 @@ export interface StoryState {
   countedRuns: Record<string, number>;
   /** Per character: wins. In 2.0 a win is an Act 1 clear (S4). */
   wins: Record<string, number>;
-  /** Exactly-once reward keys (keeps and permanent buys). */
+  /** Exactly-once reward keys (the keep after each cleared act). */
   claimedRewardKeys: string[];
   seenSceneIds: string[];
   /** Whether the map key has been shown once (it opens by itself the first time a map is seen, then only from its button). */

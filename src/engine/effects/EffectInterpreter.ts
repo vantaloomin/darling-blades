@@ -1007,7 +1007,7 @@ export function runOps(
     }
     runOp(state, db, emit, bound, op);
     if (state.pendingDecisions.length === pendingCount) continue;
-    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount);
+    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount, op.op !== 'foresee');
     return;
   }
 }
@@ -1017,13 +1017,15 @@ export function runOps(
  * newest decision (`raisedFrom` is the queue length before the op ran). Also
  * used when a held dies trigger resolves late and raises a decision: the rest
  * of the effect it paused then waits exactly where it would have waited had
- * the trigger resolved inline.
+ * the trigger resolved inline. `raisedByTrigger` marks a decision that a
+ * trigger the op set off raised, rather than the op itself.
  */
 export function deferRemainingOps(
   state: GameState,
   ctx: EffectContext,
   thenOps: readonly EffectOp[],
   raisedFrom: number,
+  raisedByTrigger = false,
 ): void {
   const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
   const frame = (): EffectContinuation => ({ context: structuredClone(ctx), ops: [...thenOps] });
@@ -1049,6 +1051,15 @@ export function deferRemainingOps(
   // trigger it raises resolves through the same queue.
   if (pending?.kind === 'foresee') {
     if (thenOps.length > 0) {
+      // A Foresee a trigger raised mid-effect (Deepfield Array moves a mark,
+      // Static Reef foresees, then the second mark moves) leaves the effect's
+      // targeted tail its own targets: it resumes as a continuation after the
+      // Foresee settles, the way a targeted arrival's effect does below.
+      if (raisedByTrigger && thenOps.some(effectOpUsesTarget)) {
+        pending.continuations ??= [];
+        pending.continuations.push(frame());
+        return;
+      }
       for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
       const thenContext = {
         controller: ctx.controller,
