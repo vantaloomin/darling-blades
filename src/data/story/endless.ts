@@ -20,7 +20,10 @@ import type { StoryAct, StoryMapTemplate } from './types';
  * holding the Mandate from loop 7, and from loop 8 she also starts with
  * `ENDLESS_LIFE_PER_LOOP` more life per loop, a step that never runs out.
  *
- * Numbers are first guesses for the headless matrix to tune.
+ * Tuned 2026-10-16 after the P8 reset (owner picked "ease early loops"):
+ * narrow bands that climb one place a loop for the first loops and Medium
+ * brains through loop 3, then two places a loop. Measurements are in
+ * docs/plan-story-endless.md.
  */
 
 /** E1: the loop's floor table. Floor 6 is the claimant. */
@@ -51,14 +54,18 @@ export const ENDLESS_ROSTER: readonly string[] = [...AVATARS]
   .filter((id) => !ENDLESS_EXCLUDED_AVATAR_IDS.includes(id));
 
 /** How many roster places each band (fights, elites, claimants) spans. */
-export const ENDLESS_BAND_WIDTH = 3;
-/** Roster places the bands climb per loop. */
+export const ENDLESS_BAND_WIDTH = 2;
+/** Loops at the start that climb ENDLESS_GENTLE_RUNGS_PER_LOOP places each. */
+export const ENDLESS_GENTLE_LOOPS = 3;
+/** Roster places the bands climb per loop during the gentle loops. */
+export const ENDLESS_GENTLE_RUNGS_PER_LOOP = 1;
+/** Roster places the bands climb per loop after the gentle loops. */
 export const ENDLESS_RUNGS_PER_LOOP = 2;
 /** Where loop 1's fight band starts in ENDLESS_ROSTER (0 is the weakest). */
 export const ENDLESS_FIRST_FIGHT_PLACE = 0;
 
 /** E2: before this loop no endless opponent plays above a Medium brain. */
-export const ENDLESS_HARD_FROM_LOOP = 2;
+export const ENDLESS_HARD_FROM_LOOP = 4;
 
 /** E2: the loop from which the claimant starts each duel holding the Mandate. */
 export const ENDLESS_MANDATE_FROM_LOOP = 7;
@@ -90,7 +97,12 @@ export interface EndlessBands {
 export function endlessBands(loop: number): EndlessBands {
   if (!Number.isSafeInteger(loop) || loop < 1) throw new Error(`No endless loop ${loop}`);
   const last = ENDLESS_ROSTER.length - 3 * ENDLESS_BAND_WIDTH;
-  const start = Math.min(ENDLESS_FIRST_FIGHT_PLACE + ENDLESS_RUNGS_PER_LOOP * (loop - 1), last);
+  const gentle = Math.min(loop, ENDLESS_GENTLE_LOOPS) - 1;
+  const steep = Math.max(0, loop - ENDLESS_GENTLE_LOOPS);
+  const start = Math.min(
+    ENDLESS_FIRST_FIGHT_PLACE + ENDLESS_GENTLE_RUNGS_PER_LOOP * gentle + ENDLESS_RUNGS_PER_LOOP * steep,
+    last,
+  );
   const band = (offset: number): string[] =>
     ENDLESS_ROSTER.slice(start + offset * ENDLESS_BAND_WIDTH, start + (offset + 1) * ENDLESS_BAND_WIDTH);
   return { fights: band(0), elites: band(1), claimants: band(2) };
