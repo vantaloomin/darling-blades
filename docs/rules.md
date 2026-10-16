@@ -15,7 +15,7 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 
 | Rule                      | Value     | Constant                         |
 | ------------------------- | --------- | -------------------------------- |
-| Starting life             | 20        | `RULES.startingLife`             |
+| Starting life             | 25        | `RULES.startingLife`             |
 | Deck size                 | 60        | `RULES.deckSize`                 |
 | Max copies (non-basic)    | 4         | `RULES.maxCopies`                |
 | Basics                    | unlimited | (basics exempt from `maxCopies`) |
@@ -31,7 +31,8 @@ explicitly in the appendix. All the numbers below come from `RULES` in
 
 <!-- END GENERATED -->
 
-Each player starts at **20 life** and shuffles a **60-card** deck (≤4 copies of
+Each player starts at **25 life** (20 before 2.0; a replay recorded before
+v17 replays at 20) and shuffles a **60-card** deck (≤4 copies of
 any non-basic; basics unlimited — enforced by `validateDeck` in
 `src/meta/DeckStorage.ts`).
 

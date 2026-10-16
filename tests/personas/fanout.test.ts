@@ -82,10 +82,12 @@ describe('metagame fan-out', { timeout: 600_000 }, () => {
     const mergedDir = temp('merged');
     // Deliberately small: five reference decks, two seeds, one hill-climb swap.
     // This bounded pool reaches both response rounds. Adding a set must not
-    // change the games in a test of execution equivalence.
+    // change the games in a test of execution equivalence. Seed 13005 since
+    // 2.0's 25 starting life: at 25, 13003 and 13004 stop after one response
+    // round (4 crafts).
     const common = [
       '--personas', 'burn,weenie', '--rounds', '2', '--field', 'starters', '--pool', 'gothic-monsters',
-      '--seeds', '2', '--iterations', '1', '--seed', '13003', '--workers', '1',
+      '--seeds', '2', '--iterations', '1', '--seed', '13005', '--workers', '1',
     ];
 
     expect(runCli(['--metagame', ...common, '--out', loopDir], quiet)).toBe(0);
