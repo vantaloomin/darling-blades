@@ -211,7 +211,7 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
   });
 
   it('a log from before v17 carries no life and replays at 20 whatever the current total', () => {
-    const original = recordBotGame(43, CURRENT_RULES_REV, 16);
+    const original = recordBotGame(43, CURRENT_RULES_REV, 16, undefined, 20);
     delete original.log.startingLife;
     expect(isReplayLog(original.log)).toBe(true);
     const rules = RULES as { startingLife: number };

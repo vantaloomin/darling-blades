@@ -253,7 +253,19 @@ describe('AI win-rate gates', () => {
     // so her 200-seed margin stays 2.1pp, the narrowest on the ladder. No list
     // lever moved her in wave 4 (her opponents.ts entry); the drop came with
     // the wave 2-3 brain changes.
-    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.655);
+    //
+    // 2.0 P8 RESET 2026-10-16 at 25 life (the one owner-approved re-baseline,
+    // docs/plan-2.0-floor-reset.md): `--avatars --seeds 200` at 25 life, every
+    // floor set to mean - 6.5 rounded down to the half point, downs allowed
+    // once. 28,000 games, 5 draws; the same rungs at 20 on the same commit
+    // reproduce the 1.9 wave-4 table, so every move is the life change:
+    //   R14 73.2 · R15 77.7 · R16 77.0 · R17 84.4 · R18 90.7 · R19 77.9 ·
+    //   R20 90.0 · R21 67.3 · R22 78.5 · R23 80.9 · R24 76.5 · R25 68.4 ·
+    //   R26 76.1 · R27 71.2 · R28 81.2
+    // R15 is after her lift (her opponents.ts entry): at 25 she read 68.8 and
+    // fell under R14 (73.2), so her taplands became basics. No floor drops.
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 77.7 - 6.5 = 71.2, so .71 (was .655).
+    expect(r15.avg, 'Carmilla floor').toBeGreaterThanOrEqual(0.71);
     // R16 The Bride was HAND-TUNED in this pass, 54% -> 69%. The converter's
     // curve cap {6:2} had halved her legend from the 4 copies her own classic
     // list runs, and left her a reanimator with nothing worth reanimating
@@ -261,13 +273,16 @@ describe('AI win-rate gates', () => {
     // 14 on the reserve field; she no longer does.
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 71 - 6.5 = 64.5, so the floor RATCHETS UP 0.625 -> 0.645.
-    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.645);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 77.0 - 6.5 = 70.5, so .705 (was .645).
+    expect(r16.avg, 'The Bride floor').toBeGreaterThanOrEqual(0.705);
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 78 - 6.5 = 71.5, so the floor RATCHETS UP 0.705 -> 0.715.
-    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.715);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 84.4 - 6.5 = 77.9, so .775 (was .715).
+    expect(r17.avg, 'Glass-Coffin Queen floor').toBeGreaterThanOrEqual(0.775);
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 89 - 6.5 = 82.5, so the floor RATCHETS UP 0.82 -> 0.825.
-    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.825);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 90.7 - 6.5 = 84.2, so .84 (was .825).
+    expect(r18.avg, 'Abyssal Songstress floor').toBeGreaterThanOrEqual(0.84);
     expect(r15.avg, 'rung 15 must clear rung 14').toBeGreaterThan(r14.avg);
     // Restored 2026-08-23 as a genuine ordering check: R16 measures 69% to
     // R14's 63%, so the tolerance gate below is doing real work again rather
@@ -302,9 +317,12 @@ describe('AI win-rate gates', () => {
     // FLAGS none): 74 - 6.5 = 67.5, so the floor RATCHETS UP 0.65 -> 0.675.
     // 1.9 wave-4 re-baseline 2026-10-05 (the table in the gate above):
     // 74.8 - 6.5 = 68.3, so the floor RATCHETS UP 0.675 -> 0.68.
-    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.68);
+    // 2.0 P8 RESET 2026-10-16 at 25 life (the table in the gate above):
+    // mean 77.9 - 6.5 = 71.4, so .71 (was .68).
+    expect(r19.avg, 'Queen of the Lanterned Roof floor').toBeGreaterThanOrEqual(0.71);
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 90 - 6.5 = 83.5, so the floor RATCHETS UP 0.815 -> 0.835.
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 90.0 - 6.5 = 83.5, so .835 (unchanged).
     expect(r20.avg, 'Kitsune Neon Tyrant floor').toBeGreaterThanOrEqual(0.835);
     // R21 Anubis HAND-TUNED 33% -> 57%. Her converter build retained four
     // cards targeting artifactOrEnchantment into a format whose starter
@@ -327,13 +345,15 @@ describe('AI win-rate gates', () => {
     // She read 57 at the 2026-08-23 re-centre and 61 on the 2026-08-29 full
     // table; the summit brains gained more from the AI pass than the
     // Medium-piloted starter columns did. Harvest (46) stays her weak column.
-    expect(r21.avg, 'Anubis floor').toBeGreaterThanOrEqual(0.585);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 67.3 - 6.5 = 60.8, so .605 (was .585).
+    expect(r21.avg, 'Anubis floor').toBeGreaterThanOrEqual(0.605);
     // R22 Bastet: 74 - 6.5 = 67.5, which is BELOW the standing 0.685 floor,
     // so the floor is KEPT at 0.685 - floors only ratchet up, and a candidate
     // under the current value is recorded, not applied. Her 2026-09-16 tuning
     // pass measured 73.60 on this harness; 74 here is the same number inside
     // the table's whole-percent rounding.
-    expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.685);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 78.5 - 6.5 = 72.0, so .72 (was .685).
+    expect(r22.avg, 'Bastet floor').toBeGreaterThanOrEqual(0.72);
     expect(r20.avg, 'rung 20 must measure at or above rung 19').toBeGreaterThanOrEqual(r19.avg);
     for (const cell of [...r19.cells, ...r20.cells, ...r21.cells, ...r22.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
@@ -370,13 +390,16 @@ describe('AI win-rate gates', () => {
     // cause (no way to block a flier) and closed it.
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 74 - 6.5 = 67.5, so the floor RATCHETS UP 0.655 -> 0.675.
-    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.675);
+    // 2.0 P8 RESET 2026-10-16 at 25 life (the table in the rungs 14-18 gate):
+    // mean 80.9 - 6.5 = 74.4, so .74 (was .675).
+    expect(r23.avg, 'Chrome Broodmother floor').toBeGreaterThanOrEqual(0.74);
     // R24 Violet Signal Queen: 71 - 6.5 = 64.5, so the floor RATCHETS UP
     // 0.615 -> 0.645. Same minus-6.5pp convention, rounded down to the half
     // point.
     // 1.9 wave-4 re-baseline 2026-10-05 (the table in the rungs 14-18 gate):
     // 72.9 - 6.5 = 66.4, so the floor RATCHETS UP 0.645 -> 0.66.
-    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.66);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 76.5 - 6.5 = 70.0, so .70 (was .66).
+    expect(r24.avg, 'Violet Signal Queen floor').toBeGreaterThanOrEqual(0.7);
     for (const cell of [...r23.cells, ...r24.cells]) {
       expect(cell.draws, 'new boss cell must terminate decisively').toBe(0);
     }
@@ -405,10 +428,13 @@ describe('AI win-rate gates', () => {
     }
     const row = (id: string) => report.rows.find((entry) => entry.avatar.id === id);
     // R27 The Shepherdess of Giants: 68.7 - 6.5 = 62.2, so 0.62.
-    expect(row('the-shepherdess-of-giants')?.avg, 'Shepherdess of Giants floor').toBeGreaterThanOrEqual(0.62);
+    // 2.0 P8 RESET 2026-10-16 at 25 life (the table in the rungs 14-18 gate):
+    // mean 71.2 - 6.5 = 64.7, so .645 (was .62).
+    expect(row('the-shepherdess-of-giants')?.avg, 'Shepherdess of Giants floor').toBeGreaterThanOrEqual(0.645);
     // R28 The Tyrant Queen: 76.0 - 6.5 = 69.5, so 0.695. Her list was rebuilt
     // on 2026-10-05 so the summit tops the gate ladder (owner).
-    expect(row('the-tyrant-queen')?.avg, 'Tyrant Queen floor').toBeGreaterThanOrEqual(0.695);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 81.2 - 6.5 = 74.7, so .745 (was .695).
+    expect(row('the-tyrant-queen')?.avg, 'Tyrant Queen floor').toBeGreaterThanOrEqual(0.745);
   }, 900_000);
 
   it('Drowned Deep rungs 25-26 clear their floors and field complete matrices', () => {
@@ -444,7 +470,9 @@ describe('AI win-rate gates', () => {
     // 67.5.
     // 1.8.5 RE-BASELINE 2026-09-28 (final build, `--avatars --seeds 200`,
     // FLAGS none): 67 - 6.5 = 60.5, so the floor RATCHETS UP 0.60 -> 0.605.
-    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.605);
+    // 2.0 P8 RESET 2026-10-16 at 25 life (the table in the rungs 14-18 gate):
+    // mean 68.4 - 6.5 = 61.9, so .615 (was .605).
+    expect(r25.avg, 'Drowned Deacon floor').toBeGreaterThanOrEqual(0.615);
     // R26 The Marsh-Mother: 75 - 6.5 = 68.5, on the converter-owned list that
     // #379 measured four surgeries against and kept unchanged.
     // RETUNED 2026-09-27 for 1.8.5: the slate's dearer The Price took that
@@ -453,7 +481,8 @@ describe('AI win-rate gates', () => {
     // 200 seeds/cell, 0 draws, on the final 83-card slate (73.40 at 400 on the
     // wider one); 74.1 - 6.5 = 67.6, below the standing floor, so it is KEPT
     // at 0.685. The gate reads 72.0.
-    expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.685);
+    // 2.0 P8 RESET 2026-10-16 at 25 life: mean 76.1 - 6.5 = 69.6, so .695 (was .685).
+    expect(r26.avg, 'Marsh-Mother floor').toBeGreaterThanOrEqual(0.695);
     for (const cell of [...r25.cells, ...r26.cells]) {
       expect(cell.games, 'new boss cell must field all 40 seeded games').toBe(40);
       expect(cell.rowWins + cell.colWins, 'new boss cell must decide all 40 seeded games').toBe(40);
@@ -473,19 +502,30 @@ describe('AI win-rate gates', () => {
   // rounded up, at least 2: R23 (3.6 expected) 10, R27 (0.6) 3, the rest 2.
   // R27 stays above R28 in Darlings (owner, 2026-10-04). Split in two because
   // the six rows run about 430 s locally, about 680 s on CI.
+  //
+  // 2.0 P8 RESET 2026-10-16 at 25 life (docs/plan-2.0-floor-reset.md):
+  // `--avatars-darlings --seeds 200` for these six at 25 life, same floor and
+  // ceiling rules, downs allowed once:
+  //   R23 49/48/98/46/57 avg 59.6 (30 draws) · R24 47/40/96/53/64 avg 59.7
+  //   R25 45/44/95/54/68 avg 61.1 · R26 51/44/98/53/64 avg 61.8
+  //   R27 89/79/91/84/96 avg 87.7 (4 draws) · R28 64/59/99/64/78 avg 72.6 (1)
+  // Floors (all up): R23 .515 -> .53, R24 .485 -> .53, R25 .505 -> .545,
+  // R26 .50 -> .55, R27 .775 -> .81, R28 .63 -> .66. Two ceilings loosen
+  // with the longer games: R23 (6.0 expected) 10 -> 14, her draws 18 -> 30 in
+  // 1,000, and R27 (0.8) 3 -> 4; R28 (0.2) and the rest stay 2.
   it('Darlings summit rungs 23-25 clear their floors and draw ceilings', () => {
     darlingsSummitGate({
-      'chrome-broodmother': { floor: 0.515, drawCeiling: 10 },
-      'the-violet-signal-queen': { floor: 0.485, drawCeiling: 2 },
-      'the-drowned-deacon': { floor: 0.505, drawCeiling: 2 },
+      'chrome-broodmother': { floor: 0.53, drawCeiling: 14 },
+      'the-violet-signal-queen': { floor: 0.53, drawCeiling: 2 },
+      'the-drowned-deacon': { floor: 0.545, drawCeiling: 2 },
     });
   }, 900_000);
 
   it('Darlings summit rungs 26-28 clear their floors and draw ceilings', () => {
     darlingsSummitGate({
-      'the-marsh-mother': { floor: 0.5, drawCeiling: 2 },
-      'the-shepherdess-of-giants': { floor: 0.775, drawCeiling: 3 },
-      'the-tyrant-queen': { floor: 0.63, drawCeiling: 2 },
+      'the-marsh-mother': { floor: 0.55, drawCeiling: 2 },
+      'the-shepherdess-of-giants': { floor: 0.81, drawCeiling: 4 },
+      'the-tyrant-queen': { floor: 0.66, drawCeiling: 2 },
     });
   }, 900_000);
 

@@ -19,6 +19,8 @@ import { board, card, dbOf, ref } from '../drownedDeepFixture';
  * otherwise, so a rule that read Overcharge as a Mark would act on it.
  */
 
+// The board() fixture's life (makeTestState), not the rules default.
+const FIXTURE_LIFE = board().players[0].life;
 const drain: EffectOp[] = [{ op: 'loseLife', n: 1, who: 'opponent' }];
 const observer = (id: string, ability: AbilityDef) => card(id, { abilities: [ability] });
 
@@ -95,13 +97,13 @@ describe('Overcharge is not a Mark', () => {
   it('loseLifePerTheirMarked counts no overcharged creature', () => {
     const state = setup([{ iid: 2, cardId: 'body', overcharge: 2, controller: 1 }, { iid: 3, cardId: 'body', marks: 1, controller: 1 }]);
     run(state, [{ op: 'loseLifePerTheirMarked', who: 'opponent' }]);
-    expect(state.players[1].life).toBe(RULES.startingLife - 1);
+    expect(state.players[1].life).toBe(FIXTURE_LIFE - 1);
   });
 
   it('ifTargetMarked takes its else branch for an overcharged target', () => {
     const state = setup([{ iid: 1, cardId: 'body', overcharge: 2 }]);
     run(state, [{ op: 'ifTargetMarked', then: [{ op: 'gainLife', n: 5 }], else: [{ op: 'gainLife', n: 1 }] }], [ref(1)]);
-    expect(state.players[0].life).toBe(RULES.startingLife + 1);
+    expect(state.players[0].life).toBe(FIXTURE_LIFE + 1);
   });
 
   it('a "marked creature" target spec refuses an overcharged creature until it has a real Mark', () => {
@@ -132,7 +134,7 @@ describe('Overcharge is not a Mark', () => {
   it('"whenever a marked creature you control attacks" does not see an overcharged attacker', () => {
     const state = setup([{ iid: 1, cardId: 'body', overcharge: 2 }, { iid: 5, cardId: 'ally-attack-watch' }]);
     fireMarkedAllyAttackTriggers(state, db, () => {}, at(state, 1));
-    expect(state.players[1].life).toBe(RULES.startingLife);
+    expect(state.players[1].life).toBe(FIXTURE_LIFE);
   });
 
   it('Nine Lives still returns a creature that had only Overcharges, as a new object without them', () => {
@@ -156,10 +158,10 @@ describe('Overcharge is not a Mark', () => {
     ]);
     const events = run(state, [{ op: 'createToken', token: 'tok-hatch', count: 1 }]);
     expect(events.map((e) => e.e)).toEqual(['overcharged']);
-    expect(state.players[1].life).toBe(RULES.startingLife);
+    expect(state.players[1].life).toBe(FIXTURE_LIFE);
     // The same watchers do fire for a real Mark, so the silence above is the rule.
     run(state, [{ op: 'addCounters', n: 1, to: 'target' }], [ref(1)]);
-    expect(state.players[1].life).toBeLessThan(RULES.startingLife);
+    expect(state.players[1].life).toBeLessThan(FIXTURE_LIFE);
   });
 });
 
