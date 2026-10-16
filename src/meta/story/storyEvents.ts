@@ -80,6 +80,15 @@ export function endingSceneFor(characterId: string): StoryScene | undefined {
   return heroineScene('ending', characterId);
 }
 
+/**
+ * The endless intro (P9), while it is still unseen: it plays once ever, the
+ * first time any run goes on into endless or starts there.
+ */
+export function endlessIntroSceneDue(story: Pick<StoryState, 'seenSceneIds'>): StoryScene | undefined {
+  const scene = STORY_SCENES.find((s) => s.kind === 'endless-intro');
+  return scene && !story.seenSceneIds.includes(scene.id) ? scene : undefined;
+}
+
 /** The elite intro for an elite node's avatar; undefined when that avatar has none. */
 export function eliteIntroSceneFor(avatarId: string): StoryScene | undefined {
   return STORY_SCENES.find((scene) => scene.kind === 'elite-intro' && scene.avatarId === avatarId);

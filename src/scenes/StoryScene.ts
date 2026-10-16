@@ -14,12 +14,14 @@ import {
   abandonRun,
   chooseBoon,
   claimKeep,
+  enterEndless,
   enterNode,
   keepOptions,
   legalNextNodes,
   mapKeyDue,
   markMapKeySeen,
   markSceneSeen,
+  nextEndlessLoop,
   resolveRest,
   resolveShop,
   shopStock,
@@ -31,6 +33,7 @@ import {
   bossIntroSceneFor,
   eliteIntroSceneFor,
   endingSceneFor,
+  endlessIntroSceneDue,
   eventChoiceNeeds,
   eventOutcomeLines,
   openingSceneFor,
@@ -60,6 +63,10 @@ import {
   cardCount,
   colourWords,
   deckEntries,
+  ENDLESS_GO_ON_NOTE,
+  endlessBestLine,
+  loopTitleCard,
+  loopsCleared,
   MAP_KEY_CLOSE,
   MAP_KEY_NOTE,
   MAP_KEY_TITLE,
@@ -71,9 +78,13 @@ import {
   recordLine,
   shopCartState,
   shortName,
+  stageLabel,
   togglePick,
   unlockLines,
+  type StorySelectMode,
 } from '../ui/storyPresentation';
+import { compactDialog } from '../ui/compactWidgets';
+import { endlessClaimantHoldsMandate, endlessClaimantLifeBonus } from '../data/story/endless';
 import {
   cardSize,
   storyCaptionBand,
@@ -137,7 +148,7 @@ export interface StorySceneData {
    * event at or past its last line opens on the choices); `backlog` opens the
    * backlog at once. Neither survives the next screen.
    */
-  a11yFixture?: { story: StoryState; at?: number; backlog?: boolean };
+  a11yFixture?: { story: StoryState; at?: number; backlog?: boolean; selectMode?: StorySelectMode; endlessDaily?: boolean };
   /** The card the keep just granted, named on the cleared summary (this visit only). */
   keptCardId?: string;
   /** A script scene to play first (this visit only, never saved), then the run's screen or its open duel. */
@@ -197,6 +208,9 @@ export class StoryScene extends Phaser.Scene {
   private zoom!: CardZoomPreview;
   private guard = new ModalGuard();
   private selectedCharacterId: string | null = null;
+  /** Character select's mode: an Act 1 run, endless, or the daily (endless opens after an Act 1 clear). */
+  private selectMode: StorySelectMode = 'act';
+  private endlessDaily = true;
   /** Set by a restart onto the next Story screen, which keeps the story art it still needs. */
   private restarting = false;
   private fixtureAt: number | null = null;
@@ -232,6 +246,8 @@ export class StoryScene extends Phaser.Scene {
     this.keptCardId = data.keptCardId ?? null;
     this.fixtureAt = fixture?.at ?? null;
     this.fixtureBacklog = fixture?.backlog ?? false;
+    if (fixture?.selectMode) this.selectMode = fixture.selectMode;
+    if (fixture?.endlessDaily !== undefined) this.endlessDaily = fixture.endlessDaily;
     // Phaser keeps a start's data for the next start that passes none.
     this.sys.settings.data = {};
     this.guard = new ModalGuard();
@@ -261,7 +277,8 @@ export class StoryScene extends Phaser.Scene {
       const scene = storySceneById(requested.id);
       return scene ? { scene, then: requested.then } : null;
     }
-    if (screen.kind === 'map' && screen.run.nodeId === null) {
+    // The heroine's opening plays at the start of Act 1, never at an endless loop's start.
+    if (screen.kind === 'map' && screen.run.nodeId === null && screen.run.phase === 'act') {
       const scene = openingSceneFor(screen.run.characterId);
       if (scene && !playedThisSession.has(playedKey(screen.run, scene.id))) return { scene, then: 'screen' };
     }
@@ -371,6 +388,10 @@ export class StoryScene extends Phaser.Scene {
       get keptCardId() { return scene.keptCardId; },
       get selectedCharacterId() { return scene.selectedCharacterId; },
       set selectedCharacterId(id: string | null) { scene.selectedCharacterId = id; },
+      get selectMode() { return scene.selectMode; },
+      set selectMode(mode: StorySelectMode) { scene.selectMode = mode; },
+      get endlessDaily() { return scene.endlessDaily; },
+      set endlessDaily(daily: boolean) { scene.endlessDaily = daily; },
       commit: (data) => this.commit(data),
       leave: () => this.leave(),
       goTo: (run, node, entered) => this.goTo(run, node, entered),
@@ -405,10 +426,13 @@ export class StoryScene extends Phaser.Scene {
         case 'reward': return compact.buildReward(screen.run, screen.options, screen.waiting);
         case 'keep': return compact.buildKeep(screen.run);
         case 'cleared': return compact.buildCleared(screen.run);
+        case 'loopCleared': return compact.buildLoopCleared(screen.run, screen.loop);
         case 'shop': return compact.buildShop(screen.run, screen.node);
         case 'rest': return compact.buildRest(screen.run);
         case 'duel':
-        case 'map': return compact.buildMap(screen.run, screen.kind === 'duel' ? screen.node : null);
+        case 'map':
+          compact.buildMap(screen.run, screen.kind === 'duel' ? screen.node : null);
+          return this.loopTitle(screen.run);
       }
     }
     new Toast(this, { modalGuard: this.guard });
@@ -418,10 +442,13 @@ export class StoryScene extends Phaser.Scene {
       case 'reward': return this.buildReward(screen.run, screen.options, screen.waiting);
       case 'keep': return this.buildKeep(screen.run);
       case 'cleared': return this.buildCleared(screen.run);
+      case 'loopCleared': return this.buildLoopCleared(screen.run, screen.loop);
       case 'shop': return this.buildShop(screen.run, screen.node);
       case 'rest': return this.buildRest(screen.run, screen.node);
       case 'duel':
-      case 'map': return this.buildMap(screen.run, screen.kind === 'duel' ? screen.node : null);
+      case 'map':
+        this.buildMap(screen.run, screen.kind === 'duel' ? screen.node : null);
+        return this.loopTitle(screen.run);
     }
   }
 
@@ -510,10 +537,38 @@ export class StoryScene extends Phaser.Scene {
     return this.compact ? this.compact.dialogue(stage, { ...opts, header, subtitle }) : new StoryDialoguePlayer(this, stage, opts);
   }
 
-  /** "Guan Yu · Act 1": the compact top bar's line under a scene's title. */
+  /** "Guan Yu · Act 1" (or "· Loop 3"): the compact top bar's line under a scene's title. */
   private runLine(run: StoryRun): string {
     const character = storyCharacterById(run.characterId);
-    return `${character ? shortName(character) : 'Story'} · Act ${run.act}`;
+    return `${character ? shortName(character) : 'Story'} · ${stageLabel(run)}`;
+  }
+
+  /**
+   * An endless loop's title card (E7) over its fresh map: the loop and its
+   * claimant, and what she starts the duel with once the endless levers apply.
+   * Once per loop per page session, and not over the first-visit map key.
+   */
+  private loopTitle(run: StoryRun): void {
+    if (run.phase !== 'endless' || run.nodeId !== null || mapKeyDue(this.story)) return;
+    const key = playedKey(run, `loop-${run.endlessLoop}`);
+    if (playedThisSession.has(key)) return;
+    const boss = storyMapNodes(runMap(run)).find((node) => node.kind === 'boss');
+    if (!boss?.avatarId) return;
+    const loop = run.endlessLoop;
+    const card = loopTitleCard(loop, storyAvatarById(boss.avatarId).name, endlessClaimantHoldsMandate(loop), endlessClaimantLifeBonus(loop));
+    // The screen under the card, taken before the card adds its own button.
+    const under = this.interactiveTargets();
+    compactDialog(this, {
+      title: card.title,
+      message: card.lines,
+      primary: { label: 'Begin', onTap: (close) => close() },
+      dismissal: 'esc-only',
+      onClose: () => {
+        playedThisSession.add(key);
+        this.guard.close();
+      },
+    });
+    this.guard.open(under);
   }
 
   /** "Event · Floor 5". */
@@ -881,12 +936,57 @@ export class StoryScene extends Phaser.Scene {
       y += t.height + gap;
     }
     if (thumbH) this.cardThumb(theme.design.centerX, y + cardSize(0.4).height / 2, def(CARD_DB, this.keptCardId!), 0.4);
-    const finish = this.button('Finish Run', 'primary', () => {
+    this.subtitleLine?.setText(`Act 1 cleared. ${ENDLESS_GO_ON_NOTE}`);
+    const finish = this.button('Finish Run', 'ghost', () => {
       const result = finishClearedRun(this.story);
       if (!result.ok) return this.refused(result.reason);
       this.commit();
     });
-    this.placeFooter([finish]);
+    const goOn = this.button('Continue to Endless', 'primary', () => this.goOnIntoEndless());
+    this.placeFooter([finish, goOn]);
+  }
+
+  /** Take the cleared run on into endless (P9), playing the endless intro the first time ever. */
+  private goOnIntoEndless(): void {
+    const result = enterEndless(this.story);
+    if (!result.ok) return this.refused(result.reason);
+    const intro = endlessIntroSceneDue(this.story);
+    this.commit(intro ? { storyScene: { id: intro.id, then: 'screen' } } : {});
+  }
+
+  /** A beaten endless claimant (1280x720 layout): who fell, the record, and go on or end the run. */
+  private buildLoopCleared(run: StoryRun, loop: number): void {
+    const character = storyCharacterById(run.characterId);
+    const boss = storyMapNodes(runMap(run)).find((node) => node.kind === 'boss');
+    const claimant = boss?.avatarId ? storyAvatarById(boss.avatarId).name : 'the claimant';
+    const top = this.subtitle(`Loop ${loop} cleared.`);
+    const lines = [
+      `${character ? shortName(character) : 'Your heroine'} defeated ${claimant}.`,
+      `${loopsCleared(loop)} · Fights ${run.fightsPlayed} · Run deck ${cardCount(run.deck.length)}`,
+      endlessBestLine(this.story.endless.bestLoop[run.characterId] ?? 0),
+    ];
+    const w = 640;
+    const texts = lines.map((copy, i) => this.text(0, 0, copy, i === 0 ? theme.type.h2 : theme.type.body, i === 0 ? theme.colors.heading : theme.colors.body, { display: i === 0, wrap: w - 2 * theme.space(6) }).setOrigin(0.5, 0));
+    const gap = theme.space(3);
+    const height = texts.reduce((sum, t) => sum + t.height, 0) + gap * (texts.length - 1) + 2 * theme.space(6);
+    const y0 = top + Math.max(0, (storyContentBottom() - top - height) / 2);
+    panel(this, theme.design.centerX - w / 2, y0, w, height);
+    let y = y0 + theme.space(6);
+    for (const t of texts) {
+      this.children.bringToTop(t.setPosition(theme.design.centerX, y));
+      y += t.height + gap;
+    }
+    const end = this.button('End Run', 'ghost', () => {
+      const result = abandonRun(this.story);
+      if (!result.ok) return this.refused(result.reason);
+      this.commit();
+    });
+    const next = this.button(`Go On to Loop ${loop + 1}`, 'primary', () => {
+      const result = nextEndlessLoop(this.story);
+      if (!result.ok) return this.refused(result.reason);
+      this.commit();
+    });
+    this.placeFooter([end, next]);
   }
 
   // ------------------------------------------------------------------ event, shop, rest
@@ -1352,7 +1452,7 @@ export class StoryScene extends Phaser.Scene {
       this.text(infoX, 0, `Run gold ${run.gold}`, theme.type.label, theme.colors.gold, { bold: true, wrap: infoW }),
       this.text(infoX, 0, `Deck ${cardCount(run.deck.length)}`, theme.type.label, theme.colors.body, { wrap: infoW }),
       this.text(infoX, 0, `Fights ${run.fightsPlayed}`, theme.type.label, theme.colors.body, { wrap: infoW }),
-      this.text(infoX, 0, floorNow > 0 ? `Floor ${floorNow} of ${map.floors.length}` : `Act ${run.act} · ${map.floors.length} floors`, theme.type.label, theme.colors.body, { wrap: infoW }),
+      this.text(infoX, 0, floorNow > 0 ? `Floor ${floorNow} of ${map.floors.length}` : `${stageLabel(run)} · ${map.floors.length} floors`, theme.type.label, theme.colors.body, { wrap: infoW }),
     ];
     let iy = pl.info.y;
     for (const t of infoLines) {

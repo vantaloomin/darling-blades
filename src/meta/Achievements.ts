@@ -7,6 +7,7 @@ import { LIMITED_MATCHES } from './Limited';
 import type { SaveData } from './SaveManager';
 import { isPlainVariant, parseVariantKey } from './variants';
 import { cosmeticById } from './cosmetics';
+import { FEATURES } from '../config/features';
 
 export type AchievementBucket = 'collection' | 'variants' | 'theme' | 'mastery' | 'economy';
 
@@ -28,6 +29,8 @@ export interface AchievementDef {
   description: string;
   reward: AchievementReward;
   progress: (save: SaveData, db: CardDb, completion: CollectionCompletionSummary) => AchievementProgress;
+  /** Whether the goal is reachable in this build; one whose mode is not live is left out of every list. */
+  live?: () => boolean;
 }
 
 export interface AchievementStatus {
@@ -1210,6 +1213,17 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
     reward: { gold: 500 },
     progress: (save) => ({ current: save.gauntlet.clearStyles.dualColor, target: 1 }),
   },
+  // Story endless (owner ruling E4, 2026-10-16): three goals for the deepest
+  // loop cleared with any heroine. Hidden until Story Mode is live.
+  ...([3, 5, 10] as const).map((loop, i): AchievementDef => ({
+    id: `story-endless-loop-${loop}`,
+    bucket: 'mastery',
+    title: ['Third Claimant', 'Fifth Claimant', 'Tenth Claimant'][i],
+    description: `Clear loop ${loop} in endless.`,
+    reward: { gold: [150, 300, 600][i] },
+    progress: (save) => ({ current: Math.max(0, ...Object.values(save.story.endless.bestLoop)), target: loop }),
+    live: () => FEATURES.storyLive,
+  })),
   {
     id: 'packs-10',
     bucket: 'economy',
@@ -1251,7 +1265,7 @@ export function evaluateAchievements(save: SaveData, db: CardDb): AchievementSta
   const completion = collectionCompletion(collectibleCards(db), save);
   const unlocked = new Set(save.achievements.unlocked);
   const claimed = new Set(save.achievements.claimed);
-  return ACHIEVEMENTS.map((def) => {
+  return ACHIEVEMENTS.filter((def) => def.live?.() ?? true).map((def) => {
     const progress = def.progress(save, db, completion);
     const current = Math.max(0, progress.current);
     const target = Math.max(1, progress.target);

@@ -90,6 +90,71 @@ export function recordLine(wins: number, runs: number): string {
   return `Act 1 clears ${wins} · Runs counted ${runs}`;
 }
 
+/** "Act 1", or "Loop 3" once the run has gone on into endless. */
+export function stageLabel(run: Pick<StoryRun, 'phase' | 'act' | 'endlessLoop'>): string {
+  return run.phase === 'endless' ? `Loop ${run.endlessLoop}` : `Act ${run.act}`;
+}
+
+/** "3 loops cleared". */
+export function loopsCleared(n: number): string {
+  return `${n} ${n === 1 ? 'loop' : 'loops'} cleared`;
+}
+
+/** A heroine's endless record (E4): the deepest loop she has cleared. */
+export function endlessBestLine(best: number): string {
+  return best > 0 ? `Best run: ${loopsCleared(best)}` : 'Best run: no loops cleared yet';
+}
+
+/** Today's daily record (E6: the best of the day's tries). */
+export function dailyBestLine(best: number): string {
+  return best > 0 ? `Today's daily: ${loopsCleared(best)}` : "Today's daily: no loops cleared yet";
+}
+
+/** Character select's two modes: an Act 1 run, or endless (open once any heroine has cleared Act 1). */
+export type StorySelectMode = 'act' | 'endless';
+
+export const STORY_SELECT_MODES: readonly { mode: StorySelectMode; label: string }[] = [
+  { mode: 'act', label: 'Act 1' },
+  { mode: 'endless', label: 'Endless' },
+];
+
+/** Endless's top bar line (N-38). */
+export const ENDLESS_SUBTITLE = 'Short maps and stronger claimants, until a loss';
+
+/** The endless screen's seed heading and what it means (E5, E6). */
+export function endlessSeedCopy(daily: boolean, dateKey: string): { heading: string; note: string } {
+  if (!daily) return { heading: 'Random seed', note: 'New maps and opponents every run.' };
+  const [, m, d] = dateKey.split('-').map(Number);
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1] ?? '';
+  return {
+    heading: `Today's seed · ${month} ${d}`,
+    note: 'Everyone who plays today gets the same maps and opponents. Play as many times as you like; your best run counts.',
+  };
+}
+
+/** What an endless run from the menu starts with (E3) and what it never pays (E4). */
+export function endlessStartNote(picks: number, gold: number): string {
+  return `You start with the starter deck, ${picks} card picks and ${gold} run gold. You don't keep a card at the end of an endless run.`;
+}
+
+/** The act-clear summary's offer to go on (P9). */
+export const ENDLESS_GO_ON_NOTE = 'Or continue into endless: short maps, each ending at a claimant, until you lose a duel. Your run deck and gold carry over.';
+
+/**
+ * A loop's title card (E7): the loop and its claimant, plus what she starts
+ * the duel with once the endless levers apply (E2).
+ */
+export function loopTitleCard(loop: number, claimant: string, holdsMandate: boolean, lifeBonus: number): { title: string; lines: string[] } {
+  // "Brunhild, the Last Valkyrie, holds": a name with an epithet closes it with a comma.
+  const lines = [`${claimant}${claimant.includes(',') ? ',' : ''} holds the Mandate.`];
+  if (holdsMandate) {
+    lines.push(lifeBonus > 0
+      ? `She starts the duel holding it, with ${lifeBonus} extra life.`
+      : 'She starts the duel holding it.');
+  }
+  return { title: `Loop ${loop}`, lines };
+}
+
 /** The standing note under Abandon, then the armed consequence (R9). */
 export function abandonNote(run: Pick<StoryRun, 'fightsPlayed'>, armed: boolean): string {
   const counts = run.fightsPlayed >= RUN_COUNT_FIGHTS;

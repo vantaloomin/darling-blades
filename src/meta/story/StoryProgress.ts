@@ -34,7 +34,7 @@ import { storyAvatarById } from '../../data/story/opponents';
 import type { Avatar } from '../../data/opponents';
 import type { StoryAct, StoryBoonId, StoryCharacter } from '../../data/story/types';
 import { addCards, type AddResult } from '../Collection';
-import { clampSeed, daySeed, rungSeed } from '../gauntletSeed';
+import { clampSeed, daySeed, localDateKey, rungSeed } from '../gauntletSeed';
 import type { SaveData } from '../SaveManager';
 import { WARCHEST_HAND_SIZE } from '../warchest';
 import { isDuelNode, storyNodeById, type StoryMap, type StoryNode } from './storyMap';
@@ -358,6 +358,15 @@ export function isAct1Cleared(run: StoryRun | null): boolean {
 /** Endless opens from the menu once any heroine has cleared Act 1 (P9). */
 export function isEndlessOpen(story: StoryState): boolean {
   return Object.values(story.wins).some((wins) => wins > 0);
+}
+
+/** The daily's date key (`YYYY-MM-DD`) for a timestamp, on the player's local calendar (as the Tower's daily roster). */
+export function endlessDateKey(ts: number): string {
+  const key = localDateKey(ts);
+  const y = Math.floor(key / 10000);
+  const m = Math.floor(key / 100) % 100;
+  const d = key % 100;
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
 /** The shared daily seed for a local date key (`YYYY-MM-DD`): the same for every player and heroine (E5). */
