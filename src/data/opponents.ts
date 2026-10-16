@@ -2778,10 +2778,24 @@ export const AVATARS: readonly Avatar[] = [
       preferredSubtypes: ['Vampire'],
       removalBias: 0.25,
     }),
+    // 2.0 P8 LIFT 2026-10-16 (R14/R15 order at 25 life, owner default: lift
+    // the higher rung, never weaken the lower). At 25 life R14 Artoria read
+    // 73.2 against her 68.8 (40 seeds: 76.0 / 71.5), failing "rung 15 must
+    // clear rung 14". Her four Burning Luoyang came in tapped; the converter
+    // derives her landReserve from these printed lands, so the lever is here.
+    // Basics only (landReserve 5 Swamp + 5 Mountain), every list unchanged,
+    // 200 seeds/cell at 25 life, cells Muster/Communion/Tides/Mandate/Harvest:
+    //   before 55/70/46/85/89 avg 68.8 -> after 68/80/56/93/93 avg 77.7
+    //   CI's 40 seeds 71.5 -> 77.0 (R14 76.0); 15-column matrix 68.6 -> 77.1,
+    //   up in all 15 columns; 0 draws, 0 decked games.
+    // One Luoyang kept read 77.0. Eighteen list variants measured first
+    // plateaued at 73.4 (four Rainflash Duelists for the Heiresses and
+    // similar) and three personality variants moved nothing; with basics the
+    // best lists reached 81.0-83.7, past R16 and near R17, so the land change
+    // alone is taken.
     deck: expand([
-      ['land-swamp', 10],
-      ['land-mountain', 10],
-      ['ld-burning-luoyang', 4],
+      ['land-swamp', 12],
+      ['land-mountain', 12],
       ['gm-carmilla-crimson-host', 4],
       ['gm-elizabeth-blood-mirror', 4],
       ['gm-ravenloft-heiress', 4],
@@ -2827,9 +2841,8 @@ export const AVATARS: readonly Avatar[] = [
       ['dd-wreck-runner', 1],
     ]),
     landReserve: expand([
-      ['ld-burning-luoyang', 4],
-      ['land-swamp', 3],
-      ['land-mountain', 3],
+      ['land-swamp', 5],
+      ['land-mountain', 5],
     ]),
     darlingsDeck: [
       'gm-ravenloft-heiress',
