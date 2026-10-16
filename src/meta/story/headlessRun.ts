@@ -12,6 +12,11 @@
  * heroine's colours, its first in-colour offered card and its fewest removals
  * (storyEvents' resolveStoryEventByRule); a shop's first
  * affordable card; a rest removes nothing; the keep takes the first keep option.
+ *
+ * Endless (rulings E1 to E6): with `endless` set the run goes on after the
+ * Act 1 keep (`start: 'act1'`) or starts from the menu (`start: 'menu'`, the
+ * head start's picks taken by the same first-card rule) and plays loop after
+ * loop until a loss or `maxLoops` cleared loops.
  */
 
 import { MediumAI } from '../../ai/MediumAI';
@@ -19,6 +24,7 @@ import { buildAI } from '../../ai/personality';
 import { CARD_DB } from '../../data/catalog';
 import { GUAN_YU_ID } from '../../data/story/characters';
 import { storyAvatarById } from '../../data/story/opponents';
+import type { Avatar } from '../../data/opponents';
 import type { StoryBoonId } from '../../data/story/types';
 import { Game } from '../../engine/Game';
 import type { CardDb } from '../../engine/types';
@@ -34,8 +40,12 @@ import {
   abandonRun,
   chooseBoon,
   claimKeep,
+  enterEndless,
   enterNode,
   isAct1Cleared,
+  isEndlessLoopCleared,
+  nextEndlessLoop,
+  startEndlessRun,
   keepOptions,
   legalNextNodes,
   recordFight,
@@ -52,6 +62,8 @@ import { resolveStoryEventByRule, storyEventFor } from './storyEvents';
 export interface HeadlessNodeSummary {
   nodeId: string;
   floor: number;
+  /** The endless loop the node was on (0 inside an act). */
+  loop: number;
   kind: string;
   avatarId: string | null;
   /** Duel nodes: the story player's result and the game's last turn number. */
@@ -78,6 +90,10 @@ export interface HeadlessRunSummary {
   finalDeck: string[];
   finalGold: number;
   unlocked: string[];
+  /** Endless loops cleared (claimants beaten); 0 for a run that never reached endless. */
+  loopsCleared: number;
+  /** Whether the run reached endless at all. */
+  reachedEndless: boolean;
 }
 
 export interface HeadlessRunOptions {
@@ -92,18 +108,26 @@ export interface HeadlessRunOptions {
   onReplay?: (log: ReplayLog) => void;
   /** Safety valve per duel. */
   maxActions?: number;
+  /**
+   * Play endless: `start: 'act1'` goes on after the Act 1 keep, `start: 'menu'`
+   * starts an endless run from the menu (this harness first marks an Act 1
+   * win and unlocks the heroine in its save, so the menu entry is open).
+   * The run stops after `maxLoops` cleared loops.
+   */
+  endless?: { start: 'act1' | 'menu'; maxLoops: number };
 }
 
 function playStoryDuel(
   game: Game,
   db: CardDb,
   avatarId: string,
+  difficulty: Avatar['difficulty'],
   seed: number,
   maxActions: number,
   onAction?: (p: 0 | 1, action: Parameters<Game['submit']>[1]) => void,
 ): 0 | 1 | 'draw' {
   const avatar = storyAvatarById(avatarId);
-  const ais = [new MediumAI(db), buildAI(avatar.difficulty, db, seed, avatar.personality)];
+  const ais = [new MediumAI(db), buildAI(difficulty, db, seed, avatar.personality)];
   for (let i = 0; i < maxActions; i++) {
     const awaiting = game.awaiting;
     if (awaiting.kind === 'gameOver') {
@@ -129,7 +153,14 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
   const maxActions = options.maxActions ?? 40_000;
   const unlocked: string[] = [];
 
-  const started = startRun(story, characterId, options.seed, options.now);
+  const endless = options.endless ?? null;
+  if (endless?.start === 'menu') {
+    story.wins[characterId] = Math.max(1, story.wins[characterId] ?? 0);
+    if (!story.unlockedCharacterIds.includes(characterId)) story.unlockedCharacterIds.push(characterId);
+  }
+  const started = endless?.start === 'menu'
+    ? startEndlessRun(story, characterId, options.seed, options.now)
+    : startRun(story, characterId, options.seed, options.now);
   if (!started.ok) throw new Error(`startRun: ${started.reason}`);
   const run = started.run;
   const boonOffers = storyBoonOffers(run.seed);
@@ -144,6 +175,7 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
   let cleared = false;
   let keptCardId: string | null = null;
   let finalRun = run;
+  let loopsCleared = 0;
 
   while (story.activeRun) {
     const active = story.activeRun;
@@ -160,24 +192,47 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
         keptCardId = option;
       }
       cleared = true;
+      if (endless) {
+        const went = enterEndless(story);
+        if (!went.ok) throw new Error(`enterEndless: ${went.reason}`);
+        continue;
+      }
       // Leaving after the clear: the run already counted at its third fight.
       const left = abandonRun(story);
       if (!left.ok) throw new Error(`abandonRun: ${left.reason}`);
       unlocked.push(...left.unlocked);
       break;
     }
+    if (isEndlessLoopCleared(active)) {
+      loopsCleared = active.endlessLoop;
+      if (loopsCleared >= (endless?.maxLoops ?? 0)) {
+        const left = abandonRun(story);
+        if (!left.ok) throw new Error(`abandonRun: ${left.reason}`);
+        unlocked.push(...left.unlocked);
+        break;
+      }
+      const moved = nextEndlessLoop(story);
+      if (!moved.ok) throw new Error(`nextEndlessLoop: ${moved.reason}`);
+      continue;
+    }
     const next = legalNextNodes(story).sort((a, b) => a.id.localeCompare(b.id))[0];
     if (!next) throw new Error(`run ${active.runId} is stuck at ${String(active.nodeId)}`);
     const entered = enterNode(story, next.id);
     if (!entered.ok) throw new Error(`enterNode: ${entered.reason}`);
     const node = entered.node;
-    const summary: HeadlessNodeSummary = { nodeId: node.id, floor: node.floor, kind: node.kind, avatarId: node.avatarId };
+    const summary: HeadlessNodeSummary = {
+      nodeId: node.id,
+      floor: node.floor,
+      loop: active.phase === 'endless' ? active.endlessLoop : 0,
+      kind: node.kind,
+      avatarId: node.avatarId,
+    };
     nodes.push(summary);
 
     if (node.kind === 'fight' || node.kind === 'elite' || node.kind === 'boss') {
       const setup = storyDuelSetup(story, db);
       if (!setup.ok) throw new Error(`storyDuelSetup: ${setup.reason}`);
-      const { config, avatarId } = setup.setup;
+      const { config, avatarId, difficulty } = setup.setup;
       const game = new Game(config);
       const draft = options.onReplay
         ? startReplayDraft({
@@ -185,9 +240,11 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
             seed: config.seed,
             decks: [config.decks[0] as string[], config.decks[1] as string[]],
             startingHandSize: config.startingHandSize,
+            ...(config.lifeBonus ? { lifeBonus: config.lifeBonus } : {}),
+            ...(config.startingMandateHolder === undefined ? {} : { mandateHolder: config.startingMandateHolder }),
             context: {
               mode: 'story',
-              difficulty: storyAvatarById(avatarId).difficulty,
+              difficulty,
               opponentId: avatarId,
               opponentName: storyAvatarById(avatarId).name,
               gauntletRung: null,
@@ -205,7 +262,7 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
             darlings: config.darlings,
           })
         : null;
-      const winner = playStoryDuel(game, db, avatarId, config.seed, maxActions, draft
+      const winner = playStoryDuel(game, db, avatarId, difficulty, config.seed, maxActions, draft
         ? (p, action) => recordReplayAction(draft, p, action)
         : undefined);
       // A draw is not a win, so it ends the run like a loss, as the duel screen records it.
@@ -256,5 +313,7 @@ export function runHeadlessAct1(options: HeadlessRunOptions): HeadlessRunSummary
     finalDeck: [...finalRun.deck],
     finalGold: finalRun.gold,
     unlocked,
+    loopsCleared,
+    reachedEndless: finalRun.phase === 'endless',
   };
 }

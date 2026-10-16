@@ -9,7 +9,12 @@
  * Rulings applied here: R4 + R10 (unlock chain, predecessor-only counts),
  * R5 (opening boon), R6 (one keep per act cleared, exactly once), R9 (a run
  * counts once it has had three fights, however it ends), S4 (an Act 1 clear
- * is a win in 2.0).
+ * is a win in 2.0), and the endless rulings E1 to E6 (2026-10-16): endless
+ * opens after Act 1 or from the menu once any Act 1 is cleared, a menu run
+ * gets a head start, claimants climb and hold the Mandate (game setup only,
+ * src/data/story/endless.ts), endless pays only records (no keep, no
+ * collection card), and the shared daily seed keeps its best loop of the day
+ * however many tries it takes.
  */
 
 import { ECONOMY } from '../../config/rules';
@@ -17,11 +22,19 @@ import { createRngState, rngShuffle } from '../../engine/rng';
 import type { CardDb } from '../../engine/types';
 import type { GameConfig } from '../../engine/Game';
 import { BOON_RUN_GOLD } from '../../data/story/act1';
+import {
+  endlessBrain,
+  endlessClaimantHoldsMandate,
+  endlessClaimantLifeBonus,
+  ENDLESS_HEAD_START_GOLD,
+  ENDLESS_HEAD_START_PICKS,
+} from '../../data/story/endless';
 import { storyCharacterById } from '../../data/story/characters';
 import { storyAvatarById } from '../../data/story/opponents';
+import type { Avatar } from '../../data/opponents';
 import type { StoryAct, StoryBoonId, StoryCharacter } from '../../data/story/types';
 import { addCards, type AddResult } from '../Collection';
-import { clampSeed, rungSeed } from '../gauntletSeed';
+import { clampSeed, daySeed, rungSeed } from '../gauntletSeed';
 import type { SaveData } from '../SaveManager';
 import { WARCHEST_HAND_SIZE } from '../warchest';
 import { isDuelNode, storyNodeById, type StoryMap, type StoryNode } from './storyMap';
@@ -29,6 +42,7 @@ import {
   applyStoryUnlocks,
   RUN_COUNT_FIGHTS,
   runMap,
+  runStageAct,
   storyActByNumber,
   storyBoonOffers,
   type StoryRun,
@@ -47,11 +61,12 @@ const SR_BOON_SALT = 0x5400;
 const REWARD_SALT = 0x5500;
 const BOON_REWARD_SALT = 0x5600;
 const SHOP_SALT = 0x5800;
+const HEAD_START_SALT = 0x5a00;
+const DAILY_SALT = 0x5b00;
 
+/** The act (or endless loop, dressed as an act) the run is playing. */
 function actOf(run: StoryRun): StoryAct {
-  const act = storyActByNumber(run.act);
-  if (!act) throw new Error(`No story act ${run.act}`);
-  return act;
+  return runStageAct(run);
 }
 
 function characterOf(run: StoryRun): StoryCharacter {
@@ -84,7 +99,6 @@ export function startRun(
   characterId: string,
   seed: number,
   now: number,
-  options: { dailyDateKey?: string } = {},
 ): StoryResult<{ run: StoryRun }> {
   const character = storyCharacterById(characterId);
   if (!character) return refuse('Unknown character.');
@@ -96,7 +110,7 @@ export function startRun(
   const run: StoryRun = {
     runId: storyRunId(characterId, runSeed, now),
     seed: runSeed,
-    dailyDateKey: options.dailyDateKey ?? null,
+    dailyDateKey: null,
     characterId,
     boonId: null,
     phase: 'act',
@@ -219,6 +233,8 @@ export interface FightRecord {
   /** A loss ends the run. */
   runEnded: boolean;
   act1Cleared: boolean;
+  /** The endless loop this win cleared (its claimant beaten); null otherwise. */
+  loopCleared: number | null;
 }
 
 /**
@@ -237,25 +253,32 @@ export function recordFight(story: StoryState, result: 'win' | 'loss'): StoryRes
   run.nodeResolved = true;
   const countedNow = countRunIfDue(story, run);
   let act1Cleared = false;
+  let loopCleared: number | null = null;
   let runEnded = false;
   if (result === 'loss') {
     story.activeRun = null;
     runEnded = true;
-  } else if (node.kind === 'boss') {
+  } else if (node.kind === 'boss' && run.phase === 'act') {
     if (run.act === 1) {
       completeAct1(story, run);
       act1Cleared = true;
     }
   } else {
+    // An endless claimant pays like an elite and also offers a card, since the
+    // run goes on (there is no act keep in endless).
+    if (node.kind === 'boss') {
+      loopCleared = run.endlessLoop;
+      recordEndlessLoop(story, run, loopCleared);
+    }
     const economy = actOf(run).economy;
-    run.gold += node.kind === 'elite' ? economy.eliteGold : economy.fightGold;
+    run.gold += node.kind === 'fight' ? economy.fightGold : economy.eliteGold;
     run.pendingCardRewards.push(cardRewardOptions(run, node));
     if (run.boonId === 'first-fight-reward' && run.fightsPlayed === 1) {
       run.pendingCardRewards.push(cardRewardOptions(run, node, BOON_REWARD_SALT));
     }
   }
   const unlocked = applyStoryUnlocks(story);
-  return { ok: true, countedNow, unlocked, runEnded, act1Cleared };
+  return { ok: true, countedNow, unlocked, runEnded, act1Cleared, loopCleared };
 }
 
 /** Take (a card id) or skip (null) the oldest waiting card reward. */
@@ -324,10 +347,136 @@ export function resolveRest(story: StoryState, removeCardId: string | null): Sto
   return { ok: true };
 }
 
-/** Whether the run has beaten Act 1's boss. */
+/** Whether the run has beaten Act 1's boss (and has not gone on into endless). */
 export function isAct1Cleared(run: StoryRun | null): boolean {
-  if (!run || run.act !== 1 || !run.nodeResolved || !run.nodeId) return false;
+  if (!run || run.phase !== 'act' || run.act !== 1 || !run.nodeResolved || !run.nodeId) return false;
   return run.nodeId === runMap(run).bossId;
+}
+
+// ------------------------------------------------------------------ endless
+
+/** Endless opens from the menu once any heroine has cleared Act 1 (P9). */
+export function isEndlessOpen(story: StoryState): boolean {
+  return Object.values(story.wins).some((wins) => wins > 0);
+}
+
+/** The shared daily seed for a local date key (`YYYY-MM-DD`): the same for every player and heroine (E5). */
+export function dailyEndlessSeed(dateKey: string): number {
+  const digits = Number(dateKey.replace(/-/g, ''));
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey) || !Number.isSafeInteger(digits)) throw new Error(`Bad date key ${dateKey}`);
+  return clampSeed(rungSeed(daySeed(digits), DAILY_SALT));
+}
+
+/** E3: the head-start card picks a menu-started endless run offers before loop 1. */
+export function endlessHeadStartOffers(run: Pick<StoryRun, 'seed' | 'characterId'>): string[][] {
+  const character = storyCharacterById(run.characterId);
+  if (!character) throw new Error(`Unknown story character ${run.characterId}`);
+  const choices = runStageAct({ act: 1, phase: 'act', endlessLoop: 0 }).economy.rewardChoices;
+  return Array.from({ length: ENDLESS_HEAD_START_PICKS }, (_, i) =>
+    seededPick(rungSeed(run.seed, HEAD_START_SALT + i), character.rewardPool, choices));
+}
+
+/**
+ * Start an endless run from the menu (P9, E3): loop 1 with the starter deck,
+ * the opening boon still to choose, ENDLESS_HEAD_START_PICKS card picks
+ * waiting and ENDLESS_HEAD_START_GOLD run gold. `dailyDateKey` marks the
+ * shared daily seed's run (its seed must be that day's). Refused before any
+ * Act 1 clear, for a locked character, or while a run is active.
+ */
+export function startEndlessRun(
+  story: StoryState,
+  characterId: string,
+  seed: number,
+  now: number,
+  options: { dailyDateKey?: string } = {},
+): StoryResult<{ run: StoryRun }> {
+  const character = storyCharacterById(characterId);
+  if (!character) return refuse('Unknown character.');
+  if (!isEndlessOpen(story)) return refuse('Clear Act 1 first.');
+  if (!isCharacterUnlocked(story, characterId)) return refuse('That character is locked.');
+  if (story.activeRun) return refuse('A run is already in progress.');
+  const runSeed = clampSeed(seed);
+  const dailyDateKey = options.dailyDateKey ?? null;
+  if (dailyDateKey !== null && dailyEndlessSeed(dailyDateKey) !== runSeed) return refuse('That is not the daily seed.');
+  const run: StoryRun = {
+    runId: storyRunId(characterId, runSeed, now),
+    seed: runSeed,
+    dailyDateKey,
+    characterId,
+    boonId: null,
+    phase: 'endless',
+    act: 1,
+    endlessLoop: 1,
+    nodeId: null,
+    visitedNodeIds: [],
+    nodeResolved: false,
+    deck: [...character.starterDeck],
+    gold: ENDLESS_HEAD_START_GOLD,
+    pendingCardRewards: [],
+    fightsPlayed: 0,
+    counted: false,
+  };
+  run.pendingCardRewards = endlessHeadStartOffers(run);
+  story.activeRun = run;
+  return { ok: true, run };
+}
+
+/**
+ * Go on into endless after Act 1 (P9): only once the act is cleared and its
+ * keep is claimed, so the keep can never be skipped. The run deck, gold and
+ * fight count carry on into loop 1.
+ */
+export function enterEndless(story: StoryState): StoryResult<{ run: StoryRun }> {
+  const run = story.activeRun;
+  if (!run) return refuse('No run in progress.');
+  if (!isAct1Cleared(run)) return refuse('The act is not cleared.');
+  if (!story.claimedRewardKeys.includes(keepRewardKey(run.runId, run.act))) return refuse('Keep a card first.');
+  run.phase = 'endless';
+  run.endlessLoop = 1;
+  run.nodeId = null;
+  run.visitedNodeIds = [];
+  run.nodeResolved = false;
+  return { ok: true, run };
+}
+
+/** Whether the run has beaten its current endless loop's claimant. */
+export function isEndlessLoopCleared(run: StoryRun | null): boolean {
+  if (!run || run.phase !== 'endless' || !run.nodeResolved || !run.nodeId) return false;
+  return run.nodeId === runMap(run).bossId;
+}
+
+/** Move on to the next endless loop, once the claimant is beaten and her card reward taken. */
+export function nextEndlessLoop(story: StoryState): StoryResult<{ loop: number }> {
+  const run = story.activeRun;
+  if (!run) return refuse('No run in progress.');
+  if (!isEndlessLoopCleared(run)) return refuse('The loop is not cleared.');
+  if (run.pendingCardRewards.length > 0) return refuse('Take or skip the card reward first.');
+  run.endlessLoop++;
+  run.nodeId = null;
+  run.visitedNodeIds = [];
+  run.nodeResolved = false;
+  return { ok: true, loop: run.endlessLoop };
+}
+
+/**
+ * Keep the endless records (E4, E6): the deepest loop cleared per heroine and,
+ * on a daily run, the best loop of that day. Records only rise; a new day's
+ * daily replaces the old one.
+ */
+function recordEndlessLoop(story: StoryState, run: StoryRun, loopCleared: number): void {
+  const best = story.endless.bestLoop;
+  best[run.characterId] = Math.max(best[run.characterId] ?? 0, loopCleared);
+  if (run.dailyDateKey === null) return;
+  const daily = story.endless.daily;
+  story.endless.daily = daily && daily.dateKey === run.dailyDateKey
+    ? { dateKey: daily.dateKey, bestLoop: Math.max(daily.bestLoop, loopCleared) }
+    : { dateKey: run.dailyDateKey, bestLoop: loopCleared };
+}
+
+/** Today's daily best, or 0 when the stored daily is another day's (or none). */
+export function dailyBestLoop(story: StoryState, dateKey: string): number {
+  const daily = story.endless.daily;
+  return daily && daily.dateKey === dateKey ? daily.bestLoop : 0;
 }
 
 /**
@@ -374,6 +523,8 @@ export interface StoryDuelSetup {
   avatarId: string;
   nodeId: string;
   nodeKind: StoryNode['kind'];
+  /** The opponent's brain: the avatar's own, or its endless-capped one (E2). */
+  difficulty: Avatar['difficulty'];
 }
 
 /**
@@ -388,12 +539,17 @@ export function storyDuelSetup(story: StoryState, db: CardDb): StoryResult<{ set
   if (!node || !isDuelNode(node) || run.nodeResolved || !node.avatarId) return refuse('The run is not at a duel.');
   const character = characterOf(run);
   const avatar = storyAvatarById(node.avatarId);
+  // E2: an endless claimant may start holding the Mandate and with extra life.
+  const claimant = node.kind === 'boss' && run.phase === 'endless';
+  const lifeBonus = claimant ? endlessClaimantLifeBonus(run.endlessLoop) : 0;
+  const holdsMandate = claimant && endlessClaimantHoldsMandate(run.endlessLoop);
   return {
     ok: true,
     setup: {
       avatarId: avatar.id,
       nodeId: node.id,
       nodeKind: node.kind,
+      difficulty: run.phase === 'endless' ? endlessBrain(run.endlessLoop, avatar.difficulty) : avatar.difficulty,
       config: {
         decks: [[...run.deck], [...avatar.darlingsDeck]],
         seed: node.seed,
@@ -402,6 +558,8 @@ export function storyDuelSetup(story: StoryState, db: CardDb): StoryResult<{ set
         landReserves: [[...character.landReserve], [...avatar.landReserve]],
         darlings: [character.darlingId, avatar.darlingId],
         startingHandSize: WARCHEST_HAND_SIZE,
+        ...(lifeBonus > 0 ? { lifeBonus: [0, lifeBonus] as [number, number] } : {}),
+        ...(holdsMandate ? { startingMandateHolder: 1 as const } : {}),
       },
     },
   };
@@ -484,6 +642,7 @@ export function applyStoryDuelResult(
     unlocked: recorded.unlocked,
     runEnded: recorded.runEnded,
     act1Cleared: recorded.act1Cleared,
+    loopCleared: recorded.loopCleared,
     gold,
     firstWinBonus,
   };

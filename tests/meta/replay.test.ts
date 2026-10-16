@@ -70,6 +70,7 @@ function recordBotGame(
   startingHandSize?: number,
   startingLife?: number,
   playDrawChoice = false,
+  setup: { lifeBonus?: [number, number]; mandateHolder?: PlayerId } = {},
 ): {
   log: ReplayLog;
   finalState: string;
@@ -84,6 +85,8 @@ function recordBotGame(
     rulesRev,
     ...(startingHandSize === undefined ? {} : { startingHandSize }),
     ...(startingLife === undefined ? {} : { startingLife }),
+    ...(setup.lifeBonus === undefined ? {} : { lifeBonus: setup.lifeBonus }),
+    ...(setup.mandateHolder === undefined ? {} : { startingMandateHolder: setup.mandateHolder }),
     playDrawChoice,
   });
   const ais = [new EasyAI(TEST_DB, seed * 2 + 1), new EasyAI(TEST_DB, seed * 2 + 2)];
@@ -93,6 +96,7 @@ function recordBotGame(
     decks,
     ...(startingHandSize === undefined ? {} : { startingHandSize }),
     ...(startingLife === undefined ? {} : { startingLife }),
+    ...setup,
     context: { mode: 'practice', difficulty: 'easy', opponentId: null, opponentName: 'Bot', gauntletRung: null },
   });
   draft.v = replayVersion;
@@ -219,6 +223,23 @@ describe('deterministic replays (src/meta/Replay.ts)', () => {
       expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
     } finally {
       rules.startingLife = shipped;
+    }
+  });
+
+  it('records a Story endless claimant\'s extra life and starting Mandate, and replays the game with them', () => {
+    const original = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, false, { lifeBonus: [0, 6], mandateHolder: 1 });
+    expect(original.log.lifeBonus).toEqual([0, 6]);
+    expect(original.log.mandateHolder).toBe(1);
+    const stored = JSON.parse(JSON.stringify(original.log)) as ReplayLog;
+    expect(isReplayLog(stored)).toBe(true);
+    const replayed = replayGame(stored, TEST_DB);
+    expect(JSON.stringify(replayed.game.instanceState)).toBe(original.instanceFinalState);
+    expect(JSON.stringify(replayed.eventLog)).toBe(JSON.stringify(original.events));
+    // An ordinary game records neither field.
+    const plain = recordBotGame(47, CURRENT_RULES_REV, REPLAY_LOG_VERSION, undefined, 25, false, { lifeBonus: [0, 0] });
+    expect('lifeBonus' in plain.log || 'mandateHolder' in plain.log).toBe(false);
+    for (const bad of [{ lifeBonus: [0, -1] }, { lifeBonus: [3] }, { mandateHolder: 2 }]) {
+      expect(isReplayLog({ ...stored, ...bad })).toBe(false);
     }
   });
 

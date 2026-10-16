@@ -911,8 +911,8 @@ export class DuelScene extends Phaser.Scene {
     this.replayOutcome = null;
     this.replayOutcomeShell = null;
     this.replayGuard = new ModalGuard();
-    // A story duel faces its node's avatar at the avatar's own difficulty and
-    // personality, like a Tower opponent, and is never a rung, Limited match or
+    // A story duel faces its node's avatar with its personality and the brain
+    // storyDuelSetup names (the avatar's own, capped on early endless loops), and is never a rung, Limited match or
     // tutorial.
     this.opponent = data.replay?.context.opponentId
       ? this.avatarForReplay(data.replay.context.opponentId)
@@ -925,7 +925,7 @@ export class DuelScene extends Phaser.Scene {
     this.gauntletRosterOrder = null;
     this.difficulty = resolveDuelDifficulty(
       data.replay?.context.difficulty,
-      story ? undefined : data.difficulty,
+      story ? story.difficulty : data.difficulty,
       this.opponent?.difficulty,
       this.gauntletRung,
     );
@@ -1280,6 +1280,10 @@ export class DuelScene extends Phaser.Scene {
           reserveFormat,
           this.replayMode ? data.replay ?? null : null,
         );
+    // Story endless claimants may start with extra life or holding the Mandate
+    // (game setup from storyDuelSetup); a replay restores what it recorded.
+    const lifeBonus = this.replayLog ? this.replayLog.lifeBonus : story?.config.lifeBonus;
+    const startingMandateHolder = this.replayLog ? this.replayLog.mandateHolder : story?.config.startingMandateHolder;
     this.duel = new Game({
       decks: [myDeck, aiDeck],
       seed,
@@ -1287,6 +1291,8 @@ export class DuelScene extends Phaser.Scene {
       ...(startingHandSize === undefined ? {} : { startingHandSize }),
       // A replay plays at the life its game was recorded at.
       ...(this.replayLog ? { startingLife: replayStartingLife(this.replayLog) } : {}),
+      ...(lifeBonus === undefined ? {} : { lifeBonus }),
+      ...(startingMandateHolder === undefined ? {} : { startingMandateHolder }),
       ...(reserveFormat === 'darlings' && landReserves && darlings
         ? { format: reserveFormat, landReserves, darlings }
         : reserveFormat === 'warchest' && landReserves
@@ -1357,6 +1363,8 @@ export class DuelScene extends Phaser.Scene {
           seed,
           decks: [myDeck.slice(), aiDeck.slice()],
           ...(startingHandSize === undefined ? {} : { startingHandSize }),
+          ...(lifeBonus === undefined ? {} : { lifeBonus }),
+          ...(startingMandateHolder === undefined ? {} : { mandateHolder: startingMandateHolder }),
           context: {
             mode: story ? 'story' : this.limited ? 'limited' : this.gauntletRung != null ? 'gauntlet' : 'practice',
             difficulty: this.difficulty,

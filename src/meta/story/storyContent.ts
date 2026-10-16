@@ -10,6 +10,7 @@ import type { CardDb, CardDef } from '../../engine/types';
 import { CORE_SET_2_SET } from '../../data/liveness';
 import type { Avatar } from '../../data/opponents';
 import { STORY_BOONS, STORY_ACTS, BOON_OFFER_COUNT } from '../../data/story/act1';
+import { endlessLoopAct } from '../../data/story/endless';
 import { STORY_CHARACTERS, FIRST_STORY_CHARACTER_ID } from '../../data/story/characters';
 import { storyAvatarById, storyAvatarIds } from '../../data/story/opponents';
 import { STORY_EVENTS, STORY_SCENES, STORY_SPEAKERS } from '../../data/story/script';
@@ -126,15 +127,21 @@ const EM_DASH = '—';
 export interface StoryContentSource {
   characters: readonly StoryCharacter[];
   acts: readonly StoryAct[];
+  /** Endless loops dressed as acts (the first ENDLESS_CHECKED_LOOPS); left out, none are checked. */
+  endlessActs?: readonly StoryAct[];
   boons: readonly StoryBoon[];
   scenes: readonly StoryScene[];
   speakers: readonly StorySpeaker[];
   events: readonly StoryEvent[];
 }
 
+/** Endless loops check-story checks: past the roster's top every loop fields the same bands. */
+export const ENDLESS_CHECKED_LOOPS = 15;
+
 export const SHIPPED_STORY_CONTENT: StoryContentSource = {
   characters: STORY_CHARACTERS,
   acts: STORY_ACTS,
+  endlessActs: Array.from({ length: ENDLESS_CHECKED_LOOPS }, (_, i) => endlessLoopAct(i + 1)),
   boons: STORY_BOONS,
   scenes: STORY_SCENES,
   speakers: STORY_SPEAKERS,
@@ -206,10 +213,21 @@ export function checkStoryContent(db: CardDb, options: StoryContentOptions = {})
   });
 
   // ------------------------------------------------------------------ acts
-  for (const act of content.acts) {
+  const actBosses = new Set(content.acts.map((act) => act.bossAvatarId));
+  for (const act of content.endlessActs ?? []) {
+    // Endless never brings an act's boss back as a claimant or anywhere else.
+    const ids = [...act.fightAvatarIds, ...act.eliteAvatarIds, ...(act.bossAvatarIds ?? [act.bossAvatarId])];
+    for (const id of ids) {
+      const avatar = known(id);
+      if (actBosses.has(id) || (avatar && [...actBosses].some((boss) => known(boss)?.portraitCardId === avatar.portraitCardId))) {
+        errors.push(`act ${act.id}: ${id} is an act boss`);
+      }
+    }
+  }
+  for (const act of [...content.acts, ...(content.endlessActs ?? [])]) {
     for (const id of act.fightAvatarIds) checkAvatar(`act ${act.id} fight`, id);
     for (const id of act.eliteAvatarIds) checkAvatar(`act ${act.id} elite`, id);
-    checkAvatar(`act ${act.id} boss`, act.bossAvatarId);
+    for (const id of act.bossAvatarIds ?? [act.bossAvatarId]) checkAvatar(`act ${act.id} boss`, id);
     const fights = act.fightAvatarIds.map(known).filter((avatar): avatar is Avatar => avatar !== null);
     const elites = act.eliteAvatarIds.map(known).filter((avatar): avatar is Avatar => avatar !== null);
     if (act.fightAvatarIds.length === 0 || act.eliteAvatarIds.length === 0) errors.push(`act ${act.id}: needs fight and elite avatars`);
@@ -218,8 +236,8 @@ export function checkStoryContent(db: CardDb, options: StoryContentOptions = {})
     }
     // Owner ruling D2 (2026-10-13): the boss is the act's hardest fight, so by
     // the same measure she is a stronger avatar than every elite.
-    const boss = known(act.bossAvatarId);
-    if (boss && elites.some((elite) => !isStrongerOpponent(boss, elite))) {
+    const bosses = (act.bossAvatarIds ?? [act.bossAvatarId]).map(known).filter((avatar): avatar is Avatar => avatar !== null);
+    if (bosses.some((boss) => elites.some((elite) => !isStrongerOpponent(boss, elite)))) {
       errors.push(`act ${act.id}: the boss must be a stronger avatar than every elite`);
     }
     const floors = act.mapTemplate.floors;
