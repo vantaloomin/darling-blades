@@ -28,7 +28,7 @@ import type { Rect } from '../ui/layout';
 /** Every card id this build reads, for decoding. */
 const CARD_IDS: readonly string[] = Object.keys(CARD_DB);
 /** The level names on the selector. */
-const LEVEL_LABELS: Record<DeckCodeLevel, string> = { hard: 'Hard' };
+const LEVEL_LABELS: Record<DeckCodeLevel, string> = { hard: 'Hard', expert: 'Expert', master: 'Master' };
 /** A deck's colors as the preview names them. */
 const COLOR_NAMES: Record<Color, string> = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
 /** The opposing deck's preview names this many of its costliest cards. */
@@ -38,6 +38,8 @@ const WIDE_CONTENT: Rect = { x: 20, y: 14, width: 1240, height: 692 };
 
 /** The last code on this screen, kept for the session so a deck change or a finished duel comes back to it. */
 let rememberedCode = '';
+/** The AI level last chosen, kept for the session like the code. */
+let rememberedLevel: DeckCodeLevel = 'hard';
 /** The player's own deck last picked under My decks: while the field holds its code, the duel names the opponent after it. */
 let rememberedPick: { code: string; name: string } | null = null;
 
@@ -66,7 +68,6 @@ export class DeckCodeScene extends Phaser.Scene {
   private previewDeck: DeckCodeOpponent | null = null;
   private duelButton: CompactButton | null = null;
   private ready: string | null = null;
-  private level: DeckCodeLevel = 'hard';
 
   constructor() {
     super('DeckCode');
@@ -78,7 +79,6 @@ export class DeckCodeScene extends Phaser.Scene {
     this.field = null;
     this.preview = null;
     this.ready = null;
-    this.level = DECK_CODE_LEVELS[0];
     applyBackdrop(this, 'mainmenu', { dim: theme.graphics.dim, dimAlpha: 0.5, fallback: () => {} });
     this.input.on('gameobjectover', (p: Phaser.Input.Pointer) => {
       if (!p.wasTouch) Sfx.play('hover');
@@ -132,8 +132,9 @@ export class DeckCodeScene extends Phaser.Scene {
 
     this.buildDeckPlate(L.deckPlate);
     compactButton(this, L.changeDeck, 'Change deck', { icon: 'deck', onTap: back });
-    compactSegments(this, L.level, DECK_CODE_LEVELS.map((level) => LEVEL_LABELS[level]), 0, (i) => {
-      this.level = DECK_CODE_LEVELS[i] ?? this.level;
+    compactSegments(this, L.level, DECK_CODE_LEVELS.map((level) => LEVEL_LABELS[level]),
+      Math.max(0, DECK_CODE_LEVELS.indexOf(rememberedLevel)), (i) => {
+      rememberedLevel = DECK_CODE_LEVELS[i] ?? rememberedLevel;
     });
     this.duelButton = compactButton(this, L.duel, 'Duel', {
       variant: 'primary', icon: 'swords', fontSize: type.h2, onTap: () => this.launch(),
@@ -418,6 +419,6 @@ export class DeckCodeScene extends Phaser.Scene {
   private launch(): void {
     if (!this.ready) return;
     const name = rememberedPick?.code === this.ready ? rememberedPick.name : undefined;
-    this.scene.start('Duel', { deckCode: { code: this.ready, level: this.level, ...(name ? { name } : {}) } });
+    this.scene.start('Duel', { deckCode: { code: this.ready, level: rememberedLevel, ...(name ? { name } : {}) } });
   }
 }

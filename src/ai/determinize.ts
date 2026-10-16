@@ -27,6 +27,10 @@ import type { PlayerView } from '../engine/view';
  *    fire against MY blocks in the lookahead's counterattack half, taxing
  *    exactly the holdback candidates that win games;
  *  - trick-only, and curve-only variants: 49.5% / 60.5% vs 61.5% baseline.
+ *  - (2026-10-16, Duel any Deck ladder, 600 games each) the AI's OWN library
+ *    filled from its real deck list (`ownDeck`), with 1 or 3 worlds: 50.8% /
+ *    51.2% vs Hard, and 50.0% on top of Expert. The one-turn horizon rarely
+ *    draws, so knowing what is left changes almost no decision.
  * Hard's edge lives in engine-exact combat math on the PUBLIC battlefield;
  * an inert hidden-card model keeps that signal clean. The category/prior
  * machinery stays as the tuning surface for future pools where real decks
@@ -238,6 +242,38 @@ function fillZones(
   return { hand: pool.slice(0, handCount), deck: pool.slice(handCount) };
 }
 
+/**
+ * My own library from my own deck list (Duel any Deck's Expert and Master):
+ * the list minus every card of mine I can see (hand, my permanents, graveyard,
+ * Severed), shuffled. A player knows their own list, so this reads nothing
+ * hidden; only the ORDER stays unknown, and each seed is one order. Cards
+ * that left the list by other routes are absorbed: the pool is cut or padded
+ * with the 3-drop stand-in to the real library size.
+ */
+function ownLibrary(view: PlayerView, db: CardDb, ownDeck: readonly string[], rng: RngState): string[] {
+  const left = new Map<string, number>();
+  for (const id of ownDeck) left.set(id, (left.get(id) ?? 0) + 1);
+  const seen = [
+    ...view.battlefield.filter((perm) => perm.owner === view.myId).map((perm) => perm.cardId),
+    ...view.you.graveyard,
+    ...view.you.hand,
+    ...view.you.severed,
+  ];
+  for (const id of seen) {
+    const n = left.get(id);
+    if (n) left.set(id, n - 1);
+  }
+  const pool: string[] = [];
+  for (const [id, n] of left) {
+    if (def(db, id).token) continue;
+    for (let i = 0; i < n; i++) pool.push(id);
+  }
+  rngShuffle(rng, pool);
+  const size = view.you.deckCount;
+  while (pool.length < size) pool.push(UNKNOWN_C3_ID);
+  return pool.slice(0, size);
+}
+
 /** Rehydrate the public pending queue for the one decision Hard is entering. */
 function pendingDecisionsForView(
   view: PlayerView,
@@ -268,7 +304,7 @@ function pendingDecisionsForView(
  * libraries are stand-ins with a composition inferred from public zones plus
  * flat priors (see the module header). Same view + seed → same Game.
  */
-export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
+export function determinize(view: PlayerView, db: CardDb, seed = 1, ownDeck?: readonly string[]): Game {
   // This awaiting exists only before mulligans, outside every Hard search entry
   // point. Fail loudly if a future caller tries to simulate before it resolves.
   if (view.awaiting.kind === 'choosePlayDraw') {
@@ -288,7 +324,9 @@ export function determinize(view: PlayerView, db: CardDb, seed = 1): Game {
     ...view.you.hand,
     ...(view.you.landReserve ?? []),
   ]);
-  const myFill = fillZones(hiddenCategoryCounts(mySeen, view.you.deckCount), 0, fillRng);
+  const myFill = ownDeck
+    ? { hand: [], deck: ownLibrary(view, db, ownDeck, createRngState((seed ^ 0x2c1b3c6d) >>> 0)) }
+    : fillZones(hiddenCategoryCounts(mySeen, view.you.deckCount), 0, fillRng);
 
   // Their side: hand + deck are hidden; battlefield + graveyard are public.
   const theirSeen = countSeen(db, [

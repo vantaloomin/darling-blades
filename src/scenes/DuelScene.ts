@@ -7,6 +7,7 @@ import { Music } from '../audio/music';
 import { selectDuelMood } from '../audio/musicPatterns';
 import { Sfx } from '../audio/sfx';
 import { buildAI } from '../ai/personality';
+import { buildLadderAI } from '../ai/ladder';
 import { ECONOMY, RULES, type ReserveFormat } from '../config/rules';
 import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
@@ -708,7 +709,7 @@ export class DuelScene extends Phaser.Scene {
   private story: StoryDuelRef | null = null;
   private storySetup: StoryDuelSetup | null = null;
   /** A Duel Deck Codes duel: the code (for the way back) and the deck it fields for the AI. */
-  private codeDuel: { code: string; deck: DeckCodeOpponent; name: string } | null = null;
+  private codeDuel: { code: string; deck: DeckCodeOpponent; name: string; level: DeckCodeLevel } | null = null;
   private coach: CoachMark | null = null;
   /**
    * Hard-constrains input to the one control the current coach mark points at:
@@ -895,7 +896,7 @@ export class DuelScene extends Phaser.Scene {
       this.scene.start('DeckCode', { code: data.deckCode.code, notice: resolved.message });
       return false;
     }
-    this.codeDuel = { code: data.deckCode.code, deck: resolved.deck, name: data.deckCode.name?.trim() || DECK_CODE_OPPONENT_NAME };
+    this.codeDuel = { code: data.deckCode.code, deck: resolved.deck, name: data.deckCode.name?.trim() || DECK_CODE_OPPONENT_NAME, level: data.deckCode.level };
     return true;
   }
 
@@ -1397,7 +1398,10 @@ export class DuelScene extends Phaser.Scene {
     const personality = this.opponent?.personality ?? this.limitedPersona?.personality;
     this.ai = data.aiOverride ?? (this.gauntletRung !== null
       ? buildTierAI(floorTier(this.gauntletRung), CARD_DB, aiSeed, personality)
-      : buildAI(this.difficulty, CARD_DB, aiSeed, personality));
+      : codeDuel
+        // Duel any Deck: Hard, Expert or Master, piloting the code's deck (src/ai/ladder.ts).
+        ? buildLadderAI(codeDuel.level, CARD_DB, codeDuel.deck.cards)
+        : buildAI(this.difficulty, CARD_DB, aiSeed, personality));
     // Deterministic replay recording (1.2): every non-tutorial duel records
     // its inputs (seed + decks + every successful submit); the log persists
     // only when the duel completes (showResults). The tutorial is scripted
@@ -2133,7 +2137,7 @@ export class DuelScene extends Phaser.Scene {
       return `${this.showcase ? '' : 'Replay · '}vs ${this.replayLog.context.opponentName}`;
     }
     if (this.story && this.opponent) return `Story · vs ${this.opponent.name}`;
-    if (this.codeDuel) return `Duel any Deck · ${this.difficulty[0].toUpperCase()}${this.difficulty.slice(1)} AI`;
+    if (this.codeDuel) return `Duel any Deck · ${this.codeDuel.level[0].toUpperCase()}${this.codeDuel.level.slice(1)} AI`;
     if (this.opponent) {
       return `${this.gauntletRung ? `Rung ${this.gauntletRung} · ` : ''}vs ${this.opponent.name}`;
     }

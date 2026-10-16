@@ -92,8 +92,8 @@ export function deckCodeSeatIssue(opponent: DeckCodeOpponent, mine: SavedDeck | 
 }
 
 /** The AI strength levels a code duel offers. Hard is today's Hard; harder levels join with their brains. */
-export type DeckCodeLevel = 'hard';
-export const DECK_CODE_LEVELS: readonly DeckCodeLevel[] = ['hard'];
+export type DeckCodeLevel = 'hard' | 'expert' | 'master';
+export const DECK_CODE_LEVELS: readonly DeckCodeLevel[] = ['hard', 'expert', 'master'];
 
 /**
  * The code for one of the player's own saved decks, so it can be dueled the

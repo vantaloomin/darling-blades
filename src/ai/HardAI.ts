@@ -9,7 +9,7 @@ import { precombatDutyEdge, scoredActivationCandidates, type ActivateAction } fr
 import { rankedHauntlinkWindowCandidates } from './hauntlinkPolicy';
 import { chooseAttackers, chooseBlocks } from './combatPlans';
 import { determinize, simDb } from './determinize';
-import { evaluate } from './evaluate';
+import { DEFAULT_EVAL_WEIGHTS, evaluate, type EvalWeights } from './evaluate';
 import { MediumAI } from './MediumAI';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { choosePlayDraw } from './playDraw';
@@ -25,6 +25,35 @@ import { actionManaCost, cardValue, empowerValue, faceDamageForCast, hauntlinkCa
 type CreatureCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
 /**
+ * How far and how wide Hard's searches look. Absent (every field unset) is
+ * Hard as it ships. Duel any Deck's Expert and Master set them (src/ai/ladder.ts):
+ * none of them reads hidden state.
+ */
+export interface HardSearchOptions {
+  /** The brain's own deck list: its library is then its real remaining cards, shuffled per world. */
+  ownDeck?: readonly string[];
+  /** Determinization worlds averaged per line; Hard ships one. */
+  worlds?: readonly number[];
+  /**
+   * Past the searched action: 'none' evaluates at once (Hard); 'turn' plays
+   * the rest of my turn with the policy and stops at the opponent's next main
+   * or attack decision; 'cycle' plays on through the opponent's turn to my
+   * next main phase.
+   */
+  rollout?: 'none' | 'turn' | 'cycle';
+  /** Turn cycles the attack search plays through; Hard ships one. */
+  attackCycles?: number;
+  /** Search every ordinary cast in the main phase, not only Medium's pick and the mechanic casts. */
+  wideMain?: boolean;
+  /** Ordinary main-phase lines searched per decision; Hard ships 8. */
+  mainSlots?: number;
+  /** Evaluation weights; Hard ships DEFAULT_EVAL_WEIGHTS. */
+  weights?: Readonly<EvalWeights>;
+  /** Most actions one rollout may submit, so a decision's work is bounded by moves, not by the clock. */
+  rolloutCap?: number;
+}
+
+/**
  * Hard: Medium's heuristics as candidate generators, then honest simulation
  * on determinized clones — the real engine plays each candidate line through
  * sampled hidden-card worlds (see determinize.ts; SIM_SEEDS ships with one
@@ -37,11 +66,16 @@ export class HardAI implements AIPlayer {
    *  their personality, and evaluation must stay a fair referee. */
   private neutralMedium: MediumAI;
   private sdb: CardDb;
+  private readonly seeds: readonly number[];
+  private readonly weights: Readonly<EvalWeights>;
 
   constructor(
     private readonly db: CardDb,
     private readonly pers: Personality = DEFAULT_PERSONALITY,
+    private readonly search: HardSearchOptions = {},
   ) {
+    this.seeds = search.worlds ?? HardAI.SIM_SEEDS;
+    this.weights = search.weights ?? DEFAULT_EVAL_WEIGHTS;
     // Both brains get the stand-in-augmented db: inside lookahead worlds they
     // are handed sim views full of __unknown_* ids, and a raw-db brain throws
     // on those, silently collapsing the whole world to -Infinity. simDb is a
@@ -113,14 +147,14 @@ export class HardAI implements AIPlayer {
     let total = 0;
     let wonAll = true;
     let lostAny = false;
-    for (const seed of HardAI.SIM_SEEDS) {
+    for (const seed of this.seeds) {
       const out = this.simulateOutcome(view, actions, seed);
       if (!out) return null; // my own line is illegal — same in every world
       total += out.score;
       wonAll &&= out.won;
       lostAny ||= out.lost;
     }
-    return { score: total / HardAI.SIM_SEEDS.length, wonAll, lostAny };
+    return { score: total / this.seeds.length, wonAll, lostAny };
   }
 
   /** Play `actions` in one determinized world; evaluate at a stable point. */
@@ -133,7 +167,7 @@ export class HardAI implements AIPlayer {
     const opp = opponentOf(me);
     let game: Game;
     try {
-      game = determinize(view, this.db, seed);
+      game = determinize(view, this.db, seed, this.search.ownDeck);
     } catch {
       return null;
     }
@@ -182,11 +216,38 @@ export class HardAI implements AIPlayer {
       }
       this.autoplayOpponent(game, me);
     }
+    if (this.search.rollout && this.search.rollout !== 'none') this.rollout(game, me, this.search.rollout);
     return {
-      score: evaluate(game.instanceState, this.sdb, me),
+      score: evaluate(game.instanceState, this.sdb, me, this.weights),
       won: game.instanceState.winner === me,
       lost: game.instanceState.winner === opp,
     };
+  }
+
+  /**
+   * Play a searched line on with the policy on both sides (mine with my
+   * personality, theirs neutral), to the end of my turn ('turn') or to my
+   * next main phase ('cycle'), within the move cap. A line that breaks the
+   * engine stops where it is and is judged there.
+   */
+  private rollout(game: Game, me: PlayerId, depth: 'turn' | 'cycle'): void {
+    const opp = opponentOf(me);
+    const cap = this.search.rolloutCap ?? 120;
+    let theirTurn = game.instanceState.activePlayer === opp;
+    for (let n = 0; n < cap; n++) {
+      const st = game.instanceState;
+      const a = st.awaiting;
+      if (a.kind === 'gameOver' || !('player' in a)) return;
+      if (st.activePlayer === opp) theirTurn = true;
+      if (depth === 'turn' && a.player === opp && (a.kind === 'main' || a.kind === 'declareAttackers')) return;
+      if (depth === 'cycle' && theirTurn && st.activePlayer === me && a.player === me && a.kind === 'main') return;
+      const brain = a.player === me ? this.medium : this.neutralMedium;
+      try {
+        game.submit(a.player, brain.chooseAction(game.viewFor(a.player), game.legalActions(a.player)));
+      } catch {
+        return;
+      }
+    }
   }
 
   /** In simulation the opponent blocks with our shared heuristic and plays
@@ -281,6 +342,7 @@ export class HardAI implements AIPlayer {
       .filter(
         (a) =>
           (a.type === 'skim' && view.you.deckCount > 0) ||
+          (a.type === 'castSpell' && this.search.wideMain === true && a.hauntlinked !== true) ||
           (a.type === 'castSpell' &&
             (a.empowered === true || a.retell === true || a.whispers === true ||
               isRiteCast(view, this.db, a) || isTitheCast(view, this.db, a) || isVocabularyCast(view, this.db, a))) ||
@@ -377,7 +439,7 @@ export class HardAI implements AIPlayer {
     // Pass must survive a large target menu. Reserve both new lines inside
     // the existing eight ordinary slots; protected mechanic candidates keep
     // their existing allowances above that cap.
-    const ordinarySlots = 8 - Number(pass !== undefined) - Number(canHold);
+    const ordinarySlots = (this.search.mainSlots ?? 8) - Number(pass !== undefined) - Number(canHold);
     const cappedCandidates = [
       ...riteCandidates,
       ...preserveCandidates,
@@ -450,14 +512,14 @@ export class HardAI implements AIPlayer {
   private holdComparison(view: PlayerView, cast: CreatureCast): { now: number; held: number } | null {
     let now = 0;
     let held = 0;
-    for (const seed of HardAI.SIM_SEEDS) {
+    for (const seed of this.seeds) {
       const immediate = this.mainTwoOutcome(view, cast, false, seed);
       const deferred = this.mainTwoOutcome(view, cast, true, seed);
       if (immediate === null || deferred === null) return null;
       now += immediate;
       held += deferred;
     }
-    return { now: now / HardAI.SIM_SEEDS.length, held: held / HardAI.SIM_SEEDS.length };
+    return { now: now / this.seeds.length, held: held / this.seeds.length };
   }
 
   /** Physical identity here belongs only to the determinized clone. It keeps
@@ -479,7 +541,7 @@ export class HardAI implements AIPlayer {
     let game: Game;
     let instanceId: number | undefined;
     try {
-      game = determinize(view, this.db, seed);
+      game = determinize(view, this.db, seed, this.search.ownDeck);
       instanceId = this.castInstance(game, cast);
       if (instanceId === undefined) return null;
       game.submit(me, deferred ? { type: 'passStep' } : cast);
@@ -491,13 +553,13 @@ export class HardAI implements AIPlayer {
     for (let guard = 0; guard < 120; guard++) {
       this.autoplayOpponent(game, me);
       const awaiting = game.instanceState.awaiting;
-      if (awaiting.kind === 'gameOver') return evaluate(game.instanceState, this.sdb, me);
+      if (awaiting.kind === 'gameOver') return evaluate(game.instanceState, this.sdb, me, this.weights);
       if (game.instanceState.turn !== turn || game.instanceState.activePlayer !== me ||
         !('player' in awaiting) || awaiting.player !== me) return null;
       let action: Action;
       if (awaiting.kind === 'main') {
         if (game.instanceState.step === 'main2') {
-          if (!pendingCast) return evaluate(game.instanceState, this.sdb, me);
+          if (!pendingCast) return evaluate(game.instanceState, this.sdb, me, this.weights);
           const current = game.viewFor(me);
           const legal = applyRitePolicy(current, this.sdb,
             applyTithePolicy(current, this.sdb,
@@ -623,28 +685,30 @@ export class HardAI implements AIPlayer {
    * over the determinization worlds. */
   private lookahead(view: PlayerView, first: Action): number {
     let total = 0;
-    for (const seed of HardAI.SIM_SEEDS) {
+    for (const seed of this.seeds) {
       total += this.lookaheadWorld(view, first, seed);
     }
-    return total / HardAI.SIM_SEEDS.length;
+    return total / this.seeds.length;
   }
 
   private lookaheadWorld(view: PlayerView, first: Action, seed: number): number {
     const me = view.myId;
     let game: Game;
     try {
-      game = determinize(view, this.db, seed);
+      game = determinize(view, this.db, seed, this.search.ownDeck);
       game.submit(me, first);
     } catch {
       return -Infinity;
     }
     const startTurn = game.instanceState.turn;
-    for (let guard = 0; guard < 120; guard++) {
+    // Hard: one full turn cycle — deeper horizons amplified opponent-model error
+    // in its measurements. Master may look further (HardSearchOptions).
+    const cycles = this.search.attackCycles ?? 1;
+    for (let guard = 0; guard < 120 * cycles; guard++) {
       const a = game.instanceState.awaiting;
       if (a.kind === 'gameOver') break;
       if (!('player' in a)) break;
-      // one full turn cycle — deeper horizons amplify opponent-model error
-      if (a.player === me && a.kind === 'main' && game.instanceState.turn > startTurn) break;
+      if (a.player === me && a.kind === 'main' && game.instanceState.turn > startTurn + 2 * (cycles - 1)) break;
       try {
         const p = a.player;
         // My side plays with my personality; the opponent stays neutral.
@@ -654,7 +718,7 @@ export class HardAI implements AIPlayer {
         return -Infinity;
       }
     }
-    return evaluate(game.instanceState, this.sdb, me);
+    return evaluate(game.instanceState, this.sdb, me, this.weights);
   }
 
   /**
