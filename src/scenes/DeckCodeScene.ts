@@ -5,21 +5,24 @@ import { FEATURES } from '../config/features';
 import { CARD_DB } from '../data/catalog';
 import { manaValue, type Color } from '../engine/types';
 import { deckColorIdentity } from '../meta/deckColorIdentity';
-import { DECK_CODE_LEVELS, deckCodeOpponent, deckCodeSeatIssue, type DeckCodeLevel, type DeckCodeOpponent } from '../meta/deckCodeDuel';
+import { DECK_CODE_LEVELS, deckCodeOpponent, deckCodeSeatIssue, savedDeckDuelCode, type DeckCodeLevel, type DeckCodeOpponent } from '../meta/deckCodeDuel';
 import { faceCardFor } from '../meta/deckFace';
 import { firstDuelLaunchIssue } from '../meta/duelSetup';
 import { Services } from '../meta/services';
+import { bindTapButton } from '../platform/gestures';
 import { bakeUiIcon } from '../ui/uiIcons';
 import { COMPACT } from '../ui/compactLayout';
 import { compactButton, compactHeader, compactSegments, coverFitImage, type CompactButton } from '../ui/compactWidgets';
 import { DECK_CODE_COMPACT, deckCodeLayout, type DeckCodeLayout } from '../ui/deckCodeCompact';
-import { activeVisibleSavedDeck, builderFormatForDeck, formatDeckSize, formatLabel } from '../ui/deckBuilderHelpers';
+import { activeVisibleSavedDeck, builderFormatForDeck, formatDeckSize, formatLabel, visibleSavedDecks } from '../ui/deckBuilderHelpers';
+import { menuNoticeLayout } from '../ui/mainMenuPresentation';
+import { bindMenuScroll } from '../ui/menuScroll';
 import { addPortraitArt } from '../ui/portraitArt';
 import { awaitArt } from '../ui/artGate';
 import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
-import { registerSceneBackNavigation } from '../ui/themeWidgets';
+import { modalShell, registerSceneBackNavigation } from '../ui/themeWidgets';
 import type { Rect } from '../ui/layout';
 
 /** Every card id this build reads, for decoding. */
@@ -106,7 +109,7 @@ export class DeckCodeScene extends Phaser.Scene {
     const back = (): void => { this.scene.start('Play'); };
     compactHeader(this, L.shell, {
       title: 'Duel any Deck',
-      subtitle: 'Paste a shared deck and duel it.',
+      subtitle: 'Paste a shared code, or pick one of your decks.',
       gold: Services.save.data.gold,
       onBack: back,
     });
@@ -114,6 +117,9 @@ export class DeckCodeScene extends Phaser.Scene {
 
     this.buildField(L.field);
     compactButton(this, L.paste, 'Paste', { icon: 'copy', onTap: () => this.pasteFromClipboard() });
+    if (L.myDecks.width >= COMPACT.touch) {
+      compactButton(this, L.myDecks, 'My decks', { icon: 'deck', onTap: () => this.showDeckPicker() });
+    }
     const iconSize = Math.round(type.body * 1.1);
     this.statusIcon = this.add.image(L.status.x + iconSize / 2, L.status.y, bakeUiIcon(this, 'info'))
       .setDisplaySize(iconSize, iconSize).setVisible(false);
@@ -174,7 +180,7 @@ export class DeckCodeScene extends Phaser.Scene {
     this.ready = null;
     this.drawPreview(null);
     if (code.length === 0) {
-      this.setStatus('Paste a code someone shared, or export one of your own from the deck builder.', 'muted');
+      this.setStatus('Paste a code someone shared, or tap My decks to duel one of your own.', 'muted');
       this.duelButton?.setEnabled(false);
       return;
     }
@@ -258,7 +264,7 @@ export class DeckCodeScene extends Phaser.Scene {
       .sort((a, b) => manaValue(CARD_DB[b].cost) - manaValue(CARD_DB[a].cost) || CARD_DB[a].name.localeCompare(CARD_DB[b].name))
       .slice(0, PREVIEW_THREATS)
       .map((id) => CARD_DB[id].name);
-    const top = this.add.text(textX, facts.y + facts.height + 8, `Costliest: ${threats.join(', ')}`, {
+    const top = this.add.text(textX, facts.y + facts.height + 8, `Costliest: ${threats.join(' · ')}`, {
       fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: textW },
     });
     c.add([title, facts, top]);
@@ -308,6 +314,102 @@ export class DeckCodeScene extends Phaser.Scene {
     const top = rect.y + (rect.height - name.height - meta.height) / 2;
     name.setY(top);
     meta.setY(top + name.height);
+  }
+
+  /**
+   * The player's own Standard and Darlings decks, any of which the AI can
+   * pilot: choosing one puts its code in the field, so it is checked, shown
+   * and dueled exactly as a pasted code is.
+   */
+  private showDeckPicker(): void {
+    const type = theme.compactType;
+    const content = sceneStage(this).content;
+    const width = Math.min(DECK_CODE_COMPACT.pickerW, content.width);
+    const pad = theme.space(6);
+    const rowW = width - 2 * pad;
+    const save = Services.save.data;
+    const rows = visibleSavedDecks(save.decks, FEATURES.reserveFormats).flatMap((deck) => {
+      const code = savedDeckDuelCode(deck);
+      if (!code) return [];
+      const result = deckCodeOpponent(code, CARD_DB, CARD_IDS);
+      const format = builderFormatForDeck(deck, FEATURES.reserveFormats);
+      return [{ deck, code, caption: result.ok ? `${formatLabel(format)} · ${deck.cards.length} cards` : result.message, ok: result.ok }];
+    });
+    const title = this.add.text(0, 0, 'Duel one of your decks', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      wordWrap: { width: rowW },
+    });
+    const built = rows.map((row) => {
+      const name = this.add.text(0, 0, row.deck.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+        color: row.ok ? theme.colors.heading : theme.colors.muted,
+      });
+      ellipsizeText(name, rowW - 32);
+      const caption = this.add.text(0, 0, row.caption, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: row.ok ? theme.colors.muted : theme.colors.danger,
+        wordWrap: { width: rowW - 32 },
+      });
+      return { ...row, name, caption, height: Math.max(COMPACT.touch, name.height + caption.height + 16) };
+    });
+    const empty = built.length === 0
+      ? this.add.text(0, 0, 'You have no Standard or Darlings decks yet. Build one in the deck builder.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: rowW },
+      })
+      : null;
+    const listH = empty ? empty.height : built.reduce((sum, r) => sum + r.height + COMPACT.gap, -COMPACT.gap);
+    const room = content.height - theme.space(4) - menuNoticeLayout(width, title.height, 0).height;
+    const viewH = Math.max(COMPACT.touch, Math.min(listH, room));
+    const layout = menuNoticeLayout(width, title.height, viewH);
+    // The code field is a DOM element drawn over the canvas: it steps aside while the picker is up.
+    if (this.field) this.field.style.visibility = 'hidden';
+    const shell = modalShell(this, {
+      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight, dismissal: 'esc-only',
+      onClose: () => { if (this.field) this.field.style.visibility = 'visible'; },
+    });
+    const track = shell.tracks.titleTrack;
+    title.setPosition(track.x, track.y + (track.height - title.height) / 2);
+    shell.container.add(title);
+    const body = shell.tracks.contentBounds;
+    const view = { x: body.x, y: body.y, width: body.width, height: viewH };
+    if (empty) {
+      empty.setPosition(body.x, body.y);
+      shell.container.add(empty);
+    } else {
+      const column = this.add.container(0, body.y);
+      shell.container.add(column);
+      const chevron = Math.round(type.body * 0.9);
+      let y = 0;
+      for (const row of built) {
+        const plate = this.add.graphics()
+          .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(body.x, y, body.width, row.height, theme.radius.panel)
+          .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+          .strokeRoundedRect(body.x, y, body.width, row.height, theme.radius.panel);
+        const top = y + (row.height - row.name.height - row.caption.height) / 2;
+        row.name.setPosition(body.x + 16, top);
+        row.caption.setPosition(body.x + 16, top + row.name.height);
+        column.add([plate, row.name, row.caption]);
+        if (row.ok) {
+          column.add(this.add.image(body.x + body.width - 16 - chevron / 2, y + row.height / 2, bakeUiIcon(this, 'chevron'))
+            .setDisplaySize(chevron, chevron).setTint(colorInt(theme.colors.body)));
+          const zone = this.add.zone(body.x + body.width / 2, y + row.height / 2, body.width, row.height).setInteractive({ useHandCursor: true });
+          bindTapButton(this, zone, (pointer) => {
+            const inView = pointer.worldY >= view.y && pointer.worldY <= view.y + view.height;
+            if (!inView || Math.abs(pointer.upY - pointer.downY) > COMPACT.touch / 4) return;
+            shell.close();
+            if (this.field) this.field.value = row.code;
+            this.check();
+          });
+          column.add(zone);
+        }
+        y += row.height + COMPACT.gap;
+      }
+      bindMenuScroll(this, column, view, listH, undefined, undefined, 0, shell);
+    }
+    // One way out, Cancel (Esc too), so the corner close does not repeat it.
+    const footer = shell.tracks.footerTrack;
+    const cancelW = Math.min(footer.width, 160);
+    shell.container.add(compactButton(this, { x: footer.x + footer.width - cancelW, y: footer.y, width: cancelW, height: footer.height },
+      'Cancel', { variant: 'ghost', onTap: () => shell.close() }).container);
   }
 
   private launch(): void {

@@ -3,7 +3,7 @@ import { CARD_DB } from '../../src/data/catalog';
 import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { AVATARS } from '../../src/data/opponents';
 import { encodeDeck } from '../../src/meta/DeckCode';
-import { deckCodeOpponent, deckCodeSeatIssue } from '../../src/meta/deckCodeDuel';
+import { deckCodeOpponent, deckCodeSeatIssue, savedDeckDuelCode } from '../../src/meta/deckCodeDuel';
 import type { SavedDeck } from '../../src/meta/SaveManager';
 
 const IDS = Object.keys(CARD_DB);
@@ -62,5 +62,16 @@ describe('deckCodeSeatIssue', () => {
     expect(deckCodeSeatIssue({ ...standard, cards: [], landReserve: [] }, mine('darlings'))).toContain('Standard');
     expect(deckCodeSeatIssue({ ...standard, cards: [], landReserve: [], format: 'darlings' }, mine('warchest'))).toContain('Darlings');
     expect(deckCodeSeatIssue({ ...standard, cards: [], landReserve: [] }, null)).not.toBeNull();
+  });
+});
+
+describe('savedDeckDuelCode', () => {
+  it('fields one of the player\'s own decks exactly as saved, and has no code for a Constructed deck', () => {
+    const code = savedDeckDuelCode({ cards: precon.cards, format: 'darlings', darlingId: precon.darlingId, landReserve: precon.landReserve });
+    expect(code && deckCodeOpponent(code, CARD_DB, IDS, ALL_LIVE)).toEqual({
+      ok: true,
+      deck: { format: 'darlings', cards: precon.cards, landReserve: precon.landReserve, darlingId: precon.darlingId },
+    });
+    expect(savedDeckDuelCode({ cards: avatar.reserveDeck, format: 'constructed' })).toBeNull();
   });
 });

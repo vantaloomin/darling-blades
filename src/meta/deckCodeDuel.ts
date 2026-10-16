@@ -1,6 +1,6 @@
 import type { CardDb } from '../engine/types';
 import { isLiveCollectible } from '../data/liveness';
-import { decodeDeck, deckCodeErrorMessage, type DeckCodeFormat } from './DeckCode';
+import { decodeDeck, deckCodeErrorMessage, encodeDeck, type DeckCodeFormat } from './DeckCode';
 import type { DeckIssue } from './DeckStorage';
 import { validateDarlingsDeck, validateWarchestDeck } from './darlings';
 import { buildAiLandReserve } from './duelSetup';
@@ -94,3 +94,18 @@ export function deckCodeSeatIssue(opponent: DeckCodeOpponent, mine: SavedDeck | 
 /** The AI strength levels a code duel offers. Hard is today's Hard; harder levels join with their brains. */
 export type DeckCodeLevel = 'hard';
 export const DECK_CODE_LEVELS: readonly DeckCodeLevel[] = ['hard'];
+
+/**
+ * The code for one of the player's own saved decks, so it can be dueled the
+ * same way a pasted code is ("or your own!"). Only Standard and Darlings decks
+ * have one; a retired Constructed deck gets null.
+ */
+export function savedDeckDuelCode(deck: Pick<SavedDeck, 'cards' | 'format' | 'darlingId' | 'landReserve'>): string | null {
+  if (deck.format !== 'warchest' && deck.format !== 'darlings') return null;
+  return encodeDeck({
+    cards: deck.cards,
+    format: deck.format,
+    darlingId: deck.format === 'darlings' ? deck.darlingId ?? null : null,
+    landReserve: deck.landReserve ?? null,
+  });
+}
