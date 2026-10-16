@@ -19,7 +19,7 @@
 import type { ScreenMetrics } from './screenMetrics';
 
 /** Scene keys with a compact composition. Each joins in the PR that builds it. */
-export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'Duel', 'PackOpening', 'Limited', 'LimitedDeckBuilder', 'LimitedDraft', 'Story']);
+export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'DeckCode', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'Duel', 'PackOpening', 'Limited', 'LimitedDeckBuilder', 'LimitedDraft', 'Story']);
 
 /**
  * The desktop pass (owner ruling 2026-10-14, S1 B): on the wide profile these
@@ -28,7 +28,7 @@ export const COMPACT_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu
  * about the desktop ramp's size. The Duel keeps its own desktop layout (S2 A).
  * Each scene joins in the PR that tunes it for desktop.
  */
-export const DESKTOP_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'PackOpening', 'Limited', 'LimitedDeckBuilder', 'LimitedDraft', 'Story']);
+export const DESKTOP_SCENES: ReadonlySet<string> = new Set(['Preload', 'MainMenu', 'Play', 'PracticePicker', 'DeckCode', 'Gauntlet', 'Settings', 'Profile', 'Achievements', 'Glossary', 'Collection', 'Shop', 'DeckBuilder', 'PackOpening', 'Limited', 'LimitedDeckBuilder', 'LimitedDraft', 'Story']);
 
 /** Desktop design px per compact design px: the compact body (14) at about the desktop body (16). */
 export const DESKTOP_DENSITY = 1.2;
