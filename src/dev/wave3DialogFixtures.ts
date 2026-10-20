@@ -99,7 +99,7 @@ const statsNotice = (note: string | null): Open => (scene) => {
     touch: () => {},
     acknowledge: () => {},
   }, STATS_NOTICE_VERSION);
-  createStatsNoticeDialog(scene, { guard: new ModalGuard(), guardTargets: [], controller, note, onContinue: () => {} });
+  createStatsNoticeDialog(scene, { guard: new ModalGuard(), guardTargets: [], controller, note, browserBlocks: false, onContinue: () => {} });
 };
 
 const privacyPanel = (end: boolean): Open => (scene) => {

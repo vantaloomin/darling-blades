@@ -24,6 +24,7 @@ import {
   compactRowHover,
   compactSegments,
   compactSwitch,
+  type CompactSwitchOptions,
   COMPACT_DRAG_SLOP,
   type CompactButton,
   type CompactSwitch,
@@ -91,6 +92,7 @@ import {
   statsRowNoteKind,
   statsRowNoteState,
   statsRowNoteText,
+  statsToggleLabel,
   toggleShareAnonStats,
 } from '../ui/statsPrivacyPresentation';
 import { colorInt, theme } from '../ui/theme';
@@ -154,7 +156,7 @@ export class SettingsScene extends Phaser.Scene {
   private shown: AccessibilityControlsShown = accessibilityControlsShown(IS_DEV);
   /** The Game tab carries the Full screen switch (M8). */
   private fullScreen = false;
-  private toggles: { button: ThemedButton; on: () => boolean }[] = [];
+  private toggles: { button: ThemedButton; on: () => boolean; label?: (on: boolean) => string }[] = [];
   private chipGroups: ChipGroup[] = [];
   private volumeBar: Phaser.GameObjects.Graphics | null = null;
   /** Every control the "What is sent" and Legal panels deaden while open. */
@@ -570,10 +572,11 @@ export class SettingsScene extends Phaser.Scene {
   private compactSwitchRow(
     list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[],
     labelText: string, on: () => boolean, toggle: () => void, captionText?: string,
+    switchOpts?: CompactSwitchOptions,
   ): number {
     const C = SETTINGS_COMPACT;
     const right = at.x + at.width;
-    const sw = compactSwitch(this, right, 0, on());
+    const sw = compactSwitch(this, right, 0, on(), switchOpts);
     const textW = at.width - sw.width - C.controlGap;
     const label = this.compactLabel(at.x, 0, labelText, textW);
     const caption = captionText ? this.compactCaption(at.x, 0, captionText, textW) : null;
@@ -647,19 +650,23 @@ export class SettingsScene extends Phaser.Scene {
   private compactPrivacyRow(list: Phaser.GameObjects.Container, at: Rect, adapters: ThemedButton[]): number {
     const C = SETTINGS_COMPACT;
     const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
-    // Always the SAVED choice, even when a browser signal or a dev build is
-    // what is actually stopping the sends; the caption explains that.
+    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+    const noteState = statsRowNoteState(readSignalsGateInput(null), signalsAllowed);
+    // The switch shows the SAVED choice; its word reads "Blocked by browser"
+    // instead of "On" while Do Not Track or GPC stops the sends anyway.
     const switchH = this.compactSwitchRow(list, at, adapters, STATS_ROW_LABEL, () => settings().shareAnonStats,
       () => {
         toggleShareAnonStats(settings());
         Services.save.touch();
-      });
+      }, undefined, noteState.browserSignal
+        ? { word: (on) => statsToggleLabel(on, true), onWordColor: theme.colors.muted }
+        : undefined);
     const probe = this.add.text(0, 0, STATS_PANEL_BUTTON_LABEL, {
       fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.body}px`, fontStyle: theme.weight.w600,
     });
     const buttonW = Math.ceil(probe.width) + 32;
     probe.destroy();
-    const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
+    const note = statsRowNoteText(statsRowNoteKind(noteState));
     const y = at.y + switchH;
     const caption = this.compactCaption(at.x, y, note, at.width - buttonW - C.controlGap);
     const height = Math.max(COMPACT.touch, caption.height);
@@ -1034,6 +1041,8 @@ export class SettingsScene extends Phaser.Scene {
    */
   private privacyRow(frame: SettingsColumnFrame): BuiltRow {
     const settings = (): typeof Services.save.data.settings => Services.save.data.settings;
+    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+    const noteState = statsRowNoteState(readSignalsGateInput(null), signalsAllowed);
     const toggle = this.toggle(
       0,
       () => {
@@ -1042,8 +1051,10 @@ export class SettingsScene extends Phaser.Scene {
         this.refreshToggles();
       },
       // Always the SAVED choice, even when a browser signal or a dev build is
-      // what is actually stopping the sends. The caption explains that.
+      // what is actually stopping the sends. The caption explains that, and a
+      // browser signal also turns "On" into "Blocked by browser".
       () => settings().shareAnonStats,
+      (on) => statsToggleLabel(on, noteState.browserSignal),
     );
     const panelButton = this.track(
       themedButton(this, 0, 0, STATS_PANEL_BUTTON_LABEL, {
@@ -1058,8 +1069,7 @@ export class SettingsScene extends Phaser.Scene {
     const pair = [panelButton, toggle];
     const centers = rightAlignedControlCenters(pair.map(measuredControl), frame.controlRight);
     pair.forEach((button, i) => button.container.setX(centers[i]));
-    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
-    const note = statsRowNoteText(statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)));
+    const note = statsRowNoteText(statsRowNoteKind(noteState));
     return this.rowParts(frame, STATS_ROW_LABEL, [panelButton, toggle], note);
   }
 
@@ -1118,11 +1128,13 @@ export class SettingsScene extends Phaser.Scene {
       })
       .setOrigin(0, 0.5);
   }
-  private toggle(x: number, onTap: () => void, on: () => boolean): ThemedButton {
+  private toggle(x: number, onTap: () => void, on: () => boolean, label?: (on: boolean) => string): ThemedButton {
     const button = this.track(
       themedButton(this, x, 0, 'Off', { variant: 'ghost', size: 'sm', minWidth: TOGGLE_WIDTH, onTap }),
     );
-    this.toggles.push({ button, on });
+    this.toggles.push({ button, on, label });
+    // Measured by the row before refreshToggles runs, so start on the real word.
+    if (label) button.setLabel(label(on()));
     return button;
   }
   /** Remember a control so the "What is sent" panel can deaden it. */
@@ -1239,9 +1251,9 @@ export class SettingsScene extends Phaser.Scene {
   }
   private refreshToggles(): void {
     for (const { sw, on } of this.compactSwitches) sw.set(on());
-    for (const { button, on } of this.toggles) {
+    for (const { button, on, label } of this.toggles) {
       const value = on();
-      button.setLabel(value ? 'On' : 'Off');
+      button.setLabel(label ? label(value) : value ? 'On' : 'Off');
       button.setVariant(value ? 'selected' : 'ghost');
     }
   }

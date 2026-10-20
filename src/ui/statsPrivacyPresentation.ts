@@ -185,14 +185,23 @@ export const STATS_NOTICE_COPY = {
   toggleLabel: STATS_ROW_LABEL,
   toggleOn: 'On',
   toggleOff: 'Off',
+  /** Shown instead of "On" while Do Not Track or GPC stops every send anyway. */
+  toggleBlocked: 'Blocked by browser',
   /** Opens the existing "What is sent" panel. */
   secondaryLabel: STATS_PANEL_BUTTON_LABEL,
   primaryLabel: STATS_NOTICE_CONTINUE_LABEL,
 } as const;
 
-/** The toggle's label for a state, in the Settings row's own two words. */
-export function statsToggleLabel(on: boolean): string {
-  return on ? STATS_NOTICE_COPY.toggleOn : STATS_NOTICE_COPY.toggleOff;
+/**
+ * The toggle's label for a state, in the Settings row's own words. A saved "on"
+ * reads "Blocked by browser" while the browser's Do Not Track or GPC signal is
+ * what stops the sends (`StatsRowNoteState.browserSignal`), because "On" would
+ * claim stats are shared when the gate sends nothing. The switch still shows
+ * and edits the saved choice; "Off" stays "Off".
+ */
+export function statsToggleLabel(on: boolean, browserBlocks = false): string {
+  if (!on) return STATS_NOTICE_COPY.toggleOff;
+  return browserBlocks ? STATS_NOTICE_COPY.toggleBlocked : STATS_NOTICE_COPY.toggleOn;
 }
 
 // ---------------------------------------------------------------------------
