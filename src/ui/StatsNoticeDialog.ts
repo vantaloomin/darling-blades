@@ -54,6 +54,11 @@ export interface StatsNoticeDialogOptions {
    */
   note: string | null;
   /**
+   * Do Not Track or GPC is stopping the sends (`StatsRowNoteState.browserSignal`),
+   * so a saved "on" reads "Blocked by browser", as in Settings.
+   */
+  browserBlocks: boolean;
+  /**
    * Runs after `Continue` (or Escape, or Enter) has stamped and the dialog is
    * gone. This is where the menu continues its arrival chain.
    */
@@ -151,22 +156,27 @@ export function createStatsNoticeDialog(
     scene,
     statsNoticeToggleCenterX(content.x + content.width, STATS_NOTICE_LAYOUT.toggleMinWidth),
     rowCenterY,
-    statsToggleLabel(controller.sharing()),
+    statsToggleLabel(controller.sharing(), opts.browserBlocks),
     {
       variant: controller.sharing() ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: STATS_NOTICE_LAYOUT.toggleMinWidth,
       onTap: () => {
         const on = controller.toggle();
-        toggle.setLabel(statsToggleLabel(on));
+        toggle.setLabel(statsToggleLabel(on, opts.browserBlocks));
         toggle.setVariant(on ? 'selected' : 'ghost');
+        alignToggle();
       },
     },
   );
-  // Right-align to the measured hit box, which a wider fallback font grows.
-  toggle.container.setX(
-    statsNoticeToggleCenterX(content.x + content.width, toggle.getMeasuredSize().hit.width),
-  );
+  // Right-align to the measured hit box, which a wider fallback font (or the
+  // longer "Blocked by browser") grows.
+  const alignToggle = (): void => {
+    toggle.container.setX(
+      statsNoticeToggleCenterX(content.x + content.width, toggle.getMeasuredSize().hit.width),
+    );
+  };
+  alignToggle();
   container.add(toggle.container);
   shell.interactiveChildren.push(toggle.inputZone);
 

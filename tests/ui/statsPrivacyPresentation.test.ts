@@ -335,6 +335,12 @@ describe('the first-run notice copy', () => {
     expect(scene).toContain(`'${STATS_NOTICE_COPY.toggleOn}' : '${STATS_NOTICE_COPY.toggleOff}'`);
   });
 
+  it('reads "Blocked by browser" instead of "On" only while a browser signal stops the sends', () => {
+    expect(statsToggleLabel(true, true)).toBe(STATS_NOTICE_COPY.toggleBlocked);
+    expect(statsToggleLabel(false, true)).toBe(STATS_NOTICE_COPY.toggleOff);
+    expect(statsToggleLabel(true, false)).toBe(STATS_NOTICE_COPY.toggleOn);
+  });
+
   it('is spelled out nowhere in the dialog itself', () => {
     // "Same reference, not a copied string", proven the only way a headless
     // test can: the dialog's source carries none of this wording as a literal.

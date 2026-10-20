@@ -785,7 +785,18 @@ export interface CompactSwitch {
  * `right` and centred on `centerY`. It draws only; the row it sits in takes
  * the tap, so the whole row toggles.
  */
-export function compactSwitch(scene: Phaser.Scene, right: number, centerY: number, on: boolean): CompactSwitch {
+export interface CompactSwitchOptions {
+  /** The word beside the track for a state; "On" / "Off" when absent. */
+  word?: (on: boolean) => string;
+  /** The "on" word's colour; gold when absent. */
+  onWordColor?: string;
+}
+
+export function compactSwitch(
+  scene: Phaser.Scene, right: number, centerY: number, on: boolean, opts: CompactSwitchOptions = {},
+): CompactSwitch {
+  const wordFor = opts.word ?? ((value: boolean) => (value ? 'On' : 'Off'));
+  const onWordColor = opts.onWordColor ?? theme.colors.gold;
   const type = theme.compactType;
   const { width: trackW, height: trackH } = COMPACT.switchTrack;
   const container = scene.add.container(right, centerY);
@@ -802,7 +813,7 @@ export function compactSwitch(scene: Phaser.Scene, right: number, centerY: numbe
     if (!track.scene) return;
     const ghost = themedButtonColors('ghost');
     const hovered = pointerState !== 'idle';
-    word.setText(value ? 'On' : 'Off').setColor(value ? theme.colors.gold : theme.colors.muted);
+    word.setText(wordFor(value)).setColor(value ? onWordColor : theme.colors.muted);
     track.clear();
     if (value) {
       track.fillStyle(colorInt(theme.colors.gold), 1).fillRoundedRect(-trackW, -trackH / 2, trackW, trackH, trackH / 2)
@@ -820,7 +831,7 @@ export function compactSwitch(scene: Phaser.Scene, right: number, centerY: numbe
   };
   set(on);
   // The widest word, so a row can leave room whichever is showing.
-  const widest = Math.max(word.width, (word.setText('Off'), word.width), (word.setText('On'), word.width));
+  const widest = Math.max(word.width, (word.setText(wordFor(false)), word.width), (word.setText(wordFor(true)), word.width));
   set(on);
   const bindHover = (zone: Phaser.GameObjects.Zone): void => {
     if (!zone.input) zone.setInteractive({ useHandCursor: true });

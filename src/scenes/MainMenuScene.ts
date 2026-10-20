@@ -619,14 +619,14 @@ export class MainMenuScene extends Phaser.Scene {
       },
       STATS_NOTICE_VERSION,
     );
+    // The gate decides, not this scene: `signalsAllowed` is handed in whole.
+    const noteState = statsRowNoteState(readSignalsGateInput(null), signalsAllowed);
     createStatsNoticeDialog(this, {
       guard: this.guard,
       guardTargets: this.menuItems,
       controller,
-      // The gate decides, not this scene: `signalsAllowed` is handed in whole.
-      note: statsNoticeNoteText(
-        statsRowNoteKind(statsRowNoteState(readSignalsGateInput(null), signalsAllowed)),
-      ),
+      note: statsNoticeNoteText(statsRowNoteKind(noteState)),
+      browserBlocks: noteState.browserSignal,
       onContinue,
     });
   }
