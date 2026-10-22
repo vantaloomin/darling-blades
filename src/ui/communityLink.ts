@@ -6,8 +6,8 @@
 export const COMMUNITY_LINK = {
   /** The desktop shell opens exactly this address (`OFFSITE_LINKS`, src-tauri/src/lib.rs). */
   href: 'https://discord.gg/aeRnFyvbtQ',
-  /** The full label, then a shorter one, for a top bar with less room. */
-  labels: ['Dreamers AI Hub: Darling Blades', 'Discord'],
+  /** The label, then a shorter one, for a top bar with less room. */
+  labels: ['Join the Discord', 'Discord'],
 } as const;
 
 /**
