@@ -38,6 +38,8 @@ import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
 import { compactButton, compactDialog, compactGoldPill, compactIconButton, compactScrim, coverFitImage, type CompactButton, type CompactDialogAction } from '../ui/compactWidgets';
+import { COMMUNITY_LINK, communityLinkLabel } from '../ui/communityLink';
+import { openOffsitePage } from '../ui/openExternalPage';
 import { compactDailyPage, compactMainMenuLayout, MAIN_MENU_COMPACT, type CompactMainMenuLayout } from '../ui/mainMenuCompact';
 import type { Rect } from '../ui/layout';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -278,7 +280,8 @@ export class MainMenuScene extends Phaser.Scene {
       fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
     }).setOrigin(0, 0.5);
     if (title.width > layout.title.maxWidth) title.setScale(layout.title.maxWidth / title.width);
-    this.compactGold(layout.gold.right, layout.gold.centerY, layout.gold.height);
+    const goldLeft = this.compactGold(layout.gold.right, layout.gold.centerY, layout.gold.height);
+    this.compactCommunityLink(title.x + title.displayWidth + COMPACT.gap, goldLeft - COMPACT.gap, layout.gear.y, layout.gear.height);
     if (layout.fullScreen) {
       const expand = compactIconButton(this, layout.fullScreen, isFullScreen() ? 'shrink' : 'expand', () => { void toggleFullScreen(); });
       this.menuItems.push(expand.inputZone);
@@ -318,9 +321,32 @@ export class MainMenuScene extends Phaser.Scene {
     this.menuItems.push(play.inputZone);
   }
 
-  /** The gold, a pill in the top bar (not a control). */
-  private compactGold(right: number, centerY: number, height: number): void {
-    compactGoldPill(this, right, centerY, height, Services.save.data.gold);
+  /** The gold, a pill in the top bar (not a control); returns its left edge. */
+  private compactGold(right: number, centerY: number, height: number): number {
+    return compactGoldPill(this, right, centerY, height, Services.save.data.gold);
+  }
+
+  /**
+   * The community Discord link, right-aligned in the top bar between the title
+   * and the gold: the full name where it fits, then "Discord", then the mark
+   * alone on a square plate.
+   */
+  private compactCommunityLink(left: number, right: number, y: number, height: number): void {
+    const fontSize = theme.compactType.body;
+    const probe = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: `${fontSize}px`, fontStyle: theme.weight.w600 });
+    // The plate around the mark and label: compactButton's 1.45x icon, its
+    // 10 px icon gap, and 14 px of air each side.
+    const buttonWidth = (label: string): number => 14 + Math.round(fontSize * 1.45) + 10 + probe.setText(label).width + 14;
+    const label = communityLinkLabel(right - left, buttonWidth);
+    probe.destroy();
+    const width = label ? buttonWidth(label) : height;
+    if (right - left < width) return;
+    const rect = { x: right - width, y, width, height };
+    const open = () => openOffsitePage(COMMUNITY_LINK.href);
+    const button = label
+      ? compactButton(this, rect, label, { icon: 'discord', onTap: open })
+      : compactIconButton(this, rect, 'discord', open);
+    this.menuItems.push(button.inputZone);
   }
 
   /**

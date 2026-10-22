@@ -16,6 +16,13 @@ by, sponsored by, or approved by Wizards of the Coast LLC or Hasbro, Inc.
 Magic: The Gathering is a trademark of Wizards of the Coast LLC, and is
 mentioned only to describe the style of game this is.
 
+## Discord
+
+The main menu links to the game's community server on Discord. Discord and
+the Discord logo are trademarks of Discord Inc. The logo is shown unaltered,
+as Discord's brand guidelines allow, only to mark that link. Darling Blades is
+not affiliated with or endorsed by Discord Inc.
+
 ## Code
 
 Copyright (c) 2026 Blade Darlings. The source code is released under the MIT

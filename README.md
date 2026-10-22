@@ -14,6 +14,8 @@
 
 <p align="center">
   <a href="https://bladedarlings.com/"><b>Play Darling Blades in your browser</b></a>
+  <br>
+  <a href="https://discord.gg/aeRnFyvbtQ">Join the community on Discord: Dreamers AI Hub, Darling Blades</a>
 </p>
 
 **Desktop:** every GitHub Release includes a Windows installer.
