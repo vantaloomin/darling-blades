@@ -2,6 +2,7 @@ import type { Difficulty } from '../meta/Economy';
 import type { CardDb } from '../engine/types';
 import type { AIPlayer } from './AIPlayer';
 import { HardAI, type HardSearchOptions } from './HardAI';
+import { LADDER_SEARCH } from './ladder';
 import { NoisyAI } from './NoisyAI';
 import { buildAI, DEFAULT_PERSONALITY, type Personality } from './personality';
 
@@ -115,8 +116,17 @@ export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
  * +14.3 / +7.2 / +5.7 (0.03 would leave T5 only 2.3 under T6); every other
  * floor row re-read byte-identical. `--tiers` re-read T5 67.5 (T4 51.8, T6
  * 74.3), MONOTONICITY PASS. The T2 -> T3 step is still the brain
- * boundary described above. Also priced and NOT taken: the Duel any Deck
- * Expert search on T6 (tiers 80.8, Master 86.8), since T6 already sits at 71.
+ * boundary described above.
+ *
+ * T6 TAKES THE EXPERT SEARCH (owner, 2026-10-23, the human check: "top floors
+ * too easy", early floors "about right", Expert allowed). Same floors seeds,
+ * T6 F16-28 avg: hard/0 71.2 · expert/0.06 72.6 · **expert/0 79.9** (rows
+ * 77.3-82.3, no flags). Applied: T6 = hard brain + LADDER_SEARCH.expert, no
+ * noise. Floors gaps +7.8 / +16.9 / +14.3 / +7.2 / +14.4. Tier probe: expert/0
+ * 80.8, master/0 86.8 (Master is the next lever if the summit is still soft).
+ * Cost: the floors run took 2,539 s against 1,757 s on plain Hard; Expert
+ * decisions measured 4-5 ms mean, about 300 ms worst in brain-ladder.ts. The
+ * same search already ships on phones in Duel any Deck.
  */
 export interface TierDial {
   brain: Difficulty;
@@ -136,7 +146,9 @@ export const TIER_DEFS: Readonly<Record<TowerTier, TierDial>> = {
   // Retuned 2026-10-23 from 0.12: at 25 life 0.12 read under T4 on the
   // floors (56.7 vs 58.3). See the 2.0 block above.
   5: { brain: 'hard', noise: 0.06 },
-  6: { brain: 'hard', noise: 0 },
+  // Expert search since 2026-10-23 (plain hard/0 read 71.2 on the floors;
+  // the owner found the top floors too easy). See the 2.0 block above.
+  6: { brain: 'hard', noise: 0, search: LADDER_SEARCH.expert },
 };
 
 /**
