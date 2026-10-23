@@ -66,7 +66,7 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
       'cs2-lamia', 'cs2-shade-of-asphodel', 'dd-marsh-grave-risen', 'dd-marsh-grave-risen',
       'dt-thorn-castle-warden', 'dt-thorn-castle-warden', 'cs2-nemesis', 'cs2-nemesis',
       'gk-hecate', 'cs2-lamia', 'cs2-medusa', 'gk-hades',
-      'cs2-altar-of-hades', 'cs2-heavens-edict', 'cs2-heavens-edict', 'gk-thanatos',
+      'cs2-altar-of-hades', 'cs2-sentence-of-death', 'cs2-heavens-edict', 'gk-thanatos',
       'in-doom-bolt', 'cs2-judgment-of-hades', 'in-doom-bolt', 'cs2-hydra-venom',
       'cs2-hydra-venom', 'cs2-hydra-venom', 'cs2-hydra-venom', 'cs2-asphodel-garden',
       'gk-nyx', 'in-reapers-due',
