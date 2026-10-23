@@ -15,8 +15,9 @@ import { colorInt, theme } from './theme';
  * the spells waiting to resolve, the next one first. Up to three stand side
  * by side, each with who cast it, its text and what it is aimed at; with
  * more, or at Largest text, the next one is large and the rest are a list
- * under it. A tap on a spell targets it when it can be targeted, else opens
- * it in full; a long press previews it.
+ * under it, ending in "+N more", which a tap pages through. A tap on a spell
+ * targets it when it can be targeted, else opens it in full; a long press
+ * previews it.
  */
 
 export interface PhoneStackOptions {
@@ -28,6 +29,10 @@ export interface PhoneStackOptions {
   isTargetable: (sid: number) => boolean;
   onTarget: (sid: number) => void;
   onInspect?: (card: CardDef) => void;
+  /** The first of the waiting spells the list shows (0 is the one after the next); it pages on a deep stack. */
+  listStart?: number;
+  /** "+N more" (or "From the top" on the last page) asks for the list from here. */
+  onListPage?: (start: number) => void;
 }
 
 export interface PhoneStackDrawn {
@@ -111,12 +116,17 @@ export function drawPhoneStack(scene: Phaser.Scene, root: Phaser.GameObjects.Con
   const list: Rect = { x: big.x, y: big.y + big.height + GAP, width: big.width, height: listH };
   root.add(scene.add.graphics()
     .lineStyle(1, theme.graphics.panelStroke, 1).strokeRoundedRect(list.x, list.y, list.width, list.height, theme.radius.panel));
-  rest.slice(0, listShown).forEach((item, k) => {
-    const i = k + 1;
+  // A deep stack pages: "+N more" shows the next spells, and the last page offers the top again.
+  const pages = rest.length > listShown;
+  const start = pages ? Math.min(Math.max(0, opts.listStart ?? 0), Math.floor((rest.length - 1) / listShown) * listShown) : 0;
+  const shown = rest.slice(start, start + listShown);
+  shown.forEach((item, k) => {
+    const i = start + k + 1;
     const card = opts.cardFor(item.cardId);
     const y = list.y + PAD + k * lineH;
-    const extra = k === listShown - 1 ? rest.length - listShown : 0;
-    const more = extra > 0 ? scene.add.text(list.x + list.width - 12, y, `+${extra} more`, {
+    const left = rest.length - start - listShown;
+    const pageLabel = !pages || k !== shown.length - 1 ? null : left > 0 ? `+${left} more` : 'From the top';
+    const more = pageLabel ? scene.add.text(list.x + list.width - 12, y, pageLabel, {
       fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
     }).setOrigin(1, 0) : null;
     const head = scene.add.text(list.x + 12, y, `${label(item, i)}: `, {
@@ -128,7 +138,18 @@ export function drawPhoneStack(scene: Phaser.Scene, root: Phaser.GameObjects.Con
     ellipsizeText(name, (more ? more.x - more.width - 10 : list.x + list.width - 12) - name.x);
     if (more) root.add(more);
     root.add([head, name]);
-    hit({ x: list.x, y, width: list.width, height: lineH }, item, card);
+    // The label pages, so the row's own tap stops short of it (zones in one container don't stack reliably).
+    const w = more && opts.onListPage ? more.width + 22 : 0;
+    hit({ x: list.x, y, width: list.width - w, height: lineH }, item, card);
+    if (more && opts.onListPage) {
+      const zone = scene.add.zone(list.x + list.width - w / 2, y + lineH / 2, w, Math.max(lineH, 32)).setInteractive({ useHandCursor: true });
+      zone.setName('stack:more');
+      bindTapButton(scene, zone, (p) => {
+        if (!p.rightButtonReleased()) opts.onListPage?.(left > 0 ? start + listShown : 0);
+      });
+      root.add(zone);
+      zones.push(zone);
+    }
   });
   return { zones, centers };
 }
