@@ -31,7 +31,7 @@ export const STORY_CHARACTERS: readonly StoryCharacter[] = [
       'dd-wreck-runner', 'dd-wreck-runner', 'cs2-shu-village-guard', 'cs2-shu-village-guard',
       'tk-wu-sunce', 'tk-wu-sunce', 'cs2-wu-marine', 'cs2-wu-marine',
       'tk-shu-xingcai', 'tk-shu-xingcai', 'tk-wei-xiahoudun', 'tk-wei-xiahoudun',
-      'cs2-fire-ship-captain', 'dd-shore-patrol', 'dt-bell-tower-dancer', 'tk-shu-zhaoyun',
+      'in-comet-blast', 'dd-shore-patrol', 'dt-bell-tower-dancer', 'tk-shu-zhaoyun',
       'tk-other-lubu', 'cs2-dailai-dongzhu', 'dd-brenna-gale', 'fd-kesh-raptor-rider',
       'dt-warrior-ballad-captain', 'in-char', 'in-char', 'cs2-ember-of-red-cliffs',
       'cs2-ember-of-red-cliffs', 'cs2-fire-ships-loosed', 'cs2-court-condemns', 'cs2-wind-at-red-cliffs',
