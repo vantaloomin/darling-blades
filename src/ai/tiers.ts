@@ -1,6 +1,7 @@
 import type { Difficulty } from '../meta/Economy';
 import type { CardDb } from '../engine/types';
 import type { AIPlayer } from './AIPlayer';
+import { HardAI, type HardSearchOptions } from './HardAI';
 import { NoisyAI } from './NoisyAI';
 import { buildAI, DEFAULT_PERSONALITY, type Personality } from './personality';
 
@@ -94,10 +95,37 @@ export type TowerTier = 1 | 2 | 3 | 4 | 5 | 6;
  * which is engine work rather than tuning. Tuning is therefore DONE here: the
  * ladder is monotonic and correctly ordered, and the remaining lumpiness is
  * structural. Do not spend another tuning pass on it.
+ *
+ * ---------------------------------------------------------------------------
+ * 2.0 RETUNE AT 25 LIFE - 2026-10-23 (plan-2.0 P14, the one deliberate AI
+ * change after the freeze). Measured on release/2.0 1e91e50, after the P8
+ * floor reset (#694) and the 2.0 sweep's Kree change (#702):
+ *
+ *   --tiers --seeds 80:  T1 8.5 / T2 19.0 / T3 32.3 / T4 51.8 / T5 62.5 / T6 74.3
+ *   --floors --seeds 80: T1 19.3 / T2 27.1 / T3 44.0 / T4 58.3 / T5 56.7 / T6 71.2
+ *
+ * The life change alone brought T6 back to 71 on the floors (66 in 1.9, 72
+ * in 1.7), so the top tier needed nothing. The defect was T5: on the floors it
+ * read 1.6pp UNDER T4 (1.9 wave 4 already had it 1.0 under), so floors 13-15
+ * were no harder than 10-12. Probed on the same floors seeds:
+ *
+ *   T5 hard/0.12 56.7 · hard/0.06 65.5 · hard/0.03 68.9   (T6 71.2)
+ *
+ * APPLIED: **T5 hard/0.12 -> hard/0.06**. Floors gaps become +7.8 / +16.9 /
+ * +14.3 / +7.2 / +5.7 (0.03 would leave T5 only 2.3 under T6); every other
+ * floor row re-read byte-identical. `--tiers` re-read T5 67.5 (T4 51.8, T6
+ * 74.3), MONOTONICITY PASS. The T2 -> T3 step is still the brain
+ * boundary described above. Also priced and NOT taken: the Duel any Deck
+ * Expert search on T6 (tiers 80.8, Master 86.8), since T6 already sits at 71.
  */
-export const TIER_DEFS: Readonly<
-  Record<TowerTier, { brain: Difficulty; noise: number }>
-> = {
+export interface TierDial {
+  brain: Difficulty;
+  noise: number;
+  /** Hard only: the wider search Duel any Deck's Expert and Master use (src/ai/ladder.ts). */
+  search?: HardSearchOptions;
+}
+
+export const TIER_DEFS: Readonly<Record<TowerTier, TierDial>> = {
   1: { brain: 'easy', noise: 0.35 },
   2: { brain: 'easy', noise: 0.10 },
   // Retuned 2026-08-10 from 0.32: on the reserve field 0.32 measured 26.3%,
@@ -105,7 +133,9 @@ export const TIER_DEFS: Readonly<
   // re-measurement block above.
   3: { brain: 'medium', noise: 0.15 },
   4: { brain: 'medium', noise: 0 },
-  5: { brain: 'hard', noise: 0.12 },
+  // Retuned 2026-10-23 from 0.12: at 25 life 0.12 read under T4 on the
+  // floors (56.7 vs 58.3). See the 2.0 block above.
+  5: { brain: 'hard', noise: 0.06 },
   6: { brain: 'hard', noise: 0 },
 };
 
@@ -120,8 +150,10 @@ export function buildDialAI(
   db: CardDb,
   seed: number,
   personality: Personality = DEFAULT_PERSONALITY,
+  search?: HardSearchOptions,
 ): AIPlayer {
-  const ai = buildAI(brain, db, seed, personality);
+  if (search && brain !== 'hard') throw new Error(`search options need the hard brain, not ${brain}`);
+  const ai = search ? new HardAI(db, personality, search) : buildAI(brain, db, seed, personality);
   // Decorrelate the noise stream from EasyAI's own rng (both are seeded).
   return noise > 0 ? new NoisyAI(ai, (seed ^ 0x51d3ba11) >>> 0, noise) : ai;
 }
@@ -134,7 +166,7 @@ export function buildTierAI(
   personality: Personality = DEFAULT_PERSONALITY,
 ): AIPlayer {
   const def = TIER_DEFS[tier];
-  return buildDialAI(def.brain, def.noise, db, seed, personality);
+  return buildDialAI(def.brain, def.noise, db, seed, personality, def.search);
 }
 
 // Floors 17-18 = tier 6, confirmed by the 2026-07-24 18-floor re-baseline

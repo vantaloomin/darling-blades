@@ -1,4 +1,4 @@
-<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/ai/huntSpend.test.ts, tests/ai/creatureDutyMorning.test.ts, tests/ai/aiGaps191.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-08
+<!-- source-of-truth: src/ai/AIPlayer.ts, src/ai/EasyAI.ts, src/ai/MediumAI.ts, src/ai/HardAI.ts, src/ai/ScriptAI.ts, src/ai/determinize.ts, src/ai/evaluate.ts, src/ai/value.ts, src/ai/combatPlans.ts, src/ai/targeting.ts, src/ai/activatedPolicy.ts, src/ai/ritePolicy.ts, src/ai/tithePolicy.ts, src/ai/whispersPolicy.ts, src/ai/discardPolicy.ts, src/ai/sacrificePolicy.ts, src/ai/preservePolicy.ts, src/ai/hauntlinkPolicy.ts, src/ai/landPolicy.ts, src/ai/darlingPolicy.ts, src/ai/foresee.ts, src/ai/huntPolicy.ts, src/ai/personality.ts, src/ai/NoisyAI.ts, src/ai/tiers.ts, src/data/opponents.ts, src/data/draftPersonas.ts, src/meta/draftPicker.ts, scripts/balance-matrix.ts, tests/ai/winrate.test.ts, tests/ai/rungSmokes.test.ts, tests/ai/documentedBehaviour.test.ts, tests/ai/huntProvoked.test.ts, tests/ai/huntPolicyA2b.test.ts, tests/ai/huntSpend.test.ts, tests/ai/creatureDutyMorning.test.ts, tests/ai/aiGaps191.test.ts, tests/meta/draftHuntProvoked.test.ts, docs/plan-ai-modernization.md · last-verified: 2026-10-23
      If you change those files, update this doc or re-verify the date. -->
 
 # AI
@@ -1203,6 +1203,12 @@ hard/0 are byte-identical to the plain Medium/Hard brains. The dial is
 TOWER-ONLY: Practice, prefabs, Limited, and replay playback stay on
 `buildAI`. Measurement note: use 80 seeds for tier gates — a 4pp adjacent
 boundary flip-flops inside 40-seed sampling noise.
+
+The 2.0 retune at 25 life (2026-10-23, plan-2.0 P14) moved one dial: T5
+hard/0.12 -> hard/0.06, because at the new life total T5 read under T4 on the
+floors (56.7 vs 58.3). T6 stayed plain Hard (71.2 on the floors). A tier may
+also carry Hard search options (`TierDial.search`, the Duel any Deck Expert
+and Master searches in `src/ai/ladder.ts`); no shipped tier uses them.
 
 ## Draft personas (Limited Bot Draft)
 
