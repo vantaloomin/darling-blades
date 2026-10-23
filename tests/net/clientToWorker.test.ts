@@ -97,6 +97,7 @@ beforeEach(() => {
     SIGNALS: sink,
     SALT_KV: new FakeKv(),
     SIGNALS_RATE_LIMIT: { limit: async () => ({ success: true }) },
+    SIGNALS_CARDS_RATE_LIMIT: { limit: async () => ({ success: true }) },
     SALT_SECRET: 'a-test-secret-that-is-not-the-real-one',
     BUILD_LABEL: 't2',
   };
