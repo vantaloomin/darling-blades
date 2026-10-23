@@ -254,7 +254,7 @@ export const FIRST_DAWN: readonly CardDef[] = [
     cost: cost(2, 'UU'),
     colors: ['U'],
     attack: 3,
-    defense: 3,
+    defense: 2,
     keywords: ['skyborne'],
     abilities: [
       { when: 'arrives', targets: [{ what: 'opponentCreature', maxCost: 3 }], ops: [{ op: 'recall', to: 'target' }] },
