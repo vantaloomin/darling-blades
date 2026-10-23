@@ -3,7 +3,7 @@ import { destroyPermanent, firesDiesForDestroy } from './battlefield';
 import { cardHasProvoked } from './creatureDamage';
 import { fireBatchedDies, fireGraveyardTriggers, fireTriggers } from './effects/EffectInterpreter';
 import { endGame } from './phases';
-import { getEffectiveStats } from './statics';
+import { getEffectiveStats, withStatsMemo } from './statics';
 import type { CardDb, CardEntry, GameState, Permanent } from './types';
 import { def, isType } from './types';
 
@@ -85,10 +85,13 @@ export function checkStateBased(state: GameState, db: CardDb, emit: Emit, option
 
     // Creatures with lethal damage, deathtouch damage, or defense <= 0 die —
     // all judged against the same pre-death board (lord math included).
-    for (const perm of state.battlefield) {
-      if (!isType(def(db, perm.cardId), 'creature')) continue;
-      if (isLethallyDamaged(state, db, perm)) doomedIids.add(perm.iid);
-    }
+    // A pure read of one board, so each creature's stats are worked out once.
+    withStatsMemo(state, db, () => {
+      for (const perm of state.battlefield) {
+        if (!isType(def(db, perm.cardId), 'creature')) continue;
+        if (isLethallyDamaged(state, db, perm)) doomedIids.add(perm.iid);
+      }
+    });
 
     // Provoked: the struck creatures this pass does not condemn. Their mark is
     // cleared now, whatever the pass then does to them.

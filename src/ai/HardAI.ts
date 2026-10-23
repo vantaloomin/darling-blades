@@ -1,5 +1,6 @@
 import { castCost, type Action } from '../engine/actions';
 import { minimumBlockersForAttacker } from '../engine/combat/legality';
+import { withStatsMemo } from '../engine/statics';
 import type { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
 import { manaValue, opponentOf } from '../engine/types';
@@ -92,6 +93,12 @@ export class HardAI implements AIPlayer {
   }
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    // Stats on the view are read many times per decision; the view is not
+    // mutated while deciding, so they are worked out once (statics.ts).
+    return withStatsMemo(view, this.db, () => this.decide(view, legal));
+  }
+
+  private decide(view: PlayerView, legal: Action[]): Action {
     legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
     legal = applyVocabularyTargetPolicy(view, this.db, legal, true);
     legal = applyTithePolicy(view, this.db, legal, this.pers, () =>

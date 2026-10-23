@@ -106,10 +106,39 @@ function staticLayersOf(d: CardDef): readonly AbilityDef[] | null {
 }
 
 /**
+ * A read-only scope over one board: while `fn` runs, stats read from exactly
+ * this battlefield array (with this Mandate holder and card db) are computed
+ * once per permanent and then remembered. The AI opens one per decision on
+ * the view it was handed, which nothing mutates while it decides; a simulated
+ * game, a scratch board or any other array is a different array and reads
+ * fresh, so the engine's own reads on mutable state are never memoised. The
+ * memo dies with the scope, and scopes nest (a rollout's decision opens its
+ * own on its own view).
+ */
+interface StatsScope {
+  readonly battlefield: readonly Permanent[];
+  readonly mandateHolder: PlayerId | undefined;
+  readonly db: CardDb;
+  readonly stats: Map<number, EffectiveStats>;
+}
+let statsScope: StatsScope | null = null;
+
+export function withStatsMemo<T>(board: StaticBoard, db: CardDb, fn: () => T): T {
+  const outer = statsScope;
+  statsScope = { battlefield: board.battlefield, mandateHolder: board.mandateHolder, db, stats: new Map() };
+  try {
+    return fn();
+  } finally {
+    statsScope = outer;
+  }
+}
+
+/**
  * Effective P/T and keywords are ALWAYS computed on read — base printed stats
  * + +1/+1 counters (Marks, then Overcharges) + until-EOT mods + static layers (auras attached to the
- * creature, and battlefield-wide lord filters). Nothing is ever cached, so
- * statics can never desync. Operates on the battlefield array (public
+ * creature, and battlefield-wide lord filters). Nothing is ever cached on
+ * game state, so statics can never desync; the one memo is an AI decision's
+ * read-only scope (`withStatsMemo`). Operates on the battlefield array (public
  * information), so AI code can call it on a redacted view too.
  */
 export function getEffectiveStats(
@@ -118,6 +147,20 @@ export function getEffectiveStats(
   iid: number,
 ): EffectiveStats {
   const board = boardOf(boardInput);
+  const scope = statsScope;
+  if (scope !== null && scope.battlefield === board.battlefield &&
+      scope.mandateHolder === board.mandateHolder && scope.db === db) {
+    let stats = scope.stats.get(iid);
+    if (stats === undefined) {
+      stats = computeEffectiveStats(board, db, iid);
+      scope.stats.set(iid, stats);
+    }
+    return stats;
+  }
+  return computeEffectiveStats(board, db, iid);
+}
+
+function computeEffectiveStats(board: StaticBoard, db: CardDb, iid: number): EffectiveStats {
   const battlefield = board.battlefield;
   const perm = battlefield.find((p) => p.iid === iid);
   if (!perm) throw new Error(`getEffectiveStats: no permanent ${iid}`);

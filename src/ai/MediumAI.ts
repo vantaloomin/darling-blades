@@ -6,7 +6,7 @@ import { combineManaCosts, solveMana } from '../engine/mana';
 import { enumerateTargets } from '../engine/effects/targeting';
 import { castTargetSpecsFor } from '../engine/resolve';
 import { def, effectOpUsesTarget, isType, manaValue, opponentOf } from '../engine/types';
-import { getEffectiveStats } from '../engine/statics';
+import { getEffectiveStats, withStatsMemo } from '../engine/statics';
 import type { PlayerView } from '../engine/view';
 import type { AIPlayer } from './AIPlayer';
 import { bestActivation, scoredActivationCandidates, type PrecombatContext } from './activatedPolicy';
@@ -74,6 +74,12 @@ export class MediumAI implements AIPlayer {
   ) {}
 
   chooseAction(view: PlayerView, legal: Action[]): Action {
+    // Stats on the view are read many times per decision; the view is not
+    // mutated while deciding, so they are worked out once (statics.ts).
+    return withStatsMemo(view, this.db, () => this.decide(view, legal));
+  }
+
+  private decide(view: PlayerView, legal: Action[]): Action {
     legal = legal.filter((action) => usefulMarkCast(view, this.db, action));
     // A self-Hunt or a friendly Provoked source only when it beats the plain
     // choice by a card (A2.b). It runs before the target policy keeps one variant.

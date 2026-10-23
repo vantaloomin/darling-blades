@@ -1,4 +1,4 @@
-import { getEffectiveStats } from '../engine/statics';
+import { getEffectiveStats, withStatsMemo } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { cardIdOf, def, isType, opponentOf } from '../engine/types';
 import { createPermanentValuer, dawnSelfBleed, MANDATE_HOLD_VALUE, markedBoardValue, questBoardValue } from './value';
@@ -58,36 +58,40 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId, w: Readonly
     p.untilEotMods.length > 0 ? { ...p, untilEotMods: [] } : p,
   );
 
-  const valueOfPermanent = createPermanentValuer(stripped, db);
   let myPower = 0;
   let theirPower = 0;
   let myLands = 0;
   let theirLands = 0;
-  for (const perm of stripped) {
-    const d = def(db, perm.cardId);
-    const mineSide = perm.controller === me;
-    if (isType(d, 'land')) {
-      if (mineSide) myLands++;
-      else theirLands++;
-      continue;
+  // `stripped` is a fresh array nothing writes to here, so each creature's
+  // stats are worked out once for every read below (statics.ts).
+  withStatsMemo({ battlefield: stripped }, db, () => {
+    const valueOfPermanent = createPermanentValuer(stripped, db);
+    for (const perm of stripped) {
+      const d = def(db, perm.cardId);
+      const mineSide = perm.controller === me;
+      if (isType(d, 'land')) {
+        if (mineSide) myLands++;
+        else theirLands++;
+        continue;
+      }
+      let v = valueOfPermanent(perm.iid);
+      if (perm.tapped) v *= w.tapped;
+      if (perm.enteredThisTurn) v *= w.fresh;
+      score += mineSide ? v : -v;
+      if (isType(d, 'creature')) {
+        const p = getEffectiveStats(stripped, db, perm.iid).attack;
+        if (mineSide) myPower += p;
+        else theirPower += p;
+      }
     }
-    let v = valueOfPermanent(perm.iid);
-    if (perm.tapped) v *= w.tapped;
-    if (perm.enteredThisTurn) v *= w.fresh;
-    score += mineSide ? v : -v;
-    if (isType(d, 'creature')) {
-      const p = getEffectiveStats(stripped, db, perm.iid).attack;
-      if (mineSide) myPower += p;
-      else theirPower += p;
-    }
-  }
 
-  // Marks beyond the bodies: threshold progress and what Propagate in hand
-  // will compound. My hand is mine to read; theirs is hidden, so their term
-  // sees only the board.
-  score += markedBoardValue(stripped, db, me, my.hand.map(cardIdOf));
-  score -= markedBoardValue(stripped, db, opp);
-  score += questBoardValue(stripped, db, me) - questBoardValue(stripped, db, opp);
+    // Marks beyond the bodies: threshold progress and what Propagate in hand
+    // will compound. My hand is mine to read; theirs is hidden, so their term
+    // sees only the board.
+    score += markedBoardValue(stripped, db, me, my.hand.map(cardIdOf));
+    score -= markedBoardValue(stripped, db, opp);
+    score += questBoardValue(stripped, db, me) - questBoardValue(stripped, db, opp);
+  });
   // Card advantage — stand-in cards count like real ones (they represent
   // real hidden cards in Hard's determinized simulations).
   score += w.card * (my.hand.length - their.hand.length);
