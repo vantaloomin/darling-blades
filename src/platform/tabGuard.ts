@@ -1,4 +1,4 @@
-import { theme } from '../ui/theme';
+import { showBlockingNotice } from './blockingNotice';
 
 /** A single origin-wide game session protects the shared local save. */
 export const TAB_SESSION_LOCK_NAME = 'darlingblades.game-session.v1';
@@ -203,99 +203,13 @@ export function removeTabGuard(): void {
   document.getElementById(TAB_GUARD_ID)?.remove();
 }
 
-/**
- * Plain DOM is deliberate: a guarded tab should not load Phaser assets or
- * instantiate the save-backed services merely to display this message.
- */
+/** The tab guard: the game is already running in another tab or window. */
 export function showTabGuard(onRetry: () => Promise<boolean>): void {
-  if (document.getElementById(TAB_GUARD_ID)) return;
-
-  const root = document.createElement('main');
-  root.id = TAB_GUARD_ID;
-  root.setAttribute('role', 'alertdialog');
-  root.setAttribute('aria-modal', 'true');
-  root.setAttribute('aria-labelledby', `${TAB_GUARD_ID}-title`);
-  Object.assign(root.style, {
-    position: 'fixed',
-    inset: '0',
-    zIndex: '1100',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxSizing: 'border-box',
-    padding: '24px',
-    background: theme.colors.dim,
-    color: theme.colors.body,
-    fontFamily: theme.fonts.ui,
-    textAlign: 'center',
+  showBlockingNotice({
+    id: TAB_GUARD_ID,
+    title: 'Already open',
+    body: 'Darling Blades is running in another tab or window. Play continues there; close it and try again here.',
+    actionLabel: 'Try again',
+    onAction: onRetry,
   });
-
-  const panel = document.createElement('section');
-  Object.assign(panel.style, {
-    width: 'min(440px, 100%)',
-    boxSizing: 'border-box',
-    padding: '36px 32px',
-    border: `${theme.control.borderWidth}px solid ${theme.colors.panelStroke}`,
-    borderRadius: `${theme.radius.panel}px`,
-    background: theme.colors.panelFill,
-    boxShadow: `0 18px 60px ${theme.colors.dim}`,
-  });
-
-  const title = document.createElement('h1');
-  title.id = `${TAB_GUARD_ID}-title`;
-  title.textContent = 'Already open';
-  Object.assign(title.style, {
-    margin: '0 0 16px',
-    color: theme.colors.heading,
-    fontFamily: theme.fonts.display,
-    fontSize: `${theme.type.display}px`,
-    fontWeight: theme.weight.w700,
-    lineHeight: '1.1',
-  });
-
-  const body = document.createElement('p');
-  body.textContent = 'Darling Blades is running in another tab or window. Play continues there; close it and try again here.';
-  Object.assign(body.style, {
-    margin: '0 auto 28px',
-    maxWidth: '360px',
-    color: theme.colors.body,
-    fontSize: `${theme.type.body}px`,
-    lineHeight: '1.5',
-  });
-
-  const retry = document.createElement('button');
-  retry.type = 'button';
-  retry.textContent = 'Try again';
-  Object.assign(retry.style, {
-    minWidth: '132px',
-    minHeight: `${theme.control.minHitHeight}px`,
-    padding: '0 20px',
-    border: `${theme.control.borderWidth}px solid ${theme.colors.goldHover}`,
-    borderRadius: `${theme.radius.control}px`,
-    background: theme.colors.btnPrimaryBg,
-    color: theme.colors.onGold,
-    cursor: 'pointer',
-    fontFamily: theme.fonts.ui,
-    fontSize: `${theme.type.label}px`,
-    fontWeight: theme.weight.w700,
-  });
-  retry.addEventListener('focus', () => {
-    retry.style.outline = `2px solid ${theme.colors.goldHover}`;
-    retry.style.outlineOffset = '3px';
-  });
-  retry.addEventListener('blur', () => {
-    retry.style.outline = 'none';
-  });
-  retry.addEventListener('click', () => {
-    retry.disabled = true;
-    void onRetry().then((started) => {
-      if (!started) retry.disabled = false;
-    }, () => {
-      retry.disabled = false;
-    });
-  });
-
-  panel.append(title, body, retry);
-  root.append(panel);
-  document.body.append(root);
 }
