@@ -673,7 +673,8 @@ Written now, because the moment to write it is not at 2 a.m.
 | Symptom | Likely cause | Action |
 | --- | --- | --- |
 | Signals volume drops to zero | Worker down, quota exhausted, or hostname blocked | Check the Cloudflare dashboard first. The game is unaffected either way — this is never a player-facing incident |
-| Signals volume spikes implausibly | Spam against the public endpoint | Tighten the rate-limiting rule. **Discard the affected window from every rollup** and note it, rather than reasoning over poisoned data |
+| Signals volume spikes implausibly | Spam against the public endpoint | Tighten the rate-limiting rules (`SIGNALS_RATE_LIMIT`, and `SIGNALS_CARDS_RATE_LIMIT` for card batches). **Discard the affected window from every rollup** and note it, rather than reasoning over poisoned data |
+| A card, deck or opponent looks oddly popular on a quiet day | The endpoint takes anonymous posts by design, and ten IP addresses clear the k = 10 floor. The floor protects privacy, not accuracy | Treat play stats as a hint for balance, never the only evidence: confirm with the balance matrices before tuning anything |
 | Cloud sync failing for everyone | Supabase project **paused** after 7 days of low activity | Restore from Supabase Studio. Then check why the keep-alive cron stopped |
 | Cloud sync failing for one player | Token expiry, clock skew, or a conflict they dismissed | The export code is always the fallback. Never hand-edit a row |
 | The daily rollup workflow fails or stops | A rotated or expired `CLOUDFLARE_ANALYTICS_TOKEN`, a Cloudflare API change, or GitHub disabling the schedule after 60 days of repository inactivity | Nothing is lost for thirty days: the next good run backfills every missing day in its window. Past thirty days, run it locally with `--day` for each gap, before the 90-day wall takes the raw rows. A run that fails writes nothing, by design |

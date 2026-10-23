@@ -380,7 +380,11 @@ of 2026-09-29) or the owner's own runs.
   them.
 - **Release notes, the cut, the deploy** as in 1.9: the release PR into
   `main` only on the owner's word, the tag, the Worker redeploy if `worker/`
-  changed.
+  changed. For 2.0 the Worker goes FIRST, before the release PR merges: the
+  live Worker (read 2026-10-23 through the Cloudflare connector) still refuses
+  `format: "story"`, so a 2.0 build reaching players first loses every Story
+  duel digest. The same deploy carries the cards rate limit and the IPv6 /64
+  hash (reliability audit, 2026-10-23).
 
 ## Sequencing (proposed)
 
