@@ -60,6 +60,17 @@ name = "SIGNALS_RATE_LIMIT"
 namespace_id = "1001"
 simple = { limit = 120, period = 60 }
 
+# The cards brake (reliability audit 2026-10-23). One cards request writes up to
+# 60 data points, so the limit above let one caller spend Analytics Engine's
+# 100,000 points a day in about fourteen minutes. A real install sends a cards
+# batch only at a hide that has new cards, so two a minute is still far above
+# real use, and one caller now needs about seven hours to exhaust the day.
+# Same key, same per-location counting; checked after the limit above.
+[[ratelimits]]
+name = "SIGNALS_CARDS_RATE_LIMIT"
+namespace_id = "1002"
+simple = { limit = 2, period = 60 }
+
 [vars]
 # Stamped on every data point so junk from an unknown build is filterable.
 # No longer "spike-t0": this is the real T2 Worker.
