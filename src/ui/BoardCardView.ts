@@ -208,6 +208,8 @@ export class BoardCardView extends Phaser.GameObjects.Container {
   private ptPill: Phaser.GameObjects.Graphics | null = null;
   /** The medallion's tapped mark: a dimming disc and the turned-arrow glyph (round mode only). */
   private tapMark: Phaser.GameObjects.Container | null = null;
+  /** A sacrifice pick's dashed gold ring (round mode only; the mock's W-Tithe, W-Rite, W-Edict). */
+  private sacrificeRing: Phaser.GameObjects.Graphics | null = null;
   private medallionKey: string | null = null;
   private ptText: Phaser.GameObjects.Text;
   private auraBadge: Phaser.GameObjects.Text;
@@ -477,6 +479,13 @@ export class BoardCardView extends Phaser.GameObjects.Container {
         scene.add.image(0, 0, bakeUiIcon(scene, 'turn')).setDisplaySize(icon, icon).setTint(colorInt(theme.colors.heading)),
       ]).setName('board-tapped-mark').setVisible(false);
       this.pickBadge.setPosition(0, 0);
+      this.sacrificeRing = scene.add.graphics().setName('board-sacrifice-ring').setVisible(false);
+      const dashes = 16, ringR = r + 3;
+      this.sacrificeRing.lineStyle(theme.outline.state, colorInt(theme.colors.gold), 1);
+      for (let i = 0; i < dashes; i++) {
+        const start = (i / dashes) * Math.PI * 2;
+        this.sacrificeRing.beginPath().arc(0, 0, ringR, start, start + (Math.PI * 2 / dashes) * 0.6).strokePath();
+      }
       const side = 20;
       this.roleIcon = scene.add.image(0, 0, bakeUiIcon(scene, 'sword')).setDisplaySize(12, 12).setTint(colorInt(theme.colors.onGold));
       this.roleBadge = scene.add.container(r * 0.7, -r * 0.7, [
@@ -513,6 +522,7 @@ export class BoardCardView extends Phaser.GameObjects.Container {
       this.awakenedRect,
       this.hauntlinkBrokenMark,
       this.highlightRect,
+      ...(this.sacrificeRing ? [this.sacrificeRing] : []),
       // A top-edge tab crosses the rim. Draw its opaque plate and glyphs
       // after the rings so the upper letters cannot be painted over.
       this.actionBadge,
@@ -815,11 +825,14 @@ export class BoardCardView extends Phaser.GameObjects.Container {
     this.awakenedRect.setVisible(awakeningRingVisible(this.awakenedState, context));
     const cue = state === null ? null : cueIn(state, context);
     this.setData('a11yCue', cue);
+    // A medallion marks a sacrifice pick with a dashed gold ring, not the solid rim.
+    const dashed = this.sacrificeRing !== null && cue?.state === 'selectedSacrifice';
+    this.sacrificeRing?.setVisible(dashed);
     if (!cue?.rim) {
       this.highlightRect.setVisible(false);
       this.art.clearTint();
     } else {
-      this.highlightRect.setVisible(true).setStrokeStyle(theme.outline.state, colorInt(cueColour(cue.rim, currentAccessibility().highContrast)), 1);
+      this.highlightRect.setVisible(!dashed).setStrokeStyle(theme.outline.state, colorInt(cueColour(cue.rim, currentAccessibility().highContrast)), 1);
       const tint: Partial<Record<BoardCueState, Exclude<BoardHighlight, 'none'>>> = {
         legalTarget: 'legalTarget', legalTargetOpponent: 'legalTargetOpponent', pickedTarget: 'selectedAttacker',
         selectedSacrifice: 'selectedSacrifice', eligibleAttacker: 'eligible', selectedAttacker: 'selectedAttacker',

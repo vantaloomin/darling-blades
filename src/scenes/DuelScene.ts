@@ -5373,7 +5373,8 @@ export class DuelScene extends Phaser.Scene {
     const rowDepth = view.getData('rowDepth') as number | undefined;
     if (this.phone?.short && rowDepth !== undefined) view.setDepth(rowDepth + (view.wordChipShown ? 1 : 0));
     const sacrifice = this.pendingSacrifice?.selected ?? this.edictPicks;
-    const picked = cue.state === 'selectedSacrifice' ? [sacrifice.indexOf(perm.iid)]
+    // The phone counts sacrifice picks in the command column; its medallions carry a dashed ring, no number.
+    const picked = cue.state === 'selectedSacrifice' ? (this.phone ? null : [sacrifice.indexOf(perm.iid)])
       : this.pickIndices({ kind: 'permanent', iid: perm.iid });
     view.setPickBadge(picked, scale);
     view.setKeyboardFocus(this.keyboardTarget?.kind === 'permanent' && this.keyboardTarget.iid === perm.iid &&

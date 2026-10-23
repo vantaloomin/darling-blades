@@ -43,6 +43,7 @@ export class StackDisplay {
   private items: readonly StackItem[] = [];
   private live = false;
   private page = 0;
+  private phoneListStart = 0;
   private pageControl: ReturnType<typeof pager> | null = null;
   private itemCenters = new Map<number, { x: number; y: number }>();
 
@@ -55,7 +56,10 @@ export class StackDisplay {
   }
 
   setItems(items: readonly StackItem[], live: boolean): void {
-    if (items.map(item => item.sid).join(',') !== this.items.map(item => item.sid).join(',')) this.page = Number.MAX_SAFE_INTEGER;
+    if (items.map(item => item.sid).join(',') !== this.items.map(item => item.sid).join(',')) {
+      this.page = Number.MAX_SAFE_INTEGER;
+      this.phoneListStart = 0;
+    }
     this.items = items; this.live = live;
     this.render();
   }
@@ -74,7 +78,10 @@ export class StackDisplay {
     this.root.setVisible(visible);
     if (!visible) return;
     if (this.opts.phone) {
-      const drawn = drawPhoneStack(this.root.scene, this.root, items, { ...this.opts.phone, ...this.opts });
+      const drawn = drawPhoneStack(this.root.scene, this.root, items, {
+        ...this.opts.phone, ...this.opts, listStart: this.phoneListStart,
+        onListPage: (start) => { this.phoneListStart = start; this.render(); },
+      });
       this.targetCards = drawn.zones;
       for (const [sid, at] of drawn.centers) this.itemCenters.set(sid, { x: this.root.x + at.x, y: this.root.y + at.y });
       return;
