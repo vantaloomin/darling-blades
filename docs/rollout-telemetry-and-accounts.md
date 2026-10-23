@@ -503,7 +503,7 @@ policy's promise.
   `docs/legal/privacy-policy.md` and fails if the policy stops saying "fewer
   than 10".
 - **A published day is never rewritten.** Two versions of one day are a
-  differencing leak. The backfill window is seven days and only fills gaps.
+  differencing leak. The backfill window is thirty days and only fills gaps.
   Accepted and stated: a value present one day and absent the next tells a
   reader it was below ten that day, which is exactly what the policy describes.
 - **No time of day anywhere in a file** (legal finding 3), keys sorted, so a
@@ -676,7 +676,7 @@ Written now, because the moment to write it is not at 2 a.m.
 | Signals volume spikes implausibly | Spam against the public endpoint | Tighten the rate-limiting rule. **Discard the affected window from every rollup** and note it, rather than reasoning over poisoned data |
 | Cloud sync failing for everyone | Supabase project **paused** after 7 days of low activity | Restore from Supabase Studio. Then check why the keep-alive cron stopped |
 | Cloud sync failing for one player | Token expiry, clock skew, or a conflict they dismissed | The export code is always the fallback. Never hand-edit a row |
-| The daily rollup workflow fails or stops | A rotated or expired `CLOUDFLARE_ANALYTICS_TOKEN`, a Cloudflare API change, or GitHub disabling the schedule after 60 days of repository inactivity | Nothing is lost for seven days: the next good run backfills every missing day in its window. Past seven days, run it locally with `--day` for each gap, before the 90-day wall takes the raw rows. A run that fails writes nothing, by design |
+| The daily rollup workflow fails or stops | A rotated or expired `CLOUDFLARE_ANALYTICS_TOKEN`, a Cloudflare API change, or GitHub disabling the schedule after 60 days of repository inactivity | Nothing is lost for thirty days: the next good run backfills every missing day in its window. Past thirty days, run it locally with `--day` for each gap, before the 90-day wall takes the raw rows. A run that fails writes nothing, by design |
 | A rollup file holds a number below ten | A bug past both the fold and the guard | Treat as a publication incident: fix forward, do NOT rewrite the day silently, record what was exposed and for how long |
 | A player asks to be forgotten | — | Telemetry: nothing to delete, and say so plainly rather than implying a search happened. Accounts: point them at the in-app delete, which is self-serve by design |
 

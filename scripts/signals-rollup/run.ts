@@ -210,7 +210,11 @@ export function cloudflareFetch(accountId: string, token: string): FetchSql {
     } catch {
       throw new Error('signals-rollup: the Analytics Engine SQL API answered with something that is not JSON');
     }
-    return Array.isArray(parsed.data) ? (parsed.data as RawRow[]) : [];
+    // An answer without a `data` array is an error in some other shape, not
+    // an empty day: reading it as zero rows would publish a day of nothing
+    // that is never rewritten.
+    if (!Array.isArray(parsed.data)) throw new Error('signals-rollup: the Analytics Engine SQL API answered without a data array');
+    return parsed.data as RawRow[];
   };
 }
 

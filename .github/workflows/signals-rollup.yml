@@ -105,3 +105,11 @@ jobs:
           git commit -q -m "chore(signals): daily rollup"
           # HEAD:signals-data, explicitly. This job can push to exactly one branch.
           git push origin HEAD:signals-data
+
+      # The Worker's own check, last so a dead endpoint never blocks the
+      # rollup of days already collected. A quiet day and a dead Worker look
+      # the same in the totals; this step tells them apart by failing the run,
+      # which emails the owner. /health answers the build label and nothing else.
+      - name: Check the stats Worker answers
+        if: ${{ !cancelled() }}
+        run: curl -fsS --max-time 20 https://db-signals.loominvanta.workers.dev/health

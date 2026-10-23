@@ -462,16 +462,11 @@ describe('serializeDay', () => {
 describe('daysToRoll', () => {
   const noon = (day: string): number => Date.parse(`${day}T12:00:00Z`);
 
-  it('rolls up complete days only, back seven days, and never before the start date', () => {
-    expect(daysToRoll({ startDate: '2020-01-01', nowMs: noon('2026-10-10'), existing: new Set() })).toEqual([
-      '2026-10-03',
-      '2026-10-04',
-      '2026-10-05',
-      '2026-10-06',
-      '2026-10-07',
-      '2026-10-08',
-      '2026-10-09',
-    ]);
+  it('rolls up complete days only, back thirty days, and never before the start date', () => {
+    const window = daysToRoll({ startDate: '2020-01-01', nowMs: noon('2026-10-10'), existing: new Set() });
+    expect(window).toHaveLength(30);
+    expect(window[0]).toBe('2026-09-10');
+    expect(window[29]).toBe('2026-10-09');
     expect(daysToRoll({ startDate: '2026-10-07', nowMs: noon('2026-10-10'), existing: new Set() })).toEqual([
       '2026-10-07',
       '2026-10-08',
@@ -481,7 +476,7 @@ describe('daysToRoll', () => {
 
   it('picks exactly the missing days out of the window', () => {
     const existing = new Set(['2026-10-03', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08']);
-    expect(daysToRoll({ startDate: '2020-01-01', nowMs: noon('2026-10-10'), existing })).toEqual([
+    expect(daysToRoll({ startDate: '2026-10-03', nowMs: noon('2026-10-10'), existing })).toEqual([
       '2026-10-04',
       '2026-10-09',
     ]);
