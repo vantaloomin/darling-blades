@@ -662,6 +662,11 @@ const FEATURED_THUMB_SCALE = 0.21;
 export class ShopScene extends Phaser.Scene {
   private fixture: ShopA11yFixture | null = null;
   private fixtureSave: SaveData | null = null;
+  /**
+   * Set once a pack buy has spent the gold. The scene change it starts lands
+   * on the next frame, so a second tap in between would buy again.
+   */
+  private buying = false;
   private get saveData(): SaveData { return this.fixtureSave ?? Services.save.data; }
   private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
@@ -800,6 +805,7 @@ export class ShopScene extends Phaser.Scene {
     // Nothing in the Shop restarts itself or reads settings.data later.
     this.sys.settings.data = {};
     this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.buying = false;
     this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
     this.data.set('a11yReady', false);
     this.data.set('a11yDensity', { actual: [], release: [] });
@@ -1482,7 +1488,7 @@ export class ShopScene extends Phaser.Scene {
 
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
   private buyPacks(unitPrice: number, set: CardDef['set'] | undefined, sku: BoosterSku): void {
-    if (this.fixture) return;
+    if (this.fixture || this.buying) return;
     const save = this.saveData;
     const n = Math.min(this.qty, Math.floor(save.gold / unitPrice));
     if (n < 1) {
@@ -1490,6 +1496,7 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
     this.closeOverlay(); // close any open deck preview before leaving the scene
+    this.buying = true;
     spendGold(save, unitPrice * n);
     Sfx.play('coin');
     const rng = createRngState(Date.now() & 0x7fffffff);

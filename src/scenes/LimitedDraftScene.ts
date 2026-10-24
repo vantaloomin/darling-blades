@@ -1567,6 +1567,10 @@ export class LimitedDraftScene extends Phaser.Scene {
   private confirmPick(run: LimitedRun): void {
     if (this.fixture) return;
     if (this.passing || !this.selectedId || !run.draft) return;
+    // Every path below leaves the scene, and `run` is the one captured when
+    // the screen was built: a second tap before the scene change lands would
+    // pick from it again, and on the last pick grant the 45-card pool twice.
+    this.passing = true;
     const prevPackIndex = run.draft.packIndex;
     const updated: LimitedRun = {
       ...run,
@@ -1595,7 +1599,6 @@ export class LimitedDraftScene extends Phaser.Scene {
       this.scene.start('LimitedDraft');
       return;
     }
-    this.passing = true;
     this.guard.open(this.interactiveTargets);
     this.playPassAnimation(draftDirection(prevPackIndex), () => this.scene.start('LimitedDraft'));
   }

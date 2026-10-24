@@ -833,13 +833,16 @@ export class StoryScene extends Phaser.Scene {
     const after = waiting > 1 ? ` ${waiting - 1} more after this one.` : '';
     const top = this.subtitle(`Card reward: add one card to your run deck, or skip it.${after}`);
     let selected: string | null = null;
+    // Two offers can wait at once, and the restart lands a frame later: a
+    // second tap before it would answer the next offer unseen.
     const take = this.button('Choose a Card', 'primary', () => {
-      if (!selected) return;
+      if (!selected || this.restarting) return;
       const result = takeCardReward(this.story, selected);
       if (!result.ok) return this.refused(result.reason);
       this.commit();
     }, false);
     const skip = this.button('Skip', 'ghost', () => {
+      if (this.restarting) return;
       const result = takeCardReward(this.story, null);
       if (!result.ok) return this.refused(result.reason);
       this.commit();
