@@ -137,6 +137,13 @@ export interface Env {
   SALT_KV: KvLike;
   SIGNALS_RATE_LIMIT: RateLimiter;
   /**
+   * A second, tighter brake for `cards` alone. One cards request writes up to
+   * MAX_CARD_ROWS data points against Analytics Engine's 100,000 a day, so
+   * the per-request limit above let one caller spend the whole day's budget
+   * in about fourteen minutes. See wrangler.toml.
+   */
+  SIGNALS_CARDS_RATE_LIMIT: RateLimiter;
+  /**
    * A Worker secret, set once by the owner. NEVER read for any purpose except
    * keying the HMAC below, never logged, never returned, and never defaulted:
    * if it is missing the Worker refuses to write (503). An unsalted or constant
@@ -299,6 +306,29 @@ function coarseFamily(ua: string): string {
 }
 
 /**
+ * The part of the connecting address the hash uses: an IPv4 address whole,
+ * an IPv6 address cut to its /64 network. A household or phone is normally
+ * handed a whole /64 and picks addresses inside it, rotating them for privacy,
+ * so the full IPv6 address split one device into several installs, and let one
+ * caller step around the rate limit by changing address. The cut only ever
+ * makes the input coarser. Anything that does not parse is used as it is.
+ *
+ * Pure, and called only from `dailyHash` with a value that never leaves it.
+ */
+export function addressForHash(ip: string): string {
+  if (!ip.includes(':')) return ip;
+  const halves = ip.split('::');
+  if (halves.length > 2) return ip;
+  const head = halves[0] === '' ? [] : halves[0].split(':');
+  const tail = halves.length === 2 && halves[1] !== '' ? halves[1].split(':') : [];
+  const missing = 8 - head.length - tail.length;
+  if (halves.length === 1 ? head.length !== 8 : missing < 1) return ip;
+  const groups = [...head, ...Array<string>(halves.length === 2 ? missing : 0).fill('0'), ...tail];
+  if (!groups.slice(0, 4).every((group) => /^[0-9a-f]{1,4}$/i.test(group))) return ip;
+  return `${groups.slice(0, 4).map((group) => parseInt(group, 16).toString(16)).join(':')}::/64`;
+}
+
+/**
  * The de-duplication hash. THE ONLY PLACE IN THIS WORKER THAT READS A HEADER.
  *
  * The IP and the user agent exist as local constants for the length of this
@@ -309,9 +339,9 @@ function coarseFamily(ua: string): string {
 async function dailyHash(req: Request, env: Env, day: string): Promise<string | null> {
   const key = await dayKey(env, day);
   if (!key) return null;
-  const ip = req.headers.get('cf-connecting-ip') ?? '';
+  const address = addressForHash(req.headers.get('cf-connecting-ip') ?? '');
   const family = coarseFamily(req.headers.get('user-agent') ?? '');
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`${day}|${ip}|${family}`));
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`${day}|${address}|${family}`));
   return Array.from(new Uint8Array(signature).subarray(0, 8), (byte) =>
     byte.toString(16).padStart(2, '0'),
   ).join('');
@@ -483,6 +513,10 @@ async function handleSignals(req: Request, url: URL, env: Env): Promise<Response
 
   const allowed = await env.SIGNALS_RATE_LIMIT.limit({ key: hash });
   if (!allowed.success) return respond(req, 429);
+  if (type === 'cards') {
+    const cardsAllowed = await env.SIGNALS_CARDS_RATE_LIMIT.limit({ key: hash });
+    if (!cardsAllowed.success) return respond(req, 429);
+  }
 
   const result = validate(type, read.body);
   if (!result.ok) return respond(req, 400);

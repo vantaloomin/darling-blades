@@ -152,6 +152,20 @@ red run — fix forward promptly. Pages was enabled once by hand
 (Settings → Pages → Source: GitHub Actions) and stays on; the workflow token can
 deploy to it but can't create it.
 
+### Rolling back
+
+Fix forward. Never redeploy a build whose `CURRENT_SAVE_VERSION` is lower than
+the one players have already loaded: an older build cannot read a newer save.
+From 2.0 on, such a build refuses to write and shows "Newer save found" instead
+of starting over (`SaveLoadStatus` in `src/meta/SaveManager.ts`), but every 1.9
+build predates that guard and would replace a v38 save with a fresh one. A
+rollback within one save version (2.0.2 back to 2.0.1) is safe.
+
+The play-stats Worker has the same rule in the other direction: it only ever
+gains accepted values. Old tabs and desktop installs keep sending the old
+shapes, so a Worker change deploys before the game build that uses it, and
+never drops a value an older client still sends.
+
 ## Desktop release tags
 
 From 1.5.5 onward, pushing a `v*` tag runs the separate

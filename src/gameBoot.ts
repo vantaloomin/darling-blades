@@ -5,8 +5,10 @@ import { Services } from './meta/services';
 import { applyBrowserOptOutDefault } from './meta/statsNotice';
 import { signals } from './net/signals';
 import { browserOptsOutOfTracking } from './net/signalsGate';
-import { applyDesktopWindowSize } from './platform/desktopWindow';
+import { showBlockingNotice } from './platform/blockingNotice';
+import { applyDesktopWindowSize, isTauri } from './platform/desktopWindow';
 import { IS_DEV } from './platform/env';
+import { requestPersistentStorage } from './platform/persistentStorage';
 import { qualityTier } from './platform/quality';
 import {
   RENDER_SCALE_UNLOCKED,
@@ -49,8 +51,10 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { StoryScene } from './scenes/StoryScene';
+import { newerSaveCopy, saveWriteFailedNotice, unreadableSaveNotice } from './ui/saveNoticeCopy';
 import { applySavedAccessibility } from './ui/settingsPresentation';
 import { installTextRasterGuards } from './ui/textRaster';
+import { queueToast } from './ui/Toast';
 
 declare global {
   interface Window {
@@ -60,6 +64,24 @@ declare global {
 
 /** Boots the original Phaser application only after the tab session is held. */
 export function bootGame(): void {
+
+// A save written by a newer build than this one: this build would replace it
+// with a fresh save, so the manager refuses every write and the game does not
+// start (src/meta/SaveManager.ts `SaveLoadStatus`).
+if (Services.save.readOnly) {
+  const copy = newerSaveCopy(isTauri());
+  showBlockingNotice({
+    id: 'darlingblades-newer-save',
+    ...copy,
+    onAction: () => window.location.reload(),
+  });
+  return;
+}
+// An unreadable save was copied aside and a fresh one started; say so once.
+// Held until the main menu mounts the toast rail, like every launch notice.
+if (Services.save.loadStatus === 'recovered') queueToast(unreadableSaveNotice());
+Services.save.onWriteFailure = () => queueToast(saveWriteFailedNotice());
+requestPersistentStorage({ desktop: isTauri() });
 
 // Render scale (settings.renderScale): resolved synchronously pre-boot —
 // Services is Phaser-free and localStorage-backed, so the save is already

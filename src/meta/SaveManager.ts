@@ -510,30 +510,98 @@ const KEY = 'darlingblades.save.v1';
 const LEGACY_KEY = 'waifutcg.save.v1';
 
 /**
- * Single versioned JSON blob in localStorage; debounced writes; corrupt or
- * missing data falls back to a fresh save. Storage is injected so tests run
- * headless with a plain object.
+ * The storage slot that keeps the last save blob the game could not read, so
+ * a damaged save, or one a migration bug threw on, is never simply written
+ * over by the fresh save that replaces it. Written only on load, never read by
+ * the game; it exists so the blob can still be recovered by hand.
+ */
+export const UNREADABLE_SAVE_KEY = 'darlingblades.save.unreadable';
+
+/**
+ * What the load found, for the boot layer.
+ *
+ * - `ok`: a save loaded, or there was none (a first launch).
+ * - `recovered`: a save was there but could not be read. It was copied to
+ *   `UNREADABLE_SAVE_KEY` and play continues on a fresh save.
+ * - `newer`: the save was written by a newer build than this one (a rollback,
+ *   an old cached tab, an older desktop install). Nothing may be written,
+ *   because this build would replace the newer save with a fresh one; the boot
+ *   layer stops and says so.
+ */
+export type SaveLoadStatus = 'ok' | 'recovered' | 'newer';
+
+/**
+ * Single versioned JSON blob in localStorage; debounced writes. A missing save
+ * starts fresh; an unreadable one starts fresh after a copy is kept; a newer
+ * one makes this manager read-only (see `SaveLoadStatus`). Storage is injected
+ * so tests run headless with a plain object.
  */
 export class SaveManager {
   readonly data: SaveData;
+  /** What the load found. Read once at boot. */
+  readonly loadStatus: SaveLoadStatus;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  /** Set once a write has failed, so the failure is reported once. */
+  private writeFailed = false;
+  /**
+   * Called the first time a write fails (storage full, blocked or gone). The
+   * boot layer tells the player; src/meta has no UI of its own.
+   */
+  onWriteFailure: (() => void) | null = null;
 
   constructor(
     private readonly storage: StorageLike,
     now = Date.now(),
   ) {
-    this.data = this.load(now);
+    const loaded = this.load(now);
+    this.data = loaded.data;
+    this.loadStatus = loaded.status;
   }
 
-  private load(now: number): SaveData {
+  /** True when the stored save is newer than this build; every write is then refused. */
+  get readOnly(): boolean {
+    return this.loadStatus === 'newer';
+  }
+
+  private load(now: number): { data: SaveData; status: SaveLoadStatus } {
+    let raw: string | null;
     try {
-      const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
-      if (!raw) return freshSave(now);
-      const parsed = JSON.parse(raw) as { version?: number };
-      return this.migrate(parsed, now);
+      raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
     } catch {
-      return freshSave(now);
+      return { data: freshSave(now), status: 'ok' };
     }
+    if (!raw) return { data: freshSave(now), status: 'ok' };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return this.recoverUnreadable(raw, now);
+    }
+    const version = isRecord(parsed) ? parsed.version : undefined;
+    if (typeof version === 'number' && Number.isInteger(version) && version > CURRENT_SAVE_VERSION) {
+      return { data: freshSave(now), status: 'newer' };
+    }
+    // migrate() starts fresh for any version it does not know, so only a
+    // version it walks is handed to it; anything else is unreadable.
+    if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+      return this.recoverUnreadable(raw, now);
+    }
+    try {
+      return { data: this.migrate(parsed as { version?: number } & Record<string, unknown>, now), status: 'ok' };
+    } catch {
+      return this.recoverUnreadable(raw, now);
+    }
+  }
+
+  /** Keep the unreadable blob in its own slot, then start fresh. */
+  private recoverUnreadable(raw: string, now: number): { data: SaveData; status: SaveLoadStatus } {
+    try {
+      this.storage.setItem(UNREADABLE_SAVE_KEY, raw);
+    } catch {
+      // No room for the copy either. The fresh save still loads; the
+      // original stays in its slot until the first write replaces it.
+    }
+    return { data: freshSave(now), status: 'recovered' };
   }
 
   /**
@@ -593,7 +661,9 @@ export class SaveManager {
    * character unlocked, no counts, no run; a v38 save without one, or with a
    * malformed one, normalizes to the same default) and `settings.soundStyle`
    * (Classic for older saves; a v38 save's own value, normalized).
-   * An unknown/garbage version starts fresh rather than crash.
+   * An unknown/garbage version starts fresh rather than crash. (A load never
+   * reaches that fallback: `load` keeps a copy of a blob it cannot walk and
+   * refuses a newer one before calling this.)
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
    * decoded payloads through this exact method so a code import and a normal
@@ -1190,6 +1260,7 @@ export class SaveManager {
 
   /** Mutate the save and schedule a debounced persist. */
   touch(): void {
+    if (this.readOnly) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), 250);
   }
@@ -1199,10 +1270,23 @@ export class SaveManager {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.readOnly) return;
     try {
       this.storage.setItem(KEY, JSON.stringify(this.data));
     } catch {
-      // storage full/unavailable — nothing sensible to do in-game
+      // Storage full, blocked or gone: the game keeps running on the
+      // in-memory save, and the player is told once.
+      this.reportWriteFailure();
+    }
+  }
+
+  private reportWriteFailure(): void {
+    if (this.writeFailed) return;
+    this.writeFailed = true;
+    try {
+      this.onWriteFailure?.();
+    } catch {
+      // A notice that throws must not break the save path.
     }
   }
 
@@ -1217,6 +1301,7 @@ export class SaveManager {
    * wholesale is the anonymous-stats choice: see `withDeviceStatsChoice`.
    */
   replace(next: SaveData): boolean {
+    if (this.readOnly) return false;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -1273,6 +1358,7 @@ export class SaveManager {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.readOnly) return;
     this.storage.removeItem(KEY);
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));

@@ -65,8 +65,13 @@ export const EMPTY_LABEL = '(empty)';
 /** A double that is not a finite number. Unreachable through the Worker; defined anyway. */
 export const UNKNOWN_LABEL = '(unknown)';
 
-/** How many days back a run looks for a day it has not written yet. */
-export const BACKFILL_DAYS = 7;
+/**
+ * How many days back a run looks for a day it has not written yet. Thirty, so
+ * a month of failed or disabled runs (an expired token, GitHub pausing the
+ * schedule) heals on the next good run; raw rows last 90 days. It only fills
+ * gaps: a day that has a file is never rewritten.
+ */
+export const BACKFILL_DAYS = 30;
 
 // ---------------------------------------------------------------------------
 // Rows in, entries out
