@@ -246,6 +246,11 @@ export class PackOpeningScene extends Phaser.Scene {
   /** Set when the scene draws the compact (phone) reveal. */
   private compactUi: CompactPackUi | null = null;
   private fixtureSave: SaveData | null = null;
+  /**
+   * Set once a re-buy has spent the gold. The restart it starts lands on the
+   * next frame, so a second tap in between would buy again.
+   */
+  private buying = false;
 
   constructor() {
     super('PackOpening');
@@ -259,6 +264,7 @@ export class PackOpeningScene extends Phaser.Scene {
     this.closePackInspect();
     this.runway = null;
     this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.buying = false;
     this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
     if (this.fixture) this.data.set('a11yReady', false);
     this.sku = data.sku ?? 'base';
@@ -612,7 +618,8 @@ export class PackOpeningScene extends Phaser.Scene {
     return { label, price: qty * price, enabled: gold >= qty * price, onOpen: () => {
       if (this.fixture) return;
       const save = Services.save.data;
-      if (!spendGold(save, qty * price)) return;
+      if (this.buying || !spendGold(save, qty * price)) return;
+      this.buying = true;
       Sfx.play('coin');
       const set = packSetForSku(this.sku);
       const rng = createRngState(Date.now() & 0x7fffffff);
@@ -1931,7 +1938,8 @@ export class PackOpeningScene extends Phaser.Scene {
     this.buildCtaRail(`Open Another · ${goldPrice(openPrice)}`, canAfford, () => {
       if (this.fixture) return;
       const save = Services.save.data;
-      if (!spendGold(save, openPrice)) return;
+      if (this.buying || !spendGold(save, openPrice)) return;
+      this.buying = true;
       Sfx.play('coin');
       const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
       Services.save.flush();
@@ -2466,7 +2474,8 @@ export class PackOpeningScene extends Phaser.Scene {
     const open = this.priceButton(openRect, 'Open another', price, () => {
       if (this.fixture) return;
       const save = Services.save.data;
-      if (!spendGold(save, price)) return;
+      if (this.buying || !spendGold(save, price)) return;
+      this.buying = true;
       Sfx.play('coin');
       const result = openPack(save, CARD_DB, createRngState(Date.now() & 0x7fffffff), packSetForSku(this.sku));
       Services.save.flush();
