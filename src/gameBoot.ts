@@ -51,7 +51,7 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { StoryScene } from './scenes/StoryScene';
-import { newerSaveCopy, saveWriteFailedNotice, unreadableSaveNotice } from './ui/saveNoticeCopy';
+import { newerSaveCopy, saveWriteFailedNotice } from './ui/saveNoticeCopy';
 import { applySavedAccessibility } from './ui/settingsPresentation';
 import { installTextRasterGuards } from './ui/textRaster';
 import { queueToast } from './ui/Toast';
@@ -77,9 +77,8 @@ if (Services.save.readOnly) {
   });
   return;
 }
-// An unreadable save was copied aside and a fresh one started; say so once.
-// Held until the main menu mounts the toast rail, like every launch notice.
-if (Services.save.loadStatus === 'recovered') queueToast(unreadableSaveNotice());
+// An unreadable save (loadStatus 'recovered') is reported by the main menu's
+// arrival chain, ahead of the first-run dialogs.
 Services.save.onWriteFailure = () => queueToast(saveWriteFailedNotice());
 requestPersistentStorage({ desktop: isTauri() });
 

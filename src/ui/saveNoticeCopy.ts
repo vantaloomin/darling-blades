@@ -5,13 +5,15 @@ import type { ToastNotice } from './toastQueue';
  * (src/meta/SaveManager.ts `SaveLoadStatus` and `onWriteFailure`).
  */
 
-/** The launch notice after an unreadable save was set aside and a fresh one started. */
-export function unreadableSaveNotice(): ToastNotice {
+/**
+ * The main menu's first message after an unreadable save was set aside and a
+ * fresh one started (the menu's arrival chain puts it first).
+ */
+export function unreadableSaveCopy(): { title: string; body: string; actionLabel: string } {
   return {
     title: 'Save could not be read',
     body: 'The save on this device could not be read, so a new one was started. A copy of the old one was kept on this device.',
-    fitBody: true,
-    neverCollapse: true,
+    actionLabel: 'Continue',
   };
 }
 

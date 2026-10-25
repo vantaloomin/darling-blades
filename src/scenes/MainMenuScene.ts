@@ -61,6 +61,7 @@ import {
 import { colorInt, theme } from '../ui/theme';
 import { Toast } from '../ui/Toast';
 import { goldBadge, modalShell, panel, themedButton, type ThemedButton } from '../ui/themeWidgets';
+import { unreadableSaveCopy } from '../ui/saveNoticeCopy';
 import { VERSION_LABEL } from '../version';
 
 // Game modes live one level down. "Decks" remains the saved-deck picker and builder.
@@ -88,6 +89,9 @@ const deckRepairMessage = (count: number): string =>
   'Nothing was deleted; every card is still in your collection. Open the Deck Builder to bring them up to date.';
 /** The Profile tile's art when the player has no deck to take a face from. */
 const PROFILE_FALLBACK_ART = 'scene-card-back';
+
+/** The unreadable-save message is shown once per launch, on the first menu arrival. */
+let unreadableSaveNoticeShown = false;
 
 export class MainMenuScene extends Phaser.Scene {
   private fixture = false;
@@ -584,6 +588,7 @@ export class MainMenuScene extends Phaser.Scene {
       }),
       deckRepairOwed: flagged !== null,
       tutorialDone: Services.save.data.tutorialDone === true,
+      saveUnreadableOwed: !this.fixture && !unreadableSaveNoticeShown && Services.save.loadStatus === 'recovered',
       saveOverOwed: readSaveOverNoticeOwed(Services.save.data.tutorialDone !== true
         && Services.save.data.stats.wins + Services.save.data.stats.losses === 0),
     });
@@ -602,6 +607,10 @@ export class MainMenuScene extends Phaser.Scene {
   ): void {
     const step = steps[index];
     if (step === undefined) return;
+    if (step === 'saveUnreadable') {
+      this.showUnreadableSaveNotice(() => this.runArrivalStep(steps, index + 1, flagged));
+      return;
+    }
     if (step === 'statsNotice') {
       this.showStatsNotice(() => this.runArrivalStep(steps, index + 1, flagged));
       return;
@@ -943,6 +952,46 @@ export class MainMenuScene extends Phaser.Scene {
     const start = themedButton(this, 510, y, 'Start Tutorial', { variant: 'primary', minWidth: 180, onTap: () => this.startTutorial() });
     const skip = themedButton(this, 770, y, 'Skip', { variant: 'ghost', minWidth: 180, onTap: () => this.skipTutorial() });
     shell.container.add([start.container, skip.container]);
+  }
+
+  /**
+   * The save on this device could not be read, so this launch started a new
+   * one (a copy of the old blob is kept, src/meta/SaveManager.ts). Shown first
+   * on arrival, once per launch; Continue carries on down the chain.
+   */
+  private showUnreadableSaveNotice(onContinue: () => void): void {
+    unreadableSaveNoticeShown = true;
+    const copy = unreadableSaveCopy();
+    if (sceneStage(this).compact) {
+      compactDialog(this, {
+        title: copy.title, message: copy.body,
+        primary: { label: copy.actionLabel, onTap: (close) => close() },
+        dismissal: 'mandatory',
+        onClose: () => { this.guard.close(); onContinue(); },
+      });
+      this.guard.open(this.menuItems);
+      return;
+    }
+    const title = this.add.text(0, 0, copy.title, {
+      fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.heading,
+    });
+    const message = this.add.text(0, 0, copy.body, {
+        fontFamily: theme.fonts.ui, fontSize: `${theme.type.body}px`, color: theme.colors.body,
+        wordWrap: { width: 696 }, lineSpacing: theme.space(1),
+      });
+    const layout = menuNoticeLayout(760, title.height, message.height);
+    const shell = modalShell(this, {
+      width: layout.width, height: layout.height, titleTrackHeight: layout.titleTrackHeight,
+      dismissal: 'mandatory',
+      onClose: () => { this.guard.close(); onContinue(); },
+    });
+    this.guard.open(this.menuItems);
+    title.setPosition(shell.tracks.titleTrack.x, shell.tracks.titleTrack.y);
+    message.setPosition(shell.tracks.contentBounds.x, shell.tracks.contentBounds.y);
+    shell.container.add([title, message]);
+    const y = shell.tracks.footerTrack.y + shell.tracks.footerTrack.height / 2;
+    const ok = themedButton(this, 640, y, copy.actionLabel, { variant: 'primary', minWidth: 180, onTap: () => shell.close() });
+    shell.container.add(ok.container);
   }
 
   /**

@@ -331,7 +331,7 @@ export function statsNoticeOwed(input: StatsNoticeOwedInput): boolean {
 // ---------------------------------------------------------------------------
 
 /** One thing the main menu does on arrival, before the player touches it. */
-export type MenuArrivalStep = 'statsNotice' | 'saveOver' | 'deckRepair' | 'tutorialPrompt';
+export type MenuArrivalStep = 'saveUnreadable' | 'statsNotice' | 'saveOver' | 'deckRepair' | 'tutorialPrompt';
 
 export interface MenuArrivalInput {
   /** `statsNoticeOwed(...)`. */
@@ -342,6 +342,8 @@ export interface MenuArrivalInput {
   tutorialDone: boolean;
   /** The home-screen "bring your save over" message is owed (src/platform/homeScreen.ts). */
   saveOverOwed?: boolean;
+  /** This launch set an unreadable save aside and started fresh (SaveManager `recovered`). */
+  saveUnreadableOwed?: boolean;
 }
 
 /**
@@ -359,9 +361,16 @@ export interface MenuArrivalInput {
  * The home-screen save message (M9) comes straight after the stats notice and
  * before the tutorial prompt: a player about to import their save has no need
  * of the tutorial, and one who picks Not now carries on down the chain.
+ *
+ * One thing goes before the stats notice: the message that this launch could
+ * not read the save and started a new one (owner ruling 2026-10-25, "show it
+ * first"). A returning player who has just lost their progress should hear
+ * that before being greeted as a new player. It sends nothing, so the stats
+ * notice still comes before anything is sent.
  */
 export function menuArrivalSteps(input: MenuArrivalInput): readonly MenuArrivalStep[] {
   const steps: MenuArrivalStep[] = [];
+  if (input.saveUnreadableOwed) steps.push('saveUnreadable');
   if (input.noticeOwed) steps.push('statsNotice');
   if (input.saveOverOwed) steps.push('saveOver');
   if (input.deckRepairOwed) steps.push('deckRepair');
