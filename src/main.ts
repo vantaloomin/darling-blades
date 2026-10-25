@@ -1,4 +1,3 @@
-import { FEATURES } from './config/features';
 import {
   claimBrowserTabSession,
   removeTabGuard,
@@ -30,13 +29,6 @@ function startGame(session: TabSession): void {
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) window.location.reload();
   });
-  // Core Set II and Story Mode are live on the dev server only until the 2.0
-  // cut. Set before the game modules load, so nothing builds a card pool
-  // without the set.
-  if (import.meta.env.DEV) {
-    FEATURES.coreSet2Live = true;
-    FEATURES.storyLive = true;
-  }
   void import('./gameBoot').then(({ bootGame }) => bootGame(), (error: unknown) => {
     // Usually the game chunk is gone because this page predates the last
     // deploy. Anything else, or a second failure inside a minute, surfaces as

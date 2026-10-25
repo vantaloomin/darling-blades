@@ -9,7 +9,7 @@ describe('booster pricing by release order', () => {
     try {
       const premium = BOOSTER_SKUS.filter(({ sku }) => packPriceForSku(sku) === 525);
       expect(new Set(premium.map(({ sku }) => sku))).toEqual(
-        new Set(['starborne', 'drowned-deep', 'first-dawn']),
+        new Set(['drowned-deep', 'first-dawn', 'core-set-2']),
       );
       for (const row of BOOSTER_SKUS.filter((entry) => !premium.includes(entry))) {
         expect(packPriceForSku(row.sku), row.sku).toBe(450);

@@ -5,19 +5,10 @@ export const FEATURES = {
   duatLive: true,
   /** Dark Tales companion wave; flips with its balance pass. */
   dtCompanionLive: true,
-  /**
-   * Core Set II (2.0). Off in the public build until the 2.0 cut; the game's
-   * boot turns it on for dev builds (`IS_DEV`: the Vite dev server, or the
-   * `darlingblades.devtools` toggle), so the set is collectible, buildable
-   * and on sale there. Tests see it off unless they flip it.
-   */
-  coreSet2Live: false,
-  /**
-   * Story Mode (2.0, docs/plan-story-mode.md). Off in the public build until
-   * wave 4 removes it; the dev server turns it on (src/main.ts), like
-   * `coreSet2Live`. Gates the Play screen's Story entry.
-   */
-  storyLive: false,
+  /** Core Set II went live with 2.0.0; the gate stays as the pattern for the next unreleased set. */
+  coreSet2Live: true,
+  /** Story Mode (docs/plan-story-mode.md) went live with 2.0.0. Gates the Play screen's Story entry. */
+  storyLive: true,
   /**
    * 1.6 classic retirement (2026-08-10). Warchest is now THE constructed
    * format: the Tower fields each avatar's `reserveDeck` + `landReserve`,

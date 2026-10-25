@@ -7,7 +7,7 @@ import { cost } from '../cardTypes';
 // the art order of cards-250.json. Mandate and Sworn lines are written in the
 // engine's own vocabulary (docs/plan-core-set-2-engine.md).
 // The comment above each row is its printed text. No flavor text (R13).
-// Live in dev builds only until the 2.0 cut (FEATURES.coreSet2Live).
+// Live since 2.0.0 (FEATURES.coreSet2Live).
 export const CORE_SET_2: readonly CardDef[] = [
   // Dreaded. Whenever you claim the Mandate, Sever target creature an opponent controls with Attack 3 or less. While you hold the Mandate, other creatures you control have Warcry.
   {
