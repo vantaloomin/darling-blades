@@ -94,7 +94,7 @@ Darling Blades is TypeScript on Vite, rendered with Phaser 3 (pinned; never v4),
 
 The codebase is split into two halves. `src/engine/` is a pure, Phaser-free, deterministic rules engine: given decklists, a seed, and a sequence of actions, it produces the same game state and event stream on every machine, every time. The Phaser scenes only consume that event stream to animate, and hold no rules logic of their own. The AI plays through the same engine via the identical redacted view a human sees, which is what makes "the AI never reads hidden information" structural rather than a promise in a comment.
 
-That separation is what makes a real test suite possible: **5,644 tests across 349 files**, from engine rules and save migrations to the win-rate gates, in about sixteen minutes on four workers.
+That separation is what makes a real test suite possible: **6,241 tests across 402 files**, from engine rules and save migrations to the win-rate gates, in about twenty minutes on four workers.
 
 For deeper dives: [docs/architecture.md](docs/architecture.md) (layers, the event model, determinism), [docs/rules.md](docs/rules.md) (the full ruleset as implemented), [docs/adding-cards.md](docs/adding-cards.md) (the card schema), [docs/ai.md](docs/ai.md) (how each difficulty thinks and how the bosses are measured), [docs/design-system.md](docs/design-system.md) (the visual language), [docs/art-pipeline.md](docs/art-pipeline.md) (the art pipeline), and [docs/roadmap.md](docs/roadmap.md) (current status in detail).
 

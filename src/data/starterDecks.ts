@@ -1333,7 +1333,7 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-core-set-2-tk',
     name: 'The Wei Court',
-    // The Wei Court: W/B Core Set II Three Kingdoms Mandate deck. Wei and Jin officials claim the Mandate as they arrive, cheap removal keeps it, and Lady Bian, the Dragon Banner and the Edict of Rightful Rule pay for holding it (owner ruling 2026-10-25: one Core Set II theme deck per roster). The converter's reserve read 84% at Hard against the 15 older shop decks (older theme decks read 32-71%), so its Warchest list trades three Dragon Banners, a Fallen Court Seal, a Strangle and a Sentence of Death for softer commons: 67.7% over 600 games. Jade River Pack read 72.0% and Sworn of Olympus 68.3% untuned (300 games each).
+    // The Wei Court: W/B Core Set II Three Kingdoms Mandate deck. Wei and Jin officials claim the Mandate as they arrive, removal keeps it, and the Dragon Banner and the Edict of Rightful Rule grow the board while it is held (owner ruling 2026-10-25: one Core Set II theme deck per roster). The converter's reserve read 84% at Hard against the 15 older shop decks (older theme decks read 32-71%), so its Warchest list trades three Dragon Banners, a Fallen Court Seal, a Strangle and a Sentence of Death for softer commons: 67.7% over 600 games. Jade River Pack read 72.0% and Sworn of Olympus 68.3% untuned (300 games each).
     cards: expand([
       ['land-plains', 12],
       ['land-swamp', 12],
@@ -1395,7 +1395,7 @@ export const THEME_DECKS: DeckList[] = [
   {
     id: 'theme-core-set-2-beastkin',
     name: 'Jade River Pack',
-    // Jade River Pack: U/G Core Set II Beastkin tempo. Otters and seals draw and bounce, the Moon Pestle keeps the pack untouchable, Hunt does the green removal, and Jiuwei and Mulu lift every Beastkin (owner ruling 2026-10-25).
+    // Jade River Pack: U/G Core Set II Beastkin tempo. Otters and seals draw and bounce, Pestle of the Moon Palace keeps the pack Untouchable, Hunt does the green removal, and Jiuwei and Mulu lift every Beastkin (owner ruling 2026-10-25).
     cards: expand([
       ['land-island', 12],
       ['land-forest', 12],
