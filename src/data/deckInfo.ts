@@ -121,4 +121,25 @@ export const DECK_INFO: Record<string, DeckInfo> = {
       'Dinokin on a steady curve, every one an honest body. Cheap Provoked creatures and Ember-Flick wake each other up, Hunt and burn clear the blockers, and the Herd-Caller gives the whole pack Overrun. The tyrants close it out, led by Oru, the Tyrant Queen.',
     featured: ['fd-oru-tyrant-queen', 'fd-herd-caller-hornback', 'fd-ember-crest-tyrant'],
   },
+  'theme-core-set-2-tk': {
+    colors: 'W/B',
+    archetype: 'Core Set II Mandate court',
+    plays:
+      'Wei and Jin officials claim the Mandate as they arrive, and cheap removal keeps anyone from hitting you to take it back. Lady Bian, the Dragon Banner and the Edict of Rightful Rule pay you for every turn you hold it.',
+    featured: ['cs2-lady-bian', 'cs2-heavens-edict', 'cs2-dragon-banner'],
+  },
+  'theme-core-set-2-beastkin': {
+    colors: 'U/G',
+    archetype: 'Core Set II Beastkin tempo',
+    plays:
+      'Otters and seals draw cards and send blockers back to hand while the pack gets through. The Moon Pestle keeps your Beastkin untouchable, Hunt is the green removal, and Jiuwei and Mulu make every Beastkin bigger.',
+    featured: ['cs2-jiuwei', 'cs2-otter-ferry-runner', 'cs2-moon-pestle'],
+  },
+  'theme-core-set-2-gods': {
+    colors: 'R/W',
+    archetype: 'Core Set II Sworn aggro',
+    plays:
+      'Cheap Amazons that get better once a legend is on the battlefield, and six legends to turn Sworn on, from Antiope at two mana to Hephaestus at five. Hippolyta gives the whole line +1/+0.',
+    featured: ['cs2-hippolyta', 'cs2-hebe', 'cs2-girdle-of-hippolyta'],
+  },
 };

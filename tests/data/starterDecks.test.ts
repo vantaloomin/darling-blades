@@ -127,6 +127,9 @@ describe.each(STARTER_DECKS.map((d) => [d.name, d] as const))('starter deck lega
   });
 });
 
+// Theme decks authored with every legend as a one-of (First Dawn; Core Set II's three, 2026-10-25).
+const SINGLETON_LEGEND_THEMES = new Set(['theme-first-dawn', 'theme-core-set-2-tk', 'theme-core-set-2-beastkin', 'theme-core-set-2-gods']);
+
 describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality — %s', (_name, deck) => {
   const counts = new Map<string, number>();
   for (const id of deck.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
@@ -180,7 +183,7 @@ describe.each(THEME_DECKS.map((d) => [d.name, d] as const))('theme deck legality
   it('keeps the authored singleton legends and other theme legends at 2-3 copies', () => {
     for (const [id, n] of counts) {
       if (CARD_DB[id]?.supertypes?.includes('legendary')) {
-        if (deck.id === 'theme-first-dawn' || (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra')) {
+        if (SINGLETON_LEGEND_THEMES.has(deck.id) || (deck.id === 'theme-drowned-deep' && id === 'dd-mother-hydra')) {
           expect(n, `${id} x${n}`).toBe(1);
           continue;
         }
