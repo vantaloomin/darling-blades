@@ -267,6 +267,13 @@ describe("the menu's arrival order", () => {
     }
   });
 
+  it('puts the unreadable-save message before everything, the stats notice included', () => {
+    expect(menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true, saveUnreadableOwed: true }))
+      .toEqual(['saveUnreadable', 'statsNotice', 'saveOver', 'tutorialPrompt']);
+    expect(menuArrivalSteps({ noticeOwed: false, deckRepairOwed: true, tutorialDone: true, saveUnreadableOwed: true }))
+      .toEqual(['saveUnreadable', 'deckRepair']);
+  });
+
   it('puts the home-screen save message after the stats notice and before the tutorial prompt', () => {
     expect(menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true }))
       .toEqual(['statsNotice', 'saveOver', 'tutorialPrompt']);
