@@ -241,7 +241,7 @@ function opText(
     case 'loseLifePerTheirMarked':
       return 'your opponent loses 1 life for each Marked creature they control';
     case 'fetchLand':
-      return 'put the first land of your Warchest onto the battlefield tapped (with no Warchest, the first land from the top of your deck)';
+      return 'put the first land of your Warchest onto the battlefield tapped';
     case 'severSelf':
       return 'sever this';
     case 'ifTargetMarked':

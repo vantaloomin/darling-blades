@@ -325,13 +325,34 @@ export function coverFitImage(image: Phaser.GameObjects.Image, rect: Rect, biasU
 export function compactScrim(scene: Phaser.Scene, rect: Rect, from = 0.4, alpha = 0.94): Phaser.GameObjects.Graphics {
   const scrim = scene.add.graphics();
   const top = rect.y + rect.height * from;
-  const bands = 12;
-  const bandH = (rect.y + rect.height - top) / bands;
+  const bottom = rect.y + rect.height;
+  const bands = 24;
+  const bandH = (bottom - top) / bands;
+  // Whole-pixel edges that meet exactly: an overlapping row draws twice as
+  // dark and reads as a line across the art.
+  const edge = (i: number): number => (i === bands ? bottom : Math.round(top + i * bandH));
   for (let i = 0; i < bands; i++) {
     scrim.fillStyle(theme.graphics.panelFill, Math.min(alpha, ((i + 1) / bands) * 1.1));
-    scrim.fillRect(rect.x, top + i * bandH, rect.width, Math.ceil(bandH));
+    scrim.fillRect(rect.x, edge(i), rect.width, edge(i + 1) - edge(i));
   }
   return scrim;
+}
+
+/**
+ * Clip a tile's art and scrim to the tile's rounded corners, so nothing
+ * square shows past the border. For objects drawn straight on the scene
+ * (a geometry mask is placed in world space, so not inside a scrolling list).
+ */
+export function clipToRoundedRect(
+  scene: Phaser.Scene,
+  rect: Rect,
+  radius: number,
+  objects: readonly (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics)[],
+): void {
+  const shape = scene.make.graphics({}, false).fillStyle(0xffffff, 1).fillRoundedRect(rect.x, rect.y, rect.width, rect.height, radius);
+  const mask = shape.createGeometryMask();
+  for (const object of objects) object.setMask(mask);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { mask.destroy(); shape.destroy(); });
 }
 
 /**

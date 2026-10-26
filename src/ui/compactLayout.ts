@@ -135,7 +135,7 @@ export function compactShell(content: Rect, opts: CompactShellOptions = {}): Com
   const mainRight = column ? column.x - gap : content.x + content.width;
   const rightW = Math.min(columnW, content.width / 2);
   return {
-    back: back ? control({ x: content.x, y: content.y, width: touch, height: touch }) : null,
+    back: back ? control({ x: content.x, y: content.y + (topBarH - touch) / 2, width: touch, height: touch }) : null,
     title: { x: titleX, y: content.y, width: Math.max(0, content.x + content.width - rightW - gap - titleX), height: topBarH },
     right: { x: content.x + content.width - rightW, y: content.y, width: rightW, height: topBarH },
     main: { x: content.x, y: top, width: Math.max(0, mainRight - content.x), height: Math.max(0, bottom - top) },

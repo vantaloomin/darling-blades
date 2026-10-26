@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { compactHitProblems, type CompactControl } from '../../src/ui/compactLayout';
+import { compactHitProblems, setCompactTier, type CompactControl } from '../../src/ui/compactLayout';
+import { desktopCompactMetrics } from '../../src/platform/compactScenes';
 import { compactDailyPage, compactMainMenuLayout, MAIN_MENU_COMPACT } from '../../src/ui/mainMenuCompact';
 import { resolveScreenMetrics } from '../../src/platform/screenMetrics';
 import { SCREEN_FIXTURES } from '../../src/platform/screenFixtures';
@@ -52,6 +53,20 @@ describe('the compact main menu (mock M-MainMenu)', () => {
       });
     }
   }
+
+  it('lines the gold, the icons and the Discord link up on the bar for a mouse too', () => {
+    const desktop = desktopCompactMetrics();
+    try {
+      setCompactTier('pointer');
+      const l = compactMainMenuLayout(desktop.content, { fullScreen: true, navCount: 4 });
+      for (const r of [l.gear, l.fullScreen!]) {
+        expect(r.y + r.height / 2).toBe(l.gold.centerY);
+        expect(r.height).toBe(l.gold.height);
+      }
+    } finally {
+      setCompactTier('touch');
+    }
+  });
 });
 
 describe('Daily Blades folds rather than cutting a quest (mock M-MainMenu130)', () => {

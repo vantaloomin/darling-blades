@@ -58,7 +58,9 @@ import {
   packAt,
   packStrip,
   packStripMaxScroll,
+  packStripPage,
   packStripScrollFor,
+  packStripScrollKeeping,
   SHOP_COMPACT,
   shopSheet,
   type PackStrip,
@@ -653,6 +655,10 @@ interface CompactShopUi {
   stripStartX: number;
   stripStartOffset: number;
   stripDragging: boolean;
+  /** The chosen pack's on-screen centre (pane-local) at the tap that chose it, kept through the redraw. */
+  stripAnchor: number | null;
+  /** The paging arrows under the strip, when the strip overflows and there is room. */
+  stripArrows: { left: CompactButton; right: CompactButton } | null;
   deckScroll: MenuScrollHandle | null;
   deckTiles: { outline: Phaser.GameObjects.Graphics; name: Phaser.GameObjects.Text; w: number; h: number }[];
 }
@@ -2721,7 +2727,7 @@ export class ShopScene extends Phaser.Scene {
       mainLayer: null, mainZones: [], columnLayer: null, columnZones: [],
       sheet: null, sheetKind: null, sheetZones: [], previewSku: null,
       pack, deck: this.compactDeckDefault(this.fixture?.deckIndex),
-      strip: null, stripContent: null, stripOffset: 0, stripPointer: null, stripStartX: 0, stripStartOffset: 0, stripDragging: false,
+      strip: null, stripContent: null, stripOffset: 0, stripPointer: null, stripStartX: 0, stripStartOffset: 0, stripDragging: false, stripAnchor: null, stripArrows: null,
       deckScroll: null, deckTiles: [],
     };
     new Toast(this, {
@@ -2804,6 +2810,7 @@ export class ShopScene extends Phaser.Scene {
     ui.strip = null;
     ui.stripContent = null;
     ui.stripPointer = null;
+    ui.stripArrows = null;
     ui.deckScroll = null;
     ui.deckTiles = [];
     const layer = this.add.container(0, 0).setVisible(ui.sheet === null);
@@ -2823,9 +2830,13 @@ export class ShopScene extends Phaser.Scene {
     const strip = packStrip(main, skus.length, ui.pack, probe.height, { desktop: isDesktopStage(sceneStage(this)) });
     probe.destroy();
     ui.strip = strip;
-    ui.stripOffset = focus
-      ? packStripScrollFor(strip, main.width, ui.pack)
-      : Math.min(packStripMaxScroll(strip, main.width), ui.stripOffset);
+    const anchor = ui.stripAnchor;
+    ui.stripAnchor = null;
+    ui.stripOffset = anchor !== null
+      ? packStripScrollKeeping(strip, main.width, ui.pack, anchor)
+      : focus
+        ? packStripScrollFor(strip, main.width, ui.pack)
+        : Math.min(packStripMaxScroll(strip, main.width), ui.stripOffset);
     const content = this.add.container(main.x - ui.stripOffset, 0);
     const maskSource = this.add.graphics().fillStyle(0xffffff, 1).fillRect(main.x, main.y, main.width, main.height).setVisible(false);
     content.setMask(maskSource.createGeometryMask());
@@ -2861,6 +2872,31 @@ export class ShopScene extends Phaser.Scene {
     });
     layer.add(zone);
     ui.mainZones.push(zone);
+    // Arrows under the strip say it scrolls and page it for a mouse, where
+    // there is room below the chosen pack (the desktop pass).
+    const chosen = strip.items[ui.pack]?.art;
+    const below = chosen ? main.y + main.height - (chosen.y + chosen.height) : 0;
+    if (packStripMaxScroll(strip, main.width) > 0 && below >= COMPACT.touch + COMPACT.gap) {
+      const size = COMPACT.touch;
+      const y = main.y + main.height - size - Math.round((below - size) / 2);
+      const cx = main.x + main.width / 2;
+      const page = (dir: number) => () => this.setCompactStripOffset(ui.stripOffset + dir * packStripPage(main.width));
+      const left = compactIconButton(this, { x: cx - COMPACT.gap / 2 - size, y, width: size, height: size }, 'back', page(-1));
+      const right = compactIconButton(this, { x: cx + COMPACT.gap / 2, y, width: size, height: size }, 'chevron', page(1));
+      layer.add([left.container, right.container]);
+      ui.mainZones.push(left.inputZone, right.inputZone);
+      ui.stripArrows = { left, right };
+      this.syncCompactStripArrows();
+    }
+  }
+
+  /** Dim the paging arrow at each end of the strip. */
+  private syncCompactStripArrows(): void {
+    const ui = this.compactUi;
+    if (!ui?.strip || !ui.stripArrows) return;
+    const max = packStripMaxScroll(ui.strip, ui.main.width);
+    ui.stripArrows.left.setEnabled(ui.stripOffset > 0);
+    ui.stripArrows.right.setEnabled(ui.stripOffset < max);
   }
 
   /** A gold-bordered tag with its top-left at (x, y): the newest pack's "New". */
@@ -2881,6 +2917,7 @@ export class ShopScene extends Phaser.Scene {
     if (!ui?.strip || !ui.stripContent) return;
     ui.stripOffset = Math.min(packStripMaxScroll(ui.strip, ui.main.width), Math.max(0, offset));
     ui.stripContent.x = ui.main.x - ui.stripOffset;
+    this.syncCompactStripArrows();
   }
 
   private readonly onCompactStripMove = (pointer: Phaser.Input.Pointer): void => {
@@ -2920,6 +2957,8 @@ export class ShopScene extends Phaser.Scene {
     const ui = this.compactUi;
     const count = visibleBoosterSkus().length;
     if (!ui || index < 0 || index >= count || index === ui.pack) return;
+    const tapped = ui.strip?.items[index]?.art;
+    ui.stripAnchor = tapped ? tapped.x + tapped.width / 2 - ui.stripOffset : null;
     ui.pack = index;
     this.boosterStripIndex = index; // Pack Opening hands it back
     this.renderCompactMain(true);

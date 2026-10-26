@@ -66,8 +66,11 @@ export function compactMainMenuLayout(content: Rect, opts: CompactMainMenuOption
   const top = content.y + topBarH + gap;
   const barCenter = content.y + topBarH / 2;
 
-  const gear = { x: right - touch, y: content.y, width: touch, height: touch };
-  const fullScreen = opts.fullScreen ? { x: gear.x - gap - touch, y: content.y, width: touch, height: touch } : null;
+  // The icons, the gold and the Discord link share one height and the bar's
+  // centre line (the pointer tier's 34 px controls sit inside the 44 px bar).
+  const barY = barCenter - touch / 2;
+  const gear = { x: right - touch, y: barY, width: touch, height: touch };
+  const fullScreen = opts.fullScreen ? { x: gear.x - gap - touch, y: barY, width: touch, height: touch } : null;
   const goldRight = (fullScreen ?? gear).x - gap;
 
   const column = { x: right - columnW, width: columnW };
@@ -93,7 +96,7 @@ export function compactMainMenuLayout(content: Rect, opts: CompactMainMenuOption
     title: { x: content.x, centerY: barCenter, maxWidth: Math.max(0, goldRight - gap - content.x) },
     gear,
     fullScreen,
-    gold: { right: goldRight, centerY: barCenter, height: 38 },
+    gold: { right: goldRight, centerY: barCenter, height: touch },
     profile,
     howToPlay,
     glossary,
