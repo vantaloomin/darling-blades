@@ -65,6 +65,20 @@ const OPP_PILES_X = SAFE.left + PILE_VISUAL.halfWidth;
 const OPP_PILES_TOP_Y = SAFE.top - PILE_VISUAL.top;
 const MY_PILES_X = SAFE.right - PILE_VISUAL.halfWidth;
 
+/** The two commander frames (DUEL_LAYOUT.portrait / oppPortrait). */
+const MY_PORTRAIT = { x: 14, y: 540, w: 200, h: 180 } as const;
+const OPP_PORTRAIT = { x: 1056, y: 8, w: 200, h: 180 } as const;
+
+/**
+ * Where a life badge's centre sits from its portrait's outer top corner (the
+ * upper-left of yours, the upper-right of the foe's): the same offset on both,
+ * the least that keeps each badge and its ring inside the frame.
+ */
+const LIFE_CORNER_OFFSET = {
+  x: Math.ceil(Math.max(SAFE.left + LIFE_BADGE_REACH - MY_PORTRAIT.x, OPP_PORTRAIT.x + OPP_PORTRAIT.w - (SAFE.right - LIFE_BADGE_REACH))),
+  y: Math.ceil(Math.max(SAFE.top + LIFE_BADGE_REACH - MY_PORTRAIT.y, SAFE.top + LIFE_BADGE_REACH - OPP_PORTRAIT.y)),
+};
+
 export const DUEL_LAYOUT = {
   /** Opponent's mirrored zone, narrowed for the top-right commander frame. */
   oppZone: { x0: 108, x1: 1046, y0: 16, y1: 292 },
@@ -101,13 +115,13 @@ export const DUEL_LAYOUT = {
    * Outside the title-safe frame by design as full-bleed stage art; its
    * placement awaits the owner's ruling (1.8.1 G20).
    */
-  portrait: { x: 14, y: 540, w: 200, h: 180 },
-  /** Your targetable life badge: inside the portrait's upper-left corner, ring on the frame line. */
-  myLife: { x: Math.ceil(SAFE.left + LIFE_BADGE_REACH), y: 566 },
+  portrait: MY_PORTRAIT,
+  /** Your targetable life badge: inside the portrait's upper-left corner, placed as the foe's is mirrored. */
+  myLife: { x: MY_PORTRAIT.x + LIFE_CORNER_OFFSET.x, y: MY_PORTRAIT.y + LIFE_CORNER_OFFSET.y },
   /** Mirrored commander frame (descends from the top edge); same pending ruling as `portrait`. */
-  oppPortrait: { x: 1056, y: 8, w: 200, h: 180 },
-  /** Foe targetable life badge: upper-right, clear of the portrait name plate, ring on the frame lines. */
-  oppLife: { x: Math.floor(SAFE.right - LIFE_BADGE_REACH), y: Math.ceil(SAFE.top + LIFE_BADGE_REACH) },
+  oppPortrait: OPP_PORTRAIT,
+  /** Foe targetable life badge: inside the portrait's upper-right corner, the same offset as yours. */
+  oppLife: { x: OPP_PORTRAIT.x + OPP_PORTRAIT.w - LIFE_CORNER_OFFSET.x, y: OPP_PORTRAIT.y + LIFE_CORNER_OFFSET.y },
   /** Command-zone cards sit in the portrait's board-facing gap, with attached controls. */
   darlingZone: {
     human: {
