@@ -1744,9 +1744,10 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
-- **The 2.0 train (STAGED as 2.0.0 on 2026-10-25 on `release/2.0`).** [plan-2.0.md](plan-2.0.md) is the program plan. Release notes: [release-notes/v2.0.0.md](release-notes/v2.0.0.md). In: **Core Set II** (250 cards, the Mandate and Sworn), **Story Mode** Act 1 and endless, **starting life 25** with the one-time floor reset and the tower retune, the **mobile overhaul** and the desktop menus on its layouts, **Duel any Deck** with Expert and Master, and the **Sound style** setting. Staging flips `FEATURES.coreSet2Live` and `FEATURES.storyLive` on in every build. Next: the itch.io launch as a 2.0.x, then Story Mode's next acts.
+- **The 2.0.1 patch (open on `release/2.0.1`, cut from `main` at v2.0.0).** Fixes reported after 2.0 shipped land here: the main menu top bar lines up, desktop Settings fills the width, the duel life badges share one portrait-corner offset, the Play tiles lose their scrim lines and square corners, and the Shop's pack strip stops jumping and shows arrows.
+- **The 2.0 train (SHIPPED as 2.0.0 on 2026-10-26, tag `v2.0.0`; staged 2026-10-25 on `release/2.0`).** [plan-2.0.md](plan-2.0.md) is the program plan. Release notes: [release-notes/v2.0.0.md](release-notes/v2.0.0.md). In: **Core Set II** (250 cards, the Mandate and Sworn), **Story Mode** Act 1 and endless, **starting life 25** with the one-time floor reset and the tower retune, the **mobile overhaul** and the desktop menus on its layouts, **Duel any Deck** with Expert and Master, and the **Sound style** setting. Staging flips `FEATURES.coreSet2Live` and `FEATURES.storyLive` on in every build. Next: the itch.io launch as a 2.0.x, then Story Mode's next acts.
 - **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
-  shipped; STAGED as 1.9.0 on 2026-10-08 on `release/1.9`).**
+  shipped; SHIPPED as 1.9.0 on 2026-10-08 from `release/1.9`).**
   [plan-1.9.md](plan-1.9.md) is the program plan. Release notes:
   [release-notes/v1.9.0.md](release-notes/v1.9.0.md). The pre-release sweep's
   round 0 (8 personas, `sweep-data` `sweeps/2026-10-07-13003-race`) read
