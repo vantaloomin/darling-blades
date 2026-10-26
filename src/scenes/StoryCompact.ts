@@ -972,14 +972,15 @@ export class StoryCompact {
    * the tile); a tap calls `onTap`, a hold reads the card. Returns the redraw
    * for the picked marks (`picked` counts a card's picks).
    */
-  private deckGrid(area: Rect, k: number, entries: readonly { id: string; count: number }[], picked: (id: string) => number, onTap: ((id: string) => void) | null, parent: Phaser.GameObjects.Container | null = null): () => void {
+  private deckGrid(area: Rect, k: number, entries: readonly { id: string; count: number }[], picked: (id: string) => number, onTap: ((id: string) => void) | null, parent: Phaser.GameObjects.Container | null = null, sheet?: ModalShell): () => void {
     const grid = limitedTileGrid(area, entries.length, k, { minW: STORY_COMPACT.tileMinW, aspect: STORY_COMPACT.tileAspect });
     const list = this.scene.add.container(0, area.y);
     parent?.add(list);
     entries.forEach((e, i) => list.add(new PackTile(this.scene, grid.cells[i]).showFace(def(CARD_DB, e.id), 'white', e.count > 1 ? { chip: `${e.count}×` } : {})));
     const marks = this.scene.add.graphics();
     list.add(marks);
-    const scroll = bindMenuScroll(this.scene, list, area, grid.contentH, () => this.inspecting !== null);
+    // On a sheet the grid scrolls while that sheet is on top (the sheet is itself a modal).
+    const scroll = bindMenuScroll(this.scene, list, area, grid.contentH, () => this.inspecting !== null, [], 0, sheet);
     const ids = entries.map((e) => e.id);
     const indexAt = (p: Phaser.Input.Pointer): number => {
       const y = p.worldY - area.y + scroll.offset();
@@ -1211,7 +1212,7 @@ export class StoryCompact {
     const redraw = this.deckGrid(layout.shell.main, layout.k, deckEntries(opts.deck), (id) => picked.filter((p) => p === id).length, opts.limit > 0 ? (id) => {
       picked = togglePick(picked, id, opts.limit, opts.deck);
       refresh();
-    } : null, c);
+    } : null, c, shell);
     if (opts.limit > 0 && opts.onConfirm) {
       confirm = compactButton(this.scene, col.foot, opts.confirm?.([]) ?? 'Confirm', { variant: 'primary', onTap: () => {
         if (!ready(picked.length)) return;
@@ -1639,7 +1640,7 @@ export class StoryCompact {
       y += t.height + 14;
     }
     const contentH = Math.max(0, y - 14);
-    bindMenuScroll(this.scene, list, area, contentH, () => false, [], 0, undefined, Math.max(0, contentH - area.height));
+    bindMenuScroll(this.scene, list, area, contentH, () => false, [], 0, shell, Math.max(0, contentH - area.height));
     c.add(compactButton(this.scene, layout.column.foot, 'Close', { onTap: () => shell.close() }).container);
   }
 
