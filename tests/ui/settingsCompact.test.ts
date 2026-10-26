@@ -62,7 +62,7 @@ describe('the compact Settings (mock M-Settings)', () => {
     }
   });
 
-  it('stacks the jumps one per row on desktop, with the list inset on its panel', () => {
+  it('stacks the jumps one per row on desktop, with the list inset on a panel that runs to the right edge', () => {
     const m = desktopCompactMetrics();
     const l = compactSettingsLayout(m.content, 6, { legal: 64, update: 149 }, [], { desktop: true });
     const column = l.shell.column!;
@@ -71,7 +71,7 @@ describe('the compact Settings (mock M-Settings)', () => {
     expect(l.versionY).toBeLessThan(Math.min(l.legal.y, l.update.y));
     expect(l.listPanel).not.toBeNull();
     expect(inside(l.list, l.listPanel!)).toBe(true);
-    expect(l.rowW).toBeLessThanOrEqual(530);
+    expect(l.listPanel!.x + l.listPanel!.width).toBe(m.content.x + m.content.width);
     expect(column.x).toBe(m.content.x);
     expect(l.listPanel!.x).toBeGreaterThanOrEqual(column.x + column.width);
     expect(inside(l.listPanel!, m.content)).toBe(true);
