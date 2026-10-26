@@ -4,7 +4,9 @@ import type { ArtLease, ArtPriority, ArtTier } from '../art/artStore';
 import { PagedRequests } from '../art/pagedRequests';
 import { bindArtLease } from '../art/artLifetime';
 import { backLabelFor } from './navigation';
-import { applySceneSettings } from './SceneBackdrop';
+import { applySceneSettings, sceneStage } from './SceneBackdrop';
+import { compactShell } from './compactLayout';
+import { compactHeader, compactProgressBar } from './compactWidgets';
 import { theme } from './theme';
 import { backButton } from './themeWidgets';
 
@@ -45,6 +47,31 @@ export const ART_WAIT_TEXT_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
     return theme.colors.muted;
   },
 };
+
+/** The compact wait screen's title per gated scene (M-ArtWait). */
+const ART_WAIT_TITLES: Record<string, string> = {
+  Collection: 'Collection',
+  DeckBuilder: 'Decks',
+  Play: 'Play',
+  Shop: 'Shop',
+  PracticePicker: 'Practice',
+  Gauntlet: 'Avatar Gauntlet',
+  Limited: 'Draft',
+  LimitedDraft: 'Draft',
+  LimitedDeckBuilder: 'Draft',
+  Showcase: 'Showcase',
+  Story: 'Story',
+  Profile: 'Profile',
+  Achievements: 'Achievements',
+  Duel: 'Duel',
+  PackOpening: 'Packs',
+};
+
+/** The share a loading line reports (its trailing percentage), 0..1. */
+function linePercent(line: string): number {
+  const match = /(\d+)%$/.exec(line);
+  return match ? Number(match[1]) / 100 : 0;
+}
 
 /** The loading line as a percentage of THIS wait's set, not of the manifest. */
 function loadingLine(total: number, remaining: number): string {
@@ -200,6 +227,8 @@ export function gateOnArt(
   let shade: Phaser.GameObjects.Graphics | null = null;
   let label: Phaser.GameObjects.Text | null = null;
   let back: Phaser.GameObjects.Text | null = null;
+  let bar: ReturnType<typeof compactProgressBar> | null = null;
+  let compactBack: Phaser.GameObjects.GameObject[] = [];
 
   const keyboard = scene.input.keyboard;
   let leaving = false;
@@ -221,21 +250,39 @@ export function gateOnArt(
         // quadrant at k>1 without this (the same reason PreloadScene calls it
         // by hand). A later applyBackdrop re-applies it idempotently.
         applySceneSettings(scene);
+        const stage = sceneStage(scene);
         shade = scene.add
           .graphics()
           .fillStyle(theme.graphics.dim, 1)
-          .fillRect(0, 0, DESIGN_W, DESIGN_H)
+          .fillRect(0, 0, stage.width, stage.height)
           .setDepth(GATE_DEPTH);
-        label = scene.add
-          .text(DESIGN_W / 2, DESIGN_H / 2, line, ART_WAIT_TEXT_STYLE)
-          .setOrigin(0.5)
-          .setDepth(GATE_DEPTH + 1);
-        back = backButton(scene, backLabelFor('MainMenu'), () => leave()).setDepth(GATE_DEPTH + 1);
+        if (stage.compact) {
+          // A phone (mock M-ArtWait): the same line over a bar, in the content
+          // box's middle, under the compact top bar with the scene's name.
+          const middle = { x: stage.content.x + stage.content.width / 2, y: stage.content.y + stage.content.height / 2 };
+          label = scene.add.text(middle.x, middle.y, line, { ...ART_WAIT_TEXT_STYLE, fontSize: `${theme.compactType.h2 + 2}px` })
+            .setOrigin(0.5).setDepth(GATE_DEPTH + 1);
+          bar = compactProgressBar(scene, middle.x, label.y + label.height / 2 + 14);
+          bar.graphics.setDepth(GATE_DEPTH + 1);
+          bar.set(linePercent(line));
+          const header = compactHeader(scene, compactShell(stage.content), {
+            title: ART_WAIT_TITLES[scene.sys.settings.key] ?? '', onBack: () => leave(),
+          });
+          compactBack = [header.back.container, header.title, ...(header.subtitle ? [header.subtitle] : [])];
+          for (const o of compactBack) (o as unknown as Phaser.GameObjects.Components.Depth).setDepth(GATE_DEPTH + 1);
+        } else {
+          label = scene.add
+            .text(DESIGN_W / 2, DESIGN_H / 2, line, ART_WAIT_TEXT_STYLE)
+            .setOrigin(0.5)
+            .setDepth(GATE_DEPTH + 1);
+          back = backButton(scene, backLabelFor('MainMenu'), () => leave()).setDepth(GATE_DEPTH + 1);
+        }
         keyboard?.on('keydown-ESC', onEsc);
         scene.events.once(Phaser.Scenes.Events.SHUTDOWN, stopEsc);
         return;
       }
       label.setText(line);
+      bar?.set(linePercent(line));
     },
     onReady: () => {
       // Hand Esc back before `build` registers the scene's own handler.
@@ -244,6 +291,8 @@ export function gateOnArt(
       shade?.destroy();
       label?.destroy();
       back?.destroy();
+      bar?.graphics.destroy();
+      for (const o of compactBack) o.destroy();
       try {
         build();
       } finally {

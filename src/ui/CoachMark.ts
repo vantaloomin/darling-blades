@@ -3,10 +3,12 @@ import { bindTapButton } from '../platform/gestures';
 import { theme, colorInt } from './theme';
 import { coachInfoLayout, duelPanelAlpha, duelPanelType } from './duelPanelPresentation';
 import { bindMenuScroll } from './menuScroll';
+import type { Rect } from './layout';
 
 /**
  * The tutorial's coach-mark layer (see docs/plan-road-to-1.0.md Feature 1).
- * Two surfaces, both at design-space coords (1280×720; never read scale.*):
+ * Two surfaces, both at design-space coords (1280×720, or the phone Duel's
+ * content rect when one is given; never read scale.*):
  *
  *  - `showCue(target, text)` — an advisory pulsing highlight ring around a live
  *    UI object plus a short speech bubble. Non-interactive by design: the player
@@ -31,7 +33,8 @@ export class CoachMark {
   /** True while a modal (the pause menu) owns the screen: the cue is kept but not drawn. */
   private cueSuppressed = false;
 
-  constructor(private readonly scene: Phaser.Scene) {
+  /** `frame` is the phone Duel's content rect; without one the coach keeps the desktop's 1280×720. */
+  constructor(private readonly scene: Phaser.Scene, private readonly frame: () => Rect | null = () => null) {
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.destroy());
   }
 
@@ -73,10 +76,12 @@ export class CoachMark {
     });
 
     // Bubble above the target when it sits low on screen, else below it.
-    const cx = Phaser.Math.Clamp(b.centerX, 150, 1130);
-    const above = b.centerY > 360;
+    const f = this.frameRect();
+    const width = Math.min(280, f.width - 24);
+    const cx = Phaser.Math.Clamp(b.centerX, f.x + width / 2 + 10, f.x + f.width - width / 2 - 10);
+    const above = b.centerY > f.y + f.height / 2;
     const by = above ? ry - 34 : ry + rh + 34;
-    this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, 40, 680), text, 280, above);
+    this.bubble = this.buildBubble(cx, Phaser.Math.Clamp(by, f.y + 40, f.y + f.height - 40), text, width, above);
     if (this.cueSuppressed) this.setCueSuppressed(true);
   }
 
@@ -90,37 +95,44 @@ export class CoachMark {
   showInfoCard(text: string, onDismiss: () => void): void {
     this.clearInfo();
     const c = this.scene.add.container(0, 0).setDepth(DEPTH + 1);
+    const f = this.frameRect();
+    const phone = this.frame() !== null;
+    const cx = f.x + f.width / 2;
+    const panelW = Math.min(420, f.width - 32);
     const dim = this.scene.add
-      .rectangle(640, 360, 1280, 720, theme.graphics.dim, duelPanelAlpha(0.66))
+      .rectangle(cx, f.y + f.height / 2, phone ? this.scene.scale.width * 2 : 1280, phone ? this.scene.scale.height * 2 : 720,
+        theme.graphics.dim, duelPanelAlpha(0.66))
       .setInteractive({ useHandCursor: true });
     const body = this.scene.add
-      .text(640, 0, text, {
+      .text(cx, 0, text, {
         fontFamily: theme.fonts.display,
         fontSize: `${duelPanelType().coachInfo}px`,
         color: theme.colors.heading,
         align: 'center',
-        wordWrap: { width: 380, useAdvancedWrap: true },
+        wordWrap: { width: panelW - 40, useAdvancedWrap: true },
       })
       .setOrigin(0.5, 0);
-    body.setData('a11yFullText', text).setData('a11yTextWidth', 380);
-    const hint = this.scene.add.text(640, 0, 'tap to continue \u25b8', {
+    body.setData('a11yFullText', text).setData('a11yTextWidth', panelW - 40);
+    const hint = this.scene.add.text(cx, 0, 'tap to continue \u25b8', {
       fontFamily: theme.fonts.ui, fontSize: `${duelPanelType().history}px`, color: theme.colors.muted,
     }).setOrigin(0.5).setData('a11yKeepVisible', true);
     const lineHeight = body.height / Math.max(1, body.getWrappedText(text).length);
-    const layout = coachInfoLayout(body.height, lineHeight, hint.height);
+    const layout = coachInfoLayout(body.height, lineHeight, hint.height,
+      phone ? { centerY: f.y + f.height / 2, maxHeight: f.height - 24 } : undefined);
     const { top, height } = layout;
     hint.setY(layout.hintY);
     const panel = this.scene.add.graphics();
     panel.fillStyle(theme.graphics.panelFill, duelPanelAlpha(0.98));
     panel.lineStyle(2, colorInt(theme.colors.gold), theme.alpha.panel);
-    panel.fillRoundedRect(430, top, 420, height, 14);
-    panel.strokeRoundedRect(430, top, 420, height, 14);
+    const panelX = cx - panelW / 2;
+    panel.fillRoundedRect(panelX, top, panelW, height, 14);
+    panel.strokeRoundedRect(panelX, top, panelW, height, 14);
     const content = this.scene.add.container(0, layout.bodyTop, [body]);
     c.add([dim, panel, content, hint]);
-    c.setData('a11ySurface', { x: 430, y: top, width: 420, height });
+    c.setData('a11ySurface', { x: panelX, y: top, width: panelW, height });
     if (body.height > layout.bodyViewportHeight) {
       body.setData('a11yWholeLines', { lineHeight, linePitch: lineHeight });
-      bindMenuScroll(this.scene, content, { x: 440, y: layout.bodyTop, width: 400,
+      bindMenuScroll(this.scene, content, { x: panelX + 10, y: layout.bodyTop, width: panelW - 20,
         height: layout.bodyViewportHeight }, body.height, undefined, undefined, lineHeight);
     }
     this.info = c;
@@ -156,7 +168,10 @@ export class CoachMark {
     label.setData('a11yFullText', text).setData('a11yTextWidth', width - 28);
     const h = Math.max(44, label.height + 22);
     const growth = Math.max(0, h - 44) / 2;
-    c.setY(Phaser.Math.Clamp(cy + (above ? -growth : growth), theme.design.safeTop + h / 2, theme.design.safeBottom - h / 2));
+    const f = this.frame();
+    const top = f ? f.y + 4 : theme.design.safeTop;
+    const bottom = f ? f.y + f.height - 4 : theme.design.safeBottom;
+    c.setY(Phaser.Math.Clamp(cy + (above ? -growth : growth), top + h / 2, bottom - h / 2));
     c.setData('a11yArea', { x: cx - width / 2, y: c.y - h / 2, width, height: h });
     c.setData('a11ySurface', { x: cx - width / 2, y: c.y - h / 2, width, height: h });
     const bg = this.scene.add.graphics();
@@ -168,6 +183,10 @@ export class CoachMark {
     c.setAlpha(0);
     this.scene.tweens.add({ targets: c, alpha: 1, duration: 180, ease: 'Cubic.easeOut' });
     return c;
+  }
+
+  private frameRect(): Rect {
+    return this.frame() ?? { x: 0, y: 0, width: 1280, height: 720 };
   }
 
   private clearCue(): void {

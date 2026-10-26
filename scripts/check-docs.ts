@@ -9,6 +9,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isLiveSet } from '../src/data/liveness';
 import { BOOSTER_SKUS } from '../src/meta/boosterSkus';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -163,13 +164,16 @@ for (const doc of docs) {
 /**
  * Every shop booster needs both its art-bible entry and its manifest key.
  * Base predates the per-expansion naming convention, so its established key
- * is `pack-art`; all other SKUs use `pack-art-<sku>`.
+ * is `pack-art`; all other SKUs use `pack-art-<sku>`. A SKU still behind its
+ * liveness flag (Core Set II until the 2.0 cut) shows only on the dev server
+ * with procedural pack art; the guard takes it up the moment the flag flips.
  */
 function checkBoosterArtContract(): void {
   const sceneArt = readFileSync(join(root, 'docs/scene-art.md'), 'utf8');
   const manifest = JSON.parse(readFileSync(join(root, 'src/data/art-manifest.json'), 'utf8')) as { scenes?: unknown };
   const manifestScenes = Array.isArray(manifest.scenes) ? manifest.scenes.filter((key): key is string => typeof key === 'string') : [];
   for (const { sku } of BOOSTER_SKUS) {
+    if (!isLiveSet(sku)) continue;
     const key = sku === 'base' ? 'pack-art' : `pack-art-${sku}`;
     const headingPattern = new RegExp('^### [^\\r\\n]*`' + key + '`', 'm');
     const missingHeading = !headingPattern.test(sceneArt);

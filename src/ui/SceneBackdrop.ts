@@ -1,10 +1,13 @@
 import type Phaser from 'phaser';
 import { Services } from '../meta/services';
 import { animTimeScale } from '../platform/animPolicy';
-import { activeRenderScale } from '../platform/renderScale';
+import { compactCamera, compactSceneMetrics } from '../platform/compactScenes';
+import { activeSceneWidthShare, activeSceneZoom, sceneFitActive, setCurrentSceneZoom } from '../platform/renderScale';
+import { designWindowViewport, type Rect, type ScreenMetrics } from '../platform/screenMetrics';
 import { currentAccessibility } from './accessibility';
 import { backdropDimAlpha } from './layout';
 import { theme } from './theme';
+import { setCompactTier } from './compactLayout';
 
 /**
  * Per-scene backdrop layer (docs/scene-art.md §3 integration contract).
@@ -45,6 +48,9 @@ export function sceneTextureKey(manifestKey: string): string {
   return manifestKey.startsWith('scene-') ? manifestKey : `scene-${manifestKey}`;
 }
 
+/** The canvas clear colour (index.html's ground, gameBoot's backgroundColor). */
+export const CANVAS_CLEAR = '#0d0a14';
+
 /**
  * Per-scene settings hook — runs first inside applyBackdrop, i.e. at the top
  * of every scene's create(), and is idempotent (safe across DuelScene's
@@ -54,7 +60,9 @@ export function sceneTextureKey(manifestKey: string): string {
  *   src/platform/renderScale.ts); zooming the main camera by k and
  *   re-centering on the design midpoint keeps every scene in its 1280×720
  *   logical coordinate space while rendering at the higher backing
- *   resolution. At k=1 this is exactly today's identity setup.
+ *   resolution. At k=1 this is exactly today's identity setup. Under the
+ *   compact profile the canvas follows the screen, and the zoom is the one
+ *   that fits 1280×720 inside it (activeSceneZoom, plan-mobile-overhaul C2).
  * - Animations: 'off' fast-forwards the scene's tweens (high timeScale —
  *   callbacks still fire, tweens are never removed, so tween-driven flow
  *   can't deadlock); 'full'/'reduced' explicitly reset to 1 so flipping the
@@ -62,16 +70,90 @@ export function sceneTextureKey(manifestKey: string): string {
  *
  * NOTE for scenes that animate the camera zoom themselves (PackOpening's
  * zoomTo escalation): absolute zoom targets must be multiplied by
- * activeRenderScale() to compose with the base zoom.
+ * activeSceneZoom() to compose with the base zoom.
  */
-export function applySceneSettings(scene: Phaser.Scene): void {
-  const k = activeRenderScale();
+export function applySceneSettings(scene: Phaser.Scene, opts: { refit?: boolean } = {}): void {
+  const zoom = activeSceneZoom();
   const cam = scene.cameras?.main;
   if (cam) {
-    cam.setZoom(k);
-    cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
+    // A scene with its own compact composition: the camera shows the design
+    // space it was built in, whole, filling the canvas (plan-mobile-overhaul C2).
+    const stage = compactStageFor(scene, opts.refit === true);
+    if (stage) {
+      const fit = compactCamera(stage, { width: scene.scale.width, height: scene.scale.height });
+      cam.setViewport(0, 0, scene.scale.width, scene.scale.height);
+      cam.setBackgroundColor(CANVAS_CLEAR);
+      cam.setZoom(fit.zoom);
+      cam.centerOn(fit.centerX, fit.centerY);
+      setCurrentSceneZoom(fit.zoom);
+    } else {
+      if (sceneFitActive()) {
+        // Clip the camera to the fitted 1280×720 window: the camera's view is
+        // the canvas size over the zoom, wider than the stage, so anything a
+        // scene parks just off-stage would otherwise show beside it.
+        const vp = designWindowViewport(scene.scale.width, scene.scale.height, activeSceneWidthShare());
+        cam.setViewport(vp.x, vp.y, vp.width, vp.height);
+        // The game's own clear is transparent on an upright tablet, so the page's
+        // scene image shows in the bands (M11); the stage keeps its ground colour.
+        cam.setBackgroundColor(CANVAS_CLEAR);
+      }
+      cam.setZoom(zoom);
+      cam.centerOn(DESIGN_W / 2, DESIGN_H / 2);
+      setCurrentSceneZoom(null);
+    }
   }
   scene.tweens.timeScale = animTimeScale(Services.save.data.settings.animations);
+}
+
+/**
+ * The space a scene lays itself out in. A scene with a compact composition
+ * running under the compact profile gets the phone's design space and its
+ * content box (src/platform/compactScenes.ts); every other scene, and every
+ * scene on desktop, gets the 1280×720 design window.
+ */
+export interface SceneStage {
+  /** True when the scene draws its compact composition. */
+  compact: boolean;
+  width: number;
+  height: number;
+  /** Where controls may go: the phone's content box, or the whole 1280×720 window. */
+  content: Rect;
+  metrics: ScreenMetrics | null;
+}
+
+/** Compact stages by scene, fixed at the scene's create(); a refit keeps the one it was built with. */
+const COMPACT_STAGES = new WeakMap<Phaser.Scene, SceneStage>();
+
+function compactStageFor(scene: Phaser.Scene, refit: boolean): SceneStage | null {
+  if (refit) return COMPACT_STAGES.get(scene) ?? null;
+  const metrics = compactSceneMetrics(scene.sys.settings.key);
+  if (!metrics) {
+    COMPACT_STAGES.delete(scene);
+    return null;
+  }
+  const stage: SceneStage = {
+    compact: true,
+    width: metrics.design.width,
+    height: metrics.design.height,
+    content: { ...metrics.content },
+    metrics,
+  };
+  COMPACT_STAGES.set(scene, stage);
+  setCompactTier(metrics.device === 'desktop' ? 'pointer' : 'touch');
+  return stage;
+}
+
+const WIDE_STAGE: SceneStage = Object.freeze({
+  compact: false,
+  width: DESIGN_W,
+  height: DESIGN_H,
+  content: Object.freeze({ x: 0, y: 0, width: DESIGN_W, height: DESIGN_H }),
+  metrics: null,
+});
+
+/** The stage the scene was last set up with (applySceneSettings, at the top of its create()). */
+export function sceneStage(scene: Phaser.Scene): SceneStage {
+  return COMPACT_STAGES.get(scene) ?? WIDE_STAGE;
 }
 
 export interface BackdropOpts {
@@ -84,6 +166,11 @@ export interface BackdropOpts {
    * texture is absent. Keeps today's exact look as the graceful fallback.
    */
   fallback: (scene: Phaser.Scene) => void;
+  /**
+   * A loaded texture to draw in place of `scene-<key>` (Story's Act 1 still).
+   * When it is set the `scene-<key>` art is not consulted at all.
+   */
+  textureKey?: string;
 }
 
 /**
@@ -101,7 +188,7 @@ export function applyBackdrop(
   // single per-scene apply point for boot-time settings.
   applySceneSettings(scene);
 
-  const texKey = `scene-${key}`;
+  const texKey = opts.textureKey ?? `scene-${key}`;
   if (!scene.textures.exists(texKey)) {
     // No real art — the scene's current procedural background is the unchanged
     // fallback (proves visually identical to today).
@@ -113,8 +200,9 @@ export function applyBackdrop(
 
   // Cover-fit the source to the full design frame at its centre. Authored art
   // is 1:1 at 1280×720 so scale is 1, but cover-fit is robust to any source.
-  const img = scene.add.image(DESIGN_W / 2, DESIGN_H / 2, texKey);
-  const scale = Math.max(DESIGN_W / img.width, DESIGN_H / img.height);
+  const stage = sceneStage(scene);
+  const img = scene.add.image(stage.width / 2, stage.height / 2, texKey);
+  const scale = Math.max(stage.width / img.width, stage.height / img.height);
   img.setScale(scale);
   created.push(img);
 
@@ -125,10 +213,10 @@ export function applyBackdrop(
   const dimAlpha = backdropDimAlpha(opts.dimAlpha, highContrast);
   if ((opts.dim !== undefined || highContrast) && dimAlpha > 0) {
     const dimRect = scene.add.rectangle(
-      DESIGN_W / 2,
-      DESIGN_H / 2,
-      DESIGN_W,
-      DESIGN_H,
+      stage.width / 2,
+      stage.height / 2,
+      stage.width,
+      stage.height,
       opts.dim ?? theme.graphics.dim,
       dimAlpha,
     );

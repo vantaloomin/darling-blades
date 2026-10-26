@@ -116,6 +116,8 @@ follow the priority order where they can.
 
 ### Lane A: Core Set II (priority 1)
 
+**Status (2026-10-11): transcribed and live on the dev server.** All 250 cards are in `src/data/cards/core-set-2.ts` (`cs2-` ids, the final costing with the owner's nine fixes), with their art and the creature art-bible entries ([core-set-2.md](art-bible/core-set-2.md)). The set sits behind `FEATURES.coreSet2Live`, which `src/main.ts` turns on only under the Vite dev server (`npm run dev`, `npm run app:dev`), so there you can open a procedural-pack Core Set II booster while production, tests and the Forge never see it. Flipping the flag is part of the 2.0 cut. Still open from the checklist below: pack art, precons and rivals, the Forge rescore, glossary and tutorial text.
+
 **What the spine and rulings fix:** a Large set (250+) returning to the Three
 Kingdoms, Greek and Beastkin rosters (on the spine since 2026-08-24), the
 anniversary set. A Large set carries every keyword and every named mechanic
@@ -179,7 +181,7 @@ draws a card at dawn; a combat-damage batch to the holder passes it to the
 attacker; `claimMandate` claims it by effect. The full engine, AI and test
 spec is in [plan-core-set-2.md](plan-core-set-2.md) and stands.
 
-- **B1, the spec** (`plan-core-set-2-engine.md`, after the overplan, as First
+- **B1, the spec** ([plan-core-set-2-engine.md](plan-core-set-2-engine.md), after the overplan, as First
   Dawn's engine spec did): the timing rulings (dawn draw before permanent dawn
   triggers, recommended), the claim point in first-strike and normal batches,
   the event, the view field, its part of the train's one replay bump (P16),
@@ -287,7 +289,7 @@ scope lever the Story Mode plan recorded. Its contents (P9, RULED 2026-10-08):
 - **Run counting** applies to both (R9: three fights counts a run).
 
 **Waves** (the plan's own, scoped): one headless run with Guan Yu on current
-cards and the save field (v38, the train's one bump, P10; 1.9.1 took v37 for the Hooves and Fire grant), with save
+cards and the save field (v38, the train's one bump, P10; 1.9.1 took v37 for the Hooves and Fire grant; the tower reload fix opened v38 with the optional `openDuel` mark, and Story rides it), with save
 portability in the same wave: the save code's `hasCompleteSaveShape` check
 and the import preview learn the `story` field, so save codes and save
 cards carry it (lane F's itch export prompt depends on this); the run shell
@@ -295,8 +297,10 @@ behind a flag, on lane C's layouts and 1.9's text scale; Act 1 content and
 the three starter pools once Core Set II's roster locks; the story matrix
 and progression runs; release QA.
 
+**Wave 1 built 2026-10-12** (headless only, no scene or menu entry): the story data, seeded Act 1 maps and their validator, StoryProgress, the `story` save field in the v37 -> v38 step, the save code's shape check and import preview, `mode: 'story'` replays inside v17, and a headless Guan Yu run. Details and the first measurement are in [plan-story-mode.md](plan-story-mode.md), Wave 1.
+
 **Copy is approved text, not placeholders.** The README promises nothing is
-placeholder. The premise (open) and Act 1's scenes go to the owner as a
+placeholder. The premise is ruled (the Fallen Mandate, 2026-10-11, Story plan S1 to S4); Act 1's scenes go to the owner as a
 script before wave 3.
 
 ### Lane F: itch.io (priority 6)
@@ -337,7 +341,7 @@ launch. The launch plan doc is written in 2.0.
 
 ### Lane G: Story Mode, full (priority 7)
 
-Acts 2 and 3, their bosses, scenes and keeps, on the shell lane E ships.
+Acts 2 and 3, their bosses, scenes and keeps, on the shell lane E ships. Full Story is also when scene animation arrives (owner, 2026-10-12, Story plan V1): Act 1 launches with still backgrounds and dialogue portrait inserts, and the animation covers every act's scenes once Full Story ships.
 **Proposed: 2.0.x**, unless 2.0's waves finish with room. Since keeps are
 per act, each act added is an economy change and goes through
 progression-sim.
@@ -376,7 +380,11 @@ of 2026-09-29) or the owner's own runs.
   them.
 - **Release notes, the cut, the deploy** as in 1.9: the release PR into
   `main` only on the owner's word, the tag, the Worker redeploy if `worker/`
-  changed.
+  changed. For 2.0 the Worker goes FIRST, before the release PR merges: the
+  live Worker (read 2026-10-23 through the Cloudflare connector) still refuses
+  `format: "story"`, so a 2.0 build reaching players first loses every Story
+  duel digest. The same deploy carries the cards rate limit and the IPv6 /64
+  hash (reliability audit, 2026-10-23).
 
 ## Sequencing (proposed)
 
@@ -423,23 +431,23 @@ differs from the recommendation, the row says so.
 | **P2** | When itch.io launches | **RULED 2026-10-08: as recommended.** A 2.0.x, once 2.0 is stable on the site. The itch build target and its CI gate land in 2.0 behind a flag |
 | **P3** | 1.9.x before 2.0 | **RULED 2026-10-08: keep the 1.9.1 patch.** The owner first picked folding it into 2.0, then confirmed keeping it once told the patch was already under way (`release/1.9.1`, cut from v1.9.0; the near-duplicate slate in #556). It ships before 2.0's wave 2, so Core Set II is costed on the fixed pool |
 | **P4** | Core Set II's July overplan | **RULED 2026-10-08: retire it.** Author fresh, as Drowned Deep and First Dawn did; keep it as a candidate pool |
-| **P5** | The marker's name | **RULED 2026-10-08: "the Mandate" everywhere; drop "the Crown".** Rename the two RoTK achievement titles that use the word ("Mandate In Foil", "Rainbow Mandate" in `src/meta/Achievements.ts`; titles only, ids unchanged, so no save impact), working titles "Three Lords in Foil" and "Rainbow Lords". The Shadow Mandate starter deck keeps its name. Lands with lane B's UI and glossary work. Settles the Mandate half of brief Q7 |
+| **P5** | The marker's name | **RULED 2026-10-08: "the Mandate" everywhere; drop "the Crown".** Rename the two RoTK achievement titles that use the word ("Mandate In Foil", "Rainbow Mandate" in `src/meta/Achievements.ts`; titles only, ids unchanged, so no save impact), working titles "Three Lords in Foil" and "Rainbow Lords". The Shadow Mandate starter deck keeps its name. Lands with lane B's UI and glossary work. Settles the Mandate half of brief Q7. **Done in B4 (2026-10-10): "Three Lords In Foil" and "Rainbow Lords".** |
 | **P6** | Oath's semantic | **RULED 2026-10-08: active while you control any legendary creature, and the mechanic is named "Sworn", not "Oath"** (avoids Blood Oath, the Grail Oath, Peach Garden Oath and Liu Bei, Benevolent Oathkeeper). "Oath" in this plan and the set plan is the working name for Sworn. Settles brief Q6 and Q7 |
 | **P7** | Set key and size | **RULED 2026-10-08: as recommended.** `core-set-2`; the size from the coverage ledger at the cut, 250+ per the spine |
 | **P8** | Floors under the life change | **RULED 2026-10-08: one-time reset.** One re-baseline at the new life total, then ratchet up as before. The exception is recorded in `CLAUDE.md` and the playbook |
 | **P9** | What "Act 1 + endless" contains | **RULED 2026-10-08: as recommended.** Act 1 complete with all three characters and the unlock chain; endless as generated maps with scaling bosses, plus a daily seed; no keeps in endless |
-| **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it. **Now v38:** 1.9.1 took v37 for the Hooves and Fire grant (2026-10-09) |
+| **P10** | Save changes | **RULED 2026-10-08: as recommended.** One bump, v37, for Story; nothing else adds a field unless it rides it. **Now v38:** 1.9.1 took v37 for the Hooves and Fire grant (2026-10-09). The tower reload fix (2026-10-11) opened v38 with the optional `openDuel` mark; Story adds its field to the same v38 step |
 | **P11** | Mobile scope | **RULED 2026-10-08: as recommended.** Landscape only, automatic layout, browser only (no PWA or store package), art-first phone card face (a). Settles the mobile plan's M1-M4 |
 | **P12** | Story voice (R7, TBD) | **RULED 2026-10-08: no voice in 2.0.** Text-only scenes; voice revisited for 2.x or a trailer |
 | **P13** | The new Beastkin legend | **RULED 2026-10-08: a Jade Rabbit (moon rabbit, Chang'e's myth), U/W**, leading a Beastkin anthem. The owner turned down sky, bat, spider and serpent species and asked for something in the vein of the feline and canine Beastkin. Name in the brief; Yohime as the fallback if Core Set II slips. Settles the brief's question 9 |
-| **P14** | The difficulty retune | **RULED 2026-10-08: after the life change, in wave 4,** as the one deliberate change to the frozen AI (the tier dial in `src/ai/tiers.ts`), with the target checked against a human (the owner's runs or play stats), not only the Medium proxy. Negotiable to a 2.0.x under P1 |
+| **P14** | The difficulty retune | **RULED 2026-10-08: after the life change, in wave 4,** as the one deliberate change to the frozen AI (the tier dial in `src/ai/tiers.ts`), with the target checked against a human (the owner's runs or play stats), not only the Medium proxy. Negotiable to a 2.0.x under P1. **Done 2026-10-23:** at 25 life T5 read under T4 and moved hard/0.12 -> hard/0.06 (65.5 on the floors); the owner's runs found the top floors too easy, so T6 took the Duel any Deck Expert search (71.2 -> 79.9); see `src/ai/tiers.ts` |
 | **P15** | The life study's pool | **Settled 2026-10-08:** the study is already running on 1.9.0 (owner: "The Life investigation is already happening"); its readings are re-taken in the end-of-train measurement |
 | **P16** | Replay versions | **RULED 2026-10-08: as recommended.** One `REPLAY_LOG_VERSION` bump (16 to 17) shared by the Mandate, the life field and Story |
 | **P17** | If the life study is late | **RULED 2026-10-08: always wait.** Core Set II's rescore waits for the life number however long the study takes; there is no 20-life fallback. The life study is on the set's critical path |
 | **P18** | Does itch wait for full Story Mode? | **RULED 2026-10-08: as recommended.** No: launch with Act 1 + endless, the priority order (itch 6, full Story 7). The store page sells Story Mode as growing, with Acts 2-3 as the next update |
 
 Still open from earlier plans and carried here: the permanent-buy price and
-limits (Story), Story's premise, Core Set II's product scope, Darlings
+limits (Story), Core Set II's product scope, Darlings
 packaging, roster emphasis (Three Kingdoms leading the Mandate, or an equal
 return), and whether Core Set II reprints or revises Guan Yu and Persephone,
 which Story's first two characters depend on (the set plan's open decisions).

@@ -28,6 +28,7 @@ import {
   STATS_NOTICE_COPY,
   STATS_NOTICE_LAYOUT,
   statsNoticeBodyStack,
+  STATS_NOTICE_COMPACT_WIDTH,
   statsNoticeContentWidth,
   statsNoticeFooterCenters,
   statsNoticeLabelWrapWidth,
@@ -36,6 +37,7 @@ import {
   statsToggleLabel,
   type StatsNoticeController,
 } from './statsPrivacyPresentation';
+import { sceneStage } from './SceneBackdrop';
 import { theme } from './theme';
 import { modalShell, themedButton, type ModalShell } from './themeWidgets';
 
@@ -51,6 +53,11 @@ export interface StatsNoticeDialogOptions {
    * other than the player's own switch is stopping the sends.
    */
   note: string | null;
+  /**
+   * Do Not Track or GPC is stopping the sends (`StatsRowNoteState.browserSignal`),
+   * so a saved "on" reads "Blocked by browser", as in Settings.
+   */
+  browserBlocks: boolean;
   /**
    * Runs after `Continue` (or Escape, or Enter) has stamped and the dialog is
    * gone. This is where the menu continues its arrival chain.
@@ -68,12 +75,18 @@ export function createStatsNoticeDialog(
   // the shell exists (its wrap width depends on the dialog's width alone), so
   // the shell can be exactly as tall as what it holds. Wrap counts are
   // font-fallback dependent on Windows, so no line count is assumed.
-  const wrapWidth = statsNoticeContentWidth();
+  // A compact scene (the phone's main menu) gets a narrower dialog in the
+  // compact type ramp, inside its content box; desktop is unchanged.
+  const stage = sceneStage(scene);
+  const type = stage.compact ? theme.compactType : theme.type;
+  const dialogWidth = stage.compact ? Math.min(STATS_NOTICE_COMPACT_WIDTH, stage.content.width) : STATS_NOTICE_LAYOUT.width;
+  const maxHeight = stage.compact ? stage.content.height : STATS_NOTICE_LAYOUT.maxHeight;
+  const wrapWidth = statsNoticeContentWidth(dialogWidth);
   const paragraph = (text: string): Phaser.GameObjects.Text =>
     scene.add
       .text(0, 0, text, {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
+        fontSize: `${type.body}px`,
         color: theme.colors.body,
         wordWrap: { width: wrapWidth },
         lineSpacing: 4,
@@ -88,7 +101,7 @@ export function createStatsNoticeDialog(
       : scene.add
           .text(0, 0, opts.note, {
             fontFamily: theme.fonts.ui,
-            fontSize: `${theme.type.caption}px`,
+            fontSize: `${type.caption}px`,
             color: theme.colors.muted,
             wordWrap: { width: wrapWidth },
             lineSpacing: 2,
@@ -103,8 +116,8 @@ export function createStatsNoticeDialog(
   // `mandatory`: no close X, no dim dismissal, no shell-owned Esc. The only
   // ways out are the three this module binds, and all three stamp.
   const shell = modalShell(scene, {
-    width: STATS_NOTICE_LAYOUT.width,
-    height: statsNoticeShellHeight(stack.height),
+    width: dialogWidth,
+    height: statsNoticeShellHeight(stack.height, dialogWidth, maxHeight),
     dimAlpha: STATS_NOTICE_LAYOUT.dimAlpha,
     depth: STATS_NOTICE_LAYOUT.depth,
     dismissal: 'mandatory',
@@ -120,7 +133,7 @@ export function createStatsNoticeDialog(
     scene.add
       .text(titleTrack.x, titleTrack.y + titleTrack.height / 2, STATS_NOTICE_COPY.title, {
         fontFamily: theme.fonts.display,
-        fontSize: `${theme.type.h1}px`,
+        fontSize: `${type.h1}px`,
         color: theme.colors.gold,
       })
       .setOrigin(0, 0.5),
@@ -143,22 +156,27 @@ export function createStatsNoticeDialog(
     scene,
     statsNoticeToggleCenterX(content.x + content.width, STATS_NOTICE_LAYOUT.toggleMinWidth),
     rowCenterY,
-    statsToggleLabel(controller.sharing()),
+    statsToggleLabel(controller.sharing(), opts.browserBlocks),
     {
       variant: controller.sharing() ? 'selected' : 'ghost',
       size: 'sm',
       minWidth: STATS_NOTICE_LAYOUT.toggleMinWidth,
       onTap: () => {
         const on = controller.toggle();
-        toggle.setLabel(statsToggleLabel(on));
+        toggle.setLabel(statsToggleLabel(on, opts.browserBlocks));
         toggle.setVariant(on ? 'selected' : 'ghost');
+        alignToggle();
       },
     },
   );
-  // Right-align to the measured hit box, which a wider fallback font grows.
-  toggle.container.setX(
-    statsNoticeToggleCenterX(content.x + content.width, toggle.getMeasuredSize().hit.width),
-  );
+  // Right-align to the measured hit box, which a wider fallback font (or the
+  // longer "Blocked by browser") grows.
+  const alignToggle = (): void => {
+    toggle.container.setX(
+      statsNoticeToggleCenterX(content.x + content.width, toggle.getMeasuredSize().hit.width),
+    );
+  };
+  alignToggle();
   container.add(toggle.container);
   shell.interactiveChildren.push(toggle.inputZone);
 
@@ -166,7 +184,7 @@ export function createStatsNoticeDialog(
     scene.add
       .text(content.x, rowCenterY, STATS_NOTICE_COPY.toggleLabel, {
         fontFamily: theme.fonts.ui,
-        fontSize: `${theme.type.body}px`,
+        fontSize: `${type.body}px`,
         color: theme.colors.body,
         wordWrap: {
           width: statsNoticeLabelWrapWidth(content.width, toggle.getMeasuredSize().hit.width),

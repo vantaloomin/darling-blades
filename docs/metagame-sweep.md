@@ -1,4 +1,4 @@
-<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/templates.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-09-28 -->
+<!-- source-of-truth: scripts/personas/craft.ts, scripts/personas/templates.ts, scripts/personas/lever.ts, scripts/personas/compare-crafts.ts, scripts/run-sweep.ps1, .github/workflows/metagame-sweep.yml, .github/workflows/metagame-sweep-round.yml, tests/personas/fanout.test.ts, tests/personas/lever.test.ts · last-verified: 2026-10-16 -->
 
 # The persona metagame sweep
 
@@ -117,6 +117,13 @@ Only the rounds are sequential.
 default to the real sweep: seed 13003, four rounds, the `prefabs` field, 150
 seeds per matchup, 80 hill-climb iterations, all eight personas. For a dry run,
 set seeds 10, iterations 5, rounds 1.
+
+**Which cards.** The workflow crafts from `--pool dev`: every live card plus
+Core Set II, the pool the dev build boots with. That lets a sweep on
+`release/2.0` measure the set before the 2.0 cut flips `coreSet2Live`; once it
+flips, `dev` and `all` are the same pool. The pool id is part of the run
+configuration, so a `dev` sweep never resumes or merges with an `all` one,
+which includes every sweep before 2026-10-16.
 
 **What runs.** Round 0, then, for each later round, a check job and the round.
 Every round is one call to `.github/workflows/metagame-sweep-round.yml`, which
@@ -440,7 +447,7 @@ by hand when a sweep needs unpicking.
 npx tsx scripts/personas/craft.ts --metagame-craft burn --round 1 \
   --field-dir field --out out --workers 4 \
   --personas burn,draw-go,attrition,reanimator,weenie,midrange,stompy,warband \
-  --rounds 4 --field prefabs --pool all --seeds 150 --iterations 80 --seed 13003
+  --rounds 4 --field prefabs --pool dev --seeds 150 --iterations 80 --seed 13003
 
 # The same craft in chunks of 240 minutes, as the workflow runs it. Each call
 # prints craft-complete= and next-iteration=; until it finishes, it writes

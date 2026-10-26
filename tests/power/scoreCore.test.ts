@@ -231,3 +231,43 @@ describe('Tithe scoring, section 4s', () => {
     expect(scoreCard(horror).power - scoreCard(plain).power).toBeCloseTo(0.5);
   });
 });
+
+describe('Sworn and Mandate gates', () => {
+  const soldier = (extra: Partial<ScorableCardDef> = {}): ScorableCardDef => artifact({
+    types: ['creature'], subtypes: ['Soldier'], attack: 2, defense: 2, colors: ['W'], cost: { generic: 1, pips: { W: 1 } }, ...extra,
+  });
+  const lift = (card: ScorableCardDef, plain: ScorableCardDef): number => scoreCard(card).power - scoreCard(plain).power;
+  const selfPlus1 = (condition?: 'swornActive' | 'youHoldMandate') =>
+    ({ when: 'static' as const, static: { scope: 'self' as const, p: 1, t: 1, ...(condition ? { condition } : {}) } });
+
+  it('reads a gate printed on the static itself, as the engine does', () => {
+    const always = lift(soldier({ abilities: [selfPlus1()] }), soldier());
+    expect(lift(soldier({ abilities: [selfPlus1('swornActive')] }), soldier())).toBeCloseTo(always * 0.5);
+    expect(lift(soldier({ abilities: [selfPlus1('youHoldMandate')] }), soldier())).toBeCloseTo(always * 0.45);
+  });
+
+  it("prices a legendary creature's own Sworn line as always on", () => {
+    const legend = (abilities?: ScorableCardDef['abilities']) => soldier({ supertypes: ['legendary'], abilities });
+    expect(lift(legend([selfPlus1('swornActive')]), legend())).toBeCloseTo(lift(legend([selfPlus1()]), legend()));
+  });
+});
+
+describe('life lines at dawn, the rate lab dawn sets', () => {
+  const carrier = (types: ScorableCardDef['types'], ops: NonNullable<ScorableCardDef['abilities']>[number]['ops']): ScorableCardDef => artifact({
+    types, cost: { generic: 3, pips: {} }, ...(types.includes('creature') ? { attack: 3, defense: 3 } : {}),
+    abilities: [{ when: 'dawn', ops }],
+  });
+  const dawnPart = (card: ScorableCardDef): number => scoreCard(card).parts.filter((p) => p.label.startsWith('dawn:')).reduce((s, p) => s + p.v, 0);
+
+  it('prices them near what the lab measured on both carriers', () => {
+    // Measured in mana: creature 0.48 / 0.78 / 0.65, artifact 0.69 / 1.34 / 1.22.
+    const gain = (n: number) => [{ op: 'gainLife' as const, n }];
+    const drain = [{ op: 'loseLife' as const, n: 1, who: 'opponent' as const }];
+    expect(dawnPart(carrier(['creature'], gain(1)))).toBeCloseTo(0.48, 1);
+    expect(dawnPart(carrier(['creature'], gain(2)))).toBeCloseTo(0.78, 1);
+    expect(dawnPart(carrier(['creature'], drain))).toBeCloseTo(0.65, 1);
+    expect(dawnPart(carrier(['artifact'], gain(1)))).toBeCloseTo(0.69, 1);
+    expect(dawnPart(carrier(['artifact'], gain(2)))).toBeCloseTo(1.34, 0);
+    expect(dawnPart(carrier(['artifact'], drain))).toBeCloseTo(1.22, 0);
+  });
+});

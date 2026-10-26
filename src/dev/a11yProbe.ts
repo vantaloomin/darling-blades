@@ -29,6 +29,13 @@
  *   const probe = await import('/src/dev/a11yProbe.ts');
  *   const report = await probe.runA11yProbe(window.__game, { snapshots: true });
  *
+ * The viewport axis (mobile wave 1): load the page as a support matrix
+ * fixture, `?layout=compact&viewport=phone-short` (names in
+ * src/platform/screenFixtures.ts), and run the same call. The report names
+ * the viewport, and under the compact profile each scene also lists its tap
+ * targets under 44 CSS px (`smallTargets`, measured, not findings). One load
+ * per fixture: the profile and canvas are fixed when the page boots.
+ *
  * so a production build (whose entry is `src/main.ts`) never reaches it; the
  * runtime check below refuses to run outside a dev server as a second guard.
  * It never touches the save: Profile's fixture replays go in through the
@@ -58,6 +65,28 @@ import { CardView } from '../ui/CardView';
 import { theme } from '../ui/theme';
 import { zonePanelHeaderFindings } from '../ui/duelPanelPresentation';
 import { menuDensityFindings, menuTextFindings, menuTextOverlap, type MenuTextSurface, type MenuDensity } from '../ui/menuText';
+import { activeSceneZoom } from '../platform/renderScale';
+import { sceneStage } from '../ui/SceneBackdrop';
+import { screenFixtureNamed } from '../platform/screenFixtures';
+import { COMPACT } from '../ui/compactLayout';
+import {
+  chooseBoon,
+  currentStoryNode,
+  endlessDateKey,
+  enterNode,
+  keepRewardKey,
+  legalNextNodes,
+  recordFight,
+  resolveRest,
+  resolveShop,
+  startEndlessRun,
+  startRun,
+  storyBoonOffers,
+  takeCardReward,
+} from '../meta/story/StoryProgress';
+import { openingSceneFor, resolveStoryEventByRule, storyEventFor, storySceneById } from '../meta/story/storyEvents';
+import { isDuelNode } from '../meta/story/storyMap';
+import { freshStoryState, type StoryState } from '../meta/story/storyState';
 
 export interface ProbeCell {
   readonly textScale: number;
@@ -73,6 +102,10 @@ export interface ProbeScene {
   readonly replayFixtures?: boolean;
   /** Copy whose presence is part of this fixture, independently of its geometry. */
   readonly requiredText?: readonly string[];
+  /** The settle in the phone's compact layout, when it differs from `settleMs`. */
+  readonly compactSettleMs?: number;
+  /** The required copy is the desktop HUD's; the phone layout draws it elsewhere or not at all. */
+  readonly requiredTextWideOnly?: boolean;
   /** Inspect the live renderer's cue carriers, separately from exempt card text. */
   readonly duelCue?: 'M1' | 'M2' | 'M3' | 'M4' | 'M5' | 'M6' | 'portrait' | 'two-targets' | 'lethal-pick' | 'repeated-picks';
   /** A transient accepted-pick cue is captured before its presentation timer ends. */
@@ -107,7 +140,36 @@ export interface ProbeSceneReport {
   readonly maskedOut: number;
   readonly density?: readonly MenuDensity[];
   readonly findings: readonly ProbeFinding[];
+  /** Compact profile only: enabled tap targets, and those under 44 CSS px (smallest first). */
+  readonly targets?: number;
+  readonly smallTargets?: readonly ProbeSmallTarget[];
   readonly error?: string;
+}
+
+/**
+ * A tap target below the compact profile's 44 CSS px floor (C6), as drawn on
+ * this viewport. Measured, not a finding: no scene is migrated yet, so on a
+ * phone every 1280x720 scene shrinks its controls; the count is the size of
+ * each scene's migration, and a migrated scene's count is zero.
+ */
+export interface ProbeSmallTarget {
+  /** The target's own text or its nearest Text child, else its type. */
+  readonly label: string;
+  /** Hit area in CSS px. */
+  readonly width: number;
+  readonly height: number;
+}
+
+/** The viewport a run measured: the page's own screen, or a dev `&viewport=` fixture. */
+export interface ProbeViewport {
+  /** The support matrix fixture, or null for the page's own screen. */
+  readonly fixture: string | null;
+  readonly profile: 'compact' | 'wide';
+  readonly canvas: { readonly width: number; readonly height: number };
+  /** The canvas's box on the page, in CSS px. */
+  readonly css: { readonly width: number; readonly height: number };
+  /** CSS px per design px: how large a 1280x720 scene's 44 px is drawn. */
+  readonly cssPerDesignPx: number;
 }
 
 export interface ProbeCellReport {
@@ -120,6 +182,7 @@ export interface ProbeCellReport {
 
 export interface ProbeReport {
   readonly startedAt: string;
+  readonly viewport: ProbeViewport;
   readonly cells: readonly ProbeCellReport[];
   readonly totalFindings: number;
   /** Scenes of the wave's list the probe cannot boot on its own, and why. */
@@ -206,7 +269,7 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
   { label: 'Deck Builder / Darlings 79', key: 'DeckBuilder', data: builderFixture() },
   { label: 'Deck Builder / full catalog', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.fullCatalog) },
   { label: 'Deck Builder / full catalog / last page', key: 'DeckBuilder', data: builderFixture({ page: Number.MAX_SAFE_INTEGER }, WAVE_2B_FIXTURE_IDS.fullCatalog) },
-  { label: 'Deck Builder / decks / last page', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerPage: Number.MAX_SAFE_INTEGER }) },
+  { label: 'Deck Builder / decks / scrolled to the end', key: 'DeckBuilder', data: builderFixture({ modal: 'decks', pickerRow: Number.MAX_SAFE_INTEGER }) },
   { label: 'Deck Builder / classic basics', key: 'DeckBuilder', data: builderFixture({ save: BATCH_B_CLASSIC }) },
   { label: 'Deck Builder / empty', key: 'DeckBuilder', data: builderFixture({}, WAVE_2B_FIXTURE_IDS.empty) },
   ...WAVE_2B_LONGEST_CARD_IDS.flatMap((focusCardId) => [false, true].map((touch) => ({
@@ -218,6 +281,7 @@ export const WAVE_2B_SCENES: readonly ProbeScene[] = [
     .map((modal) => ({ label: `Deck Builder / ${modal}`, key: 'DeckBuilder', data: builderFixture({ modal }, modal === 'repair' ? WAVE_2B_FIXTURE_IDS.fullCatalog : WAVE_2B_FIXTURE_IDS.darlings) })),
   { label: 'Deck Builder / set options', key: 'DeckBuilder', data: builderFixture({ modal: 'filters', filter: 'set' }) },
   { label: 'Collection / full catalog', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE } } },
+  { label: 'Collection / full catalog / scrolled to the end', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, scroll: 'end' } } },
   { label: 'Collection / empty', key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, cards: [] } } },
   ...(['set', 'color', 'type', 'rarity', 'sort'] as const).map((openFilter) => ({
     label: `Collection / ${openFilter} options`, key: 'Collection', data: { a11yFixture: { save: BATCH_B_SAVE, openFilter } },
@@ -269,6 +333,11 @@ const duelFixture = (name: DuelA11yFixtureName, extra: Partial<ProbeScene> = {},
   label: `Duel / ${name}${page === undefined ? '' : ' / last page'}`, key: 'Duel',
   data: { a11yFixture: name, ...(page === undefined ? {} : { a11yPage: page }) }, ...extra,
 });
+/**
+ * The phone holds a pick for Cast and redraws its medallion a few frames later; at a
+ * headless 4 fps that outlasts the desktop's 200 ms instant commit (200 ms failed, 2 s passed).
+ */
+const PHONE_PICK_SETTLE_MS = 1500;
 export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   duelFixture('full-board'),
   duelFixture('sick-blocker', { duelCue: 'M1' }),
@@ -277,12 +346,12 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   duelFixture('portrait-pick', { duelCue: 'portrait' }),
   ...(['one-target-pick', 'portrait-pick'] as const).map((name) => duelFixture(name, {
     label: `Duel / ${name} / committed`, data: { a11yFixture: name, a11yCommitPick: true },
-    duelCue: name === 'one-target-pick' ? 'M3' : 'portrait', settleMs: 200,
+    duelCue: name === 'one-target-pick' ? 'M3' : 'portrait', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS,
   })),
   duelFixture('lethal-target-pick', { data: { a11yFixture: 'lethal-target-pick', a11yCommitPick: true },
-    duelCue: 'lethal-pick', settleMs: 200 }),
+    duelCue: 'lethal-pick', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS }),
   duelFixture('single-grave-pick', { data: { a11yFixture: 'single-grave-pick', a11yCommitPick: true },
-    duelCue: 'M4', settleMs: 200 }),
+    duelCue: 'M4', settleMs: 200, compactSettleMs: PHONE_PICK_SETTLE_MS }),
   duelFixture('repeated-target-picks', { duelCue: 'repeated-picks' }),
   duelFixture('two-target-picks', { duelCue: 'two-targets' }),
   duelFixture('graveyard-pick', { duelCue: 'M4' }),
@@ -292,8 +361,11 @@ export const WAVE_2D_SCENES: readonly ProbeScene[] = [
   // default settle (1 pass in 5 measured it mid-slide); give the panels time.
   ...(['history', 'stack', 'graveyard'] as const).flatMap((name) => [
     duelFixture(name, { settleMs: 2000 }), duelFixture(name, { settleMs: 2000 }, Number.MAX_SAFE_INTEGER)]),
-  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name] }),
+  // The desktop names the player under the portrait; the phone's portraits carry art and life only (T-03a).
+  duelFixture('darling', { requiredText: [WAVE_2D_DARLING.name], requiredTextWideOnly: true }),
   duelFixture('duty'),
+  duelFixture('mandate-yours'),
+  duelFixture('mandate-theirs'),
   duelFixture('coach-cue', { requiredText: [WAVE_2D_COACH_CUE] }),
   duelFixture('coach-info', { requiredText: [WAVE_2D_COACH_INFO] }),
   ...(['pause', 'result', 'replay-complete', 'replay-unavailable', 'recap', 'coin'] as const).map(a11yOverlay => ({
@@ -315,6 +387,143 @@ export { WAVE_3B_SCENES } from './wave3PackGlossaryFixtures';
 export { WAVE_3C_SCENES } from './wave3DialogFixtures';
 
 /** `SCENE_TITLE` scenes this probe cannot open without a fixture it does not build. */
+/**
+ * Story Mode's run screens (2.0 wave 2), on in-memory story records handed to
+ * the scene as `a11yFixture` (never the save): character select with two
+ * heroines locked and one partly earned, the opening boon, a card reward and
+ * the map mid-run with the main action ready.
+ */
+function storyProbeFixture(stage: 'select' | 'boon' | 'reward' | 'map'): StoryState {
+  const story = freshStoryState();
+  story.countedRuns['guan-yu'] = 2;
+  // The map key has its own probe entry; every other fixture is past it.
+  story.seenMapKey = true;
+  if (stage === 'select') return story;
+  startRun(story, 'guan-yu', 77, 0);
+  if (stage === 'boon') return story;
+  chooseBoon(story, CARD_DB, storyBoonOffers(77).find((id) => id !== 'trim-two')!);
+  enterNode(story, legalNextNodes(story)[0].id);
+  recordFight(story, 'win');
+  if (stage === 'reward') return story;
+  while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+  return story;
+}
+/**
+ * A run walked to its first event node (entered, unresolved): duels won,
+ * rewards, shops and rests passed by, always taking an event when one is next.
+ */
+function storyEventFixture(): StoryState {
+  const story = storyProbeFixture('map');
+  for (let guard = 0; guard < 20; guard++) {
+    const legal = legalNextNodes(story);
+    const next = legal.find((n) => n.kind === 'event') ?? legal[0];
+    if (!next) break;
+    enterNode(story, next.id);
+    if (next.kind === 'event') return story;
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else if (next.kind === 'rest') resolveRest(story, null);
+  }
+  throw new Error('a11yProbe: no event node on the fixture run');
+}
+
+/** The opening on its first spoken line (name plate and portrait), and an event on its choices. */
+function storyDialogueProbeScenes(): ProbeScene[] {
+  const story = storyProbeFixture('map');
+  const opening = openingSceneFor(story.activeRun!.characterId)!;
+  const spoken = opening.lines.findIndex((line) => line.speakerId !== null);
+  const event = storyEventFixture();
+  const run = event.activeRun!;
+  const lines = storySceneById(storyEventFor(run, currentStoryNode(run)!).id)?.lines.length ?? 0;
+  return [
+    { label: 'Story / dialogue', key: 'Story', data: { a11yFixture: { story, at: spoken }, storyScene: { id: opening.id, then: 'screen' } } },
+    { label: 'Story / event choices', key: 'Story', data: { a11yFixture: { story: event, at: lines } } },
+  ];
+}
+
+/**
+ * A run walked on from the map, every duel won and every stop passed by,
+ * until it stands at `stop`: a shop or a rest just entered, the keep after
+ * the boss, or the act-cleared summary with the keep claimed.
+ */
+function storyWalkFixture(stop: 'shop' | 'rest' | 'keep' | 'cleared'): StoryState {
+  const story = storyProbeFixture('map');
+  for (let guard = 0; guard < 30; guard++) {
+    const legal = legalNextNodes(story);
+    const next = legal.find((n) => n.kind === stop) ?? legal[0];
+    if (!next) break;
+    enterNode(story, next.id);
+    if (next.kind === stop) return story;
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      if (next.kind === 'boss') {
+        if (stop === 'cleared') story.claimedRewardKeys.push(keepRewardKey(story.activeRun!.runId, story.activeRun!.act));
+        return story;
+      }
+      while (story.activeRun!.pendingCardRewards.length > 0) takeCardReward(story, null);
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else if (next.kind === 'rest') resolveRest(story, null);
+    else if (next.kind === 'event') resolveStoryEventByRule(story, CARD_DB);
+  }
+  throw new Error(`a11yProbe: the fixture run never reached ${stop}`);
+}
+
+/**
+ * Endless (2.0, docs/plan-story-endless.md): Guan Yu has cleared Act 1 and
+ * reached loop 4, with today's daily at loop 2; `loop` walks a menu-started
+ * run to that loop's fresh map (its title card), or `cleared` to that loop's
+ * beaten claimant with her card reward taken.
+ */
+function storyEndlessFixture(stop: 'select' | { loop: number; at: 'map' | 'cleared' }): StoryState {
+  const story = storyProbeFixture('select');
+  story.wins['guan-yu'] = 1;
+  story.unlockedCharacterIds = [...new Set([...story.unlockedCharacterIds, 'persephone'])];
+  story.endless.bestLoop['guan-yu'] = 4;
+  story.endless.daily = { dateKey: endlessDateKey(Date.now()), bestLoop: 2 };
+  if (stop === 'select') return story;
+  startEndlessRun(story, 'guan-yu', 4242, 0);
+  chooseBoon(story, CARD_DB, storyBoonOffers(4242).find((id) => id !== 'trim-two')!);
+  const run = story.activeRun!;
+  while (run.pendingCardRewards.length > 0) takeCardReward(story, run.pendingCardRewards[0][0]);
+  run.endlessLoop = stop.loop;
+  run.fightsPlayed = 4 * stop.loop;
+  if (stop.at === 'map') return story;
+  for (let guard = 0; guard < 20; guard++) {
+    const next = legalNextNodes(story)[0];
+    enterNode(story, next.id);
+    if (isDuelNode(next)) {
+      recordFight(story, 'win');
+      while (run.pendingCardRewards.length > 0) takeCardReward(story, null);
+      if (next.kind === 'boss') return story;
+    } else if (next.kind === 'shop') resolveShop(story, CARD_DB, []);
+    else resolveRest(story, null);
+  }
+  throw new Error('a11yProbe: the endless fixture never beat its claimant');
+}
+
+export const STORY_ENDLESS_SCENES: readonly ProbeScene[] = [
+  { label: 'Story / select with endless', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'act' } } },
+  { label: 'Story / endless daily', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'endless', endlessDaily: true } } },
+  { label: 'Story / endless random', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture('select'), selectMode: 'endless', endlessDaily: false } } },
+  { label: 'Story / loop 1 title', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 1, at: 'map' }) } } },
+  { label: 'Story / loop 9 title', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 9, at: 'map' }) } } },
+  { label: 'Story / loop cleared', key: 'Story', data: { a11yFixture: { story: storyEndlessFixture({ loop: 3, at: 'cleared' }) } } },
+];
+
+export const STORY_SCENES: readonly ProbeScene[] = [
+  ...(['select', 'boon', 'reward', 'map'] as const).map((stage) => ({
+    label: `Story / ${stage}`, key: 'Story', data: { a11yFixture: { story: storyProbeFixture(stage) } },
+  })),
+  { label: 'Story / map key', key: 'Story', data: { a11yFixture: { story: { ...storyProbeFixture('map'), seenMapKey: false } } } },
+  ...storyDialogueProbeScenes(),
+  ...(['shop', 'rest', 'keep', 'cleared'] as const).map((stop) => ({
+    label: `Story / ${stop}`, key: 'Story', data: { a11yFixture: { story: storyWalkFixture(stop) } },
+  })),
+  ...STORY_ENDLESS_SCENES,
+];
+
 export const WAVE_1_SKIPPED: readonly { scene: string; reason: string }[] = [];
 
 export function cellName(cell: ProbeCell): string {
@@ -438,7 +647,8 @@ function laterWidgetRects(text: Phaser.GameObjects.Text): ProbeRect[] {
 function modalPanelRect(container: Phaser.GameObjects.Container): ProbeRect | null {
   const [dim, chrome] = container.list;
   if (!(dim instanceof Phaser.GameObjects.Rectangle) || !(chrome instanceof Phaser.GameObjects.Graphics)) return null;
-  if (dim.width < theme.design.width || dim.height < theme.design.height) return null;
+  const stage = sceneStage(container.scene);
+  if (dim.width < stage.width || dim.height < stage.height) return null;
   const local = graphicsLocalRect(chrome);
   return local ? toWorld(chrome, local) : null;
 }
@@ -510,7 +720,9 @@ function walkTexts(scene: Phaser.Scene): { texts: WalkedText[]; cardFaceTexts: n
       const nextLayer = modal ? `${layer}/modal` : layer;
       const plate = modal ?? object.getData('a11ySurface') as ProbeRect | undefined;
       const nextSurface = plate ? { id: layer, bounds: plate, depth, order } : surface;
-      for (const child of object.list) visit(child, modal ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
+      // A modal's second plate beside its panel (a phone dialog's command column) declares its own bounds.
+      const ownPanel = object.getData('a11yPanel') as ProbeRect | undefined;
+      for (const child of object.list) visit(child, modal ?? ownPanel ?? panel, nextLayer, card, visibleArea, depth, order, nextSurface);
       return;
     }
     if (!(object instanceof Phaser.GameObjects.Text) || object.text.trim() === '') return;
@@ -549,6 +761,11 @@ function declaredArea(object: Phaser.GameObjects.GameObject): ProbeRect | undefi
 export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'> {
   const { texts, cardFaceTexts, maskedOut } = walkTexts(scene);
   const findings: ProbeFinding[] = [];
+  // A scene drawing its compact composition is checked against the phone's
+  // content box and design space, not the 1280×720 title-safe frame.
+  const stage = sceneStage(scene);
+  const frame: ProbeRect = stage.compact ? stage.content : FRAME;
+  const frameNote = stage.compact ? `compact content box ${JSON.stringify(stage.content)}` : 'title-safe frame x 64-1216, y 36-684';
   for (const t of texts) {
     const text = label(t.object);
     if (t.object.getData('a11yCueText') === true) {
@@ -556,7 +773,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
       for (const kind of menuTextFindings({ expected: t.object.text, actual: t.object.text,
         lines: t.object.getWrappedText(), bounds: glyphBounds, glyphBounds,
         glyphClip: t.unclippedBounds,
-        clip: t.clip ?? { x: 0, y: 0, width: theme.design.width, height: theme.design.height },
+        clip: t.clip ?? { x: 0, y: 0, width: stage.width, height: stage.height },
         occluders: laterWidgetRects(t.object), keepVisible: true })) {
         findings.push({ kind, text, bounds: round(glyphBounds),
           detail: 'cue ink must fit its raster canvas and mask, and remain clear of later widget geometry' });
@@ -569,7 +786,7 @@ export function checkScene(scene: Phaser.Scene): Omit<ProbeSceneReport, 'scene'>
     const area = declaredArea(t.object);
     const duelArea = scene.sys.settings.key === 'Duel' && area && area.width > 0 && area.height > 0
       && contains({ x: 0, y: 0, width: theme.design.width, height: theme.design.height }, area) ? area : null;
-    if (!contains(duelArea ?? FRAME, t.bounds) && t.object.getData('a11yExpendable') !== true) findings.push({ kind: 'outsideFrame', text, bounds: t.bounds, detail: duelArea ? `declared release Duel area ${JSON.stringify(duelArea)}` : 'title-safe frame x 64-1216, y 36-684' });
+    if (!contains(duelArea ?? frame, t.bounds) && t.object.getData('a11yExpendable') !== true) findings.push({ kind: 'outsideFrame', text, bounds: t.bounds, detail: duelArea ? `declared release Duel area ${JSON.stringify(duelArea)}` : frameNote });
     if (t.panel && !contains(t.panel, t.bounds)) {
       findings.push({ kind: 'outsidePanel', text, bounds: t.bounds, detail: `panel ${JSON.stringify(t.panel)}` });
     }
@@ -702,6 +919,7 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
   };
   const fail = (detail: string): ProbeFinding[] => [{ kind: 'cue', text: cue,
     bounds: { x: 0, y: 0, width: 0, height: 0 }, detail }];
+  if (sceneStage(scene).compact) return checkPhoneDuelCue(cue, tile, badgeIs, objects, fail);
   if (cue === 'M1') {
     const view = tile(WAVE_2D_IIDS.blocker), tab = child(view, 'board-action-tab'), swirl = child(view, 'board-sick-swirl');
     if (!textIs(tab, 'Blocks') || !shown(swirl) || !(tab instanceof Phaser.GameObjects.Text) || !(swirl instanceof Phaser.GameObjects.Image))
@@ -744,6 +962,100 @@ export function checkDuelCue(scene: Phaser.Scene, cue: NonNullable<ProbeScene['d
       return fail('damage and raised-stat glyphs must coexist with the two-Mark badge');
   }
   return [];
+}
+
+/**
+ * The phone Duel's forms of the same cues: a medallion carries a sword or
+ * shield disc instead of the lifted tile and word tab, a pick waits for Cast
+ * instead of committing, and a graveyard pick is a tile on the sheet.
+ */
+function checkPhoneDuelCue(
+  cue: NonNullable<ProbeScene['duelCue']>,
+  tile: (iid: number) => BoardCardView | undefined,
+  badgeIs: (view: BoardCardView | undefined, value: string) => boolean,
+  objects: readonly Phaser.GameObjects.GameObject[],
+  fail: (detail: string) => ProbeFinding[],
+): ProbeFinding[] {
+  if (cue === 'M1' && tile(WAVE_2D_IIDS.blocker)?.getData('a11yChip') !== 'Blocks')
+    return fail('an assigned blocker must carry its shield disc');
+  if ((cue === 'M2' || cue === 'M6')
+    && tile(cue === 'M2' ? WAVE_2D_IIDS.attacker : WAVE_2D_IIDS.selectedAttacker)?.getData('a11yChip') !== 'Attack')
+    return fail('an attacker must carry its sword disc');
+  if ((cue === 'M3' || cue === 'lethal-pick') && !badgeIs(tile(cue === 'M3' ? 4 : 1), '1'))
+    return fail('a picked target must draw its 1 badge until Cast');
+  if (cue === 'repeated-picks' && !badgeIs(tile(4), '1, 2'))
+    return fail('a creature picked for both ordered target slots must draw both pick numbers');
+  if (cue === 'two-targets' && (!badgeIs(tile(3), '1') || !badgeIs(tile(1), '2')))
+    return fail('two-target picks must preserve the order the player chose them');
+  if (cue === 'M4' && !objects.some((object) => object.name.startsWith('sheet:') && object.getData('a11yPickBadge') === '1'))
+    return fail('a picked graveyard card must carry its 1 badge on the sheet');
+  if (cue === 'portrait' && !objects.some((object) => object.getData('a11yPickBadge') === '1'
+    && object.getData('a11yPickSurface') === 'portrait'))
+    return fail('picked portrait must expose the drawn 1 badge');
+  if (cue === 'M5') {
+    const stats = tile(WAVE_2D_IIDS.marked)?.getData('a11yStatsCue') as { glyphs: string[]; markBadge: number | null } | undefined;
+    if (stats?.markBadge !== 2) return fail('the two-Mark badge must show on the medallion');
+  }
+  return [];
+}
+
+/** The viewport this page runs at (the profile and canvas are fixed per load). */
+export function probeViewport(game: Phaser.Game): ProbeViewport {
+  const rect = game.canvas.getBoundingClientRect();
+  const css = { width: Math.round(rect.width), height: Math.round(rect.height) };
+  return {
+    fixture: screenFixtureNamed(window.location.search)?.name ?? null,
+    profile: document.documentElement.classList.contains('layout-compact') ? 'compact' : 'wide',
+    canvas: { width: game.canvas.width, height: game.canvas.height },
+    css,
+    cssPerDesignPx: game.canvas.width > 0 ? Math.round(rect.width / game.canvas.width * activeSceneZoom() * 1000) / 1000 : 0,
+  };
+}
+
+/** Whether an object and every container above it draws. */
+function drawn(object: Phaser.GameObjects.GameObject): boolean {
+  for (let o: Phaser.GameObjects.GameObject | null = object; o; o = o.parentContainer ?? null) {
+    const v = o as Partial<Phaser.GameObjects.Components.Visible & Phaser.GameObjects.Components.Alpha>;
+    if (v.visible === false || v.alpha === 0) return false;
+  }
+  return object.active;
+}
+
+function targetLabel(object: Phaser.GameObjects.GameObject, texts: readonly WalkedText[]): string {
+  if (object instanceof Phaser.GameObjects.Text) return object.text;
+  if (object instanceof Phaser.GameObjects.Container) {
+    const text = object.list.find((child): child is Phaser.GameObjects.Text => child instanceof Phaser.GameObjects.Text && child.text !== '');
+    if (text) return text.text;
+  }
+  // A bare Zone or Rectangle hit area: the visible Text under its centre.
+  const bounds = (object as Partial<Phaser.GameObjects.Components.GetBounds>).getBounds?.();
+  const under = bounds && texts.find((t) => contains(t.bounds, { x: bounds.centerX, y: bounds.centerY, width: 0, height: 0 }));
+  return under ? under.object.text : object.name || object.type;
+}
+
+/**
+ * Every enabled, drawn tap target and those whose hit area falls under 44 CSS
+ * px on either side at `cssPerDesignPx`.
+ */
+export function measureTapTargets(scene: Phaser.Scene, cssPerDesignPx: number): { targets: number; small: ProbeSmallTarget[] } {
+  const list = (scene.input as unknown as { _list?: Phaser.GameObjects.GameObject[] })._list ?? [];
+  const small: ProbeSmallTarget[] = [];
+  const texts = walkTexts(scene).texts;
+  let targets = 0;
+  for (const object of list) {
+    const input = object.input;
+    if (!input?.enabled || !drawn(object)) continue;
+    const area = input.hitArea as Partial<{ width: number; height: number; radius: number }>;
+    const local = area.radius !== undefined ? { width: area.radius * 2, height: area.radius * 2 } : { width: area.width ?? 0, height: area.height ?? 0 };
+    if (local.width <= 0 || local.height <= 0) continue;
+    const m = (object as unknown as Phaser.GameObjects.Components.Transform).getWorldTransformMatrix?.();
+    const width = local.width * (m?.scaleX ?? 1) * cssPerDesignPx;
+    const height = local.height * (m?.scaleY ?? 1) * cssPerDesignPx;
+    targets++;
+    if (Math.min(width, height) < COMPACT.touch - EPS) small.push({ label: targetLabel(object, texts), width: Math.round(width), height: Math.round(height) });
+  }
+  small.sort((a, b) => Math.min(a.width, a.height) - Math.min(b.width, b.height));
+  return { targets, small };
 }
 
 const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
@@ -798,7 +1110,7 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
     for (let i = 0; i < 800 && scene.data.get('a11yReady') !== true; i++) await wait(25);
     if (scene.data.get('a11yReady') !== true) throw new Error(`${spec.key} did not finish building its fixture`);
   }
-  await wait(spec.settleMs ?? settleMs);
+  await wait((sceneStage(scene).compact ? spec.compactSettleMs : undefined) ?? spec.settleMs ?? settleMs);
   if (spec.pointerTargetIid !== undefined) {
     const target = scene.children.list.find((object): object is BoardCardView =>
       object instanceof BoardCardView && object.getData('a11yIid') === spec.pointerTargetIid);
@@ -807,15 +1119,24 @@ async function openScene(game: Phaser.Game, spec: ProbeScene, settleMs: number):
       throw new Error(`${spec.label}: pointer fixture must identify a legal target`);
     }
     const canvas = game.canvas, rect = canvas.getBoundingClientRect();
-    // Duel renders a 1280x720 design window at any renderScale. Let Phaser's
-    // mouse manager perform its own canvas/camera conversion and redraw.
+    // World to canvas through the camera (the desktop's 1280x720 design window
+    // at any renderScale, or the phone's compact camera); Phaser's mouse
+    // manager then performs its own conversion back and redraws.
+    const cam = scene.cameras.main;
     canvas.dispatchEvent(new MouseEvent('mousemove', { bubbles: true,
-      clientX: rect.left + target.x / theme.design.width * rect.width,
-      clientY: rect.top + target.y / theme.design.height * rect.height }));
-    await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
+      clientX: rect.left + (target.x - cam.worldView.x) * cam.zoom / game.scale.width * rect.width,
+      clientY: rect.top + (target.y - cam.worldView.y) * cam.zoom / game.scale.height * rect.height }));
+    // The pointer's world point refreshes on the input update after the event; until then a
+    // zoomed camera (the phone's) still reports canvas pixels. Allow a few frames for it.
+    // MouseEvent coordinates are whole CSS pixels, so allow one CSS pixel of world rounding too.
     const pointer = scene.input.activePointer;
-    if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > 1) {
-      throw new Error(`${spec.label}: pointer did not reach its legal target`);
+    const tolerance = 1 + game.scale.width / (rect.width * cam.zoom);
+    for (let frame = 0; frame < 8; frame++) {
+      await new Promise<void>(resolve => game.events.once(Phaser.Core.Events.POST_RENDER, () => resolve()));
+      if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) <= tolerance) break;
+    }
+    if (Math.hypot(pointer.worldX - target.x, pointer.worldY - target.y) > tolerance) {
+      throw new Error(`${spec.label}: pointer did not reach its legal target (pointer ${Math.round(pointer.worldX)},${Math.round(pointer.worldY)}; target ${Math.round(target.x)},${Math.round(target.y)})`);
     }
     scene.data.set('a11yProbePointer', { iid: spec.pointerTargetIid, x: pointer.worldX, y: pointer.worldY });
   }
@@ -839,6 +1160,7 @@ export const PROBE_RESTARTABLE: readonly string[] = [
   'PracticePicker',
   'Shop',
   'Achievements',
+  'Story',
 ];
 
 /**
@@ -859,6 +1181,7 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
   const before = currentAccessibility();
   const returnTo = running[0] ?? 'MainMenu';
   const report: ProbeCellReport[] = [];
+  const viewport = probeViewport(game);
   let totalFindings = 0;
   try {
     // Warm-up: a scene's first visit may still be streaming art or fonts in.
@@ -878,11 +1201,16 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
           const scene = await openScene(game, spec, settleMs);
           const result = checkScene(scene);
           const visible = walkTexts(scene).texts;
-          const missing: ProbeFinding[] = (spec.requiredText ?? []).filter((text) => !visible.some((entry) => entry.object.text === text))
+          const required = spec.requiredTextWideOnly && sceneStage(scene).compact ? [] : spec.requiredText ?? [];
+          const missing: ProbeFinding[] = required.filter((text) => !visible.some((entry) => entry.object.text === text))
             .map((text) => ({ kind: 'missingText', text, bounds: { x: 0, y: 0, width: 0, height: 0 }, detail: 'required visible fixture copy' }));
           const findings = [...result.findings, ...missing, ...(spec.duelCue ? checkDuelCue(scene, spec.duelCue) : [])];
           totalFindings += findings.length;
-          sceneReports.push({ scene: spec.label, ...result, findings });
+          // A compact scene has its own camera zoom (src/platform/compactScenes.ts).
+          const cssPerDesignPx = game.canvas.width > 0
+            ? game.canvas.getBoundingClientRect().width / game.canvas.width * scene.cameras.main.zoom : 0;
+          const taps = viewport.profile === 'compact' ? measureTapTargets(scene, cssPerDesignPx) : null;
+          sceneReports.push({ scene: spec.label, ...result, findings, ...(taps ? { targets: taps.targets, smallTargets: taps.small } : {}) });
           if (options.snapshots) snapshots[spec.label] = await snapshot(game);
         } catch (error) {
           totalFindings++;
@@ -901,6 +1229,7 @@ export async function runA11yProbe(game: Phaser.Game, options: ProbeOptions = {}
   }
   return {
     startedAt: new Date().toISOString(),
+    viewport,
     cells: report,
     totalFindings,
     skipped: options.scenes ? [] : WAVE_1_SKIPPED,

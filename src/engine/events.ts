@@ -83,7 +83,7 @@ export type GameEvent =
       iid?: number;
     }
   | { e: 'preserved'; player: PlayerId; cardId: string }
-  | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number }
+  | { e: 'activated'; player: PlayerId; iid: number; cardId: string; abilityIndex?: number; marksSpent?: number }
   /** A repeatable mana ability used several times as one action (A1.5), and the events of its ops follow. */
   | { e: 'manaActivated'; player: PlayerId; iid: number; cardId: string; abilityIndex: number; times: number }
   | {
@@ -106,6 +106,10 @@ export type GameEvent =
   | { e: 'overcharged'; player: PlayerId; iid: number; cardId: string; tokenCardId: string; total: number }
   /** A token refused at the creature cap with no same-name token eligible for an Overcharge: nothing entered and nothing changed (1.9 A1.7). */
   | { e: 'tokenRefused'; player: PlayerId; tokenCardId: string }
+  /** The Mandate changed hands: claimed by an effect, or taken by combat damage to its holder. */
+  | { e: 'mandateChanged'; from: PlayerId | null; to: PlayerId; reason: 'effect' | 'combat' }
+  /** The Mandate's dawn draw for its holder, emitted just before that draw. */
+  | { e: 'mandateDraw'; player: PlayerId }
   | { e: 'positionNote'; note: string } // debug/log line, never load-bearing
   | {
       e: 'gameEnded';

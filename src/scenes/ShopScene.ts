@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { formatGold, goldPrice } from '../ui/goldFormat';
+import { formatCount, formatGold, goldPrice } from '../ui/goldFormat';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import { ECONOMY } from '../config/rules';
@@ -39,26 +39,58 @@ import { IS_DEV } from '../platform/env';
 import type { SaveData } from '../meta/SaveManager';
 import { fitMenuListName, fitMenuName } from '../ui/menuText';
 import { bindMenuScroll } from '../ui/menuScroll';
+import { COMPACT, compactShell, DESKTOP_GRID, isDesktopStage } from '../ui/compactLayout';
+import {
+  compactButton,
+  compactHeader,
+  compactIconButton,
+  compactPurse,
+  compactSegments,
+  COMPACT_DRAG_SLOP,
+  desktopTextPanel,
+  type CompactButton,
+} from '../ui/compactWidgets';
+import {
+  deckCellAt,
+  deckGrid,
+  deckGridHeight,
+  deckScrollToShow,
+  packAt,
+  packStrip,
+  packStripMaxScroll,
+  packStripScrollFor,
+  SHOP_COMPACT,
+  shopSheet,
+  type PackStrip,
+  type ShopSheet,
+} from '../ui/shopCompact';
+import { currentAccessibility } from '../ui/accessibility';
+import { ellipsizeText } from '../ui/textFit';
+import { bakeUiIcon, uiIconSize, uiIconTinted, type UiIconName } from '../ui/uiIcons';
+import { rulesText, typeLine } from '../ui/rulesText';
+import { TIER_TEXT_COLOR } from '../ui/binder/FilterBar';
+import type { Rect } from '../ui/layout';
+import type { MenuScrollHandle } from '../ui/menuScroll';
 import { shopPackLayout, shopPreviewListLayout, shopPreviewModalLayout, shopTabCenters, SHOP_STRIP_ARROW_Y, type ShopA11yFixture } from '../ui/shopPresentation';
 import { DECK_SHOP_LAYOUT, DECK_SHOP_GRID, deckShopCardLayout } from '../ui/deckShopLayout';
-import { CARD_H, CardView } from '../ui/CardView';
+import { CARD_H, CARD_W, CardView } from '../ui/CardView';
 import { rarityLine } from '../ui/CardZoomPreview';
 import { deckPageCount, deckPageSlice } from '../ui/deckListPaging';
 import { computeDeckStats, CURVE_MAX, PIE_COLORS } from '../ui/deckStats';
 import { fxPolicy } from '../ui/fx/FXSupport';
 import { modalGuardTarget } from '../ui/Modal';
-import { createOddsModal } from '../ui/OddsModal';
+import { createOddsModal, oddsCopy, oddsSections } from '../ui/OddsModal';
 import { OverlayCoordinator } from '../ui/OverlayCoordinator';
 import { artMissing } from '../art/artLoader';
 import { awaitArt, gateOnArt } from '../ui/artGate';
 import { addPortraitArt } from '../ui/portraitArt';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
 import { HEADER_CURRENCY_ANCHOR } from '../ui/layout';
 import { sceneTitle } from '../ui/sceneTitle';
 import { colorInt, theme } from '../ui/theme';
 import { queueAchievementUnlockToasts } from '../ui/achievementToast';
 import { queueToast, Toast } from '../ui/Toast';
-import { backButton, goldBadge, modalShell, pager, panel, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
+import { backButton, goldBadge, modalShell, pager, panel, registerSceneBackNavigation, themedButton, type GoldBadge, type ModalShell, type ThemedButton } from '../ui/themeWidgets';
 import {
   boosterStripIndexForOffset,
   boosterStripLayout,
@@ -76,6 +108,9 @@ const PACK_W = 280;
 const PACK_H = 400;
 const WHEEL_STEP_THRESHOLD = 60;
 const WHEEL_STEP_COOLDOWN_MS = 250;
+/** Desktop pass: the column's running text inset from its panel's sides, and its panel's top and bottom pad. */
+const COLUMN_TEXT_INSET = 12;
+const COLUMN_TEXT_PAD_Y = 8;
 /**
  * A deck commit rebuilds the strip in place, so the bought card re-renders as
  * Clone Deck under the pointer. The second click of a double-click then landed
@@ -183,6 +218,17 @@ const FIRST_DAWN_PACK_TINT: PackTint = {
   trim: '#efe6d0',
   foil: '#f08a5d',
   mist: '#ffc7a0',
+};
+
+// Core Set II: jade, lacquer red and river-gold,
+// the Mandate's colours. Procedural until the set's pack art lands.
+const CORE_SET_2_PACK_TINT: PackTint = {
+  start: '#8fd3b0',
+  middle: '#b3202a',
+  end: '#2b1a17',
+  trim: '#d4a83a',
+  foil: '#fff1b0',
+  mist: '#3f9a78',
 };
 
 const packRR = (
@@ -373,6 +419,14 @@ export const FIRST_DAWN_PACK_ART: PackArtOpts = {
   realArtTrim: FIRST_DAWN_PACK_TINT.trim,
 };
 
+export const CORE_SET_2_PACK_ART: PackArtOpts = {
+  key: 'packart-core-set-2',
+  sceneArtKey: 'scene-pack-art-core-set-2',
+  tint: CORE_SET_2_PACK_TINT,
+  trimY: 63,
+  realArtTrim: CORE_SET_2_PACK_TINT.trim,
+};
+
 export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'ragnarok') return 'packart-ragnarok';
   if (sku === 'celtic-fae') return 'packart-celtic-fae';
@@ -384,6 +438,7 @@ export function packTextureForSku(sku: BoosterSku): string {
   if (sku === 'starborne') return 'packart-starborne';
   if (sku === 'drowned-deep') return 'packart-drowned-deep';
   if (sku === 'first-dawn') return 'packart-first-dawn';
+  if (sku === 'core-set-2') return 'packart-core-set-2';
   return 'packart';
 }
 
@@ -411,7 +466,7 @@ export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey:
 }
 
 /** Only the newest SKU gets launch emphasis. */
-export const NEWEST_SKU: BoosterSku = 'first-dawn';
+export const NEWEST_SKU: BoosterSku = 'core-set-2';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
@@ -530,11 +585,88 @@ interface PreviewEntry {
   n: number;
 }
 
+interface DeckPreviewModel {
+  info: (typeof DECK_INFO)[string] | undefined;
+  build: GrantedDeckBuild;
+  /** A Darlings precon's Darling, on her own row ahead of the list. */
+  darlingEntry: PreviewEntry | null;
+  creatures: PreviewEntry[];
+  spells: PreviewEntry[];
+  lands: PreviewEntry[];
+  /** Every distinct card in visual order: the Darling, creatures, spells, lands. */
+  entries: PreviewEntry[];
+}
+
+/** What a deck's preview lists, desktop and phone alike. */
+function deckPreviewModel(deck: DeckList | DarlingsPrecon): DeckPreviewModel {
+  const info = DECK_INFO[deck.id];
+  // Preview the build the purchase actually grants, not the DeckList's
+  // classic list: after classic retirement those differ for every starter
+  // and theme deck, and the shop must never advertise a deck it will not hand over.
+  const build = grantedDeckBuild(deck);
+  const counts = new Map<string, number>();
+  for (const id of build.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
+  const all = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
+  const sortFn = (a: PreviewEntry, b: PreviewEntry): number =>
+    manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
+  const creatures = all.filter((e) => isType(e.d, 'creature')).sort(sortFn);
+  const spells = all.filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land')).sort(sortFn);
+  const lands = all.filter((e) => isType(e.d, 'land')).sort(sortFn);
+  // A Darlings precon's Darling is not in its spell list (she waits in her
+  // own zone), so she leads the preview list on her own row and is the
+  // deck's signature card; before this the preview never showed her.
+  const darlingEntry: PreviewEntry | null = build.darlingId ? { d: def(CARD_DB, build.darlingId), n: 1 } : null;
+  return { info, build, darlingEntry, creatures, spells, lands, entries: [...(darlingEntry ? [darlingEntry] : []), ...creatures, ...spells, ...lands] };
+}
+
+/** What buying a deck adds to the collection (mirrors grantDeckCards — see Economy). */
+function deckGrantText(save: SaveData, deck: DeckList | DarlingsPrecon): string {
+  const grant = previewDeckGrant(save, CARD_DB, deckProductCardIds(deck));
+  return grant.grantedCopies > 0
+    ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
+    : 'Adds no new copies: your collection already has every card this deck runs.';
+}
+
+/** The phone layout's live parts (mobile wave 2); null on desktop. */
+interface CompactShopUi {
+  main: Rect;
+  column: Rect;
+  /** The top bar's left (back, title, tabs): a sheet covers it, so it hides. */
+  header: Phaser.GameObjects.GameObject[];
+  headerZones: Phaser.GameObjects.GameObject[];
+  mainLayer: Phaser.GameObjects.Container | null;
+  mainZones: Phaser.GameObjects.GameObject[];
+  columnLayer: Phaser.GameObjects.Container | null;
+  columnZones: Phaser.GameObjects.GameObject[];
+  sheet: Phaser.GameObjects.Container | null;
+  sheetKind: 'odds' | 'preview' | null;
+  sheetZones: Phaser.GameObjects.GameObject[];
+  previewSku: DeckSku | null;
+  /** The chosen pack and deck tile. */
+  pack: number;
+  deck: number;
+  /** The pack strip, its scroll, and the press that may become a drag. */
+  strip: PackStrip | null;
+  stripContent: Phaser.GameObjects.Container | null;
+  stripOffset: number;
+  stripPointer: number | null;
+  stripStartX: number;
+  stripStartOffset: number;
+  stripDragging: boolean;
+  deckScroll: MenuScrollHandle | null;
+  deckTiles: { outline: Phaser.GameObjects.Graphics; name: Phaser.GameObjects.Text; w: number; h: number }[];
+}
+
 const FEATURED_THUMB_SCALE = 0.21;
 
 export class ShopScene extends Phaser.Scene {
   private fixture: ShopA11yFixture | null = null;
   private fixtureSave: SaveData | null = null;
+  /**
+   * Set once a pack buy has spent the gold. The scene change it starts lands
+   * on the next frame, so a second tap in between would buy again.
+   */
+  private buying = false;
   private get saveData(): SaveData { return this.fixtureSave ?? Services.save.data; }
   private goldBadge!: GoldBadge;
   private tab: ShopTab = 'boosters';
@@ -592,6 +724,7 @@ export class ShopScene extends Phaser.Scene {
   private boosterQtyStatus: Phaser.GameObjects.Text | null = null;
   private boosterWheelAccum = 0;
   private boosterWheelLastStepAt = Number.NEGATIVE_INFINITY;
+  private compactUi: CompactShopUi | null = null;
 
   constructor() {
     super('Shop');
@@ -672,6 +805,7 @@ export class ShopScene extends Phaser.Scene {
     // Nothing in the Shop restarts itself or reads settings.data later.
     this.sys.settings.data = {};
     this.fixture = IS_DEV ? data.a11yFixture ?? null : null;
+    this.buying = false;
     this.fixtureSave = this.fixture ? structuredClone(this.fixture.save) : null;
     this.data.set('a11yReady', false);
     this.data.set('a11yDensity', { actual: [], release: [] });
@@ -739,6 +873,12 @@ export class ShopScene extends Phaser.Scene {
     this.deckWheelLastStepAt = Number.NEGATIVE_INFINITY;
     this.lastDeckCommitAt = Number.NEGATIVE_INFINITY;
     this.coordinator = new OverlayCoordinator();
+    if (sceneStage(this).compact) {
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
+      this.prepareStage();
+      this.buildCompact(data);
+      return;
+    }
     new Toast(this, { isBlocked: () => this.overlay !== null || this.inspect !== null || this.oddsModal !== null });
     // Deck-preview hotkeys. Keyboard bypasses the modal dims, so every handler
     // self-guards on the overlay/inspect state (the LimitedDraftScene pattern);
@@ -755,6 +895,29 @@ export class ShopScene extends Phaser.Scene {
     this.input.on('pointerupoutside', this.onDeckPointerUp, this);
     this.input.on('wheel', this.onDeckWheel, this);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.onShutdown, this);
+    this.prepareStage();
+
+    sceneTitle(this, 'Shop');
+
+    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
+    this.refreshGold();
+
+    this.buildTabBar();
+    this.boostersGroup = this.add.container(0, 0);
+    this.decksGroup = this.add.container(0, 0);
+    this.buildBoostersGroup(this.boostersGroup, data.boosterIndex ?? 0);
+    this.buildDecksGroup(this.decksGroup, this.fixture?.deckIndex);
+    this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
+
+    this.shopInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
+    if (this.fixture?.odds) this.showOddsModal(this.fixture.odds, packPoolSummary(this.saveData, CARD_DB, packSetForSku(this.fixture.odds)));
+    const preview = this.deckSections().flatMap((section) => section.skus).find((sku) => sku.deck.id === this.fixture?.deckId);
+    if (preview) this.showDeckPreview(preview);
+    else this.data.set('a11yReady', true);
+  }
+
+  /** The backdrop, the baked pack art, the click and the music: both layouts start here. */
+  private prepareStage(): void {
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
     // src/platform/renderScale.ts). Identical at k=1.
@@ -783,26 +946,9 @@ export class ShopScene extends Phaser.Scene {
     bakePackArt(this, STARBORNE_PACK_ART);
     bakePackArt(this, DROWNED_DEEP_PACK_ART);
     bakePackArt(this, FIRST_DAWN_PACK_ART);
+    bakePackArt(this, CORE_SET_2_PACK_ART);
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('shop');
-
-    sceneTitle(this, 'Shop');
-
-    this.goldBadge = goldBadge(this, HEADER_CURRENCY_ANCHOR.x, HEADER_CURRENCY_ANCHOR.y, { flashOnChange: true });
-    this.refreshGold();
-
-    this.buildTabBar();
-    this.boostersGroup = this.add.container(0, 0);
-    this.decksGroup = this.add.container(0, 0);
-    this.buildBoostersGroup(this.boostersGroup, data.boosterIndex ?? 0);
-    this.buildDecksGroup(this.decksGroup, this.fixture?.deckIndex);
-    this.setTab(this.tab); // honors the initial tab (onboarding routes to 'decks')
-
-    this.shopInteractiveTargets.push(backButton(this, 'Menu', () => this.scene.start('MainMenu')));
-    if (this.fixture?.odds) this.showOddsModal(this.fixture.odds, packPoolSummary(this.saveData, CARD_DB, packSetForSku(this.fixture.odds)));
-    const preview = this.deckSections().flatMap((section) => section.skus).find((sku) => sku.deck.id === this.fixture?.deckId);
-    if (preview) this.showDeckPreview(preview);
-    else this.data.set('a11yReady', true);
   }
 
   private readonly onShutdown = (): void => {
@@ -1342,7 +1488,7 @@ export class ShopScene extends Phaser.Scene {
 
   /** Buy + open the selected quantity of one SKU (clamped to what you can afford). */
   private buyPacks(unitPrice: number, set: CardDef['set'] | undefined, sku: BoosterSku): void {
-    if (this.fixture) return;
+    if (this.fixture || this.buying) return;
     const save = this.saveData;
     const n = Math.min(this.qty, Math.floor(save.gold / unitPrice));
     if (n < 1) {
@@ -1350,6 +1496,7 @@ export class ShopScene extends Phaser.Scene {
       return;
     }
     this.closeOverlay(); // close any open deck preview before leaving the scene
+    this.buying = true;
     spendGold(save, unitPrice * n);
     Sfx.play('coin');
     const rng = createRngState(Date.now() & 0x7fffffff);
@@ -1813,7 +1960,7 @@ export class ShopScene extends Phaser.Scene {
     queueAchievementUnlockToasts(achievementIds);
     this.refreshGold();
     // Rebuild on the SAME page: the bought card re-renders as owned in place.
-    this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
+    this.rebuildDecks();
     return true;
   }
 
@@ -1849,7 +1996,15 @@ export class ShopScene extends Phaser.Scene {
       });
     }
     // The row re-renders as library-owned after a grant.
-    if (granted) this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
+    if (granted) this.rebuildDecks();
+  }
+
+  /** After a buy, claim or grant: the deck tiles re-render as owned, on the same page. */
+  private rebuildDecks(): void {
+    if (this.compactUi) {
+      this.renderCompactMain();
+      this.renderCompactColumn();
+    } else this.buildDecksGroup(this.decksGroup, this.deckStripIndex);
   }
 
   // --- Deck preview overlay -------------------------------------------------
@@ -1965,24 +2120,8 @@ export class ShopScene extends Phaser.Scene {
     const inLibrary = save.decks.some((d) => d.id === deck.id);
     const freeClaim = this.isFreeClaim(deck);
     const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
-    const info = DECK_INFO[deck.id];
-    // Preview the build the purchase actually grants, not the DeckList's
-    // classic list: after classic retirement those differ for every starter
-    // and theme deck, and the shop must never advertise a deck it will not hand over.
-    const build = grantedDeckBuild(deck);
-    const counts = new Map<string, number>();
-    for (const id of build.cards) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const entries = [...counts.entries()].map(([id, n]) => ({ d: def(CARD_DB, id), n }));
-    const sortFn = (a: PreviewEntry, b: PreviewEntry): number =>
-      manaValue(a.d.cost) - manaValue(b.d.cost) || a.d.name.localeCompare(b.d.name);
-    const creatures = entries.filter((e) => isType(e.d, 'creature')).sort(sortFn);
-    const spells = entries.filter((e) => !isType(e.d, 'creature') && !isType(e.d, 'land')).sort(sortFn);
-    const lands = entries.filter((e) => isType(e.d, 'land')).sort(sortFn);
-    // A Darlings precon's Darling is not in its spell list (she waits in her
-    // own zone), so she leads the preview list on her own row and is the
-    // deck's signature card; before this the preview never showed her.
-    const darlingEntry: PreviewEntry | null = build.darlingId ? { d: def(CARD_DB, build.darlingId), n: 1 } : null;
-    this.previewEntries = [...(darlingEntry ? [darlingEntry] : []), ...creatures, ...spells, ...lands];
+    const { info, build, darlingEntry, creatures, spells, lands, entries } = deckPreviewModel(deck);
+    this.previewEntries = entries;
     const title = this.add.text(0, 0, deck.name, { fontFamily: theme.fonts.display, fontSize: `${theme.type.h1}px`, color: theme.colors.gold, align: 'center' }).setOrigin(0.5);
     fitMenuName(title, 880, 2);
     const darlings = isDarlingsPrecon(deck);
@@ -2169,11 +2308,7 @@ export class ShopScene extends Phaser.Scene {
 
     // What the purchase actually adds (mirrors grantDeckCards — see Economy).
     c.add(sectionLabel(statsX, content.y + previewLayout.headerGrowth + 346 + curveGrowth, 'WHAT YOU GET'));
-    const grant = previewDeckGrant(save, CARD_DB, deckProductCardIds(deck));
-    const grantText =
-      grant.grantedCopies > 0
-        ? `Adds ${grant.grantedCopies} new card copies to your collection; you already own ${grant.ownedCopies} of its ${grant.nonBasicCopies} non-basic copies. Basics are always free.`
-        : 'Adds no new copies: your collection already has every card this deck runs.';
+    const grantText = deckGrantText(save, deck);
     const grantBody = this.add
       .text(statsX, content.y + previewLayout.headerGrowth + 364 + curveGrowth, grantText, {
         fontFamily: theme.fonts.ui,
@@ -2429,8 +2564,9 @@ export class ShopScene extends Phaser.Scene {
     awaitArt(owner, [entry.d.id], {
       onWait: (text) => {
         if (token !== this.inspectWaitToken) return;
+        const stage = sceneStage(this);
         line ??= this.add
-          .text(theme.design.centerX, theme.design.centerY, '', {
+          .text(stage.content.x + stage.content.width / 2, stage.content.y + stage.content.height / 2, '', {
             fontFamily: 'Georgia, serif',
             fontSize: `${theme.type.h2}px`,
             color: theme.colors.muted,
@@ -2443,7 +2579,8 @@ export class ShopScene extends Phaser.Scene {
       onReady: () => {
         line?.destroy();
         if (token !== this.inspectWaitToken) return;
-        this.buildCardInspect(idx);
+        if (this.compactUi) this.buildCompactCardInspect(idx);
+        else this.buildCardInspect(idx);
         owner.destroy();
         if (this.inspectWaitOwner === owner) this.inspectWaitOwner = null;
       },
@@ -2544,5 +2681,1126 @@ export class ShopScene extends Phaser.Scene {
   private closeOddsModal(): void {
     this.oddsModal?.close();
     this.oddsModal = null;
+  }
+
+  // --- Phone layout (mobile wave 2) ------------------------------------------
+
+  /**
+   * The phone Shop (S-Shop-Packs, S-Shop-Decks, S-Shop-Darlings): the tabs in
+   * the top bar, the packs or the deck tiles in the main pane, and the
+   * chosen product with its one action in the column. The drop rates and the
+   * deck preview open as sheets over the main pane and the top bar's left.
+   */
+  private buildCompact(data: ShopSceneData): void {
+    const stage = sceneStage(this);
+    const shell = compactShell(stage.content, { back: true });
+    const column = shell.column ?? { x: shell.main.x + shell.main.width, y: shell.main.y, width: 0, height: shell.main.height };
+    const goBack = (): void => {
+      this.scene.start('MainMenu');
+    };
+    const header = compactHeader(this, shell, { title: 'Shop', onBack: goBack });
+    registerSceneBackNavigation(this, () => {
+      if (this.compactUi?.sheet) this.closeCompactSheet();
+      else goBack();
+    }, { coordinator: this.coordinator });
+    const purse = compactPurse(this, shell.right.x + shell.right.width, shell.right.y + shell.right.height / 2, () => this.saveData.gold);
+    this.goldBadge = purse.badge;
+    const tabsX = header.title.x + header.title.width + COMPACT.gap * 2;
+    const tabsW = Math.max(0, Math.min(SHOP_COMPACT.tabsW, purse.left - COMPACT.gap * 2 - tabsX));
+    const tabs = compactSegments(this, { x: tabsX, y: shell.title.y, width: tabsW, height: COMPACT.touch }, ['Card Packs', 'Decks'],
+      this.tab === 'boosters' ? 0 : 1, (i) => this.setCompactTab(i === 0 ? 'boosters' : 'decks'));
+    const skus = visibleBoosterSkus();
+    // The drop rates open on their own pack, chosen in the column beside them.
+    const oddsIndex = skus.findIndex((sku) => sku.sku === this.fixture?.odds);
+    const pack = oddsIndex >= 0 ? oddsIndex : Math.min(Math.max(0, Math.trunc(data.boosterIndex ?? 0)), Math.max(0, skus.length - 1));
+    this.boosterStripIndex = pack;
+    this.compactUi = {
+      main: shell.main, column,
+      header: [header.back.container, header.title, ...(header.subtitle ? [header.subtitle] : []), tabs.container],
+      headerZones: [header.back.inputZone, ...tabs.zones],
+      mainLayer: null, mainZones: [], columnLayer: null, columnZones: [],
+      sheet: null, sheetKind: null, sheetZones: [], previewSku: null,
+      pack, deck: this.compactDeckDefault(this.fixture?.deckIndex),
+      strip: null, stripContent: null, stripOffset: 0, stripPointer: null, stripStartX: 0, stripStartOffset: 0, stripDragging: false,
+      deckScroll: null, deckTiles: [],
+    };
+    new Toast(this, {
+      isBlocked: () => this.inspect !== null,
+      rail: { right: column.x + column.width, top: column.y, width: column.width },
+    });
+    this.input.keyboard?.on('keydown-LEFT', this.onCompactPrevious);
+    this.input.keyboard?.on('keydown-RIGHT', this.onCompactNext);
+    this.input.on('pointermove', this.onCompactStripMove, this);
+    this.input.on('pointerup', this.onCompactStripUp, this);
+    this.input.on('pointerupoutside', this.onCompactStripUp, this);
+    this.input.on('wheel', this.onCompactStripWheel, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off('keydown-LEFT', this.onCompactPrevious);
+      this.input.keyboard?.off('keydown-RIGHT', this.onCompactNext);
+      this.input.off('pointermove', this.onCompactStripMove, this);
+      this.input.off('pointerup', this.onCompactStripUp, this);
+      this.input.off('pointerupoutside', this.onCompactStripUp, this);
+      this.input.off('wheel', this.onCompactStripWheel, this);
+      this.compactUi = null;
+    });
+
+    this.renderCompactMain(true);
+    this.renderCompactColumn();
+    const preview = this.deckSections().flatMap((section) => section.skus).find((sku) => sku.deck.id === this.fixture?.deckId);
+    if (this.fixture?.odds) this.openCompactOdds(this.fixture.odds);
+    if (preview) this.openCompactPreview(preview);
+    else this.data.set('a11yReady', true);
+  }
+
+  /** The Decks tab's opening tile: the fixture's, else the first waiting free claim, else the first. */
+  private compactDeckDefault(requested?: number): number {
+    const skus = this.compactDeckSkus();
+    if (requested !== undefined) return Math.min(Math.max(0, Math.trunc(requested)), Math.max(0, skus.length - 1));
+    return Math.max(0, skus.findIndex((sku) => this.isFreeClaim(sku.deck)));
+  }
+
+  private compactDeckSkus(): DeckSku[] {
+    const sections = this.deckSections();
+    return (sections.find((section) => section.key === this.deckTab) ?? sections[0]).skus;
+  }
+
+  /** Every control under an open card inspect, which guards them. */
+  private compactTargets(): Phaser.GameObjects.GameObject[] {
+    const ui = this.compactUi;
+    return ui ? [...ui.headerZones, ...ui.mainZones, ...ui.columnZones, ...ui.sheetZones] : [];
+  }
+
+  private setCompactTab(tab: ShopTab): void {
+    if (this.tab === tab) return;
+    this.tab = tab;
+    this.closeCompactSheet(false);
+    this.renderCompactMain(true);
+    this.renderCompactColumn();
+  }
+
+  private readonly onCompactPrevious = (): void => this.stepCompact(-1);
+  private readonly onCompactNext = (): void => this.stepCompact(1);
+
+  /** ←/→: the open card in a preview, else the chosen pack or deck. */
+  private stepCompact(delta: number): void {
+    const ui = this.compactUi;
+    if (!ui) return;
+    if (this.inspect) {
+      this.stepInspect(delta);
+      return;
+    }
+    if (ui.sheet) return;
+    if (this.tab === 'boosters') this.selectCompactPack(ui.pack + delta);
+    else this.selectCompactDeck(ui.deck + delta);
+  }
+
+  /** The main pane: the pack strip or the deck tiles. `focus` brings the chosen one into view. */
+  private renderCompactMain(focus = false): void {
+    const ui = this.compactUi;
+    if (!ui) return;
+    const deckOffset = focus ? null : ui.deckScroll?.offset() ?? null;
+    ui.mainLayer?.destroy();
+    ui.mainZones = [];
+    ui.strip = null;
+    ui.stripContent = null;
+    ui.stripPointer = null;
+    ui.deckScroll = null;
+    ui.deckTiles = [];
+    const layer = this.add.container(0, 0).setVisible(ui.sheet === null);
+    ui.mainLayer = layer;
+    if (this.tab === 'boosters') this.drawCompactPacks(layer, focus);
+    else this.drawCompactDecks(layer, deckOffset);
+  }
+
+  /** The packs across the main pane (S-Shop-Packs): drag to scroll, tap a pack to choose it. */
+  private drawCompactPacks(layer: Phaser.GameObjects.Container, focus: boolean): void {
+    const ui = this.compactUi!;
+    const main = ui.main;
+    const type = theme.compactType;
+    const skus = visibleBoosterSkus();
+    const labelStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body };
+    const probe = this.add.text(0, 0, 'Ag', labelStyle);
+    const strip = packStrip(main, skus.length, ui.pack, probe.height, { desktop: isDesktopStage(sceneStage(this)) });
+    probe.destroy();
+    ui.strip = strip;
+    ui.stripOffset = focus
+      ? packStripScrollFor(strip, main.width, ui.pack)
+      : Math.min(packStripMaxScroll(strip, main.width), ui.stripOffset);
+    const content = this.add.container(main.x - ui.stripOffset, 0);
+    const maskSource = this.add.graphics().fillStyle(0xffffff, 1).fillRect(main.x, main.y, main.width, main.height).setVisible(false);
+    content.setMask(maskSource.createGeometryMask());
+    layer.add([maskSource, content]);
+    strip.items.forEach((item, i) => {
+      const sku = skus[i];
+      const art = this.add.image(item.art.x + item.art.width / 2, item.art.y + item.art.height / 2, sku.textureKey)
+        .setDisplaySize(item.art.width, item.art.height);
+      content.add(art);
+      if (i === ui.pack) {
+        if (fxPolicy(this).shine && art.preFX) art.preFX.addShine(0.5, 0.3, 4);
+        content.add(this.add.graphics()
+          .lineStyle(3, colorInt(theme.colors.gold), 1)
+          .strokeRoundedRect(item.art.x - 2, item.art.y - 2, item.art.width + 4, item.art.height + 4, theme.radius.control));
+      }
+      if (item.label) {
+        const name = this.add.text(item.art.x + item.art.width / 2, item.label.y, '', labelStyle).setOrigin(0.5, 0);
+        ellipsizeText(name, item.label.width, sku.label);
+        content.add(name);
+      }
+      if (sku.sku === NEWEST_SKU) content.add(this.compactChip(item.art.x + 10, item.art.y + 10, 'New'));
+    });
+    ui.stripContent = content;
+    // One target over the pane: a drag scrolls the strip, a tap chooses the pack under it.
+    const zone = this.add.zone(main.x + main.width / 2, main.y + main.height / 2, main.width, main.height)
+      .setInteractive({ useHandCursor: true });
+    zone.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (this.inspect || ui.sheet || ui.stripPointer !== null) return;
+      ui.stripPointer = pointer.id;
+      ui.stripStartX = pointer.worldX;
+      ui.stripStartOffset = ui.stripOffset;
+      ui.stripDragging = false;
+    });
+    layer.add(zone);
+    ui.mainZones.push(zone);
+  }
+
+  /** A gold-bordered tag with its top-left at (x, y): the newest pack's "New". */
+  private compactChip(x: number, y: number, label: string): Phaser.GameObjects.Container {
+    const text = this.add.text(10, 3, label, {
+      fontFamily: theme.fonts.ui, fontSize: `${theme.compactType.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    });
+    const w = text.width + 20;
+    const h = text.height + 6;
+    const plate = this.add.graphics()
+      .fillStyle(theme.graphics.rowFillActive, 0.94).fillRoundedRect(0, 0, w, h, h / 2)
+      .lineStyle(theme.control.borderWidth, colorInt(theme.colors.gold), 1).strokeRoundedRect(0, 0, w, h, h / 2);
+    return this.add.container(x, y, [plate, text]);
+  }
+
+  private setCompactStripOffset(offset: number): void {
+    const ui = this.compactUi;
+    if (!ui?.strip || !ui.stripContent) return;
+    ui.stripOffset = Math.min(packStripMaxScroll(ui.strip, ui.main.width), Math.max(0, offset));
+    ui.stripContent.x = ui.main.x - ui.stripOffset;
+  }
+
+  private readonly onCompactStripMove = (pointer: Phaser.Input.Pointer): void => {
+    const ui = this.compactUi;
+    if (!ui || ui.stripPointer !== pointer.id) return;
+    const delta = pointer.worldX - ui.stripStartX;
+    if (!ui.stripDragging && Math.abs(delta) > COMPACT_DRAG_SLOP) ui.stripDragging = true;
+    if (ui.stripDragging) this.setCompactStripOffset(ui.stripStartOffset - delta);
+  };
+
+  private readonly onCompactStripUp = (pointer: Phaser.Input.Pointer): void => {
+    const ui = this.compactUi;
+    if (!ui || ui.stripPointer !== pointer.id) return;
+    ui.stripPointer = null;
+    if (ui.stripDragging || !ui.strip || this.inspect || ui.sheet) {
+      ui.stripDragging = false;
+      return;
+    }
+    const index = packAt(ui.strip, pointer.worldX - ui.main.x + ui.stripOffset);
+    if (index !== null) this.selectCompactPack(index);
+  };
+
+  private readonly onCompactStripWheel = (
+    pointer: Phaser.Input.Pointer,
+    _over: unknown,
+    deltaX: number,
+    deltaY: number,
+  ): void => {
+    const ui = this.compactUi;
+    if (!ui?.strip || this.tab !== 'boosters' || ui.sheet || this.inspect) return;
+    const main = ui.main;
+    if (pointer.worldX < main.x || pointer.worldX > main.x + main.width || pointer.worldY < main.y || pointer.worldY > main.y + main.height) return;
+    this.setCompactStripOffset(ui.stripOffset + (Math.abs(deltaX) >= Math.abs(deltaY) ? deltaX : deltaY));
+  };
+
+  private selectCompactPack(index: number): void {
+    const ui = this.compactUi;
+    const count = visibleBoosterSkus().length;
+    if (!ui || index < 0 || index >= count || index === ui.pack) return;
+    ui.pack = index;
+    this.boosterStripIndex = index; // Pack Opening hands it back
+    this.renderCompactMain(true);
+    this.renderCompactColumn();
+  }
+
+  /** The deck tiles (S-Shop-Decks): art, name, pips and price; tap one to choose it. */
+  private drawCompactDecks(layer: Phaser.GameObjects.Container, offset: number | null): void {
+    const ui = this.compactUi!;
+    const main = ui.main;
+    const type = theme.compactType;
+    const save = this.saveData;
+    const skus = this.compactDeckSkus();
+    const nameStyle = { fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700, color: theme.colors.heading };
+    const lineStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading };
+    const pip = Math.round(type.body * 1.3);
+    const probeName = this.add.text(0, 0, 'Ag', nameStyle);
+    const probeLine = this.add.text(0, 0, 'Ag', lineStyle);
+    // The desktop's short lists (the Darling decks) grow their art to fill the pane.
+    const desktop = isDesktopStage(sceneStage(this));
+    const grid = deckGrid(main.width, probeName.height, Math.max(pip, probeLine.height), currentAccessibility().textScale >= 1.3,
+      desktop ? DESKTOP_GRID.shopDeckMinW : undefined, desktop ? { paneH: main.height, count: skus.length } : undefined);
+    probeName.destroy();
+    probeLine.destroy();
+    const S = SHOP_COMPACT;
+    const list = this.add.container(0, main.y);
+    layer.add(list);
+    skus.forEach((sku, i) => {
+      const { deck, price } = sku;
+      const freeClaim = this.isFreeClaim(deck);
+      const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
+      const tile = this.add.container(main.x + (i % grid.columns) * grid.pitchX, Math.floor(i / grid.columns) * grid.pitchY);
+      list.add(tile);
+      tile.add(this.add.graphics()
+        .fillStyle(theme.graphics.panelFill, theme.alpha.panel).fillRoundedRect(0, 0, grid.tileW, grid.tileH, theme.radius.panel)
+        .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome).strokeRoundedRect(0, 0, grid.tileW, grid.tileH, theme.radius.panel));
+      this.addDeckPortrait(this.deckGridPortraitId(deck), grid.tileW / 2, S.deckPad + grid.artH / 2, grid.tileW - S.deckPad * 2, grid.artH, tile);
+      const name = this.add.text(S.deckPad, grid.nameY, '', nameStyle);
+      ellipsizeText(name, grid.tileW - S.deckPad * 2, deck.name);
+      tile.add(name);
+      const info = DECK_INFO[deck.id];
+      const pipKeys = info ? info.colors.split('/') : (isDarlingsPrecon(deck) ? [...deck.colors] : []);
+      pipKeys.forEach((key, k) => {
+        tile.add(this.add.image(S.deckPad + pip / 2 + k * (pip + 3), grid.lineY, `pip-${key}`).setDisplaySize(pip, pip));
+      });
+      // The price, or what stands in for it, at the line's right end.
+      const [icon, text, color] = freeClaim
+        ? ['star', 'Free', theme.colors.gold] as const
+        : owned ? ['check', 'Owned', theme.colors.success] as const : ['gold', formatCount(price), theme.colors.heading] as const;
+      const label = this.add.text(grid.tileW - S.deckPad, grid.lineY, text, { ...lineStyle, color }).setOrigin(1, 0.5);
+      const iconSize = uiIconSize(type.body);
+      const mark = this.add.image(label.x - label.width - 5 - iconSize / 2, grid.lineY, bakeUiIcon(this, icon)).setDisplaySize(iconSize, iconSize);
+      if (uiIconTinted(icon)) mark.setTint(colorInt(color));
+      tile.add([label, mark]);
+      const outline = this.add.graphics();
+      tile.add(outline);
+      ui.deckTiles.push({ outline, name, w: grid.tileW, h: grid.tileH });
+    });
+    this.drawCompactDeckSelection();
+    const scroll = bindMenuScroll(this, list, main, deckGridHeight(grid, skus.length), () => ui.sheet !== null, [], 0, undefined,
+      offset ?? deckScrollToShow(grid, ui.deck, main.height, 0));
+    ui.deckScroll = scroll;
+    const zone = this.add.zone(main.x + main.width / 2, main.y + main.height / 2, main.width, main.height)
+      .setInteractive({ useHandCursor: true });
+    bindTapButton(this, zone, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP || this.inspect || ui.sheet) return;
+      const index = deckCellAt(grid, skus.length, pointer.worldX - main.x, pointer.worldY - main.y + scroll.offset());
+      if (index !== null) this.selectCompactDeck(index);
+    });
+    layer.add(zone);
+    ui.mainZones.push(zone);
+  }
+
+  /** The chosen tile: a gold outline, a check on its corner, and its name in gold. */
+  private drawCompactDeckSelection(): void {
+    const ui = this.compactUi;
+    if (!ui) return;
+    ui.deckTiles.forEach((tile, i) => {
+      const chosen = i === ui.deck;
+      tile.name.setColor(chosen ? theme.colors.gold : theme.colors.heading);
+      tile.outline.clear();
+      if (!chosen) return;
+      const r = 11;
+      tile.outline
+        .lineStyle(2, colorInt(theme.colors.gold), 1).strokeRoundedRect(1, 1, tile.w - 2, tile.h - 2, theme.radius.panel)
+        .fillStyle(colorInt(theme.colors.gold), 1).fillCircle(tile.w - r - 4, r + 4, r)
+        .lineStyle(2.5, colorInt(theme.colors.onGold), 1).beginPath()
+        .moveTo(tile.w - r - 4 - 5, r + 4).lineTo(tile.w - r - 4 - 1.5, r + 4 + 3.5).lineTo(tile.w - r - 4 + 5, r + 4 - 4).strokePath();
+    });
+  }
+
+  private selectCompactDeck(index: number): void {
+    const ui = this.compactUi;
+    if (!ui || index < 0 || index >= this.compactDeckSkus().length || index === ui.deck) return;
+    ui.deck = index;
+    this.drawCompactDeckSelection();
+    this.renderCompactColumn();
+  }
+
+  /** The column: the chosen pack or deck and its action, or the open preview's decision. */
+  private renderCompactColumn(): void {
+    const ui = this.compactUi;
+    if (!ui) return;
+    ui.columnLayer?.destroy();
+    ui.columnZones = [];
+    const layer = this.add.container(0, 0);
+    ui.columnLayer = layer;
+    if (ui.sheetKind === 'preview' && ui.previewSku) this.drawCompactPreviewColumn(layer, ui.previewSku);
+    else if (this.tab === 'boosters') this.drawCompactPackColumn(layer);
+    else this.drawCompactDeckColumn(layer);
+  }
+
+  /**
+   * A row that opens more (Drop rates, Preview deck): its icon, a title over
+   * an optional caption, and a chevron. Returns its height.
+   */
+  private compactLinkRow(
+    layer: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    width: number,
+    icon: UiIconName,
+    title: string,
+    caption: string | null,
+    active: boolean,
+    onTap: () => void,
+  ): number {
+    const type = theme.compactType;
+    const iconSize = Math.round(type.body * 1.5);
+    const chevron = Math.round(type.body * 0.9);
+    const textX = x + 14 + iconSize + 12;
+    const textW = Math.max(0, x + width - 14 - chevron - COMPACT.gap - textX);
+    const head = this.add.text(textX, 0, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.heading,
+    });
+    ellipsizeText(head, textW, title);
+    const sub = caption === null ? null : this.add.text(textX, 0, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+    });
+    if (sub && caption !== null) ellipsizeText(sub, textW, caption);
+    const h = Math.max(COMPACT.touch, head.height + (sub?.height ?? 0) + 14);
+    const top = y + (h - head.height - (sub?.height ?? 0)) / 2;
+    head.setY(top);
+    sub?.setY(top + head.height);
+    const plate = this.add.graphics()
+      .fillStyle(active ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+      .fillRoundedRect(x, y, width, h, theme.radius.panel)
+      .lineStyle(theme.control.borderWidth, active ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, active ? 1 : theme.alpha.chrome)
+      .strokeRoundedRect(x, y, width, h, theme.radius.panel);
+    const mark = this.add.image(x + 14 + iconSize / 2, y + h / 2, bakeUiIcon(this, icon)).setDisplaySize(iconSize, iconSize)
+      .setTint(colorInt(theme.colors.heading));
+    const arrow = this.add.image(x + width - 14 - chevron / 2, y + h / 2, bakeUiIcon(this, 'chevron')).setDisplaySize(chevron, chevron)
+      .setTint(colorInt(theme.colors.muted));
+    const zone = this.add.zone(x + width / 2, y + h / 2, width, h).setInteractive({ useHandCursor: true });
+    bindTapButton(this, zone, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) <= COMPACT_DRAG_SLOP) onTap();
+    });
+    layer.add([plate, mark, head, ...(sub ? [sub] : []), arrow, zone]);
+    this.compactUi?.columnZones.push(zone);
+    return h;
+  }
+
+  /** A note with its icon on the first line: a free claim, an owned deck, a shortfall. */
+  private compactNote(
+    x: number,
+    y: number,
+    width: number,
+    icon: UiIconName,
+    text: string,
+    color: string,
+  ): { objects: Phaser.GameObjects.GameObject[]; height: number; body: Phaser.GameObjects.Text } {
+    const size = theme.compactType.body;
+    const iconSize = uiIconSize(size);
+    const body = this.add.text(x + iconSize + COMPACT.gap, y, text, {
+      fontFamily: theme.fonts.ui, fontSize: `${size}px`, color, wordWrap: { width: Math.max(0, width - iconSize - COMPACT.gap) }, lineSpacing: 2,
+    });
+    const lines = Math.max(1, body.getWrappedText().length);
+    const firstLine = (body.height - body.lineSpacing * (lines - 1)) / lines;
+    const mark = this.add.image(x + iconSize / 2, y + firstLine / 2, bakeUiIcon(this, icon)).setDisplaySize(iconSize, iconSize);
+    if (uiIconTinted(icon)) mark.setTint(colorInt(color));
+    return { objects: [mark, body], height: body.height, body };
+  }
+
+  /**
+   * Shorten `text` word by word, with an ellipsis, until it is no taller than
+   * `maxH`; hide it when not even one line fits. The full words are one tap
+   * away (the deck preview, the drop rates).
+   */
+  private trimToHeight(text: Phaser.GameObjects.Text, maxH: number): void {
+    if (text.height <= maxH) return;
+    const words = text.text.split(' ');
+    let lo = 0;
+    let hi = words.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      text.setText(`${words.slice(0, mid).join(' ')}…`);
+      if (text.height <= maxH) lo = mid;
+      else hi = mid - 1;
+    }
+    if (lo === 0) text.setText('').setVisible(false);
+    else text.setText(`${words.slice(0, lo).join(' ').replace(/[,.;:]$/, '')}…`);
+  }
+
+  /** The packs column (S-Shop-Packs): the pack's name and blurb, Drop rates, the quantity and Buy. */
+  private drawCompactPackColumn(layer: Phaser.GameObjects.Container): void {
+    const ui = this.compactUi!;
+    const col = ui.column;
+    const type = theme.compactType;
+    const gold = this.saveData.gold;
+    const sku = visibleBoosterSkus()[ui.pack];
+    if (!sku) return;
+    const price = packPriceForSku(sku.sku);
+    const quantities = [1, 5, 10];
+    const qtyIndex = Math.max(0, quantities.indexOf(this.qty));
+    this.qty = quantities[qtyIndex];
+    const total = price * this.qty;
+
+    // From the foot up: Buy, the quantity, its caption.
+    const buyRect = { x: col.x, y: col.y + col.height - COMPACT.touch, width: col.width, height: COMPACT.touch };
+    const buy = compactButton(this, buyRect, this.qty > 1 ? `Buy ×${this.qty} · ${goldPrice(total)}` : `Buy · ${goldPrice(price)}`, {
+      variant: 'primary',
+      onTap: () => this.buyPacks(price, packSetForSku(sku.sku), sku.sku),
+    });
+    buy.setEnabled(gold >= total);
+    const qtyRect = { x: col.x, y: buyRect.y - COMPACT.gap - COMPACT.touch, width: col.width, height: COMPACT.touch };
+    const qty = compactSegments(this, qtyRect, quantities.map((n) => `×${n}`), qtyIndex, (i) => {
+      this.qty = quantities[i];
+      this.renderCompactColumn();
+    });
+    // Not even one pack: the whole buying block reads as out of reach (S-Shop-Packs-Short).
+    if (gold < price) qty.container.setAlpha(0.6);
+    const caption = this.add.text(col.x, 0, 'Buy quantity', { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted });
+    caption.setY(qtyRect.y - 4 - caption.height);
+    layer.add([buy.container, qty.container, caption]);
+    ui.columnZones.push(buy.inputZone, ...qty.zones);
+
+    // From the top down: the name, the blurb, Drop rates, and the shortfall.
+    const room = caption.y - COMPACT.gap - col.y - 2 * this.columnTextPadY();
+    const ink = this.columnTextRect();
+    // Gold, like the chosen pack's outline, so the column reads as that pack's.
+    const name = this.add.text(ink.x, col.y, sku.label, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      wordWrap: { width: ink.width },
+    });
+    const blurb = this.add.text(ink.x, 0, SET_BLURBS[sku.sku], {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: ink.width }, lineSpacing: 2,
+    });
+    const pool = packPoolSummary(this.saveData, CARD_DB, packSetForSku(sku.sku));
+    const rowLayer = this.add.container(0, 0);
+    // Drop rates sits inside the text panel on the desktop, so it takes the text's inset.
+    const rowH = this.compactLinkRow(rowLayer, ink.x, 0, ink.width, 'info', 'Drop rates', `${pool.ownedDistinct}/${pool.poolSize} Owned`,
+      ui.sheetKind === 'odds', () => {
+        if (ui.sheetKind === 'odds') this.closeCompactSheet();
+        else this.openCompactOdds(sku.sku);
+      });
+    const short = gold < total
+      ? this.compactNote(ink.x, 0, ink.width, 'info', `You need ${formatGold(total - gold)} more to buy ${this.qty} ${this.qty === 1 ? 'pack' : 'packs'} at a time.`, theme.colors.body)
+      : null;
+    name.setY(col.y + this.columnTextPadY());
+    const fixed = name.height + 4 + COMPACT.gap + rowH + (short ? COMPACT.gap + short.height : 0);
+    this.trimToHeight(blurb, room - fixed);
+    blurb.setY(name.y + name.height + 4);
+    const rowY = (blurb.visible ? blurb.y + blurb.height : name.y + name.height) + COMPACT.gap;
+    rowLayer.setY(rowY);
+    layer.add([name, blurb, rowLayer]);
+    let bottom = rowY + rowH;
+    if (short) {
+      const shift = rowY + rowH + COMPACT.gap;
+      for (const object of short.objects) (object as Phaser.GameObjects.Image).y += shift;
+      layer.add(short.objects);
+      bottom = shift + short.height;
+    }
+    this.addColumnTextPanel(layer, col.y, bottom + this.columnTextPadY());
+  }
+
+  /**
+   * Desktop pass: the column's running text sits on a faded panel exactly the
+   * column's width (its edges line up with the buttons under it), inset by
+   * `COLUMN_TEXT_INSET` each side and `columnTextPadY` top and bottom. Phones
+   * keep the bare text on the column's own rect.
+   */
+  private columnTextRect(): Rect {
+    const col = this.compactUi!.column;
+    const inset = isDesktopStage(sceneStage(this)) ? COLUMN_TEXT_INSET : 0;
+    return { x: col.x + inset, y: col.y, width: col.width - 2 * inset, height: col.height };
+  }
+
+  private columnTextPadY(): number {
+    return isDesktopStage(sceneStage(this)) ? COLUMN_TEXT_PAD_Y : 0;
+  }
+
+  /** The desktop's panel from `top` to `bottom`, under everything else in the column's layer. */
+  private addColumnTextPanel(layer: Phaser.GameObjects.Container, top: number, bottom: number): void {
+    if (!isDesktopStage(sceneStage(this)) || bottom <= top) return;
+    const col = this.compactUi!.column;
+    layer.addAt(desktopTextPanel(this, { x: col.x, y: top, width: col.width, height: bottom - top }, 0), 0);
+  }
+
+  /** The decks column (S-Shop-Decks, S-Shop-Darlings): the tabs, the chosen deck, Preview deck and its action. */
+  private drawCompactDeckColumn(layer: Phaser.GameObjects.Container): void {
+    const ui = this.compactUi!;
+    const col = ui.column;
+    const type = theme.compactType;
+    const save = this.saveData;
+    const sections = this.deckSections();
+    // At the largest text the full names outgrow their halves; the short ones still say which is which.
+    const probe = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600 });
+    const fits = sections.every((section) => probe.setText(section.label).width <= (col.width - 8) / sections.length - 12);
+    probe.destroy();
+    const tabs = compactSegments(this, { x: col.x, y: col.y, width: col.width, height: COMPACT.touch },
+      sections.map((section) => (fits ? section.label : section.label.replace(/ Decks$/, ''))),
+      Math.max(0, sections.findIndex((section) => section.key === this.deckTab)), (i) => {
+        const key = sections[i]?.key;
+        if (!key || key === this.deckTab) return;
+        this.deckTab = key;
+        ui.deck = this.compactDeckDefault();
+        this.renderCompactMain(true);
+        this.renderCompactColumn();
+      });
+    layer.add(tabs.container);
+    ui.columnZones.push(...tabs.zones);
+    const sku = this.compactDeckSkus()[ui.deck];
+    if (!sku) return;
+    const { deck, price } = sku;
+    const freeClaim = this.isFreeClaim(deck);
+    const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
+    const affordable = freeClaim || save.gold >= price;
+
+    // From the foot up: the action, then Preview deck.
+    const actionRect = { x: col.x, y: col.y + col.height - COMPACT.touch, width: col.width, height: COMPACT.touch };
+    const action = this.compactDeckAction(actionRect, sku, owned, freeClaim, affordable);
+    layer.add(action.container);
+    ui.columnZones.push(action.inputZone);
+    const rowLayer = this.add.container(0, 0);
+    const rowH = this.compactLinkRow(rowLayer, col.x, 0, col.width, 'eye', 'Preview deck', null, false, () => this.openCompactPreview(sku));
+    const rowY = actionRect.y - COMPACT.gap - rowH;
+    rowLayer.setY(rowY);
+    layer.add(rowLayer);
+
+    // From the tabs down: the name, the identity line, the archetype, how it plays, and the note.
+    const padY = this.columnTextPadY();
+    const panelTop = col.y + COMPACT.touch + (padY > 0 ? COMPACT.gap : COMPACT.gap * 1.5);
+    const top = panelTop + padY;
+    const ink = this.columnTextRect();
+    const name = this.add.text(ink.x, top, deck.name, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      wordWrap: { width: ink.width },
+    });
+    const { info, build, darlingEntry } = deckPreviewModel(deck);
+    const identity = this.compactIdentity(ink.x, 0, ink.width, deck, buildSizeCopy(build), type.body, theme.colors.body);
+    const archetype = this.add.text(ink.x, 0, darlingEntry ? `Darling: ${darlingEntry.d.name}` : info?.archetype ?? '', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: ink.width },
+    });
+    const plays = this.add.text(ink.x, 0, info?.plays ?? (isDarlingsPrecon(deck) ? deck.blurb : ''), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: ink.width }, lineSpacing: 2,
+    });
+    const note = owned
+      ? this.compactNote(ink.x, 0, ink.width, 'check', save.decks.some((d) => d.id === deck.id)
+        ? 'Owned. Clone Deck saves a fresh copy of the original list.'
+        : 'You hold every card in it. Clone Deck adds it to your library, free.', theme.colors.success)
+      : freeClaim
+        ? this.compactNote(ink.x, 0, ink.width, 'star', isDarlingsPrecon(deck)
+          ? `Your one free Darling deck. The other Darling decks cost ${formatGold(ECONOMY.darlingsPreconPrice)}.`
+          : `Your one free starter. The other starters cost ${formatGold(ECONOMY.starterDeckPrice)} once you claim it.`, theme.colors.gold)
+        : !affordable
+          ? this.compactNote(ink.x, 0, ink.width, 'info', `You need ${formatGold(price - save.gold)} more to buy this deck.`, theme.colors.danger)
+          : null;
+    const room = rowY - COMPACT.gap - top - padY;
+    const gap = 4;
+    const heights = (): number => name.height + gap + identity.height + (archetype.visible && archetype.text ? gap + archetype.height : 0)
+      + (note ? COMPACT.gap + note.height : 0);
+    // How it plays gives way first, then the archetype; the preview has both in full.
+    this.trimToHeight(plays, room - heights() - gap);
+    if (!plays.visible || !plays.text) this.trimToHeight(archetype, room - (heights() - (archetype.visible ? gap + archetype.height : 0)) - gap);
+    let y = name.y + name.height + gap;
+    for (const object of identity.objects) (object as Phaser.GameObjects.Image).y += y;
+    y += identity.height;
+    if (archetype.visible && archetype.text) {
+      archetype.setY(y + gap);
+      y = archetype.y + archetype.height;
+    }
+    if (plays.visible && plays.text) {
+      plays.setY(y + gap);
+      y = plays.y + plays.height;
+    }
+    layer.add([name, ...identity.objects, archetype, plays]);
+    if (note) {
+      for (const object of note.objects) (object as Phaser.GameObjects.Image).y += y + COMPACT.gap;
+      layer.add(note.objects);
+      y += COMPACT.gap + note.height;
+    }
+    this.addColumnTextPanel(layer, panelTop, y + padY);
+  }
+
+  /** A deck's colours as pips, then `text`, on one line from (x, y). */
+  private compactIdentity(
+    x: number,
+    y: number,
+    width: number,
+    deck: DeckList | DarlingsPrecon,
+    text: string,
+    size: number,
+    color: string,
+  ): { objects: Phaser.GameObjects.GameObject[]; height: number } {
+    const info = DECK_INFO[deck.id];
+    const keys = (info?.colors ?? (isDarlingsPrecon(deck) ? deck.colors.join('/') : '')).split('/').filter(Boolean);
+    const pip = Math.round(size * 1.35);
+    const label = this.add.text(0, 0, '', { fontFamily: theme.fonts.ui, fontSize: `${size}px`, color });
+    const textX = x + keys.length * (pip + 3) + (keys.length ? 5 : 0);
+    ellipsizeText(label, Math.max(0, x + width - textX), text);
+    const h = Math.max(pip, label.height);
+    label.setPosition(textX, y + (h - label.height) / 2);
+    const pips = keys.map((key, i) => this.add.image(x + pip / 2 + i * (pip + 3), y + h / 2, `pip-${key}`).setDisplaySize(pip, pip));
+    return { objects: [...pips, label], height: h };
+  }
+
+  /** A deck's one action: Clone Deck when owned, Claim free when it is the free one, else Buy. */
+  private compactDeckAction(rect: Rect, sku: DeckSku, owned: boolean, freeClaim: boolean, affordable: boolean, onCloned?: (granted: boolean) => void): CompactButton {
+    if (owned) {
+      return compactButton(this, rect, 'Clone Deck', { variant: 'primary', icon: 'copy', onTap: () => this.onCloneDeck(sku, onCloned) });
+    }
+    const button = compactButton(this, rect, freeClaim ? 'Claim free' : `Buy · ${goldPrice(sku.price)}`, {
+      variant: 'primary',
+      ...(freeClaim ? { icon: 'star' as const } : {}),
+      onTap: () => {
+        if (this.onBuyDeck(sku) && this.compactUi?.sheet) this.closeCompactSheet();
+      },
+    });
+    button.setEnabled(affordable);
+    return button;
+  }
+
+  /**
+   * Open a sheet over the main pane and the top bar's left (S-Shop-Odds,
+   * S-Shop-DeckConfirm). The header and the main pane hide under it; the
+   * column beside it stays live.
+   */
+  private openCompactSheet(
+    kind: 'odds' | 'preview',
+    header: (x: number, y: number, width: number) => { objects: Phaser.GameObjects.GameObject[]; height: number },
+  ): { container: Phaser.GameObjects.Container; layout: ShopSheet } {
+    const ui = this.compactUi!;
+    this.closeCompactSheet(false);
+    const content = sceneStage(this).content;
+    const draft = shopSheet(content, 0);
+    const head = header(draft.title.x, draft.title.y, draft.title.width);
+    const layout = shopSheet(content, head.height);
+    const container = this.add.container(0, 0).setDepth(theme.depth.overlay);
+    container.setData('a11ySurface', layout.frame).setData('a11yPanel', layout.frame);
+    const frame = layout.frame;
+    container.add(this.add.graphics()
+      .fillStyle(theme.graphics.panelFill, 0.97).fillRoundedRect(frame.x, frame.y, frame.width, frame.height, theme.radius.panel)
+      .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+      .strokeRoundedRect(frame.x, frame.y, frame.width, frame.height, theme.radius.panel));
+    container.add(head.objects);
+    const close = compactIconButton(this, layout.close, 'close', () => this.closeCompactSheet());
+    container.add(close.container);
+    ui.sheet = container;
+    ui.sheetKind = kind;
+    ui.sheetZones = [close.inputZone];
+    for (const object of ui.header) (object as Phaser.GameObjects.Container).setVisible(false);
+    ui.mainLayer?.setVisible(false);
+    return { container, layout };
+  }
+
+  /** Close the open sheet, if any; `render` redraws the column for the screen beneath. */
+  private closeCompactSheet(render = true): void {
+    const ui = this.compactUi;
+    if (!ui?.sheet) return;
+    this.closeInspect();
+    ui.sheet.destroy();
+    ui.sheet = null;
+    ui.sheetKind = null;
+    ui.sheetZones = [];
+    ui.previewSku = null;
+    this.previewEntries = [];
+    for (const object of ui.header) (object as Phaser.GameObjects.Container).setVisible(true);
+    ui.mainLayer?.setVisible(true);
+    if (render) this.renderCompactColumn();
+  }
+
+  /** The drop rates (S-Shop-Odds): the pool, the four tables and the notes, scrolling when they outgrow the sheet. */
+  private openCompactOdds(sku: BoosterSku): void {
+    const type = theme.compactType;
+    const pool = packPoolSummary(this.saveData, CARD_DB, packSetForSku(sku));
+    const copy = oddsCopy(sku, pool);
+    const { container, layout } = this.openCompactSheet('odds', (x, y, width) => {
+      const title = this.add.text(x, y, copy.title, {
+        fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+        wordWrap: { width },
+      });
+      return { objects: [title], height: title.height };
+    });
+    const body = layout.body;
+    const content = this.add.container(0, body.y);
+    container.add(content);
+    const text = (str: string, size: number, color: string, extra: Phaser.Types.GameObjects.Text.TextStyle = {}): Phaser.GameObjects.Text =>
+      this.add.text(body.x, 0, str, { fontFamily: theme.fonts.ui, fontSize: `${size}px`, color, wordWrap: { width: body.width - SHOP_COMPACT.thumbLane }, ...extra });
+    let y = 0;
+    const put = (t: Phaser.GameObjects.Text, after: number): void => {
+      t.setY(y);
+      content.add(t);
+      y += t.height + after;
+    };
+    put(text(copy.lead, type.body, theme.colors.body), 8);
+    put(text(copy.pool, type.body, theme.colors.gold, { fontStyle: theme.weight.w700 }), 2);
+    put(text(copy.source, type.caption, theme.colors.muted), 14);
+    // Four tables across when they fit, else two by two.
+    const sections = oddsSections();
+    const gap = 12;
+    const innerW = body.width - SHOP_COMPACT.thumbLane;
+    const across = innerW >= 4 * 120 + 3 * gap ? 4 : 2;
+    const colW = (innerW - gap * (across - 1)) / across;
+    const probe = this.add.text(0, 0, 'Ag', { fontFamily: theme.fonts.ui, fontSize: `${type.label}px` });
+    const rowH = Math.max(26, probe.height + 8);
+    probe.destroy();
+    for (let start = 0; start < sections.length; start += across) {
+      let tallest = 0;
+      sections.slice(start, start + across).forEach((section, k) => {
+        const x = body.x + k * (colW + gap);
+        const heading = this.add.text(x, y, section.heading, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold, letterSpacing: 1,
+        });
+        content.add(heading);
+        let rowY = y + heading.height + 6;
+        for (const [value, weight] of section.rows) {
+          const band = this.add.graphics().fillStyle(theme.graphics.rowFill, theme.alpha.subtle)
+            .fillRoundedRect(x, rowY, colW, rowH - 3, theme.radius.control);
+          const label = this.add.text(x + 8, rowY + (rowH - 3) / 2, section.labelFor(value), {
+            fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: section.colorFor(value),
+          }).setOrigin(0, 0.5);
+          const odds = this.add.text(x + colW - 8, label.y, `${weight}%`, {
+            fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.heading,
+          }).setOrigin(1, 0.5);
+          ellipsizeText(label, colW - 24 - odds.width);
+          content.add([band, label, odds]);
+          rowY += rowH;
+        }
+        tallest = Math.max(tallest, rowY - y);
+      });
+      y += tallest + 12;
+    }
+    put(text('NOTES', type.label, theme.colors.gold, { fontStyle: theme.weight.w700, letterSpacing: 1 }), 4);
+    copy.notes.forEach((note, i) => put(text(note, type.caption, theme.colors.muted), i === copy.notes.length - 1 ? 0 : 4));
+    bindMenuScroll(this, content, body, y, () => this.inspect !== null, [], 0);
+    this.renderCompactColumn();
+  }
+
+  /**
+   * The deck preview (S-Shop-DeckConfirm, S-Shop-DeckShort): the signature
+   * cards, the curve and the colours on the left, the whole list on the
+   * right, and in the column what the purchase adds and its price. It waits
+   * on this deck's own art, as the desktop preview does.
+   */
+  private openCompactPreview(sku: DeckSku): void {
+    const ui = this.compactUi!;
+    const type = theme.compactType;
+    const model = deckPreviewModel(sku.deck);
+    const { container, layout } = this.openCompactSheet('preview', (x, y, width) => {
+      const title = this.add.text(x, y, '', {
+        fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      });
+      ellipsizeText(title, width, sku.deck.name);
+      const archetype = model.darlingEntry ? `Darling: ${model.darlingEntry.d.name}` : model.info?.archetype ?? '';
+      const identity = this.compactIdentity(x, y + title.height + 2, width, sku.deck,
+        [archetype, buildSizeCopy(model.build)].filter(Boolean).join(' · '), type.label, theme.colors.muted);
+      return { objects: [title, ...identity.objects], height: title.height + 2 + identity.height };
+    });
+    ui.previewSku = sku;
+    this.previewEntries = model.entries;
+    this.renderCompactColumn();
+    const cards = [...model.build.cards, ...(model.build.darlingId ? [model.build.darlingId] : [])];
+    const wait = this.add.text(layout.body.x + layout.body.width / 2, layout.body.y + layout.body.height / 2, '', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+    }).setOrigin(0.5);
+    container.add(wait);
+    awaitArt(container, cards, {
+      onWait: (text) => {
+        if (wait.active) wait.setText(text);
+      },
+      onReady: () => {
+        if (ui.sheet !== container || !container.active) return;
+        wait.destroy();
+        this.fillCompactPreview(container, layout, model);
+        if (this.fixture?.inspectIndex !== undefined) this.showCardInspect(this.fixture.inspectIndex);
+        else this.data.set('a11yReady', true);
+      },
+    });
+  }
+
+  private fillCompactPreview(container: Phaser.GameObjects.Container, layout: ShopSheet, model: DeckPreviewModel): void {
+    const ui = this.compactUi!;
+    const type = theme.compactType;
+    const S = SHOP_COMPACT;
+    const sectionStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.muted, letterSpacing: 1 };
+
+    // The left: signature cards, the curve, the composition and the colours.
+    const left = layout.left;
+    const stats = this.add.container(0, left.y);
+    container.add(stats);
+    let y = 0;
+    const signature = this.add.text(left.x, y, model.darlingEntry ? 'YOUR DARLING · TAP TO INSPECT' : 'SIGNATURE CARDS · TAP TO INSPECT', {
+      ...sectionStyle, wordWrap: { width: left.width - S.thumbLane },
+    });
+    stats.add(signature);
+    y += signature.height + 6;
+    const featuredIds = model.darlingEntry ? [model.darlingEntry.d.id] : (model.info?.featured ?? []);
+    const featured = featuredIds.map((id) => this.previewEntries.findIndex((entry) => entry.d.id === id)).filter((idx) => idx >= 0);
+    const usable = left.width - S.thumbLane;
+    const thumbW = model.darlingEntry ? Math.min(usable * 0.55, 120) : Math.min(80, (usable - COMPACT.gap * 2) / 3);
+    const thumbH = Math.round(thumbW * 1.4);
+    const thumbs: { rect: Rect; idx: number }[] = [];
+    featured.forEach((idx, slot) => {
+      const entry = this.previewEntries[idx];
+      const x = left.x + slot * (thumbW + COMPACT.gap);
+      stats.add(makeCardThumb(this, x + thumbW / 2, y + thumbH / 2, entry.d, thumbW / CARD_W));
+      const count = this.add.text(0, 0, `×${entry.n}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      });
+      const bw = count.width + 12;
+      const bh = count.height + 4;
+      count.setPosition(x + thumbW - 4 - bw + 6, y + thumbH - 4 - bh + 2);
+      stats.add([this.add.graphics()
+        .fillStyle(theme.graphics.panelFill, 0.94).fillRoundedRect(x + thumbW - 4 - bw, y + thumbH - 4 - bh, bw, bh, bh / 2)
+        .lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome).strokeRoundedRect(x + thumbW - 4 - bw, y + thumbH - 4 - bh, bw, bh, bh / 2), count]);
+      thumbs.push({ rect: { x, y, width: thumbW, height: thumbH }, idx });
+    });
+    if (featured.length) y += thumbH + 14;
+
+    const curveLabel = this.add.text(left.x, y, 'MANA CURVE', sectionStyle);
+    stats.add(curveLabel);
+    y += curveLabel.height + 4;
+    const curveStats = computeDeckStats(model.build.cards, CARD_DB);
+    const pitch = Math.min(28, usable / (CURVE_MAX + 1));
+    const barW = Math.round(pitch * 0.6);
+    const small = { fontFamily: theme.fonts.ui, fontSize: `${type.caption}px` };
+    const probe = this.add.text(0, 0, '7+', small);
+    const capH = probe.height;
+    probe.destroy();
+    const barMax = 36;
+    const barBase = y + capH + 2 + barMax;
+    const maxCount = Math.max(1, ...curveStats.curve);
+    curveStats.curve.forEach((count, mv) => {
+      const bx = left.x + pitch / 2 + mv * pitch;
+      const h = count > 0 ? Math.max(3, Math.round((count / maxCount) * barMax)) : 2;
+      stats.add(this.add.rectangle(bx, barBase, barW, h, count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1));
+      if (count > 0) stats.add(this.add.text(bx, barBase - h - 2, `${count}`, { ...small, color: theme.colors.body }).setOrigin(0.5, 1));
+      stats.add(this.add.text(bx, barBase + 2, mv === CURVE_MAX ? '7+' : `${mv}`, { ...small, color: theme.colors.muted }).setOrigin(0.5, 0));
+    });
+    y = barBase + 2 + capH + 8;
+    const other = curveStats.nonlands - curveStats.typeCounts.creature;
+    const landsCopy = model.build.landReserve ? `${model.build.landReserve.length} Warchest lands` : `${curveStats.lands} lands`;
+    const composition = this.add.text(left.x, y, `${curveStats.typeCounts.creature} creatures · ${other} other · ${landsCopy}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: usable },
+    });
+    stats.add(composition);
+    y += composition.height + 6;
+    const pip = Math.round(type.body * 1.3);
+    let px = left.x;
+    for (const color of PIE_COLORS) {
+      const n = curveStats.colorPips[color];
+      if (n === 0) continue;
+      const label = this.add.text(0, 0, `${n}`, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body });
+      if (px + pip + 4 + label.width > left.x + usable && px > left.x) {
+        px = left.x;
+        y += pip + 6;
+      }
+      stats.add(this.add.image(px + pip / 2, y + pip / 2, `pip-${color}`).setDisplaySize(pip, pip));
+      label.setPosition(px + pip + 4, y + (pip - label.height) / 2);
+      stats.add(label);
+      px += pip + 4 + label.width + 12;
+    }
+    y += pip;
+    const statsScroll = bindMenuScroll(this, stats, left, y, () => this.inspect !== null, [], 0);
+    const statsTap = this.add.zone(left.x + left.width / 2, left.y + left.height / 2, left.width, left.height).setInteractive({ useHandCursor: true });
+    bindTapButton(this, statsTap, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP || this.inspect) return;
+      const at = { x: pointer.worldX, y: pointer.worldY - left.y + statsScroll.offset() };
+      const hit = thumbs.find(({ rect }) => at.x >= rect.x && at.x <= rect.x + rect.width && at.y >= rect.y && at.y <= rect.y + rect.height);
+      if (hit) this.showCardInspect(hit.idx);
+    });
+    container.add(statsTap);
+
+    // The right: the whole list by category, each row tapping to its card.
+    const right = layout.right;
+    const list = this.add.container(0, right.y);
+    container.add(list);
+    const rowW = right.width - S.thumbLane;
+    const art = Math.min(36, COMPACT.touch - 8);
+    const totals = new Map<string, number>([
+      ['DARLING', model.darlingEntry ? 1 : 0],
+      ['CREATURES', model.creatures.reduce((sum, e) => sum + e.n, 0)],
+      ['SPELLS', model.spells.reduce((sum, e) => sum + e.n, 0)],
+      ['LANDS', model.lands.reduce((sum, e) => sum + e.n, 0)],
+    ]);
+    const categoryOf = (entry: PreviewEntry): string =>
+      entry === model.darlingEntry ? 'DARLING' : isType(entry.d, 'creature') ? 'CREATURES' : isType(entry.d, 'land') ? 'LANDS' : 'SPELLS';
+    const rows: { top: number; bottom: number; idx: number }[] = [];
+    let ly = 0;
+    let category: string | null = null;
+    this.previewEntries.forEach((entry, idx) => {
+      const cat = categoryOf(entry);
+      if (cat !== category) {
+        category = cat;
+        const head = this.add.text(right.x, ly + (category === 'DARLING' || idx === 0 ? 0 : 6), `${cat} · ${totals.get(cat) ?? 0}`, sectionStyle);
+        list.add(head);
+        ly = head.y + head.height + 4;
+      }
+      const count = this.add.text(right.x + art + 10, 0, `${entry.n}×`, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted });
+      const mv = this.add.text(right.x + rowW - 4, 0, isType(entry.d, 'land') ? '' : `${manaValue(entry.d.cost)}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+      }).setOrigin(1, 0);
+      const nameX = count.x + count.width + 8;
+      const name = this.add.text(nameX, 0, entry.d.name, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+        color: entry === model.darlingEntry ? theme.colors.gold : theme.colors.heading,
+        // Advanced wrap breaks a hyphenated name too long for its line rather than running it into the cost.
+        wordWrap: { width: Math.max(0, right.x + rowW - 4 - mv.width - 8 - nameX), useAdvancedWrap: true },
+      });
+      const h = Math.max(COMPACT.touch, name.height + 10);
+      for (const t of [count, name, mv]) t.setY(ly + (h - t.height) / 2);
+      this.addDeckPortrait(entry.d.id, right.x + art / 2, ly + h / 2, art, art, list);
+      list.add([count, name, mv, this.add.graphics().lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+        .lineBetween(right.x, ly + h + 2, right.x + rowW, ly + h + 2)]);
+      rows.push({ top: ly, bottom: ly + h + 4, idx });
+      ly += h + 4;
+    });
+    const listScroll = bindMenuScroll(this, list, right, ly, () => this.inspect !== null, [], 0, undefined,
+      (this.fixture?.previewPage ?? 0) * right.height);
+    const listTap = this.add.zone(right.x + right.width / 2, right.y + right.height / 2, right.width, right.height).setInteractive({ useHandCursor: true });
+    bindTapButton(this, listTap, (pointer) => {
+      if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP || this.inspect) return;
+      const at = pointer.worldY - right.y + listScroll.offset();
+      const row = rows.find((r) => at >= r.top && at < r.bottom);
+      if (row) this.showCardInspect(row.idx);
+    });
+    container.add(listTap);
+    ui.sheetZones.push(statsTap, listTap);
+  }
+
+  /** The preview's column (S-Shop-DeckConfirm): what the purchase adds, its price, and Close beside the action. */
+  private drawCompactPreviewColumn(layer: Phaser.GameObjects.Container, sku: DeckSku): void {
+    const ui = this.compactUi!;
+    const col = ui.column;
+    const type = theme.compactType;
+    const save = this.saveData;
+    const { deck, price } = sku;
+    const freeClaim = this.isFreeClaim(deck);
+    const owned = !freeClaim && shopDeckOwned(save, CARD_DB, deck);
+    const affordable = freeClaim || save.gold >= price;
+
+    const footY = col.y + col.height - COMPACT.touch;
+    const closeW = Math.round((col.width - COMPACT.gap) * 0.4);
+    const close = compactButton(this, { x: col.x, y: footY, width: closeW, height: COMPACT.touch }, 'Close', { onTap: () => this.closeCompactSheet() });
+    layer.add(close.container);
+    ui.columnZones.push(close.inputZone);
+
+    const block = this.add.container(0, 0);
+    layer.add(block);
+    const ink = this.columnTextRect();
+    const padY = this.columnTextPadY();
+    let y = padY;
+    const heading = this.add.text(ink.x, y, 'WHAT YOU GET', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.muted, letterSpacing: 1,
+    });
+    y += heading.height + 4;
+    const grant = this.add.text(ink.x, y, deckGrantText(save, deck), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body, wordWrap: { width: ink.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
+    });
+    y += grant.height + 12;
+    const rule = this.add.graphics().lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome).lineBetween(ink.x, y, ink.x + ink.width, y);
+    y += 12;
+    block.add([heading, grant, rule]);
+    const line = (text: string, color: string): Phaser.GameObjects.Text => {
+      const t = this.add.text(ink.x, y, text, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color, wordWrap: { width: ink.width - SHOP_COMPACT.thumbLane }, lineSpacing: 2,
+      });
+      block.add(t);
+      y += t.height + 4;
+      return t;
+    };
+    let decision: Phaser.GameObjects.Text;
+    if (owned) {
+      decision = line(save.decks.some((d) => d.id === deck.id)
+        ? 'Owned. Clone Deck saves a fresh copy of the original list.'
+        : 'You hold every card in it. Clone Deck adds it to your library, free.', theme.colors.success);
+    } else if (freeClaim) {
+      decision = line(isDarlingsPrecon(deck)
+        ? `Your one free Darling deck. The other Darling decks cost ${formatGold(ECONOMY.darlingsPreconPrice)}.`
+        : `Your one free starter. The other starters cost ${formatGold(ECONOMY.starterDeckPrice)} once you claim it.`, theme.colors.gold);
+    } else if (affordable) {
+      line(`Price ${formatGold(price)}`, theme.colors.heading);
+      decision = line(`Balance ${formatGold(save.gold)} → ${formatGold(save.gold - price)} after`, theme.colors.body);
+    } else {
+      decision = line(`Price ${formatGold(price)} · Balance ${formatGold(save.gold)} · ${formatGold(price - save.gold)} short`, theme.colors.danger);
+    }
+    const contentH = y - 4 + padY;
+    const view = { x: col.x, y: col.y, width: col.width, height: Math.max(0, footY - COMPACT.gap - col.y) };
+    block.setY(col.y);
+    this.addColumnTextPanel(layer, col.y, col.y + Math.min(contentH, view.height));
+    if (contentH > view.height) bindMenuScroll(this, block, view, contentH, () => this.inspect !== null, [], 0);
+
+    // Clone Deck keeps the preview open, so its line is the feedback and counts the copies.
+    let copiesSaved = 0;
+    const action = this.compactDeckAction({ x: col.x + closeW + COMPACT.gap, y: footY, width: col.width - closeW - COMPACT.gap, height: COMPACT.touch },
+      sku, owned, freeClaim, affordable, (granted) => {
+        if (!decision.active) return;
+        if (!granted) copiesSaved++;
+        decision.setColor(theme.colors.success).setText(granted
+          ? `Saved. ${deck.name} is in your deck library.`
+          : copiesSaved === 1 ? `Saved. A copy of ${deck.name} is in your deck library.` : `Saved. ${copiesSaved} copies of ${deck.name} are in your deck library.`);
+      });
+    layer.add(action.container);
+    ui.columnZones.push(action.inputZone);
+  }
+
+  /**
+   * One card from the preview, full screen (the Collection's D-Detail
+   * shape): the face on the left, its name, tier and count beside it (and
+   * the rules at the largest text), Previous and Next under them.
+   */
+  private buildCompactCardInspect(idx: number): void {
+    const entry = this.previewEntries[idx];
+    if (!entry) return;
+    const stage = sceneStage(this);
+    const content = stage.content;
+    const type = theme.compactType;
+    const largeText = currentAccessibility().textScale >= 1.3;
+    const shell = modalShell(this, {
+      width: stage.width, height: stage.height, x: stage.width / 2, y: stage.height / 2,
+      dimAlpha: 0.92, depth: theme.depth.inspect, dismissal: 'esc-only', coordinator: this.coordinator,
+      registration: { dismissible: true, guardTargets: this.compactTargets().map(modalGuardTarget) },
+      onClose: () => {
+        if (this.inspect === shell) {
+          this.inspect = null;
+          this.inspectIdx = null;
+        }
+      },
+    });
+    shell.panel.clear();
+    this.inspect = shell;
+    this.inspectIdx = idx;
+    const c = shell.container;
+    c.setData('a11ySurface', { x: 0, y: 0, width: stage.width, height: stage.height }).setData('a11yPanel', content);
+    awaitArt(c, [entry.d.id], { onReady: () => undefined });
+    const faceW = Math.min(largeText ? 200 : 260, content.height / 1.4, content.width * 0.42);
+    const view = new CardView(this, content.x + faceW / 2, content.y + (faceW * 1.4) / 2).setScale(faceW / CARD_W);
+    view.setCard(entry.d, { fx: 'full' });
+    c.add(view);
+    const close = compactIconButton(this, { x: content.x + content.width - COMPACT.touch, y: content.y, width: COMPACT.touch, height: COMPACT.touch },
+      'close', () => shell.close());
+    c.add(close.container);
+    const textX = content.x + faceW + 16;
+    const textW = content.x + content.width - textX;
+    const navY = content.y + content.height - COMPACT.touch;
+    const navW = Math.min(180, (textW - COMPACT.gap) / 2);
+    const previous = compactButton(this, { x: textX, y: navY, width: navW, height: COMPACT.touch }, 'Previous', { onTap: () => this.stepInspect(-1) });
+    const next = compactButton(this, { x: textX + navW + COMPACT.gap, y: navY, width: navW, height: COMPACT.touch }, 'Next', { onTap: () => this.stepInspect(1) });
+    c.add([previous.container, next.container]);
+
+    const area = { x: textX, y: content.y, width: textW, height: Math.max(0, navY - COMPACT.gap - content.y) };
+    const layer = this.add.container(0, area.y);
+    c.add(layer);
+    let y = 0;
+    const add = (str: string, size: number, color: string, extra: Phaser.Types.GameObjects.Text.TextStyle = {}, width = textW - SHOP_COMPACT.thumbLane): void => {
+      const t = this.add.text(textX, y, str, { fontFamily: theme.fonts.ui, fontSize: `${size}px`, color, wordWrap: { width }, ...extra });
+      layer.add(t);
+      y += t.height + 4;
+    };
+    // The name stops short of the close button.
+    add(entry.d.name, type.h2, theme.colors.heading, { fontFamily: theme.fonts.display, fontStyle: theme.weight.w700 }, textW - COMPACT.touch - COMPACT.gap);
+    if (!entry.d.token) add(rarityLine(entry.d), type.label, TIER_TEXT_COLOR[entry.d.rarity], { fontStyle: theme.weight.w700 });
+    add(`${entry.n}× in this deck`, type.body, theme.colors.body);
+    if (largeText) {
+      y += 6;
+      const stats = entry.d.attack !== undefined && entry.d.defense !== undefined ? ` · ${entry.d.attack}/${entry.d.defense}` : '';
+      add(`${typeLine(entry.d)}${stats}`, type.label, theme.colors.muted);
+      const rules = rulesText(entry.d);
+      if (rules) add(rules, type.body, theme.colors.body, { lineSpacing: 2 });
+    }
+    bindMenuScroll(this, layer, area, Math.max(0, y - 4), undefined, [], 0, shell);
+    this.data.set('a11yReady', true);
   }
 }

@@ -20,7 +20,9 @@ export const DARLING_PAYDOWN_COST = 4;
 export const DARLING_PAYDOWN_REDUCTION = 2;
 
 export const RULES = {
-  startingLife: 20,
+  // Raised 20 -> 25 at 2.0 (owner, 2026-10-08, plan-2.0 lane D, from the D1
+  // life study). Replays recorded before v17 keep 20 (`replayStartingLife`).
+  startingLife: 25,
   deckSize: 60,
   maxCopies: 4, // basics unlimited
   startingHandSize: 7,

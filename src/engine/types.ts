@@ -52,6 +52,8 @@ export type TriggerWhen =
   | 'allyDies'
   | 'youGainLife'
   | 'youCastCharm'
+  /** Whenever you claim the Mandate (2.0), by an effect or by combat damage. */
+  | 'youClaimMandate'
   | 'allyAttacks'
   | 'sunset'
   /**
@@ -89,6 +91,8 @@ export interface TargetSpec {
   exactly?: 2;
   maxCost?: number;
   minAttack?: number;
+  /** "with Attack N or less" (2.0, Jia Nanfeng): creatures only, read live. */
+  maxAttack?: number;
   /** Restricts legal targets to creatures carrying at least one mark. */
   marked?: true;
   /** Restricts legal targets to tapped permanents. */
@@ -157,7 +161,7 @@ export type EffectOp =
   | { op: 'severSelf' }
   | { op: 'tap'; to: 'target'; targetIndex?: number }
   | { op: 'extraLandDrop'; n?: number } // grant the controller extra land drops this turn
-  | { op: 'createToken'; token: string; count: number; marks?: number }
+  | { op: 'createToken'; token: string; count: number; marks?: number; for?: 'targetController' } // `for`: the first target's controller makes them (2.0)
   | { op: 'destroyNewestOpponentArtifactOrEnchantment' } // trigger-safe, no target
   | { op: 'massDestroy'; filter: 'allCreatures' | 'allFliers' | 'allEnchantments' }
   | { op: 'preventCombat' } // prevent all combat damage this turn
@@ -167,11 +171,12 @@ export type EffectOp =
   | { op: 'awaken'; scope: 'self' | 'allYours' } // one-way champion upgrade; trigger-safe
   | { op: 'raise'; to?: 'target'; grantKeywords?: Keyword[]; targetIndex?: number }
   | { op: 'raise'; to: 'top'; withMarks?: number; grantKeywords?: Keyword[] }
-  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey }; // see the Hunt note above the union
+  | { op: 'hunt'; hunter: 'self' | 'target'; prey?: HuntPrey } // see the Hunt note above the union
+  | { op: 'claimMandate' }; // the effect's controller claims the Mandate; trigger-safe, no target
 
 export interface StaticDef {
-  /** `questActive` reads the source controller's public battlefield. */
-  condition?: 'questActive';
+  /** Read from the source controller's public board. */
+  condition?: 'questActive' | 'swornActive' | 'youHoldMandate';
   scope: 'self' | 'attached' | 'filter';
   /** filter scope: your creatures matching; `other` excludes the source. */
   filter?: {
@@ -193,6 +198,13 @@ export interface AbilityDef {
   /** The source controller must control a CardDef with `chapters` present. */
   condition?:
     | 'questActive'
+    /** Sworn (2.0, P6): the source's controller controls a legendary creature. */
+    | 'swornActive'
+    /** The source's controller holds the Mandate (2.0), or does not. */
+    | 'youHoldMandate'
+    | 'youDontHoldMandate'
+    /** The source's controller gained life this turn (2.0, Hebe). */
+    | 'youGainedLifeThisTurn'
     | 'controlMarked'
     | 'creatureDiedThisTurn'
     | { kind: 'controlsOther'; subtype: string }
@@ -240,9 +252,27 @@ export interface WhispersDef {
   cost: ManaCost;
 }
 
+/** One option of a modal spell: its own ops and at most one target of its own. */
+export interface ModeDef {
+  ops: EffectOp[];
+  targets?: TargetSpec[];
+}
+
+/**
+ * A modal Ritual or Charm (2.0, ruled into the engine 2026-10-08): "Choose up
+ * to N —". The caster picks at least one and at most `upTo` different modes
+ * as it is cast, with each chosen mode's target, and they resolve in printed
+ * order. The modes are the card's whole text.
+ */
+export interface ModalDef {
+  upTo: number;
+  modes: ModeDef[];
+}
+
 /** Optional creature sacrifices discount one generic per two combined Defense. */
 export interface TitheDef {
   per: 2;
+  marks?: number; // 2.0 (Nüwa): arrives with a mark per {1} the Tithe saved, at most this many
 }
 
 /** Additional creature-sacrifice cost paid while casting the card. */
@@ -255,9 +285,15 @@ export interface PreserveDef {
   cost: ManaCost;
 }
 
-/** A tap-cost activated ability; cards may expose an ordered list of Duties. */
+/**
+ * An activated ability; cards may expose an ordered list. A Duty's cost taps
+ * the source. A mark-cost ability (2.0, Nüwa's stones) instead removes marks
+ * from the source and never taps it, so it can be used while the source is
+ * tapped or has just arrived, as often as its marks and mana allow. Both run
+ * at Duty speed: your Morning or Afternoon, with an empty stack.
+ */
 export interface ActivatedDef {
-  cost: { tap: true; mana?: ManaCost };
+  cost: { tap: true; mana?: ManaCost } | { removeMarks: number; mana?: ManaCost };
   /** Run immediately in order, with this permanent as the source. */
   ops: EffectOp[];
   /** Chosen inline when activating, using the spell target rules. */
@@ -360,7 +396,8 @@ export function validateEmpowerDef(d: CardDef): string[] {
   const targets = d.empower.targets;
   const hasMoveMark = d.empower.ops.some((op) => op.op === 'moveMark');
   const hasReclaim = d.empower.ops.some((op) => op.op === 'reclaim');
-  const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy');
+  // A one-target damage rider (2.0, Core Set II's Wu Marine) reads like destroy.
+  const hasDestroy = d.empower.ops.some((op) => op.op === 'destroy' || (op.op === 'damage' && op.to === 'target'));
   const hunts = d.empower.ops.filter((op) => op.op === 'hunt');
   if (hasMoveMark && hasReclaim) {
     errors.push('Empower may not combine moveMark and reclaim');
@@ -376,11 +413,11 @@ export function validateEmpowerDef(d: CardDef): string[] {
       errors.push('Empower reclaim needs exactly one yourGraveCreature target spec');
     }
   } else if (hasDestroy) {
-    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy needs one single-target spec');
+    if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower destroy or damage needs one single-target spec');
   } else if (hunts.length > 0) {
     if (!targets || targets.length !== 1 || targets[0].upTo || targets[0].exactly) errors.push('Empower hunt needs one single-target spec');
   } else if (targets) {
-    errors.push('Empower targets require a moveMark, reclaim, destroy or hunt op');
+    errors.push('Empower targets require a moveMark, reclaim, destroy, damage or hunt op');
   }
   if (hunts.length > 0 && (hasMoveMark || hasReclaim || hasDestroy)) {
     errors.push('Empower hunt cannot combine with another targeted op');
@@ -388,8 +425,9 @@ export function validateEmpowerDef(d: CardDef): string[] {
   if (hunts.some((op) => op.op === 'hunt' && op.hunter !== 'self') || (hunts.length > 0 && !isType(d, 'creature'))) {
     errors.push('Empower hunt is the creature itself hunting (hunter self, on a creature)');
   }
-  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt')) {
-    errors.push('Only moveMark, reclaim, destroy and hunt may target from Empower');
+  if (d.empower.ops.some((op) => effectOpUsesTarget(op) && op.op !== 'moveMark' && op.op !== 'reclaim' && op.op !== 'destroy' && op.op !== 'hunt' &&
+    !(op.op === 'damage' && op.to === 'target'))) {
+    errors.push('Only moveMark, reclaim, destroy, damage and hunt may target from Empower');
   }
   return errors;
 }
@@ -561,7 +599,12 @@ export function validateHuntDef(d: CardDef): string[] {
     }
     check(ability.ops, ability.targets, ability.when === 'spell' ? 'spell' : 'bound');
   }
-  for (const activation of activatedAbilitiesOf(d)) check(activation.ops, activation.targets, 'bound');
+  // A noncreature Duty may make one of your creatures hunt (2.0, Grove of
+  // Artemis): the spell form's two targets, hunter then prey.
+  for (const activation of activatedAbilitiesOf(d)) {
+    const spellForm = !isType(d, 'creature') && flatOps(activation.ops).some((op) => op.op === 'hunt' && op.hunter === 'target');
+    check(activation.ops, activation.targets, spellForm ? 'spell' : 'bound');
+  }
   if (d.empower) check(d.empower.ops, d.empower.targets, 'bound');
   // A Retell body replaces the printed one with its own ops and targets, and
   // none of the carriers above covers it, so a Hunt there is refused rather
@@ -633,6 +676,12 @@ export interface CardDef {
   displayTypeLine?: string;
   subtypes: string[];
   supertypes?: ('legendary' | 'basic')[];
+  /**
+   * Presentation only (2.0, Core Set II's Sworn Champions): a legendary card
+   * whose frame shows no legendary crown. The rules, the AI, filters and the
+   * type line still treat it as legendary; nothing below the UI reads this.
+   */
+  crownless?: true;
   cost?: ManaCost; // absent on lands
   colors: Color[];
   attack?: number;
@@ -654,6 +703,8 @@ export interface CardDef {
   whispers?: WhispersDef;
   /** Optional any-number creature sacrifice discount paid while casting. */
   tithe?: TitheDef;
+  /** A modal Ritual or Charm: "Choose up to N —" (2.0). */
+  modal?: ModalDef;
   /** Optional additional cast cost that sacrifices controlled creatures. */
   rite?: RiteDef;
   /** Returns once after dying without a +1/+1 mark. */
@@ -671,13 +722,18 @@ export interface CardDef {
   rarity: Rarity;
   artRef?: string;
   token?: boolean; // non-collectible
-  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
+  set?: 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn' | 'core-set-2'; // expansion grouping; absent ⇒ 'base' (stamped in catalog.buildDb)
 }
 
 export type CardDb = Readonly<Record<string, CardDef>>;
 
 export function activatedAbilitiesOf(d: CardDef): readonly ActivatedDef[] {
   return d.activated ? (Array.isArray(d.activated) ? d.activated : [d.activated]) : [];
+}
+
+/** The marks an ability removes from its source as its cost; 0 for a Duty, which taps instead. */
+export function markCostOf(ability: ActivatedDef): number {
+  return 'removeMarks' in ability.cost ? ability.cost.removeMarks : 0;
 }
 
 /**
@@ -749,6 +805,48 @@ export function validateHauntlinkDef(d: CardDef): string[] {
 }
 
 /** Catalog-facing Rite validation; targeted effects choose before the sacrifice cost. */
+/**
+ * Modal spells (2.0). The modes are the whole text of a Ritual or Charm with
+ * no other cast option; each mode has ops and at most one plain target, and
+ * no op that needs a second target, X, a Hunt, or a target after Foresee.
+ */
+export function validateModalDef(d: CardDef): string[] {
+  if (!d.modal) return [];
+  const errors: string[] = [];
+  const { upTo, modes } = d.modal;
+  if (!isType(d, 'ritual') && !isType(d, 'charm')) errors.push('Modal carrier must be a Ritual or Charm');
+  if (isType(d, 'creature') || isType(d, 'artifact') || isType(d, 'enchantment')) errors.push('Modal carrier cannot be a permanent');
+  if ((d.abilities ?? []).some((ab) => ab.when === 'spell')) errors.push('Modal card cannot also have spell abilities');
+  if (d.x || d.empower || d.retell || d.whispers || d.tithe || d.rite || d.hauntlink) {
+    errors.push('Modal card cannot combine with X, Empower, Retell, Whispers, Tithe, Rite or Hauntlink');
+  }
+  if (!Array.isArray(modes) || modes.length < 2 || modes.length > 5) errors.push('Modal card needs 2 to 5 modes');
+  if (!Number.isInteger(upTo) || upTo < 1 || upTo > (modes?.length ?? 0)) errors.push('Modal upTo must be from 1 to the number of modes');
+  for (const mode of modes ?? []) {
+    const targets = mode.targets ?? [];
+    if (mode.ops.length === 0) errors.push('Each mode needs ops');
+    if (targets.length > 1) errors.push('A mode has at most one target');
+    for (const spec of targets) {
+      if (spec.upTo !== undefined || spec.exactly !== undefined) errors.push('A mode target is a single target');
+    }
+    let afterForesee = false;
+    const inspect = (list: readonly EffectOp[]): void => {
+      for (const op of list) {
+        if ('n' in op && op.n === 'X') errors.push('Modes cannot use X');
+        if (op.op === 'hunt' || op.op === 'moveMark') errors.push('Modes cannot Hunt or move marks');
+        if ('targetIndex' in op && op.targetIndex !== undefined && op.targetIndex !== 0) errors.push('A mode has only target 0');
+        if (effectOpUsesTarget(op)) {
+          if (targets.length === 0) errors.push('A mode op that targets needs a target spec');
+          if (afterForesee) errors.push('A mode cannot target after Foresee');
+        }
+        if (isTargetBranchOp(op)) { inspect(op.then); inspect(op.else ?? []); } else if (op.op === 'foresee') afterForesee = true;
+      }
+    };
+    inspect(mode.ops);
+  }
+  return errors;
+}
+
 export function validateRiteDef(d: CardDef): string[] {
   if (!d.rite) return [];
   const errors: string[] = [];
@@ -801,6 +899,9 @@ export function validateTitheDef(d: CardDef): string[] {
   if (d.rite) errors.push('Tithe card cannot combine with Rite');
   if (d.hauntlink) errors.push('Tithe card cannot combine with Hauntlink');
   if (d.x) errors.push('Tithe card cannot be X');
+  if (d.tithe.marks !== undefined && (!Number.isInteger(d.tithe.marks) || d.tithe.marks < 1)) {
+    errors.push('Tithe marks must be a whole number of at least 1');
+  }
   return errors;
 }
 
@@ -845,9 +946,14 @@ export function validateActivatedDef(d: CardDef): string[] {
   if (activatedAbilitiesOf(d).length === 0) errors.push('Activated list must not be empty');
   for (const activation of activatedAbilitiesOf(d)) {
     const { cost, ops, targets = [] } = activation;
-    if (!cost || cost.tap !== true || Object.keys(cost).some((key) => key !== 'tap' && key !== 'mana')) {
-      errors.push('Activated cost must be tap or tap plus mana');
+    const tapCost = cost && 'tap' in cost && cost.tap === true &&
+      Object.keys(cost).every((key) => key === 'tap' || key === 'mana');
+    const markCost = cost && 'removeMarks' in cost && Number.isInteger(cost.removeMarks) && cost.removeMarks >= 1 &&
+      Object.keys(cost).every((key) => key === 'removeMarks' || key === 'mana');
+    if (!tapCost && !markCost) {
+      errors.push('Activated cost must be tap or tap plus mana, or removing marks with optional mana');
     }
+    if (markCost && !isType(d, 'creature')) errors.push('Only a creature can remove its own marks as a cost');
     if (cost?.mana && (
       !Number.isInteger(cost.mana.generic) || cost.mana.generic < 0 ||
       Object.entries(cost.mana.pips).some(([color, pip]) =>
@@ -1017,6 +1123,10 @@ export interface StackItem {
   whispered?: true;
   /** Omitted means the ordinary cast; true means pay Hauntlink and attach. */
   hauntlinked?: boolean;
+  /** Marks the creature arrives with: one per {1} its Tithe saved, capped by `TitheDef.marks` (2.0). */
+  titheMarks?: number;
+  /** A modal spell's chosen modes, ascending; `targets` holds each targeted mode's target in that order (2.0). */
+  modes?: number[];
 }
 
 export type TargetRef =
@@ -1215,6 +1325,10 @@ export interface GameState {
   combat: CombatState | null;
   fogThisTurn: boolean;
   creatureDiedThisTurn?: true;
+  /** Players who gained life this turn (2.0); cleared at each turn's dawn. */
+  gainedLifeThisTurn?: PlayerId[];
+  /** Who holds the Mandate (2.0). Absent means unclaimed, as every game begins. */
+  mandateHolder?: PlayerId;
   sunsetPendingWindow?: true;
   decisionResume?: Awaiting & { offerAfterDecision?: true };
   awaiting: Awaiting;

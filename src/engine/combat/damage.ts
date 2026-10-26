@@ -1,5 +1,6 @@
 import { applyCreatureDamage, type CreatureDamageHit } from '../creatureDamage';
 import { fireTriggers } from '../effects/EffectInterpreter';
+import { claimMandate, mandateHolderOf } from '../mandate';
 import { checkStateBased } from '../sba';
 import { endGame } from '../phases';
 import { getEffectiveStats } from '../statics';
@@ -26,7 +27,7 @@ export function resolveCombatDamage(state: GameState, db: CardDb, emit: Emit): v
   const anyFirstStrike = [...combat.attackers, ...combat.blocks.map((b) => b.blocker)].some(
     (iid) => {
       if (!state.battlefield.some((p) => p.iid === iid)) return false;
-      const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
+      const kw = getEffectiveStats(state, db, iid).keywords;
       return kw.has('firstBlade') || kw.has('twinBlades');
     },
   );
@@ -98,7 +99,7 @@ function dealCombatDamage(
   const alive = (iid: number): boolean => state.battlefield.some((p) => p.iid === iid);
 
   const strikesNow = (iid: number): boolean => {
-    const kw = getEffectiveStats(state.battlefield, db, iid).keywords;
+    const kw = getEffectiveStats(state, db, iid).keywords;
     const fs = kw.has('firstBlade');
     const ds = kw.has('twinBlades');
     // FS step: first-strikers and double-strikers. Normal step: double-strikers
@@ -111,7 +112,7 @@ function dealCombatDamage(
   // Attackers deal damage.
   for (const attackerIid of combat.attackers) {
     if (!alive(attackerIid) || !strikesNow(attackerIid)) continue;
-    const stats = getEffectiveStats(state.battlefield, db, attackerIid);
+    const stats = getEffectiveStats(state, db, attackerIid);
     if (stats.attack <= 0) continue;
     const kw = stats.keywords;
     const wasBlocked = combat.blocks.some((b) => b.attacker === attackerIid);
@@ -182,7 +183,7 @@ function dealCombatDamage(
   for (const block of combat.blocks) {
     if (!alive(block.blocker) || !alive(block.attacker)) continue;
     if (!strikesNow(block.blocker)) continue;
-    const stats = getEffectiveStats(state.battlefield, db, block.blocker);
+    const stats = getEffectiveStats(state, db, block.blocker);
     if (stats.attack <= 0) continue;
     hits.push({
       source: block.blocker,
@@ -205,9 +206,18 @@ function dealCombatDamage(
     firstStrike: firstStrikeStep,
   });
 
+  // The holder at the start of this batch: a batch claims at most once.
+  const holder = mandateHolderOf(state);
+
   // Apply simultaneously, through the shared creature-damage path: the
   // damage, Deathblade, Blood Oath and its observers, and the Provoked mark.
   applyCreatureDamage(state, db, emit, hits);
+
+  // Positive combat damage to the Mandate's holder passes it to the attacking
+  // player, after the batch lands and before any combat-damage trigger.
+  if (holder === defender && hits.some((h) => h.target.kind === 'player' && h.target.player === defender && h.amount > 0)) {
+    claimMandate(state, db, emit, state.activePlayer, 'combat');
+  }
 
   // combat-damage-to-player triggers, after all simultaneous damage lands
   for (const hit of hits) {
@@ -227,7 +237,7 @@ function killCost(
   sourceHasDeathtouch: boolean,
 ): number {
   if (sourceHasDeathtouch) return 1;
-  const stats = getEffectiveStats(state.battlefield, db, iid);
+  const stats = getEffectiveStats(state, db, iid);
   const perm = state.battlefield.find((p) => p.iid === iid)!;
   return Math.max(1, stats.defense - perm.damage);
 }

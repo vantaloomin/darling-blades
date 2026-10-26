@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it, vi } from 'vitest';
 import { ECONOMY } from '../../src/config/rules';
 import { packPriceForSku } from '../../src/meta/boosterSkus';
 import { CARD_DB } from '../../src/data/catalog';
@@ -36,7 +36,7 @@ import {
 import { assignDraftPersonas } from '../../src/meta/draftPicker';
 import { startDraftRun } from '../../src/meta/Limited';
 import { openPack, packPool } from '../../src/meta/PackOpener';
-import { CURRENT_SAVE_VERSION, freshSave, SaveManager, type SaveData } from '../../src/meta/SaveManager';
+import { CURRENT_SAVE_VERSION, freshSave, SaveManager, UNREADABLE_SAVE_KEY, type SaveData } from '../../src/meta/SaveManager';
 import { PLAIN_VARIANT, shardValue, TIER_RANK, variantKey, variantRank } from '../../src/meta/variants';
 import { deckOf, TEST_DB } from '../helpers';
 
@@ -84,12 +84,70 @@ describe('SaveManager', () => {
     });
   });
 
-  it('recovers from corrupt data', () => {
+  it('recovers from corrupt data, keeping a copy of the unreadable blob', () => {
     const storage = fakeStorage();
     storage.raw.set('darlingblades.save.v1', '{not json');
     const m = new SaveManager(storage);
     expect(m.data.gold).toBe(0);
     expect(m.data.version).toBe(CURRENT_SAVE_VERSION);
+    expect(m.loadStatus).toBe('recovered');
+    // The first write replaces the slot; the copy is what survives it.
+    m.flush();
+    expect(storage.raw.get(UNREADABLE_SAVE_KEY)).toBe('{not json');
+  });
+
+  it('keeps a copy when the blob has no usable version, or migration throws on it', () => {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', '{"gold":5}');
+    expect(new SaveManager(storage).loadStatus).toBe('recovered');
+    expect(storage.raw.get(UNREADABLE_SAVE_KEY)).toBe('{"gold":5}');
+
+    const blob = JSON.stringify({ ...freshSave(0), gold: 321 });
+    storage.raw.set('darlingblades.save.v1', blob);
+    const spy = vi.spyOn(SaveManager.prototype, 'migrate').mockImplementation(() => {
+      throw new Error('migration bug');
+    });
+    try {
+      const m = new SaveManager(storage);
+      expect(m.loadStatus).toBe('recovered');
+      expect(m.data.gold).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(storage.raw.get(UNREADABLE_SAVE_KEY)).toBe(blob);
+  });
+
+  it('never writes over a save from a newer version', () => {
+    const storage = fakeStorage();
+    const newer = JSON.stringify({ version: CURRENT_SAVE_VERSION + 1, gold: 9000 });
+    storage.raw.set('darlingblades.save.v1', newer);
+    const m = new SaveManager(storage);
+    expect(m.loadStatus).toBe('newer');
+    expect(m.readOnly).toBe(true);
+    m.data.gold = 1;
+    m.touch();
+    m.flush();
+    expect(m.replace(freshSave(0))).toBe(false);
+    m.reset();
+    expect(storage.raw.get('darlingblades.save.v1')).toBe(newer);
+    expect(storage.raw.has(UNREADABLE_SAVE_KEY)).toBe(false);
+  });
+
+  it('reports a failed write once, and keeps playing on the in-memory save', () => {
+    const storage = fakeStorage();
+    const m = new SaveManager({
+      ...storage,
+      setItem: () => {
+        throw new Error('QuotaExceededError');
+      },
+    });
+    const onWriteFailure = vi.fn();
+    m.onWriteFailure = onWriteFailure;
+    m.data.gold = 50;
+    m.flush();
+    m.flush();
+    expect(onWriteFailure).toHaveBeenCalledTimes(1);
+    expect(m.data.gold).toBe(50);
   });
 
   it('starts fresh saves with auto-skip off', () => {
@@ -602,6 +660,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       statsNoticeVersion: 0,
       textScale: 1, // v36 default
       highContrast: false, // v36 default
+      soundStyle: 'classic', // v38 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
   });
@@ -694,6 +753,7 @@ describe('save migration old blobs ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã�
       statsNoticeVersion: 0,
       textScale: 1, // v36 default
       highContrast: false, // v36 default
+      soundStyle: 'classic', // v38 default
     });
     expect('animSpeed' in m.data.settings).toBe(false);
     expect(m.data.gauntlet.bestRung).toBe(2);

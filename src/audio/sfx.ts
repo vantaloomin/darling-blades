@@ -1,4 +1,5 @@
 import { Services } from '../meta/services';
+import { normalizeSoundStyle } from '../meta/soundStyle';
 import { AudioManager } from './AudioManager';
 
 /**
@@ -17,6 +18,9 @@ export const Sfx = new AudioManager(
   // Persisted SFX toggle: gates play() only (music rides the same master gain
   // and stays governed by settings.musicOn instead).
   () => Services.save.data.settings.sfxOn,
+  // Classic (procedural) or New (recorded samples); read per play, so the
+  // Settings switch applies at once.
+  () => normalizeSoundStyle(Services.save.data.settings.soundStyle),
 );
 
 // Dev-tool access (trigger counts, unlock state) — mirrors window.__game.

@@ -58,7 +58,11 @@ pub fn run() {
           // Only the game's own pages open, and in a window this shell makes:
           // the popup WebView2 would make by itself has no handler for the
           // app's own address, so it could not show a bundled page offline.
-          if let Some(app_url) = handler_url.get() {
+          // The one page off the game's own site it links to, the community
+          // Discord (the main menu's top bar), goes to the system browser.
+          if is_offsite_link(&url) {
+            open_in_browser(&url);
+          } else if let Some(app_url) = handler_url.get() {
             if same_origin(&url, app_url) {
               open_page_window(&handle, url, app_url.clone());
             }
@@ -139,6 +143,29 @@ fn same_origin(a: &Url, b: &Url) -> bool {
   a.scheme() == b.scheme()
     && a.host_str() == b.host_str()
     && a.port_or_known_default() == b.port_or_known_default()
+}
+
+/// The addresses off the game's own site that open, all in the system
+/// browser: exactly the community Discord invite, so a page can never send
+/// the shell anywhere else.
+const OFFSITE_LINKS: &[&str] = &["https://discord.gg/aeRnFyvbtQ"];
+
+fn is_offsite_link(url: &Url) -> bool {
+  OFFSITE_LINKS.contains(&url.as_str())
+}
+
+/// Open `url` in the player's default browser. `explorer.exe` takes the address
+/// as one argument, with no shell between, so nothing in it is interpreted.
+fn open_in_browser(url: &Url) {
+  #[cfg(windows)]
+  let opened = std::process::Command::new("explorer").arg(url.as_str()).spawn();
+  #[cfg(target_os = "macos")]
+  let opened = std::process::Command::new("open").arg(url.as_str()).spawn();
+  #[cfg(not(any(windows, target_os = "macos")))]
+  let opened = std::process::Command::new("xdg-open").arg(url.as_str()).spawn();
+  if let Err(error) = opened {
+    log::warn!("could not open {url} in the browser: {error}");
+  }
 }
 
 /// The address that loads the game itself.

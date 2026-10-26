@@ -26,6 +26,42 @@ import { collectionFilterLayout, type CollectionFilterName } from '../collection
  */
 export { TIER_TEXT_COLOR };
 
+/** The binder's facet options, shared by the desktop dropdowns and the phone's pickers. */
+export function collectionSetOptions(): DropdownOption<CollectionFilterState['set']>[] {
+  return [
+    { value: 'all', label: 'All sets' },
+    ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
+  ];
+}
+
+export const COLLECTION_COLOR_OPTIONS: readonly DropdownOption<Color | 'all'>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'W', label: 'White' },
+  { value: 'U', label: 'Blue' },
+  { value: 'B', label: 'Black' },
+  { value: 'R', label: 'Red' },
+  { value: 'G', label: 'Green' },
+];
+
+export const COLLECTION_TYPE_OPTIONS: readonly DropdownOption<CardType | 'all'>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'creature', label: 'Creature' },
+  { value: 'charm', label: 'Charm' },
+  { value: 'ritual', label: 'Ritual' },
+  { value: 'enchantment', label: 'Enchantment' },
+  { value: 'artifact', label: 'Artifact' },
+  { value: 'land', label: 'Land' },
+];
+
+export const COLLECTION_RARITY_OPTIONS: readonly DropdownOption<Rarity | 'all'>[] = [
+  { value: 'all', label: 'All' },
+  { value: 'c', label: RARITY_NAMES.c },
+  { value: 'r', label: RARITY_NAMES.r },
+  { value: 'sr', label: RARITY_NAMES.sr },
+  { value: 'ssr', label: RARITY_NAMES.ssr },
+  { value: 'ur', label: RARITY_NAMES.ur },
+];
+
 /**
  * The Collection binder's control bar. Modern dropdowns (one per facet - set /
  * colour / type / rarity / sort) plus an Owned only checkbox, all mutating a
@@ -111,43 +147,18 @@ export class FilterBar {
       this.targets.push(dd.button);
     };
 
-    const setOpts: DropdownOption<CollectionFilterState['set']>[] = [
-      { value: 'all', label: 'All sets' },
-      ...SET_IDS.filter(isLiveSet).map((id) => ({ value: id, label: SET_TITLES[id] })),
-    ];
+    const setOpts = collectionSetOptions();
     // The row starts on the title-safe frame's left edge (it started at x 55
     // until the 1.8 cut, 2026-09-23); reflow() places everything after it.
     mk(theme.design.safeLeft, 'Set', setOpts, () => state.set, (v) => (state.set = v), 92, 180);
 
-    const colorOpts: DropdownOption<Color | 'all'>[] = [
-      { value: 'all', label: 'All' },
-      { value: 'W', label: 'White' },
-      { value: 'U', label: 'Blue' },
-      { value: 'B', label: 'Black' },
-      { value: 'R', label: 'Red' },
-      { value: 'G', label: 'Green' },
-    ];
+    const colorOpts = [...COLLECTION_COLOR_OPTIONS];
     mk(235, 'Color', colorOpts, () => state.color, (v) => (state.color = v), 92);
 
-    const typeOpts: DropdownOption<CardType | 'all'>[] = [
-      { value: 'all', label: 'All' },
-      { value: 'creature', label: 'Creature' },
-      { value: 'charm', label: 'Charm' },
-      { value: 'ritual', label: 'Ritual' },
-      { value: 'enchantment', label: 'Enchantment' },
-      { value: 'artifact', label: 'Artifact' },
-      { value: 'land', label: 'Land' },
-    ];
+    const typeOpts = [...COLLECTION_TYPE_OPTIONS];
     mk(410, 'Type', typeOpts, () => state.type, (v) => (state.type = v), 96);
 
-    const rarityOpts: DropdownOption<Rarity | 'all'>[] = [
-      { value: 'all', label: 'All' },
-      { value: 'c', label: RARITY_NAMES.c },
-      { value: 'r', label: RARITY_NAMES.r },
-      { value: 'sr', label: RARITY_NAMES.sr },
-      { value: 'ssr', label: RARITY_NAMES.ssr },
-      { value: 'ur', label: RARITY_NAMES.ur },
-    ];
+    const rarityOpts = [...COLLECTION_RARITY_OPTIONS];
     mk(600, 'Rarity', rarityOpts, () => state.rarity, (v) => (state.rarity = v), 90);
 
     const sortOpts: DropdownOption<SortMode>[] = [

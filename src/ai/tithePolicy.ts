@@ -8,7 +8,8 @@ import { determinize } from './determinize';
 import { DEFAULT_PERSONALITY, type Personality } from './personality';
 import { permValue } from './value';
 
-type SpellCast = Extract<Action, { type: 'castSpell' }>;
+/** A Tithe cast from hand (or a whispered one), or from the Darling zone (2.0). */
+type SpellCast = Extract<Action, { type: 'castSpell' | 'castDarling' }>;
 
 // D5: only fodder-class bodies may trade long-term board value for this turn's
 // mana. One fifth lets two ordinary one-mana 1/1s buy one mana of real tempo.
@@ -24,6 +25,11 @@ type SpellCast = Extract<Action, { type: 'castSpell' }>;
 // under every trial. V1/V2/V3 gained only 0.6pp on Marsh-Mother, inside
 // the 3pp band: retain V0, the smallest change. Tempo unlock stays intact.
 const FODDER_VALUE_RATE = 0.2;
+// 2.0 (Nüwa): a Tithe that also grants a mark per {1} saved buys a +1/+1 with
+// each mana, not only the mana. The rate lab's stones set (study-data
+// stones-lab/, 25 life) read two marks on arrival at 1.50 mana: 0.75 a mark.
+// Without it the AI sold almost nothing for Nüwa (0.36 marks a cast).
+const TITHE_MARK_VALUE = 0.75;
 
 /**
  * A Tithe cast is normally a hand cast, but a card carrying both Whispers and
@@ -31,6 +37,7 @@ const FODDER_VALUE_RATE = 0.2;
  * graveIndex. Every Tithe reader resolves its card through here.
  */
 function titheCastCardId(view: PlayerView, action: SpellCast): string | undefined {
+  if (action.type === 'castDarling') return view.you.darlingZone ?? undefined;
   return action.whispers && action.graveIndex !== undefined
     ? view.you.graveyard[action.graveIndex]
     : view.you.hand[action.handIndex];
@@ -38,11 +45,18 @@ function titheCastCardId(view: PlayerView, action: SpellCast): string | undefine
 
 /** The cost the fodder pays down: the Whispers cost on a whispered cast. */
 function titheBaseCost(db: CardDb, cardId: string, cast: SpellCast): ReturnType<typeof castCost> {
+  // A Darling's fodder pays down only the printed cost, never the tax.
+  if (cast.type === 'castDarling') return def(db, cardId).cost;
   return castCost(def(db, cardId), cast.empowered === true, false, false, { whispers: cast.whispers });
 }
 
+/** The Darling tax a Darling Tithe cast still pays in full on top of the discounted cost. */
+function titheTax(view: PlayerView, cast: SpellCast): number {
+  return cast.type === 'castDarling' ? view.you.darlingTax ?? 0 : 0;
+}
+
 export function isTitheCast(view: PlayerView, db: CardDb, action: Action): action is SpellCast {
-  if (action.type !== 'castSpell' || action.tithe !== true) return false;
+  if ((action.type !== 'castSpell' && action.type !== 'castDarling') || action.tithe !== true) return false;
   const cardId = titheCastCardId(view, action);
   return cardId !== undefined && db[cardId]?.tithe !== undefined;
 }
@@ -64,7 +78,7 @@ export function titheManaSaved(view: PlayerView, db: CardDb, cast: SpellCast): n
   if (cardId === undefined) return 0;
   const generic = titheBaseCost(db, cardId, cast)?.generic ?? 0;
   const defense = (cast.sacrifices ?? []).reduce((sum, iid) =>
-    sum + getEffectiveStats(view.battlefield, db, iid).defense, 0);
+    sum + getEffectiveStats(view, db, iid).defense, 0);
   return Math.min(generic, Math.floor(defense / 2));
 }
 
@@ -86,14 +100,17 @@ export function chooseTitheSacrifices(
   const fullCost = titheBaseCost(db, cardId, cast);
   const generic = fullCost?.generic ?? 0;
   if (!fullCost || generic <= 0) return [];
+  const markCap = d.tithe.marks ?? 0;
+  /** What saving this much buys: the mana, and a mark for each {1} up to the cap. */
+  const worth = (saving: number): number => saving + TITHE_MARK_VALUE * Math.min(saving, markCap);
   const bodies = view.battlefield.flatMap((perm, index) => {
     if (perm.controller !== view.myId) return [];
     const bodyDef = def(db, perm.cardId);
     if (!isType(bodyDef, 'creature')) return [];
     const value = permValue(view.battlefield, db, perm.iid);
-    const defense = getEffectiveStats(view.battlefield, db, perm.iid).defense;
+    const defense = getEffectiveStats(view, db, perm.iid).defense;
     const token = perm.isToken === true || (perm.isToken === undefined && bodyDef.token === true);
-    const fodderClass = token || defense <= 2 || isSummoningSick(view.battlefield, db, perm);
+    const fodderClass = token || defense <= 2 || isSummoningSick(view, db, perm);
     return [{ iid: perm.iid, index, value, defense,
       saleValue: value * (fodderClass ? FODDER_VALUE_RATE : 1) }];
   });
@@ -119,9 +136,10 @@ export function chooseTitheSacrifices(
         const added = bundle.reduce((sum, entry) => sum + entry.defense, 0);
         const value = bundle.reduce((sum, entry) => sum + entry.saleValue, 0);
         const saving = Math.min(generic, Math.floor((defense + added) / 2)) - saved;
-        return { bundle, value, saving, waste: defense + added - (saved + saving) * 2 };
-      }).filter((bundle) => bundle.saving > 0 && bundle.saving > bundle.value)
-        .sort((a, b) => a.value / a.saving - b.value / b.saving ||
+        const gain = worth(saved + saving) - worth(saved);
+        return { bundle, value, saving, gain, waste: defense + added - (saved + saving) * 2 };
+      }).filter((bundle) => bundle.saving > 0 && bundle.gain > bundle.value)
+        .sort((a, b) => a.value / a.gain - b.value / b.gain ||
           a.waste - b.waste || a.bundle.length - b.bundle.length);
       if (profitable.length > 0) { pick = profitable[0].bundle; break; }
     }
@@ -133,8 +151,11 @@ export function chooseTitheSacrifices(
   // The floor applies to the whole sale, not each increment while pairing.
   // Payment precedes sacrifice, so a sold mana creature can still fund this
   // cast. Both checks intentionally use the same pre-payment public board.
-  if (saved < 2 && (canPay(view, db, view.myId, fullCost) ||
-    !canPay(view, db, view.myId, { ...fullCost, generic: generic - saved }))) return [];
+  // A sale that also buys marks is worth making even when the full price is
+  // affordable.
+  const tax = titheTax(view, cast);
+  if (saved < 2 && ((markCap === 0 && canPay(view, db, view.myId, { ...fullCost, generic: generic + tax })) ||
+    !canPay(view, db, view.myId, { ...fullCost, generic: generic - saved + tax }))) return [];
   return chosen;
 }
 
@@ -162,10 +183,11 @@ export function applyTithePolicy(
     delete candidate.tithe;
     delete candidate.sacrifices;
     if (validateAction(world.instanceState, db, view.myId, candidate) !== null) continue;
-    const alreadyOffered = legal.some((other) => other.type === 'castSpell' && !other.tithe &&
-      other.handIndex === candidate.handIndex && other.empowered === candidate.empowered &&
-      // A whispered Tithe cast falls back to the plain Whispers cast, never a hand cast.
-      !!other.whispers === !!candidate.whispers && other.graveIndex === candidate.graveIndex &&
+    const alreadyOffered = legal.some((other) => other.type === candidate.type && !other.tithe &&
+      (other.type === 'castDarling' ? other.x === candidate.x : candidate.type === 'castSpell' &&
+        other.handIndex === candidate.handIndex && other.empowered === candidate.empowered &&
+        // A whispered Tithe cast falls back to the plain Whispers cast, never a hand cast.
+        !!other.whispers === !!candidate.whispers && other.graveIndex === candidate.graveIndex) &&
       JSON.stringify(other.targets ?? []) === JSON.stringify(candidate.targets ?? []));
     if (!alreadyOffered) prepared.push(candidate);
   }

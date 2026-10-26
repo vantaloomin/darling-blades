@@ -44,6 +44,7 @@ import type { BackLabel } from './navigation';
 import { formatCount } from './goldFormat';
 import { splitIconLabel } from './iconLabel';
 import { bakeUiIcon, uiIconSize, uiIconTinted } from './uiIcons';
+import { sceneStage } from './SceneBackdrop';
 
 export type ButtonVariant = ThemedButtonVariant;
 export type ButtonSize = ControlSize;
@@ -85,6 +86,9 @@ export interface ThemedButton {
 
 /** A disabled button's label: visibly off, still readable (a price, a reason). */
 const DISABLED_LABEL_ALPHA = 0.72;
+
+/** The close button's width on a phone: the touch floor. */
+const COMPACT_CLOSE = 44;
 
 /** Rounded button chrome with an explicit Zone input target (never the container). */
 export function themedButton(
@@ -754,22 +758,28 @@ export function registerSceneBackNavigation(
 
 /** Standardized modal chrome; callers retain ownership of ModalGuard lists. */
 export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalShell {
-  const x = opts.x ?? theme.design.centerX;
-  const y = opts.y ?? theme.design.centerY;
+  // The scene's own stage: the 1280×720 window, or a phone's design space when
+  // the scene draws its compact composition. A dialog never outgrows the
+  // stage's content box, and the dim covers the whole stage.
+  const stage = sceneStage(scene);
+  const width = Math.min(opts.width, stage.content.width);
+  const height = Math.min(opts.height, stage.content.height);
+  const x = opts.x ?? (stage.compact ? stage.content.x + stage.content.width / 2 : theme.design.centerX);
+  const y = opts.y ?? (stage.compact ? stage.content.y + stage.content.height / 2 : theme.design.centerY);
   const dim = scene.add.rectangle(
-    theme.design.centerX,
-    theme.design.centerY,
-    theme.design.width,
-    theme.design.height,
+    stage.width / 2,
+    stage.height / 2,
+    stage.width,
+    stage.height,
     theme.graphics.dim,
     modalDimAlpha(opts.dimAlpha, theme.alpha.overlayDim),
   );
   const chrome = panel(
     scene,
-    x - opts.width / 2,
-    y - opts.height / 2,
-    opts.width,
-    opts.height,
+    x - width / 2,
+    y - height / 2,
+    width,
+    height,
     { alpha: 1 },
   );
   const container = scene.add.container(0, 0, [dim, chrome]).setDepth(opts.depth ?? theme.depth.modal);
@@ -820,10 +830,11 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
   interactiveChildren.push(dim);
   let closeButton: ThemedButton | undefined;
   if (dismissal.showClose) {
+    // A phone gets the mocks' square 44 px close (M-SettingsLegal, M-WhatIsSent).
     closeButton = themedButton(scene, 0, 0, '×', {
       variant: 'ghost',
-      size: 'sm',
-      minWidth: 30,
+      size: stage.compact ? 'md' : 'sm',
+      minWidth: stage.compact ? COMPACT_CLOSE : 30,
       onTap: close,
     });
     container.add(closeButton.container);
@@ -834,8 +845,8 @@ export function modalShell(scene: Phaser.Scene, opts: ModalShellOptions): ModalS
     height: theme.control.minHitHeight,
   };
   const layout = modalShellLayout({
-    width: opts.width,
-    height: opts.height,
+    width,
+    height,
     x,
     y,
     panelPadding: opts.panelPadding,
@@ -950,6 +961,8 @@ export function backButton(
 export interface GoldBadgeOptions {
   getValue?: () => number;
   flashOnChange?: boolean;
+  /** The number's size; the desktop h2 by default (the phone top bar passes its own). */
+  fontSize?: number;
 }
 
 export interface GoldBadge {
@@ -968,7 +981,7 @@ export function goldBadge(
   y: number,
   opts: GoldBadgeOptions = {},
 ): GoldBadge {
-  const fontSize = theme.type.h2;
+  const fontSize = opts.fontSize ?? theme.type.h2;
   const text = scene.add
     .text(0, 0, '0', {
       fontFamily: theme.fonts.ui,

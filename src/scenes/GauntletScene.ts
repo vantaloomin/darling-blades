@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { bakeUiIcon, uiIconSize } from '../ui/uiIcons';
-import { formatGold } from '../ui/goldFormat';
+import { formatCount, formatGold } from '../ui/goldFormat';
 import { floorBrain, floorDifficultyPips } from '../ai/tiers';
 import { fitMenuName } from '../ui/menuText';
 import { currentAccessibility } from '../ui/accessibility';
@@ -28,11 +28,25 @@ import {
   gauntletTowerLayout,
   scrollOffsetByDelta,
   type GauntletTowerLayout,
+  type Rect,
 } from '../ui/layout';
 import { gateOnArt } from '../ui/artGate';
 import { prefetchDuelArt } from '../ui/duelArt';
 import { addPortraitArt } from '../ui/portraitArt';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT, isDesktopStage } from '../ui/compactLayout';
+import { compactButton, compactDialog, compactHeader, coverFitImage, desktopTextPanel, type CompactButton } from '../ui/compactWidgets';
+import {
+  compactGauntletLayout,
+  GAUNTLET_COMPACT,
+  gauntletInfoStack,
+  type GauntletInfoStack,
+  gauntletRowTop,
+  gauntletTowerHeight,
+  gauntletTowerOffset,
+  type CompactGauntletLayout,
+} from '../ui/gauntletCompact';
+import { rivalShortName } from '../ui/practiceCompact';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
@@ -77,6 +91,15 @@ export class GauntletScene extends Phaser.Scene {
   private seedBar: Phaser.GameObjects.Container | null = null;
   /** One create-time roster resolution, shared by the rail and detail pane. */
   private roster!: ResolvedGauntletRoster;
+  /** The compact (phone) composition's layout and live parts; null on the wide profile. */
+  private compactLayout: CompactGauntletLayout | null = null;
+  private compactRows: { rung: number; plate: Phaser.GameObjects.Graphics; mark: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; width: number }[] = [];
+  private compactAbandon: {
+    button: CompactButton;
+    warning: Phaser.GameObjects.Text;
+    hide: (Phaser.GameObjects.Components.Visible)[];
+    armed: boolean;
+  } | null = null;
 
   constructor() {
     super('Gauntlet');
@@ -101,6 +124,9 @@ export class GauntletScene extends Phaser.Scene {
     this.abandonBtn = null;
     this.abandonWarning = null;
     this.seedBar = null;
+    this.compactLayout = null;
+    this.compactRows = [];
+    this.compactAbandon = null;
 
     // Design-space constants, NOT this.scale (= game size = 1280k×720k under
     // render scale; the camera shows the 1280×720 design window — see
@@ -140,6 +166,13 @@ export class GauntletScene extends Phaser.Scene {
     });
     this.input.on('gameobjectup', () => Sfx.play('click'));
     Music.setMood('gauntlet');
+
+    // On a phone the tower draws its own compact composition (mock M-Gauntlet).
+    const stage = sceneStage(this);
+    if (stage.compact) {
+      this.buildCompact(stage.content);
+      return;
+    }
     new Toast(this);
 
     sceneTitle(this, 'Avatar Gauntlet');
@@ -519,6 +552,350 @@ export class GauntletScene extends Phaser.Scene {
     }
 
     this.panel = c;
+  }
+
+  // ------------------------------------------------------------------ compact (phone)
+
+  /** The tower's compact composition: the rival, who she is, the tower and Fight. */
+  private buildCompact(content: Rect): void {
+    const layout = compactGauntletLayout(content, { desktop: isDesktopStage(sceneStage(this)) });
+    this.compactLayout = layout;
+    compactHeader(this, layout.shell, {
+      title: 'Avatar Gauntlet',
+      subtitle: `Climb ${ECONOMY.gauntletRungGold.length} rungs. A loss ends the run: the tower resets, your collection does not.`,
+      onBack: () => this.scene.start('Play'),
+    });
+    registerSceneBackNavigation(this, () => this.scene.start('Play'));
+    // Notices land over the tower's top, as a run's win brings them (M-ToastSummary).
+    new Toast(this, { rail: { right: layout.tower.x + layout.tower.width, top: layout.tower.y, width: layout.tower.width } });
+    this.buildCompactTower(layout.tower);
+    this.buildCompactPanel();
+  }
+
+  /** The tower: every rung as a row, top rung first, opened on the current rung. */
+  private buildCompactTower(tower: Rect): void {
+    const type = theme.compactType;
+    const rungs = ECONOMY.gauntletRungGold.length;
+    const rowH = GAUNTLET_COMPACT.rowH;
+    const content = this.add.container(0, tower.y);
+    const adapters: ThemedButton[] = [];
+    const starW = this.add.text(0, 0, '★★★', { fontFamily: theme.fonts.ui, fontSize: `${type.label}px` });
+    const starsWidth = starW.width;
+    starW.destroy();
+    this.compactRows = [];
+    // When any rung's name would be shortened, every row drops the word "Rung", so the rows read alike.
+    const rowW = tower.width - 6;
+    const labelX = 16 + 14;
+    const labelW = rowW - labelX - 12 - starsWidth - 10;
+    const fullText = (rung: number): string => `Rung ${rung} · ${rivalShortName(this.avatarForFloor(rung).name)}`;
+    const probe = this.add.text(0, 0, '', { fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700 });
+    let short = false;
+    for (let rung = 1; rung <= rungs && !short; rung++) short = probe.setText(fullText(rung)).width > labelW;
+    probe.destroy();
+    for (let rung = rungs; rung >= 1; rung--) {
+      const top = gauntletRowTop(rung, rungs);
+      const row = this.add.container(tower.x, top);
+      const plate = this.add.graphics();
+      const mark = this.add.graphics();
+      const markX = 16;
+      const label = this.add.text(markX + 14, rowH / 2, short ? `${rung} · ${rivalShortName(this.avatarForFloor(rung).name)}` : fullText(rung), {
+        fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: theme.weight.w700,
+      }).setOrigin(0, 0.5);
+      // The row's width less the scroll thumb's lane, the mark and the stars.
+      ellipsizeText(label, labelW);
+      const stars = this.add.text(rowW - 12, rowH / 2, '★'.repeat(floorDifficultyPips(rung)), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.gold,
+      }).setOrigin(1, 0.5);
+      const zone = this.add.zone(rowW / 2, rowH / 2, rowW, rowH).setInteractive({ useHandCursor: true });
+      bindTapButton(this, zone, (pointer) => {
+        // A drag that scrolled the tower is not a pick.
+        if (Math.abs(pointer.upY - pointer.downY) > 12) return;
+        this.selectedRung = rung;
+        this.refreshCompactTower();
+        this.buildCompactPanel();
+      });
+      row.add([plate, mark, label, stars, zone]);
+      content.add(row);
+      this.compactRows.push({ rung, plate, mark, label, width: rowW });
+      adapters.push({
+        container: row,
+        inputZone: zone,
+        getMeasuredBounds: () => ({ hit: { x: 0, y: 0, width: rowW, height: rowH } }),
+        setEnabled: (on: boolean) => { if (on) zone.setInteractive({ useHandCursor: true }); else zone.disableInteractive(); },
+      } as unknown as ThemedButton);
+    }
+    this.refreshCompactTower();
+    bindMenuScroll(this, content, tower, gauntletTowerHeight(rungs), undefined, adapters, 0, undefined,
+      gauntletTowerOffset(this.currentRung, rungs, tower.height));
+  }
+
+  /** Each row's state: cleared (a check, green), current (a play mark, gold border), to come (a dot). */
+  private refreshCompactTower(): void {
+    const rowH = GAUNTLET_COMPACT.rowH;
+    for (const row of this.compactRows) {
+      const cleared = row.rung < this.currentRung;
+      const current = row.rung === this.currentRung;
+      const selected = row.rung === this.selectedRung;
+      const stroke = current ? colorInt(theme.colors.gold) : selected ? colorInt(theme.colors.goldHover) : theme.graphics.panelStroke;
+      row.plate.clear()
+        .fillStyle(current || selected ? theme.graphics.rowFillActive : theme.graphics.panelFill, current || selected ? 1 : theme.alpha.panel)
+        .fillRoundedRect(0, 0, row.width, rowH, theme.radius.panel)
+        .lineStyle(current ? theme.outline.state : theme.control.borderWidth, stroke, current || selected ? 1 : theme.alpha.chrome)
+        .strokeRoundedRect(0, 0, row.width, rowH, theme.radius.panel);
+      const color = cleared ? theme.colors.success : current ? theme.colors.gold : selected ? theme.colors.heading : theme.colors.muted;
+      row.label.setColor(color);
+      const cx = 16;
+      const cy = rowH / 2;
+      row.mark.clear();
+      if (cleared) {
+        row.mark.lineStyle(2, colorInt(theme.colors.success), 1).beginPath()
+          .moveTo(cx - 5, cy).lineTo(cx - 1, cy + 4).lineTo(cx + 6, cy - 4).strokePath();
+      } else if (current) {
+        row.mark.fillStyle(colorInt(theme.colors.gold), 1).fillTriangle(cx - 4, cy - 6, cx - 4, cy + 6, cx + 6, cy);
+      } else {
+        row.mark.fillStyle(colorInt(color), 1).fillCircle(cx, cy, 2.5);
+      }
+    }
+  }
+
+  /** The selected rung's rival, who she is, the run's actions and the primary. */
+  private buildCompactPanel(): void {
+    const layout = this.compactLayout;
+    if (!layout) return;
+    this.panel?.destroy();
+    this.compactAbandon = null;
+    const type = theme.compactType;
+    const floor = this.selectedRung;
+    const av = this.avatarForFloor(floor);
+    const g = this.gauntlet;
+    const active = !!g.run;
+    const c = this.add.container(0, 0);
+    this.panel = c;
+
+    // The rival, with her deck's theme under her.
+    const { hero, info } = layout;
+    const caption = this.add.text(hero.x + hero.width / 2, 0, av.theme, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+      align: 'center', wordWrap: { width: hero.width },
+    }).setOrigin(0.5, 0);
+    const portraitH = Math.max(COMPACT.touch, Math.min(Math.round(hero.width * GAUNTLET_COMPACT.portraitAspect), hero.height - 6 - caption.height));
+    const art = { x: hero.x, y: hero.y, width: hero.width, height: portraitH };
+    c.add(this.add.graphics().fillStyle(theme.graphics.panelFill, 1).fillRoundedRect(art.x, art.y, art.width, art.height, theme.radius.panel));
+    try {
+      const inset = { x: art.x + 2, y: art.y + 2, width: art.width - 4, height: art.height - 4 };
+      const image = addPortraitArt(this, inset.x, inset.y, av.portraitCardId, (img) => coverFitImage(img, inset, 0.1));
+      if (image) c.add(image);
+    } catch {
+      // the frame stands in for missing art
+    }
+    c.add(this.add.graphics().lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, 1)
+      .strokeRoundedRect(art.x, art.y, art.width, art.height, theme.radius.panel));
+    caption.setY(art.y + art.height + 6);
+    c.add(caption);
+
+    // Who she is, top down.
+    const w = info.width;
+    // Her whole name, on two lines when it needs them; the blurb gives way.
+    const name = this.add.text(info.x, 0, av.name, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+      wordWrap: { width: w },
+    });
+    if (name.getWrappedText().length > 2) {
+      name.setWordWrapWidth(0);
+      ellipsizeText(name, w);
+    }
+    const title = this.add.text(info.x, 0, av.title, {
+      fontFamily: theme.fonts.display, fontSize: `${type.body}px`, fontStyle: 'italic', color: theme.colors.gold,
+    }).setPadding({ right: 2 });
+    ellipsizeText(title, w - 2);
+    const rungLine = this.add.text(info.x, 0, `Rung ${floor}   ${'★'.repeat(floorDifficultyPips(floor))}   (${floorBrain(floor)})`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+    });
+    ellipsizeText(rungLine, w);
+
+    // The reward, the record and the seed, bottom up from the actions row.
+    const reward = ECONOMY.gauntletRungGold[floor - 1];
+    const bonus = floor === ECONOMY.gauntletRungGold.length ? ` + ${formatCount(ECONOMY.gauntletCompletionBonus)} bonus` : '';
+    const rewardLabel = this.add.text(info.x, 0, 'Reward:', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+    });
+    const coinSize = Math.round(type.h2 * 1.1);
+    const rewardValue = this.add.text(info.x, 0, `${formatCount(reward)}${bonus}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.h2}px`, fontStyle: theme.weight.w600, color: theme.colors.gold,
+    });
+    ellipsizeText(rewardValue, w - rewardLabel.width - coinSize - 16);
+    const record = this.add.text(info.x, 0, `Best: ${g.bestRung > 0 ? `Rung ${g.bestRung}` : 'None'} · Clears: ${g.completions}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+    });
+    ellipsizeText(record, w);
+    const seed = active ? g.run!.seed : this.pendingSeed;
+    const diceSize = Math.round(type.body * 1.15);
+    const seedText = this.add.text(info.x + diceSize + 6, 0, `${active ? 'Run seed' : 'Next run seed'} ${seed}`, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600,
+      color: active ? theme.colors.gold : theme.colors.heading,
+    });
+    const locked = active ? this.add.text(0, 0, ' · locked for this run', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+    }) : null;
+    // "locked for this run" drops off before the seed itself is shortened.
+    if (locked && seedText.x + seedText.width + locked.width > info.x + w) {
+      locked.destroy();
+    }
+    ellipsizeText(seedText, w - diceSize - 6);
+    const lineup = this.add.text(info.x, 0, this.rosterHeading(active), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+    });
+    ellipsizeText(lineup, w);
+    // Her blurb between the two stacks; at Largest text the lineup line gives
+    // way rather than leave the blurb under two lines.
+    const blurb = this.add.text(info.x, 0, av.blurb, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.body,
+      lineSpacing: theme.space(1), wordWrap: { width: w - 8 },
+    });
+    const lines = Math.max(1, blurb.getWrappedText().length);
+    const lineHeight = (blurb.height - blurb.lineSpacing * (lines - 1)) / lines;
+    const linePitch = lineHeight + blurb.lineSpacing;
+    const stackFor = (withLineup: boolean): GauntletInfoStack => gauntletInfoStack(info, layout.actions.y,
+      [name.height, title.height, rungLine.height],
+      [Math.max(rewardLabel.height, coinSize), record.height, Math.max(seedText.height, diceSize), ...(withLineup ? [lineup.height] : [])],
+      isDesktopStage(sceneStage(this)) ? blurb.height : undefined);
+    let stack = stackFor(true);
+    if (stack.blurb.height < 2 * linePitch - blurb.lineSpacing && lines > 1) {
+      stack = stackFor(false);
+      lineup.setVisible(false);
+    }
+    name.setY(stack.topYs[0]); title.setY(stack.topYs[1]); rungLine.setY(stack.topYs[2]);
+    const [rewardY, recordY, seedY, lineupY] = stack.bottomYs;
+    const rewardH = Math.max(rewardLabel.height, coinSize);
+    rewardLabel.setY(rewardY + (rewardH - rewardLabel.height) / 2);
+    const coin = this.add.image(info.x + rewardLabel.width + 8 + coinSize / 2, rewardY + rewardH / 2, bakeUiIcon(this, 'gold'))
+      .setDisplaySize(coinSize, coinSize);
+    rewardValue.setPosition(coin.x + coinSize / 2 + 8, rewardY + (rewardH - rewardValue.height) / 2);
+    record.setY(recordY);
+    const seedH = Math.max(seedText.height, diceSize);
+    seedText.setY(seedY + (seedH - seedText.height) / 2);
+    const dice = this.add.image(info.x + diceSize / 2, seedY + seedH / 2, bakeUiIcon(this, 'dice'))
+      .setDisplaySize(diceSize, diceSize).setTint(colorInt(active ? theme.colors.gold : theme.colors.heading));
+    if (locked?.active) locked.setPosition(seedText.x + seedText.width, seedText.y + (seedText.height - locked.height) / 2 + 1);
+    if (lineupY !== undefined) lineup.setY(lineupY);
+    c.add([name, title, rungLine, rewardLabel, coin, rewardValue, record, dice, seedText, lineup]);
+    if (locked?.active) c.add(locked);
+
+    // The blurb scrolls in whole lines when it runs long.
+    blurb.setData('a11yWholeLines', { lineHeight, linePitch });
+    const view = { ...stack.blurb, height: Math.max(0, Math.floor((stack.blurb.height + blurb.lineSpacing) / linePitch) * linePitch - blurb.lineSpacing) };
+    const blurbColumn = this.add.container(0, view.y);
+    blurbColumn.add(blurb);
+    c.add(blurbColumn);
+    if (view.height >= lineHeight) bindMenuScroll(this, blurbColumn, view, blurb.height, undefined, undefined, linePitch);
+    else blurbColumn.setVisible(false);
+
+    // The run's own actions at the centre's foot (under the text on desktop), well away from Fight.
+    const actions = { ...layout.actions, y: layout.actions.y - stack.lift };
+    if (layout.infoPanel) {
+      const p = layout.infoPanel;
+      const bottom = actions.y + actions.height + GAUNTLET_COMPACT.desktopInfoPad;
+      const backing = desktopTextPanel(this, { ...p, height: bottom - p.y }, 0);
+      c.addAt(backing, 0);
+    }
+    if (active) {
+      const armedText = 'Tap again to abandon';
+      const measure = this.add.text(0, 0, armedText, { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600 });
+      const abandonW = Math.min(actions.width, Math.max(150, Math.ceil(measure.width) + 40));
+      measure.destroy();
+      const abandon = compactButton(this, { ...actions, width: abandonW }, 'Abandon run', {
+        variant: isDesktopStage(sceneStage(this)) ? 'dangerOutline' : 'danger', onTap: () => this.onCompactAbandon(),
+      });
+      c.add(abandon.container);
+      // What the second tap loses, over the record and the seed while armed.
+      const warning = this.add.text(info.x, 0, 'Your climb restarts at rung 1. Gold already won is kept.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.danger, wordWrap: { width: w },
+      }).setVisible(false);
+      warning.setY(actions.y - COMPACT.gap - warning.height);
+      c.add(warning);
+      this.compactAbandon = { button: abandon, warning, hide: [record, dice, seedText, ...(lineup.visible ? [lineup] : []), ...(locked?.active ? [locked] : [])], armed: false };
+    } else {
+      const chipW = Math.min(120, Math.floor((actions.width - COMPACT.gap) / 2));
+      const reroll = compactButton(this, { ...actions, width: chipW }, 'Reroll', {
+        icon: 'dice',
+        onTap: () => {
+          this.pendingSeed = clampSeed(Math.floor(Math.random() * 2 ** 31));
+          this.buildCompactPanel();
+        },
+      });
+      const set = compactButton(this, { ...actions, x: actions.x + chipW + COMPACT.gap, width: chipW }, 'Set…', {
+        icon: 'pencil', onTap: () => this.compactSeedDialog(),
+      });
+      c.add([reroll.container, set.container]);
+    }
+
+    // Fight (or Begin run) on the current rung; any other rung says why not.
+    const launch = layout.launch;
+    if (floor === this.currentRung) {
+      prefetchDuelArt(this, { opponentId: av.id, gauntletRung: floor });
+      const fight = compactButton(this, launch, active ? 'Fight' : 'Begin run', {
+        variant: 'primary', icon: 'sword', fontSize: type.h2, onTap: () => this.startFight(av, floor),
+      });
+      c.add(fight.container);
+    } else {
+      const lockSize = Math.round(type.label * 1.2);
+      const why = this.add.text(0, launch.y + launch.height / 2, floor < this.currentRung ? 'Already cleared this run' : 'Clear the rungs below first', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted,
+      }).setOrigin(0, 0.5);
+      ellipsizeText(why, launch.width - lockSize - 8 - 24);
+      const left = launch.x + (launch.width - (lockSize + 8 + why.width)) / 2;
+      why.setX(left + lockSize + 8);
+      c.add(this.add.graphics().lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
+        .strokeRoundedRect(launch.x, launch.y, launch.width, launch.height, theme.radius.control));
+      c.add(this.add.image(left + lockSize / 2, launch.y + launch.height / 2, bakeUiIcon(this, 'lock'))
+        .setDisplaySize(lockSize, lockSize).setTint(colorInt(theme.colors.muted)));
+      c.add(why);
+    }
+  }
+
+  /** Abandon run on a phone: the same two-tap arm as the desktop, standing down after 4 s. */
+  private onCompactAbandon(): void {
+    const state = this.compactAbandon;
+    if (!state) return;
+    if (Services.save.data.settings.confirmDestructive && !state.armed) {
+      state.armed = true;
+      state.button.setLabel('Tap again to abandon');
+      for (const o of state.hide) o.setVisible(false);
+      state.warning.setVisible(true);
+      this.time.delayedCall(ABANDON_ARM_MS, () => {
+        if (this.compactAbandon !== state || !state.button.container.active || !state.armed) return;
+        state.armed = false;
+        state.button.setLabel('Abandon run');
+        for (const o of state.hide) o.setVisible(true);
+        state.warning.setVisible(false);
+      });
+      return;
+    }
+    this.gauntlet.run = null;
+    if (!this.fixtureRun) Services.save.flush();
+    this.scene.restart();
+  }
+
+  /** Set the next run's seed in a game dialog with a number field (M25), docked above the keyboard. */
+  private compactSeedDialog(): void {
+    compactDialog(this, {
+      title: 'Set run seed',
+      message: 'The same seed always plays out the same run. Share it to replay.',
+      field: { value: String(this.pendingSeed), accessibleName: 'Run seed', numeric: true },
+      secondary: { label: 'Cancel', onTap: (close) => close() },
+      primary: {
+        label: 'Set seed',
+        onTap: (close, value) => {
+          const n = Number(value.trim());
+          // Anything that is not a number leaves the seed as it was.
+          if (value.trim() !== '' && Number.isFinite(n)) this.pendingSeed = clampSeed(n);
+          close();
+          this.buildCompactPanel();
+        },
+      },
+      dismissal: 'dismissible',
+      onClose: () => undefined,
+    });
   }
 
   private onAbandon(pointer?: Phaser.Input.Pointer): void {

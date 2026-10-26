@@ -5,15 +5,17 @@ import { convertUnmodifiedStarter } from './deckRepair';
 import { grantDeckCards } from './Economy';
 import { assignDraftPersonas } from './draftPicker';
 import { dayStringFromTimestamp, freshDailyState } from './Quests';
-import { freshLimitedState, type LimitedState } from './Limited';
+import { freshLimitedState, type LimitedDeckStyle, type LimitedState } from './Limited';
 import { isReplayLog, REPLAY_CAP, type ReplayLog } from './Replay';
 import { normalizeDarlingsFields } from './darlings';
 import { parseVariantKey, PLAIN_VARIANT, variantKey } from './variants';
 import { CARD_BACKS, PLAYMATS, cosmeticById, isKnownCosmeticId } from './cosmetics';
 import { normalizeStatsNoticeVersion } from './statsNotice';
 import { DEFAULT_TEXT_SCALE, normalizeHighContrast, normalizeTextScale } from './accessibilitySettings';
+import { DEFAULT_SOUND_STYLE, normalizeSoundStyle, type SoundStyle } from './soundStyle';
+import { freshStoryState, normalizeStoryState, type StoryState } from './story/storyState';
 
-export const CURRENT_SAVE_VERSION = 37 as const;
+export const CURRENT_SAVE_VERSION = 38 as const;
 
 /** The theme deck whose 1.9.1 list upgrade the v36 -> v37 step back-grants. */
 export const HOOVES_AND_FIRE_DECK_ID = 'theme-first-dawn';
@@ -39,6 +41,62 @@ const GRANTED_DECKS = [...STARTER_DECKS, ...THEME_DECKS];
 
 /** When an empty blocking step needs a second confirmation. */
 export type ConfirmNoBlockSetting = 'always' | 'lethal' | 'off';
+
+/**
+ * A Tower rung or Limited match whose deal the player has already seen but
+ * whose result is not yet recorded. Both modes deal a fixed seed per rung or
+ * match, so a duel left by closing the app would otherwise replay the same
+ * deal with the opponent's cards known. The next launch counts it as a loss
+ * (settleAbandonedDuel). v38 addition.
+ */
+export type OpenDuel =
+  | { mode: 'gauntlet'; rung: number; difficulty: 'easy' | 'medium' | 'hard' }
+  | {
+      mode: 'limited';
+      runId: string;
+      matchIndex: number;
+      difficulty: 'easy' | 'medium' | 'hard';
+      deckStyle: LimitedDeckStyle;
+    }
+  /** A Story Mode duel: the run and the duel node it was launched at (docs/plan-story-mode.md). */
+  | { mode: 'story'; runId: string; nodeId: string; difficulty: 'easy' | 'medium' | 'hard' };
+
+const DIFFICULTIES: readonly unknown[] = ['easy', 'medium', 'hard'];
+const DECK_STYLES: readonly unknown[] = ['mono', 'dual', 'other'];
+
+/** Keep a stored open-duel record only when every field is well formed. */
+export function normalizeOpenDuel(raw: unknown): OpenDuel | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  if (!DIFFICULTIES.includes(o.difficulty)) return undefined;
+  const difficulty = o.difficulty as OpenDuel['difficulty'];
+  if (o.mode === 'gauntlet' && Number.isInteger(o.rung) && (o.rung as number) >= 1) {
+    return { mode: 'gauntlet', rung: o.rung as number, difficulty };
+  }
+  if (
+    o.mode === 'limited'
+    && typeof o.runId === 'string'
+    && Number.isInteger(o.matchIndex)
+    && (o.matchIndex as number) >= 0
+    && DECK_STYLES.includes(o.deckStyle)
+  ) {
+    return {
+      mode: 'limited',
+      runId: o.runId,
+      matchIndex: o.matchIndex as number,
+      difficulty,
+      deckStyle: o.deckStyle as LimitedDeckStyle,
+    };
+  }
+  if (
+    o.mode === 'story'
+    && typeof o.runId === 'string' && o.runId !== ''
+    && typeof o.nodeId === 'string' && o.nodeId !== ''
+  ) {
+    return { mode: 'story', runId: o.runId, nodeId: o.nodeId, difficulty };
+  }
+  return undefined;
+}
 
 /** Active gauntlet run state; null when no run is in progress. */
 export interface GauntletState {
@@ -275,6 +333,14 @@ export interface SaveData {
     lastWinDay: string | null; // YYYY-MM-DD of last first-win-of-day bonus
   };
   gauntlet: GauntletState;
+  /** The Tower or Limited duel in progress, if any (see `OpenDuel`). v38 addition. */
+  openDuel?: OpenDuel;
+  /**
+   * Story Mode: unlocks, run counts, wins, exactly-once reward keys and the
+   * run in progress (src/meta/story/storyState.ts). v38 addition, in the same
+   * v37 -> v38 step as `openDuel` (the 2.0 train's one save bump, plan-2.0 P10).
+   */
+  story: StoryState;
   settings: {
     volume: number;
     sfxOn: boolean;
@@ -350,6 +416,12 @@ export interface SaveData {
     textScale: number;
     /** High-contrast palette. v36 addition; defaults off. */
     highContrast: boolean;
+    /**
+     * Classic (procedural) or New (recorded CC0 samples and music loops) sound.
+     * v38 addition, riding the 2.0 train's one save bump; defaults to Classic
+     * for fresh and migrated saves alike. Garbage normalizes to Classic.
+     */
+    soundStyle: SoundStyle;
   };
 }
 
@@ -403,6 +475,7 @@ export function freshSave(now: number): SaveData {
       lastWinDay: null,
     },
     gauntlet: freshGauntlet(),
+    story: freshStoryState(),
     settings: {
       volume: 0.8,
       sfxOn: true,
@@ -422,6 +495,7 @@ export function freshSave(now: number): SaveData {
       statsNoticeVersion: 0,
       textScale: DEFAULT_TEXT_SCALE,
       highContrast: false,
+      soundStyle: DEFAULT_SOUND_STYLE,
     },
   };
 }
@@ -436,30 +510,98 @@ const KEY = 'darlingblades.save.v1';
 const LEGACY_KEY = 'waifutcg.save.v1';
 
 /**
- * Single versioned JSON blob in localStorage; debounced writes; corrupt or
- * missing data falls back to a fresh save. Storage is injected so tests run
- * headless with a plain object.
+ * The storage slot that keeps the last save blob the game could not read, so
+ * a damaged save, or one a migration bug threw on, is never simply written
+ * over by the fresh save that replaces it. Written only on load, never read by
+ * the game; it exists so the blob can still be recovered by hand.
+ */
+export const UNREADABLE_SAVE_KEY = 'darlingblades.save.unreadable';
+
+/**
+ * What the load found, for the boot layer.
+ *
+ * - `ok`: a save loaded, or there was none (a first launch).
+ * - `recovered`: a save was there but could not be read. It was copied to
+ *   `UNREADABLE_SAVE_KEY` and play continues on a fresh save.
+ * - `newer`: the save was written by a newer build than this one (a rollback,
+ *   an old cached tab, an older desktop install). Nothing may be written,
+ *   because this build would replace the newer save with a fresh one; the boot
+ *   layer stops and says so.
+ */
+export type SaveLoadStatus = 'ok' | 'recovered' | 'newer';
+
+/**
+ * Single versioned JSON blob in localStorage; debounced writes. A missing save
+ * starts fresh; an unreadable one starts fresh after a copy is kept; a newer
+ * one makes this manager read-only (see `SaveLoadStatus`). Storage is injected
+ * so tests run headless with a plain object.
  */
 export class SaveManager {
   readonly data: SaveData;
+  /** What the load found. Read once at boot. */
+  readonly loadStatus: SaveLoadStatus;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  /** Set once a write has failed, so the failure is reported once. */
+  private writeFailed = false;
+  /**
+   * Called the first time a write fails (storage full, blocked or gone). The
+   * boot layer tells the player; src/meta has no UI of its own.
+   */
+  onWriteFailure: (() => void) | null = null;
 
   constructor(
     private readonly storage: StorageLike,
     now = Date.now(),
   ) {
-    this.data = this.load(now);
+    const loaded = this.load(now);
+    this.data = loaded.data;
+    this.loadStatus = loaded.status;
   }
 
-  private load(now: number): SaveData {
+  /** True when the stored save is newer than this build; every write is then refused. */
+  get readOnly(): boolean {
+    return this.loadStatus === 'newer';
+  }
+
+  private load(now: number): { data: SaveData; status: SaveLoadStatus } {
+    let raw: string | null;
     try {
-      const raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
-      if (!raw) return freshSave(now);
-      const parsed = JSON.parse(raw) as { version?: number };
-      return this.migrate(parsed, now);
+      raw = this.storage.getItem(KEY) ?? this.storage.getItem(LEGACY_KEY);
     } catch {
-      return freshSave(now);
+      return { data: freshSave(now), status: 'ok' };
     }
+    if (!raw) return { data: freshSave(now), status: 'ok' };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return this.recoverUnreadable(raw, now);
+    }
+    const version = isRecord(parsed) ? parsed.version : undefined;
+    if (typeof version === 'number' && Number.isInteger(version) && version > CURRENT_SAVE_VERSION) {
+      return { data: freshSave(now), status: 'newer' };
+    }
+    // migrate() starts fresh for any version it does not know, so only a
+    // version it walks is handed to it; anything else is unreadable.
+    if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+      return this.recoverUnreadable(raw, now);
+    }
+    try {
+      return { data: this.migrate(parsed as { version?: number } & Record<string, unknown>, now), status: 'ok' };
+    } catch {
+      return this.recoverUnreadable(raw, now);
+    }
+  }
+
+  /** Keep the unreadable blob in its own slot, then start fresh. */
+  private recoverUnreadable(raw: string, now: number): { data: SaveData; status: SaveLoadStatus } {
+    try {
+      this.storage.setItem(UNREADABLE_SAVE_KEY, raw);
+    } catch {
+      // No room for the copy either. The fresh save still loads; the
+      // original stays in its slot until the first write replaces it.
+    }
+    return { data: freshSave(now), status: 'recovered' };
   }
 
   /**
@@ -513,8 +655,15 @@ export class SaveManager {
    * off) and `limited.premiumGrant` (the stored Premium draft note, absent
    * unless the active Premium run has one); v36 -> v37 adds no field: a save
    * that owns Hooves and Fire (`theme-first-dawn`) from before v37 is granted
-   * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`).
-   * An unknown/garbage version starts fresh rather than crash.
+   * the three cards the 1.9.1 list upgrade added (`HOOVES_AND_FIRE_1_9_1_ADDS`);
+   * v37 -> v38 adds the optional `openDuel` record (absent for older saves)
+   * and the Story Mode `story` record (fresh for older saves: only the first
+   * character unlocked, no counts, no run; a v38 save without one, or with a
+   * malformed one, normalizes to the same default) and `settings.soundStyle`
+   * (Classic for older saves; a v38 save's own value, normalized).
+   * An unknown/garbage version starts fresh rather than crash. (A load never
+   * reaches that fallback: `load` keeps a copy of a blob it cannot walk and
+   * refuses a newer one before calling this.)
    *
    * Public and this-free by design: SaveCode (the export/import codec) routes
    * decoded payloads through this exact method so a code import and a normal
@@ -805,7 +954,7 @@ export class SaveManager {
     // Every version from 22 upward is enumerated BY HAND, including the
     // outgoing current one. A bump that forgets to add the version it is
     // replacing makes every save sitting at it skip this whole block.
-    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === 36 || cur.version === CURRENT_SAVE_VERSION) {
+    if (cur.version === 22 || cur.version === 23 || cur.version === 24 || cur.version === 25 || cur.version === 26 || cur.version === 27 || cur.version === 28 || cur.version === 29 || cur.version === 30 || cur.version === 31 || cur.version === 32 || cur.version === 33 || cur.version === 34 || cur.version === 35 || cur.version === 36 || cur.version === 37 || cur.version === CURRENT_SAVE_VERSION) {
       const decks = Array.isArray(cur.decks)
         ? (cur.decks as Array<Record<string, unknown>>).map((deck) => ({
             ...deck,
@@ -1077,6 +1226,22 @@ export class SaveManager {
         cur = { ...cur, version: 37 };
       }
     }
+    if (cur.version === 37) {
+      // v38 adds the optional `openDuel` record. An older save cannot hold
+      // one, so only a save that arrived at v38 keeps it, normalized.
+      const { openDuel: rawOpenDuel, ...rest } = cur as Record<string, unknown>;
+      const openDuel = arrivedAtVersion >= 38 ? normalizeOpenDuel(rawOpenDuel) : undefined;
+      // Story Mode shares the step. An older save starts with the fresh record;
+      // a v38 save keeps its own, normalized. Dev saves at v38 from before the
+      // field existed have none, and normalization gives them the fresh one.
+      const story = arrivedAtVersion >= 38 ? normalizeStoryState(rest.story) : freshStoryState();
+      // The sound style shares the step too: an older save starts on Classic,
+      // the sound it was already hearing.
+      const s = (rest.settings ?? {}) as { soundStyle?: unknown };
+      const soundStyle = arrivedAtVersion >= 38 ? normalizeSoundStyle(s.soundStyle) : DEFAULT_SOUND_STYLE;
+      const settings = { ...(rest.settings as object), soundStyle };
+      cur = { ...rest, version: 38, story, settings, ...(openDuel ? { openDuel } : {}) };
+    }
     if (cur.version === CURRENT_SAVE_VERSION) {
       const legacyHero = typeof cur.heroCardId === 'string' ? cur.heroCardId : null;
       return {
@@ -1095,6 +1260,7 @@ export class SaveManager {
 
   /** Mutate the save and schedule a debounced persist. */
   touch(): void {
+    if (this.readOnly) return;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => this.flush(), 250);
   }
@@ -1104,10 +1270,23 @@ export class SaveManager {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.readOnly) return;
     try {
       this.storage.setItem(KEY, JSON.stringify(this.data));
     } catch {
-      // storage full/unavailable — nothing sensible to do in-game
+      // Storage full, blocked or gone: the game keeps running on the
+      // in-memory save, and the player is told once.
+      this.reportWriteFailure();
+    }
+  }
+
+  private reportWriteFailure(): void {
+    if (this.writeFailed) return;
+    this.writeFailed = true;
+    try {
+      this.onWriteFailure?.();
+    } catch {
+      // A notice that throws must not break the save path.
     }
   }
 
@@ -1122,6 +1301,7 @@ export class SaveManager {
    * wholesale is the anonymous-stats choice: see `withDeviceStatsChoice`.
    */
   replace(next: SaveData): boolean {
+    if (this.readOnly) return false;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -1178,6 +1358,7 @@ export class SaveManager {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.readOnly) return;
     this.storage.removeItem(KEY);
     this.storage.removeItem(LEGACY_KEY);
     Object.assign(this.data, freshSave(now));

@@ -5,6 +5,10 @@ export const FEATURES = {
   duatLive: true,
   /** Dark Tales companion wave; flips with its balance pass. */
   dtCompanionLive: true,
+  /** Core Set II went live with 2.0.0; the gate stays as the pattern for the next unreleased set. */
+  coreSet2Live: true,
+  /** Story Mode (docs/plan-story-mode.md) went live with 2.0.0. Gates the Play screen's Story entry. */
+  storyLive: true,
   /**
    * 1.6 classic retirement (2026-08-10). Warchest is now THE constructed
    * format: the Tower fields each avatar's `reserveDeck` + `landReserve`,

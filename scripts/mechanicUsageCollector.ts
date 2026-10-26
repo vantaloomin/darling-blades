@@ -26,7 +26,7 @@ import { combatForecast } from '../src/ai/combatPlans';
 import type { Action } from '../src/engine/actions';
 import { validateBlocks } from '../src/engine/combat/legality';
 import type { CardDb, Permanent } from '../src/engine/types';
-import { activatedAbilitiesOf, isType } from '../src/engine/types';
+import { activatedAbilitiesOf, isType, markCostOf } from '../src/engine/types';
 import type { PlayerView } from '../src/engine/view';
 import {
   classifyAction,
@@ -229,7 +229,8 @@ export class GameUsage {
         if (view.step === 'main2') {
           this.tally(source.cardId).dutyMain2++;
           const d = this.db[source.cardId];
-          if (d && isType(d, 'creature') && activatedAbilitiesOf(d)[chosen.abilityIndex ?? 0]?.cost.tap) {
+          const ability = d && activatedAbilitiesOf(d)[chosen.abilityIndex ?? 0];
+          if (d && isType(d, 'creature') && ability && markCostOf(ability) === 0) {
             this.dutySources.set(source.iid, { turn, cardId: source.cardId });
           }
         }

@@ -91,6 +91,44 @@ export function targetStepTitle(cardName: string, huntPrompt: string | null, ord
 }
 
 // ---------------------------------------------------------------------------
+// The trade before it is made (the phone's prey row, N-13, N-14)
+// ---------------------------------------------------------------------------
+
+/** One creature of a Hunt as the preview reads it: its stats now, damage already marked, and Deathblade. */
+export interface HuntSide {
+  readonly attack: number;
+  readonly defense: number;
+  readonly damage: number;
+  readonly deathblade: boolean;
+}
+
+/** What a Hunt would do: each blow and whether it kills (the death test of `isLethallyDamaged`). */
+export interface HuntTrade {
+  readonly deals: number;
+  readonly takes: number;
+  readonly preyDies: boolean;
+  readonly hunterDies: boolean;
+}
+
+function dies(side: HuntSide, blow: number, deathblade: boolean): boolean {
+  if (side.defense <= 0) return true;
+  if (blow <= 0) return false;
+  return deathblade || side.damage + blow >= side.defense;
+}
+
+/** The exchange `hunt` resolves with, read before it is cast: both blows land at once. */
+export function huntTrade(hunter: HuntSide, prey: HuntSide): HuntTrade {
+  const deals = Math.max(0, hunter.attack);
+  const takes = Math.max(0, prey.attack);
+  return {
+    deals,
+    takes,
+    preyDies: dies(prey, deals, hunter.deathblade),
+    hunterDies: dies(hunter, takes, prey.deathblade),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // The exchange
 // ---------------------------------------------------------------------------
 

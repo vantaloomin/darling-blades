@@ -1,4 +1,4 @@
-<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md · last-verified: 2026-09-22 · DRAFT legal notices template — not live, not legal advice -->
+<!-- source-of-truth: LICENSE, README.md, package.json, src-tauri/Cargo.toml, docs/art-pipeline.md, src/audio/soundSet.ts · last-verified: 2026-10-16 · DRAFT legal notices template — not live, not legal advice -->
 
 <!--
 DRAFT. Not published.
@@ -15,6 +15,13 @@ Darling Blades is an independent game. It is not affiliated with, endorsed
 by, sponsored by, or approved by Wizards of the Coast LLC or Hasbro, Inc.
 Magic: The Gathering is a trademark of Wizards of the Coast LLC, and is
 mentioned only to describe the style of game this is.
+
+## Discord
+
+The main menu links to the game's community server on Discord. Discord and
+the Discord logo are trademarks of Discord Inc. The logo is shown unaltered,
+as Discord's brand guidelines allow, only to mark that link. Darling Blades is
+not affiliated with or endorsed by Discord Inc.
 
 ## Code
 
@@ -33,6 +40,20 @@ admin@bladedarlings.com.
 
 The card and scene art was created with the help of AI image generation tools
 and then selected, directed, and edited for the game.
+
+## Sound and music
+
+The Classic sound style is made by the game's own code. The recorded sounds
+and music in the New sound style come from free packs released under CC0 1.0,
+a public domain dedication (https://creativecommons.org/publicdomain/zero/1.0/),
+so no credit is required. We thank their makers anyway:
+
+- Sound effects and jingles: Kenney (https://kenney.nl): Casino Audio, Impact
+  Sounds, Interface Sounds, Music Jingles, RPG Audio and UI Audio.
+- Music: Not Jam (https://not-jam.itch.io): Not Jam Music Pack and Not Jam
+  Music Pack 2.
+
+The files were trimmed, volume matched and re-encoded for the game.
 
 ## Mythology and history
 

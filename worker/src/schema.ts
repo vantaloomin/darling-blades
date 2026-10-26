@@ -245,7 +245,7 @@ export const SIGNAL_VOCAB = {
   reducedMotion: { kind: 'bool' },
   renderScale: { kind: 'enum', values: ['720p', '1080p', '1440p', 'other'] },
   // duel
-  format: { kind: 'enum', values: ['warchest', 'darlings', 'limited', 'gauntlet'] },
+  format: { kind: 'enum', values: ['warchest', 'darlings', 'limited', 'gauntlet', 'story'] },
   deckColours: { kind: 'enum', values: DECK_COLOUR_VALUES },
   deckArchetype: { kind: 'string', pattern: ID_PATTERN, maxLength: ID_MAX_LENGTH },
   curveBucket: { kind: 'enum', values: ['<2.0', '2.0-2.4', '2.5-2.9', '3.0-3.4', '3.5-3.9', '4.0+'] },

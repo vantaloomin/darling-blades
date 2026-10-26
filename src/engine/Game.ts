@@ -1,4 +1,4 @@
-import { activatedAbilitiesOf, isType, type EffectContinuation } from './types';
+import { activatedAbilitiesOf, isType, markCostOf, type EffectContinuation } from './types';
 import {
   CURRENT_RULES_REV,
   DARLING_PAYDOWN_COST,
@@ -90,6 +90,21 @@ export interface GameConfig {
   db: CardDb;
   /** Simulation override for opening deals and full mulligan redraws. */
   startingHandSize?: number;
+  /** Each player's starting life. Defaults to `RULES.startingLife`; replays pass their recorded total. */
+  startingLife?: number;
+  /**
+   * Extra life per seat on top of `startingLife` (Story Mode's endless
+   * claimants, plan-story-mode.md E2). Game setup, not a rule: absent means
+   * [0, 0]. Each entry is a whole number of 0 or more.
+   */
+  lifeBonus?: [number, number];
+  /**
+   * The seat that begins the game holding the Mandate (Story Mode's endless
+   * claimants from loop 7). Absent: the Mandate begins unclaimed, as in every
+   * other game. Setting it emits nothing and fires no claim abilities: the
+   * holder starts with it, they never claimed it.
+   */
+  startingMandateHolder?: PlayerId;
   /** Classic is the default. Warchest and Darlings use ordered land reserves. */
   format?: GameFormat;
   /** One ordered ten-land payload per seat for reserve formats. */
@@ -223,6 +238,8 @@ export class Game {
   private st: GameState;
   private readonly db: CardDb;
   private readonly startingHandSize: number;
+  /** The life total both players began this game with. */
+  readonly startingLife: number;
   private readonly eventObserver?: GameConfig['eventObserver'];
   private buf: GameEvent[] = [];
   /** Legacy state facade retained so existing callers can make scalar edits before submit. */
@@ -235,6 +252,17 @@ export class Game {
     this.startingHandSize = cfg.startingHandSize ?? RULES.startingHandSize;
     if (!Number.isSafeInteger(this.startingHandSize) || this.startingHandSize <= 0) {
       throw new Error('startingHandSize must be a positive integer.');
+    }
+    this.startingLife = cfg.startingLife ?? RULES.startingLife;
+    if (!Number.isSafeInteger(this.startingLife) || this.startingLife <= 0) {
+      throw new Error('startingLife must be a positive integer.');
+    }
+    const lifeBonus = cfg.lifeBonus ?? [0, 0];
+    if (lifeBonus.length !== 2 || !lifeBonus.every((n) => Number.isSafeInteger(n) && n >= 0)) {
+      throw new Error('lifeBonus must be two whole numbers of 0 or more.');
+    }
+    if (cfg.startingMandateHolder !== undefined && cfg.startingMandateHolder !== 0 && cfg.startingMandateHolder !== 1) {
+      throw new Error('startingMandateHolder must be 0 or 1.');
     }
     this.eventObserver = cfg.eventObserver;
     const rng = createRngState(cfg.seed);
@@ -287,7 +315,9 @@ export class Game {
       nextSid: 1,
       winner: null,
       winReason: null,
+      ...(cfg.startingMandateHolder === undefined ? {} : { mandateHolder: cfg.startingMandateHolder }),
     };
+    for (const p of [0, 1] as const) this.st.players[p].life += lifeBonus[p];
 
     const emit: Emit = (e) => {
       this.initialEvents.push(e);
@@ -312,7 +342,7 @@ export class Game {
     darlingZone?: CardInstance | null,
   ): GameState['players'][0] {
     const player: GameState['players'][0] = {
-      life: RULES.startingLife,
+      life: this.startingLife,
       deck,
       hand: [],
       graveyard: [],
@@ -481,7 +511,7 @@ export class Game {
     this.st.stackClosed = pub.stackClosed;
     this.st.combat = structuredClone(pub.combat);
     this.st.fogThisTurn = pub.fogThisTurn;
-    for (const key of ['creatureDiedThisTurn', 'sunsetPendingWindow', 'decisionResume'] as const) {
+    for (const key of ['creatureDiedThisTurn', 'gainedLifeThisTurn', 'mandateHolder', 'sunsetPendingWindow', 'decisionResume'] as const) {
       if (pub[key] === undefined) delete this.st[key];
       else Object.assign(this.st, { [key]: structuredClone(pub[key]) });
     }
@@ -887,7 +917,7 @@ export class Game {
         // link - otherwise the path below is byte-identical to revision 3.
         if ((st.rulesRev ?? 1) >= 4 && anyPayableHauntlink(st, this.db)) {
           const newTrigger = pending.triggerWhen !== undefined || pending.continuations !== undefined ||
-            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.what === 'opponentCreature' ||
+            pending.spec.maxCost !== undefined || pending.spec.minAttack !== undefined || pending.spec.maxAttack !== undefined || pending.spec.what === 'opponentCreature' ||
             usesHunt(pending.ops);
           st.pendingDecisions.unshift({
             kind: 'resolveTrigger',
@@ -1001,16 +1031,20 @@ export class Game {
           : []);
         for (const iid of plan) findPermanent(st, iid)!.tapped = true;
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
-        perm.tapped = true;
+        // A Duty taps its source; a mark-cost ability spends marks instead.
+        const marks = markCostOf(ability);
+        if (marks > 0) perm.plusOneCounters -= marks;
+        else perm.tapped = true;
         emit({ e: 'activated', player, iid: perm.iid, cardId: perm.cardId,
-          ...(Array.isArray(definition.activated) ? { abilityIndex: action.abilityIndex ?? 0 } : {}) });
+          ...(Array.isArray(definition.activated) ? { abilityIndex: action.abilityIndex ?? 0 } : {}),
+          ...(marks > 0 ? { marksSpent: marks } : {}) });
         const specs = ability.targets ?? [];
         runOps(st, this.db, emit, {
           controller: player,
           sourceCardId: perm.cardId,
           sourceIid: perm.iid,
           targets: action.targets ?? [],
-          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined) ? { targetSpecs: specs } : {}),
+          ...(usesHunt(ability.ops) || specs.some(s => s.exactly || s.maxCost !== undefined || s.minAttack !== undefined || s.maxAttack !== undefined) ? { targetSpecs: specs } : {}),
           ...(specs.length === 1 && (specs[0].upTo !== undefined || specs[0].exactly !== undefined) ? { targetBatch: true } : {}),
         }, ability.ops);
         // Like deferred-target triggers, this off-stack path owns its SBA.
@@ -1061,6 +1095,8 @@ export class Game {
         const cost = castCost(d, action.empowered === true, isRetell, isHauntlinked, {
           whispers: isWhispers, tithe: action.tithe, sacrifices: action.sacrifices, state: st, db: this.db,
         })!;
+        const titheMarks = action.tithe && d.tithe?.marks ? Math.min(d.tithe.marks,
+          castCost(d, action.empowered === true, isRetell, isHauntlinked, { whispers: isWhispers })!.generic - cost.generic) : 0;
         const plan = action.manaPlan ?? solveMana(
           st,
           this.db,
@@ -1077,42 +1113,7 @@ export class Game {
         if (fromGrave) me.graveyard.splice(sourceIndex, 1);
         else me.hand.splice(sourceIndex, 1);
 
-        // Rite and Tithe are paid before the spell reaches the stack. Snapshot in
-        // battlefield order, remove every sacrifice, then fire their dies
-        // triggers in that same order so no trigger observes a half-paid cost.
-        if (d.rite || action.tithe) {
-          const observers = [...st.battlefield];
-          const sacrificeIids = new Set(action.sacrifices ?? []);
-          const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
-          const fallen: typeof sacrifices = [];
-          const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
-          for (const perm of sacrifices) {
-            if (destroyPermanent(
-              st,
-              this.db,
-              perm,
-              emit,
-              (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
-            ) && firesDiesForDestroy(st, this.db, perm)) {
-              fallen.push(perm);
-            }
-          }
-          for (const entry of graveyardEntries) {
-            if (st.winner !== null) return;
-            fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
-          }
-          for (const perm of fallen) {
-            if (st.winner !== null) return;
-            fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
-          }
-          if (st.winner !== null) return;
-          // The payment is a mutation batch like any other, so it gets its
-          // own state-based check before anyone is offered a window: a player
-          // drained to 0 by a fodder's dies trigger loses here, and a
-          // Hauntlink whose host was sacrificed goes with it.
-          checkStateBased(st, this.db, emit);
-          if (st.winner !== null) return;
-        }
+        if ((d.rite || action.tithe) && !this.paySacrifices(action.sacrifices ?? [], emit)) return;
 
         const item: StackItem = {
           sid: st.nextSid++,
@@ -1126,6 +1127,8 @@ export class Game {
           ...(isRetell ? { retell: true } : {}),
           ...(isWhispers ? { whispered: true } : {}),
           ...(isHauntlinked ? { hauntlinked: true } : {}),
+          ...(titheMarks > 0 ? { titheMarks } : {}),
+          ...(action.modes ? { modes: [...action.modes] } : {}),
         };
         st.stack.push(item);
         emit({
@@ -1175,7 +1178,11 @@ export class Game {
         const cardId = cardIdOf(card);
         const d = def(this.db, card);
         const extra = action.x ?? 0;
-        const cost = darlingCastCost(d, me.darlingTax ?? 0)!;
+        // Priced against the pre-payment board, as a cast from hand.
+        const cost = darlingCastCost(d, me.darlingTax ?? 0,
+          action.tithe ? { tithe: true, sacrifices: action.sacrifices, state: st, db: this.db } : undefined)!;
+        const titheMarks = action.tithe && d.tithe?.marks
+          ? Math.min(d.tithe.marks, darlingCastCost(d, me.darlingTax ?? 0)!.generic - cost.generic) : 0;
         const plan = action.manaPlan ?? solveMana(st, this.db, player, cost, extra)!;
         for (const iid of plan) {
           findPermanent(st, iid)!.tapped = true;
@@ -1183,6 +1190,7 @@ export class Game {
         if (plan.length > 0) emit({ e: 'manaTapped', player, iids: plan });
 
         me.darlingZone = null;
+        if (action.tithe && !this.paySacrifices(action.sacrifices ?? [], emit)) return;
         const item: StackItem = {
           sid: st.nextSid++,
           instanceId: isCardInstance(card) ? card.instanceId : st.nextInstanceId!++,
@@ -1191,6 +1199,7 @@ export class Game {
           controller: player,
           targets: action.targets ?? [],
           ...(action.x === undefined ? {} : { x: action.x }),
+          ...(titheMarks > 0 ? { titheMarks } : {}),
         };
         st.stack.push(item);
         emit({ e: 'spellCast', sid: item.sid, cardId, controller: player, targets: item.targets, fromDarlingZone: true });
@@ -1220,7 +1229,7 @@ export class Game {
         }
         for (const iid of action.attackers) {
           const perm = findPermanent(st, iid)!;
-          if (!getEffectiveStats(st.battlefield, this.db, iid).keywords.has('sentinel')) {
+          if (!getEffectiveStats(st, this.db, iid).keywords.has('sentinel')) {
             perm.tapped = true;
           }
         }
@@ -1316,6 +1325,47 @@ export class Game {
    * Offer `responder` a window over the just-announced item. Auto-passes when
    * they have no castable instant (Arena-style; saves clicks and AI calls).
    */
+  /**
+   * Pay a Rite or Tithe cost before the spell reaches the stack. Snapshot in
+   * battlefield order, remove every sacrifice, then fire their dies triggers
+   * in that same order so no trigger observes a half-paid cost. False when
+   * the payment ended the game.
+   */
+  private paySacrifices(iids: readonly number[], emit: Emit): boolean {
+    const st = this.st;
+    const observers = [...st.battlefield];
+    const sacrificeIids = new Set(iids);
+    const sacrifices = st.battlefield.filter((perm) => sacrificeIids.has(perm.iid));
+    const fallen: typeof sacrifices = [];
+    const graveyardEntries: { card: CardEntry; owner: PlayerId }[] = [];
+    for (const perm of sacrifices) {
+      if (destroyPermanent(
+        st,
+        this.db,
+        perm,
+        emit,
+        (graveCard, owner) => graveyardEntries.push({ card: graveCard, owner }),
+      ) && firesDiesForDestroy(st, this.db, perm)) {
+        fallen.push(perm);
+      }
+    }
+    for (const entry of graveyardEntries) {
+      if (st.winner !== null) return false;
+      fireGraveyardTriggers(st, this.db, emit, entry.card, entry.owner);
+    }
+    for (const perm of fallen) {
+      if (st.winner !== null) return false;
+      fireTriggers(st, this.db, emit, 'dies', perm, { observers, sacrifice: true });
+    }
+    if (st.winner !== null) return false;
+    // The payment is a mutation batch like any other, so it gets its own
+    // state-based check before anyone is offered a window: a player drained
+    // to 0 by a fodder's dies trigger loses here, and a Hauntlink whose host
+    // was sacrificed goes with it.
+    checkStateBased(st, this.db, emit);
+    return st.winner === null;
+  }
+
   private openResponseWindow(
     responder: PlayerId,
     over: Extract<Awaiting, { kind: 'respond' }>['over'],

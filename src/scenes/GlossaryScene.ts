@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { Music } from '../audio/music';
 import { Sfx } from '../audio/sfx';
 import {
-  GLOSSARY_SECTIONS,
+  glossarySections,
   sectionOfTerm,
   termMatchesQuery,
   type GlossaryIcon,
@@ -20,13 +20,21 @@ import {
   type GlossaryRowsLayout,
 } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { COMPACT, compactShell, isDesktopStage } from '../ui/compactLayout';
+import { compactHeader, compactRowHover, COMPACT_DRAG_SLOP } from '../ui/compactWidgets';
+import { GLOSSARY_COMPACT, glossaryListColumns, glossaryRowColumns, glossaryTabTiles } from '../ui/glossaryCompact';
+import type { Rect } from '../ui/layout';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { bindTapButton } from '../platform/gestures';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { createSearchInput, type SearchInputHandle } from '../ui/SearchInput';
 import { colorInt, theme } from '../ui/theme';
-import { backButton, panel, registerSceneBackNavigation } from '../ui/themeWidgets';
+import { backButton, panel, registerSceneBackNavigation, type ThemedButton } from '../ui/themeWidgets';
 import { backLabelFor, type BackDestination } from '../ui/navigation';
 import { IS_DEV } from '../platform/env';
+import { currentAccessibility } from '../ui/accessibility';
+import { bakeStopBadge, stopPad } from '../ui/storyMapStops';
 
 /** `null` is the cross-section results view; anything else is one tab. */
 type ActiveTab = GlossarySectionId | null;
@@ -95,6 +103,8 @@ export class GlossaryScene extends Phaser.Scene {
     this.returnTo = data.returnTo ?? { scene: 'MainMenu' };
     this.activeTab = this.focus ? sectionOfTerm(this.focus) ?? 'combat' : 'combat';
     if (this.fixture?.tab) this.activeTab = this.fixture.tab === 'all' ? null : this.fixture.tab;
+    // A tab this build hides (Story Map before Story Mode is live) opens the first tab instead.
+    if (this.activeTab !== null && !glossarySections().some((section) => section.id === this.activeTab)) this.activeTab = 'combat';
     this.tabBeforeSearch = this.activeTab;
     this.query = '';
     this.scrollOffset = 0;
@@ -131,6 +141,11 @@ export class GlossaryScene extends Phaser.Scene {
     bakeManaSymbols(this);
     bakeCardFrames(this);
 
+    if (sceneStage(this).compact) {
+      this.createCompact();
+      return;
+    }
+
     sceneTitle(this, 'Glossary of Terms');
     sceneSubtitle(this, 'A field guide for every duel.', { fontSize: theme.type.body });
 
@@ -163,7 +178,7 @@ export class GlossaryScene extends Phaser.Scene {
 
   /** Rows for one tab, or every section's matches in the results view. */
   private rowsFor(tab: ActiveTab): GlossaryRow[] {
-    const sections = tab === null ? GLOSSARY_SECTIONS : [GLOSSARY_SECTIONS.find((s) => s.id === tab)!];
+    const sections = tab === null ? glossarySections() : [glossarySections().find((s) => s.id === tab)!];
     return sections.flatMap((section) =>
       section.terms
         .filter((term) => termMatchesQuery(term, this.query))
@@ -176,7 +191,7 @@ export class GlossaryScene extends Phaser.Scene {
   }
 
   private activeSection(): GlossarySection | null {
-    return this.activeTab === null ? null : GLOSSARY_SECTIONS.find((s) => s.id === this.activeTab) ?? null;
+    return this.activeTab === null ? null : glossarySections().find((s) => s.id === this.activeTab) ?? null;
   }
 
   // -------------------------------------------------------------------------
@@ -184,7 +199,7 @@ export class GlossaryScene extends Phaser.Scene {
   // -------------------------------------------------------------------------
 
   private buildRail(): void {
-    const tabs: ActiveTab[] = [null, ...GLOSSARY_SECTIONS.map((section) => section.id)];
+    const tabs: ActiveTab[] = [null, ...glossarySections().map((section) => section.id)];
     tabs.forEach((id, index) => {
       const y = this.frame.railFirstRowY + index * this.frame.railRowPitch;
       const x = this.frame.rail.x + theme.space(3);
@@ -223,7 +238,7 @@ export class GlossaryScene extends Phaser.Scene {
   }
 
   private sectionTitleFor(id: GlossarySectionId): string {
-    return GLOSSARY_SECTIONS.find((section) => section.id === id)!.title;
+    return glossarySections().find((section) => section.id === id)!.title;
   }
 
   private buildContentChrome(): void {
@@ -459,6 +474,12 @@ export class GlossaryScene extends Phaser.Scene {
       case 'rarity':
         // Base-set symbol in the tier tint, matching what card faces show.
         return this.add.image(x, y, `seticon-base-${icon.key}`).setDisplaySize(26, 26);
+      case 'storyStop': {
+        // The map's own medallion; the display size includes its shadow margin.
+        const d = 24;
+        const size = d + 2 * stopPad(d);
+        return this.add.image(x, y, bakeStopBadge(this, icon.key, d, currentAccessibility().highContrast)).setDisplaySize(size, size);
+      }
       default:
         return null;
     }
@@ -564,5 +585,239 @@ export class GlossaryScene extends Phaser.Scene {
     };
     if (this.scrollOffset > 0) band(list.y, 1);
     if (this.scrollOffset < layout.maxScroll) band(list.y + list.height, -1);
+  }
+
+  // -------------------------------------------------------------------------
+  // Phones
+  // -------------------------------------------------------------------------
+
+  /** The compact composition's main pane, rebuilt on every tab or search change. */
+  private compactMain: Phaser.GameObjects.Container | null = null;
+  private compactTiles: { id: ActiveTab; rect: Rect; plate: Phaser.GameObjects.Graphics; label: Phaser.GameObjects.Text; count: Phaser.GameObjects.Text }[] = [];
+
+  /**
+   * The phone composition (mocks M-Glossary, M-GlossaryEntry,
+   * M-GlossarySearch): the open tab's terms scrolling in the main pane, the
+   * search field and the tabs, two across with their counts, in the column.
+   */
+  private createCompact(): void {
+    const type = theme.compactType;
+    const G = GLOSSARY_COMPACT;
+    const shell = compactShell(sceneStage(this).content, { back: true });
+    const col = shell.column ?? { x: shell.main.x + shell.main.width, y: shell.main.y, width: 0, height: shell.main.height };
+    const goBack = (): void => {
+      this.scene.start(this.returnTo.scene, this.returnTo.data);
+    };
+    compactHeader(this, shell, { title: 'Glossary of Terms', subtitle: 'A field guide for every duel.', onBack: goBack });
+    registerSceneBackNavigation(this, goBack);
+
+    // The search field heads the column.
+    this.searchInput = createSearchInput(this, col.x + col.width / 2, col.y + COMPACT.touch / 2, {
+      width: col.width,
+      placeholder: 'Search terms…',
+      accessibleName: 'Search glossary terms',
+      onChange: (value) => {
+        const searching = value.trim() !== '';
+        if (searching && this.query.trim() === '') this.tabBeforeSearch = this.activeTab;
+        this.query = value;
+        this.activeTab = searching ? null : this.activeTab ?? this.tabBeforeSearch;
+        this.focus = null;
+        this.renderCompact(shell.main, 0);
+      },
+    });
+    Object.assign(this.searchInput.inputElement.style, { height: `${COMPACT.touch}px`, fontSize: `${Math.max(16, type.body)}px` });
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.searchInput?.teardown());
+
+    // The tabs under it, two across, each its name over its count.
+    const tabs: ActiveTab[] = [null, ...glossarySections().map((section) => section.id)];
+    const area = { x: col.x, y: col.y + COMPACT.touch + G.tabsGap, width: col.width, height: 0 };
+    area.height = Math.max(0, col.y + col.height - area.y);
+    const tileW = (area.width - COMPACT.gap) / 2;
+    const grid = this.add.container(0, area.y);
+    const built = tabs.map((id) => {
+      const label = this.add.text(G.tilePadX, G.tilePadY, id === null ? ALL_TAB_LABEL : this.sectionTitleFor(id), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+        wordWrap: { width: tileW - G.tilePadX * 2 },
+      });
+      const count = this.add.text(G.tilePadX, label.y + label.height, '0', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted,
+      });
+      return { id, label, count, need: G.tilePadY * 2 + label.height + count.height };
+    });
+    const layout = glossaryTabTiles(area.width, built.map((b) => b.need));
+    const adapters: ThemedButton[] = [];
+    this.compactTiles = built.map(({ id, label, count }, i) => {
+      const t = layout.tiles[i];
+      const rect = { x: area.x + t.x, y: t.y, width: t.width, height: t.height };
+      const tile = this.add.container(rect.x, rect.y);
+      const plate = this.add.graphics();
+      // The name and count sit centred down the tile, whatever its height.
+      const block = label.height + count.height;
+      label.setY((rect.height - block) / 2);
+      count.setY(label.y + label.height);
+      const zone = this.add.zone(rect.width / 2, rect.height / 2, rect.width, rect.height).setInteractive({ useHandCursor: true });
+      bindTapButton(this, zone, (pointer) => {
+        if (Math.abs(pointer.upY - pointer.downY) > COMPACT_DRAG_SLOP || this.activeTab === id) return;
+        this.activeTab = id;
+        if (this.query.trim() !== '') this.tabBeforeSearch = id;
+        this.focus = null;
+        this.renderCompact(shell.main, 0);
+      });
+      tile.add([plate, label, count, zone]);
+      // Desktop: the pointer's wash over the tile (a no-op on touch).
+      compactRowHover(this, zone, { x: 0, y: 0, width: rect.width, height: rect.height }, tile, theme.radius.control);
+      grid.add(tile);
+      adapters.push({
+        container: grid, inputZone: zone,
+        getMeasuredBounds: () => ({ hit: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } }),
+        setEnabled: (on: boolean) => { if (on) zone.setInteractive({ useHandCursor: true }); else zone.disableInteractive(); },
+      } as unknown as ThemedButton);
+      return { id, rect, plate, label, count };
+    });
+    // At the largest text on the smallest phone the tiles outgrow the column, and scroll.
+    if (layout.height > area.height) bindMenuScroll(this, grid, area, layout.height, undefined, adapters);
+
+    const query = this.fixture?.query;
+    if (query) {
+      this.searchInput.inputElement.value = query;
+      this.query = query;
+      this.activeTab = null;
+    }
+    this.renderCompact(shell.main, this.fixture?.scroll === 'end' ? Number.MAX_SAFE_INTEGER : 0);
+  }
+
+  /** Redraw the tabs' state and rebuild the main pane for the open tab or search. */
+  private renderCompact(main: Rect, scrollTo: number): void {
+    const type = theme.compactType;
+    const G = GLOSSARY_COMPACT;
+    for (const tile of this.compactTiles) {
+      const active = tile.id === this.activeTab;
+      const { width, height } = tile.rect;
+      tile.plate.clear()
+        .fillStyle(active ? theme.graphics.rowFillActive : theme.graphics.rowFill, theme.alpha.panel)
+        .fillRoundedRect(0, 0, width, height, theme.radius.control)
+        .lineStyle(theme.control.borderWidth, active ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, active ? 1 : theme.alpha.chrome)
+        .strokeRoundedRect(0, 0, width, height, theme.radius.control);
+      tile.label.setColor(active ? theme.colors.gold : theme.colors.body);
+      tile.count.setText(String(this.countFor(tile.id)));
+    }
+
+    this.compactMain?.destroy(true);
+    const pane = this.add.container(0, 0);
+    this.compactMain = pane;
+    const section = this.activeSection();
+    const rows = this.rowsFor(this.activeTab);
+    const searching = this.query.trim() !== '';
+    const heading = this.add.text(main.x, main.y, section ? section.title : searching ? 'Search Results' : ALL_TAB_LABEL, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      wordWrap: { width: main.width },
+    });
+    const noteText = section?.note ?? (searching ? `${rows.length} matching ${rows.length === 1 ? 'term' : 'terms'}.` : '');
+    const note = noteText
+      ? this.add.text(main.x, heading.y + heading.height, noteText, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: theme.colors.muted, wordWrap: { width: main.width },
+      })
+      : null;
+    const dividerY = (note ? note.y + note.height : heading.y + heading.height) + G.headGap;
+    const divider = this.add.graphics().lineStyle(1, theme.graphics.panelStroke, theme.alpha.chrome)
+      .lineBetween(main.x, dividerY, main.x + main.width, dividerY);
+    pane.add([heading, ...(note ? [note] : []), divider]);
+    const view = { x: main.x, y: dividerY + G.headGap, width: main.width, height: Math.max(0, main.y + main.height - dividerY - G.headGap) };
+
+    if (rows.length === 0) {
+      pane.add(this.add.text(view.x + view.width / 2, view.y + COMPACT.touch, `No term matches “${this.query.trim()}”.`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, wordWrap: { width: view.width },
+      }).setOrigin(0.5, 0));
+      return;
+    }
+
+    const hasIcons = rows.some((row) => row.term.icon.kind !== 'none');
+    const showBadge = section === null;
+    const nameStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, fontStyle: theme.weight.w700 };
+    const badgeStyle = { fontFamily: theme.fonts.ui, fontSize: `${type.label}px` };
+    const measure = (text: string, style: object): number => {
+      const t = this.add.text(0, 0, text, style);
+      const w = t.width;
+      t.destroy();
+      return w;
+    };
+    const nameNeed = Math.max(...rows.map((row) => measure(row.term.name, nameStyle)));
+    const badgeNeed = showBadge ? Math.max(...rows.map((row) => measure(row.section.title, badgeStyle))) : 0;
+    let focusTop: number | null = null;
+    const desktop = isDesktopStage(sceneStage(this));
+    const build = (listW: number): { list: Phaser.GameObjects.Container; height: number } => {
+      // One column of full rows on a phone; two on a desktop pane, each pair of rows as tall as its taller.
+      const across = glossaryListColumns(listW, { desktop });
+      const rowW = across.width;
+      const cols = glossaryRowColumns(rowW, hasIcons, nameNeed, badgeNeed);
+      const list = this.add.container(0, view.y);
+      focusTop = null;
+      const made = rows.map((row) => {
+        const compactRow = row.section.compact === true;
+        const r = this.add.container(0, 0);
+        const name = this.add.text(cols.nameX, 0, row.term.name, {
+          ...nameStyle, color: theme.colors.heading, wordWrap: { width: cols.nameWidth },
+        });
+        const description = this.add.text(cols.descriptionX, 0, compactRow ? row.term.shortLabel ?? '' : row.term.description, {
+          fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color: compactRow ? theme.colors.muted : theme.colors.body,
+          lineSpacing: 2, wordWrap: { width: cols.descriptionWidth },
+        });
+        const badge = showBadge
+          ? this.add.text(cols.badgeX, 0, row.section.title, { ...badgeStyle, color: theme.colors.muted, ...(cols.stacked ? { wordWrap: { width: cols.descriptionWidth } } : {}) })
+          : null;
+        const block = name.height + 2 + (description.text ? description.height : 0) + (badge ? 2 + badge.height : 0);
+        const need = cols.stacked
+          ? Math.max(COMPACT.touch + 12, block + G.rowPadY * 2)
+          : Math.max(COMPACT.touch + 12, name.height + G.rowPadY * 2, description.height + G.rowPadY * 2, (badge?.height ?? 0) + G.rowPadY * 2);
+        // Places the row's words and draws its plate at its final height (its pair's, on desktop).
+        const place = (h: number): void => {
+          if (cols.stacked) {
+            name.setY((h - block) / 2);
+            description.setY(name.y + name.height + 2);
+            badge?.setY((description.text ? description.y + description.height : name.y + name.height) + 2);
+          } else {
+            name.setY((h - name.height) / 2);
+            description.setY((h - description.height) / 2);
+            badge?.setOrigin(1, 0).setY((h - badge.height) / 2);
+          }
+          const focused = this.focus !== null && row.term.name === this.focus;
+          const plate = this.add.graphics()
+            .fillStyle(theme.graphics.rowFill, theme.alpha.panel).fillRoundedRect(0, 0, rowW, h, theme.radius.control)
+            .lineStyle(focused ? 2 : theme.control.borderWidth, focused ? colorInt(theme.colors.gold) : theme.graphics.panelStroke, focused ? 1 : theme.alpha.chrome)
+            .strokeRoundedRect(0, 0, rowW, h, theme.radius.control);
+          r.add([plate, name, description, ...(badge ? [badge] : [])]);
+          if (cols.iconX !== null) {
+            const disc = this.add.graphics()
+              .fillStyle(theme.graphics.panelFill, 1).fillCircle(cols.iconX, h / 2, G.disc / 2)
+              .lineStyle(2, colorInt(theme.colors.gold), 0.9).strokeCircle(cols.iconX, h / 2, G.disc / 2);
+            r.add(disc);
+            const icon = this.iconImage(row.term.icon, cols.iconX, h / 2);
+            if (icon) r.add(icon.setDisplaySize(Math.min(icon.displayWidth, G.disc - 12), Math.min(icon.displayHeight, G.disc - 12)));
+          }
+        };
+        return { row, r, need, place };
+      });
+      let y = 0;
+      for (let i = 0; i < made.length; i += across.count) {
+        const line = made.slice(i, i + across.count);
+        const h = Math.max(...line.map((m) => m.need));
+        line.forEach((m, k) => {
+          m.place(h);
+          m.r.setPosition(view.x + k * across.pitch, y);
+          if (this.focus !== null && m.row.term.name === this.focus) focusTop = y;
+          list.add(m.r);
+        });
+        y += h + G.rowGap;
+      }
+      return { list, height: Math.max(0, y - G.rowGap) };
+    };
+    let built = build(view.width);
+    if (built.height > view.height) {
+      built.list.destroy();
+      built = build(view.width - G.thumbLane);
+    }
+    pane.add(built.list);
+    const target = focusTop !== null ? Math.max(0, (focusTop as number) - G.rowGap) : scrollTo;
+    bindMenuScroll(this, built.list, view, built.height, undefined, [], 0, undefined, target);
   }
 }

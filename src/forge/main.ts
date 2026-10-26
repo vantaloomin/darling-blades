@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import manifest from '../data/art-manifest.json';
-import { ALL_CARDS } from '../data/catalog';
 import { MECHANIC_DEFINITIONS, MECHANIC_NAMES, type MechanicId } from '../data/glossary';
 import { artKeyFor, artTextureKey } from '../art/artLoader';
 import { ICON_PATHS } from '../art/iconPaths';
@@ -8,6 +7,7 @@ import { FORGE_NUMERAL_BOX, FORGE_NUMERAL_OPTIONS, NUMERAL_PATHS, numeralLayout 
 import type { CardDef, Color, Keyword, ManaCost, StaticDef } from '../engine/types';
 import { setQualityTier } from '../platform/quality';
 import { frameKeyFor } from '../ui/CardFrameFactory';
+import { installTextRasterGuards } from '../ui/textRaster';
 import type { ScorableCardDef, ScorableEffectOp } from '../power/scoreCore';
 import { imageIdsInText, referencedImageIds } from './customArt';
 import { CUSTOM_ART_COPY, initCustomArtPanel } from './customArtPanel';
@@ -33,6 +33,7 @@ import {
   type BuilderConditionKind,
   type BuilderState,
   type CostState,
+  type DutyPayment,
   type ForgeWarning,
   type ManaAbilityColor,
   type MarkedThresholdSubject,
@@ -90,7 +91,8 @@ import {
   OP_OPTIONS,
   RARITIES,
   RARITY_LABELS,
-  SETS,
+  LIVE_CARDS,
+  LIVE_SETS,
   SET_LABELS,
   TARGETS,
   TARGET_LABELS,
@@ -133,10 +135,14 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, whole));
 }
 
-const CONDITIONS = ['none', 'questActive', 'controlMarked', 'markedThreshold', 'creatureDiedThisTurn', 'controlsOther'] as const satisfies readonly BuilderConditionKind[];
+const CONDITIONS = ['none', 'questActive', 'swornActive', 'youHoldMandate', 'youDontHoldMandate', 'youGainedLifeThisTurn', 'controlMarked', 'markedThreshold', 'creatureDiedThisTurn', 'controlsOther'] as const satisfies readonly BuilderConditionKind[];
 const CONDITION_LABELS: Record<BuilderConditionKind, string> = {
   none: 'No condition',
   questActive: 'Quest active',
+  swornActive: 'Sworn (control a legendary creature)',
+  youHoldMandate: 'You hold the Mandate',
+  youDontHoldMandate: "You don't hold the Mandate",
+  youGainedLifeThisTurn: 'You gained life this turn',
   controlMarked: 'Control marked permanent',
   markedThreshold: 'Marked threshold',
   creatureDiedThisTurn: 'A creature died this turn',
@@ -196,7 +202,7 @@ const appliedKeywords = byId<HTMLDivElement>('applied-keywords');
 
 cardType.innerHTML = optionMarkup(CARD_TYPES, 'creature');
 cardRarity.innerHTML = optionMarkup(RARITIES, 'c', RARITY_LABELS);
-cardSet.innerHTML = optionMarkup(SETS, 'base', SET_LABELS);
+cardSet.innerHTML = optionMarkup(LIVE_SETS, 'base', SET_LABELS);
 frameStyle.innerHTML = optionMarkup(FRAME_CHOICES, 'default');
 holoFinish.innerHTML = optionMarkup(HOLO_CHOICES, 'default');
 
@@ -675,12 +681,15 @@ function dutyPlural(count: number): string {
   return name.endsWith('y') ? `${name.slice(0, -1)}ies` : `${name}s`;
 }
 
+const DUTY_PAYMENTS = ['tap', 'marks'] as const satisfies readonly DutyPayment[];
+const DUTY_PAYMENT_LABELS: Record<DutyPayment, string> = { tap: 'Tap', marks: 'Remove marks' };
+
 function renderMechanicEditors(): void {
   rebuildKeepingPlace(mechanicEditors, renderMechanicMarkup);
 }
 
 function renderMechanicMarkup(): void {
-  const mechanics = store.getState().mechanics;
+  const { mechanics, modal } = store.getState();
   const names = MECHANIC_NAMES;
   const panels: string[] = [];
   const note = (text: string): string => `<p class="field-note">${escapeHtml(text)}</p>`;
@@ -699,14 +708,25 @@ function renderMechanicMarkup(): void {
   if (mechanics.manaAbility.enabled) panels.push(`<details open><summary>Mana Ability</summary><fieldset class="mana-ability-colors"><legend>Produces</legend>${COLOR_ORDER.map((color) => `<label>${pipSvg(color, 'tiny')}<input type="checkbox" data-mana-ability-color="${color}"${mechanics.manaAbility.colors.includes(color) ? ' checked' : ''} />${PIP_VISUALS[color].label}</label>`).join('')}</fieldset>${note('A mana source that isn\'t a land counts +1.30. Mana from lands counts nothing.')}</details>`);
   if (mechanics.entersTapped.enabled) panels.push(`<details open><summary>Enters Tapped</summary>${note('Printed on the card only. It doesn\'t change the score.')}</details>`);
   if (mechanics.activated.enabled) {
-    const extra = mechanics.activated.extra?.length ?? 0;
+    const duty = mechanics.activated;
+    const marksPaid = duty.payWith === 'marks';
+    const extra = duty.extra?.length ?? 0;
     const extraNote = extra > 0
-      ? `<p class="no-fields">${escapeHtml(`Plus ${extra} more ${dutyPlural(extra)} from the loaded card, kept as printed. They share one tap: the best counts in full and each other one at 0.2.`)}</p>`
+      ? `<p class="no-fields">${escapeHtml(`Plus ${extra} more ${dutyPlural(extra)} from the loaded card, kept as printed. The best counts in full and each other one at 0.2.`)}</p>`
       : '';
-    panels.push(`<details open><summary>${names.duty}</summary>${costEditor('activated', mechanics.activated.cost, `Mana paid along with the tap; leave it at zero for a free tap. A ${names.duty} counts as about 2 uses on a creature and 3 on anything else, minus 0.4 for each mana it costs (at most 1.5 off).`)}<label>Target<select data-mechanic-target="activated">${optionMarkup(TARGETS.filter((target) => target !== 'spell'), mechanics.activated.target, TARGET_LABELS)}</select></label>${renderOpList(mechanics.activated.ops, 'activated')}${extraNote}</details>`);
+    const payRow = `<div class="field-grid two-up"><label>Pay With<select data-duty-pay>${optionMarkup(DUTY_PAYMENTS, duty.payWith, DUTY_PAYMENT_LABELS)}</select></label>${marksPaid ? `<label>Marks Removed<input type="number" min="1" max="${FORGE_LIMITS.markCost}" step="1" value="${duty.marks}" data-mechanic-number="duty-marks" /></label>` : ''}</div>`;
+    // A mark-paid ability never taps, so its panel doesn't call it a Duty.
+    const costNote = marksPaid
+      ? 'Mana paid along with the marks; leave it at zero for the marks alone. Paid with marks, the ability never taps the creature, so it can be used as often as its marks allow. Only a creature can pay this way. It has no measured rate yet, so it counts as 0.'
+      : `Mana paid along with the tap; leave it at zero for a free tap. A ${names.duty} counts as about 2 uses on a creature and 3 on anything else, minus 0.4 for each mana it costs (at most 1.5 off).`;
+    panels.push(`<details open><summary>${marksPaid ? 'Mark-Paid Ability' : names.duty}</summary>${payRow}${costEditor('activated', duty.cost, costNote)}<label>Target<select data-mechanic-target="activated">${optionMarkup(TARGETS.filter((target) => target !== 'spell'), duty.target, TARGET_LABELS)}</select></label>${renderOpList(duty.ops, 'activated')}${extraNote}</details>`);
   }
   if (mechanics.whispers.enabled) panels.push(`<details open><summary>${names.whispers}</summary>${costEditor('whispers', mechanics.whispers.cost, `On a Charm, ${names.whispers} is worth 0.5 for each mana it saves. On a creature or a sorcery-speed card it adds nothing at its printed cost. Real cards keep the ${names.whispers} cost 1 below the fair cost of the effect.`)}</details>`);
-  if (mechanics.tithe.enabled) panels.push(`<details open><summary>${names.tithe}</summary>${note(`Counts a flat +0.50. As you cast it, sacrifice any number of creatures: it costs 1 less for every 2 points of their combined Defense, rounded down; colored mana is still paid. Not with X, ${names.retell}, ${names.hauntlink}, ${names.whispers} or ${names.rite}.`)}</details>`);
+  if (mechanics.tithe.enabled) panels.push(`<details open><summary>${names.tithe}</summary>${note(`Counts a flat +0.50. As you cast it, sacrifice any number of creatures: it costs 1 less for every 2 points of their combined Defense, rounded down; colored mana is still paid. Not with X, ${names.retell}, ${names.hauntlink}, ${names.whispers} or ${names.rite}.`)}<label>Arrives With Marks (at most)<input type="number" min="0" max="${FORGE_LIMITS.titheMarks}" step="1" value="${mechanics.tithe.marks}" data-mechanic-number="tithe-marks" /></label>${note(`Above 0, it arrives with a mark for each {1} the ${names.tithe} saved, up to that many. Those marks measured at zero in the lab, so they count as 0.`)}</details>`);
+  if (modal) {
+    const modes = modal.modes.length;
+    panels.push(`<details open><summary>Modes</summary>${note(`Choose up to ${modal.upTo} of ${modes} modes, as the card you loaded prints them. The Forge can't edit modes yet, so it keeps them as printed; they show on the card. A modal spell has no measured rate yet, so its modes count as 0.`)}</details>`);
+  }
   mechanicEditors.innerHTML = panels.join('');
 }
 
@@ -852,6 +872,14 @@ document.addEventListener('input', (event) => {
     mutate((next) => { next.mechanics.rite.n = clampInt(Number(input.value), 1, FORGE_LIMITS.riteSacrifices); });
     return;
   }
+  if (mechanicNumber === 'duty-marks') {
+    mutate((next) => { next.mechanics.activated.marks = clampInt(Number(input.value), 1, FORGE_LIMITS.markCost); });
+    return;
+  }
+  if (mechanicNumber === 'tithe-marks') {
+    mutate((next) => { next.mechanics.tithe.marks = clampInt(Number(input.value), 0, FORGE_LIMITS.titheMarks); });
+    return;
+  }
   const mechanicCost = input.dataset.mechanicCost as 'empower' | 'preserve' | 'skim' | 'retell' | 'hauntlink' | 'activated' | 'whispers' | undefined;
   if (mechanicCost) {
     mutate((next) => {
@@ -914,6 +942,11 @@ document.addEventListener('change', (event) => {
   }
   if (input.matches('[data-retell-override]')) {
     mutate((next) => { next.mechanics.retell.overrideOps = (input as HTMLInputElement).checked; });
+    renderMechanicEditors();
+    return;
+  }
+  if (input.matches('[data-duty-pay]')) {
+    mutate((next) => { next.mechanics.activated.payWith = input.value === 'marks' ? 'marks' : 'tap'; });
     renderMechanicEditors();
     return;
   }
@@ -1512,7 +1545,7 @@ saveImageButton.addEventListener('click', () => {
 
 // ── Start From a Card ───────────────────────────────────────────────────────
 
-const loadCards = [...ALL_CARDS].sort((left, right) => (
+const loadCards = [...LIVE_CARDS].sort((left, right) => (
   left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
 ));
 const loadCardById = new Map(loadCards.map((card) => [card.id, card]));
@@ -1632,7 +1665,7 @@ resetLoaded.addEventListener('click', () => {
 /** 32 pictures a page, 12 on a phone-width screen, where each page is a long scroll. */
 const narrowArtPages = window.matchMedia('(max-width: 760px)');
 const artPageSize = (): number => (narrowArtPages.matches ? 12 : 32);
-const artCards = ALL_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
+const artCards = LIVE_CARDS.filter((card) => manifestCards.has(card.artRef ?? card.id));
 let artSearchValue = '';
 let artSetValue = 'all';
 let artColorValue = 'all';
@@ -1644,7 +1677,7 @@ const artGrid = byId<HTMLDivElement>('art-grid');
 const artPageLabel = byId<HTMLSpanElement>('art-page-label');
 const artPrev = byId<HTMLButtonElement>('art-prev');
 const artNext = byId<HTMLButtonElement>('art-next');
-artSetFilter.innerHTML = `<option value="all">All sets</option>${optionMarkup(SETS, '', SET_LABELS)}`;
+artSetFilter.innerHTML = `<option value="all">All sets</option>${optionMarkup(LIVE_SETS, '', SET_LABELS)}`;
 artColorFilter.innerHTML = '<option value="all">All colors</option>' + COLOR_ORDER.map((color) => `<option value="${color}">${PIP_VISUALS[color].label}</option>`).join('') + '<option value="C">Colorless</option>';
 
 function filteredArtCards(): CardDef[] {
@@ -1925,6 +1958,7 @@ if (qaMode) {
 }
 
 setQualityTier('full');
+installTextRasterGuards();
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'canvas-shell',

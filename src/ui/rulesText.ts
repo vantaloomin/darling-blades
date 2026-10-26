@@ -7,7 +7,7 @@ import type {
   ManaCost,
   TargetSpec,
 } from '../engine/types';
-import { activatedAbilitiesOf } from '../engine/types';
+import { activatedAbilitiesOf, markCostOf } from '../engine/types';
 import { CARD_DB } from '../data/catalog';
 import {
   cardMechanics,
@@ -69,6 +69,7 @@ function targetNoun(spec: TargetSpec | undefined): string {
   const restrictions = [
     spec?.maxCost !== undefined ? `cost ${spec.maxCost} or less` : undefined,
     spec?.minAttack !== undefined ? `attack ${spec.minAttack} or more` : undefined,
+    spec?.maxAttack !== undefined ? `attack ${spec.maxAttack} or less` : undefined,
   ].filter((restriction): restriction is string => restriction !== undefined);
   return `${qualifiers.length > 0 ? `${qualifiers.join(' ')} ` : ''}${noun}${restrictions.length > 0 ? ` with ${restrictions.join(' and ')}` : ''}`;
 }
@@ -92,14 +93,17 @@ function markCountText(n: number): string {
 }
 
 function targetPhrase(spec: TargetSpec | undefined): string {
-  if (spec?.exactly === 2) {
+  if (spec?.exactly === 2 || spec?.upTo === 2) {
     const noun = spec.what === 'yourGraveCreature'
       ? targetNoun(spec).replace('creature card', 'creature cards')
       : targetNoun(spec).replace(/\b(creature|artifact|enchantment|permanent|spell)\b/g, '$1s');
-    return `two ${spec.other ? 'other ' : ''}target ${noun}`;
+    return `${spec.upTo === 2 ? 'up to two' : 'two'} ${spec.other ? 'other ' : ''}target ${noun}`;
   }
   return `${spec?.other ? 'another target' : 'target'} ${targetNoun(spec)}`;
 }
+
+/** Mark observers whose marked creature is bound as "it" (EffectInterpreter). */
+const MARK_SUBJECT_WHENS: ReadonlySet<string> = new Set(['gainsMark', 'yourCreatureMarked', 'yourPermanentMarked', 'youAddMark', 'otherCreatureMarked']);
 
 function opTargetIndex(op: EffectOp): number {
   return ('targetIndex' in op ? op.targetIndex : undefined) ?? 0;
@@ -164,7 +168,7 @@ function opText(
       if (op.to === 'controller') return `this deals ${n} damage to you`;
       if (op.to === 'opponent') return `this deals ${n} damage to your opponent`;
       const isCreatureTarget = target?.what === 'creature' || target?.what === 'yourCreature' || target?.what === 'opponentCreature' ||
-        (target?.what === 'any' && (target.marked === true || target.tapped === true || target.maxCost !== undefined || target.minAttack !== undefined));
+        (target?.what === 'any' && (target.marked === true || target.tapped === true || target.maxCost !== undefined || target.minAttack !== undefined || target.maxAttack !== undefined));
       const recipient = isCreatureTarget
         ? targetAlreadyNamed ? target?.exactly === 2 ? 'those creatures' : 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target)
         : 'any target';
@@ -204,10 +208,13 @@ function opText(
       const kw = op.keywords?.length
         ? ` and gain${(op.scope === 'target' && !pluralTarget) || op.scope === 'self' ? 's' : ''} ${op.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      if (op.scope === 'self') return `this gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+      // A keyword-only boost (p and t both 0) reads "gain(s) X", never "+0/+0".
+      const keywordOnly = op.p === 0 && op.t === 0 && op.keywords?.length;
+      const gain = (plural: boolean): string => `gain${plural ? '' : 's'} ${op.keywords!.map((k) => KEYWORD_NAMES[k]).join(', ')} until Sunset`;
+      if (op.scope === 'self') return keywordOnly ? `this ${gain(false)}` : `this gets ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
       if (op.scope === 'target') {
         const subject = targetAlreadyNamed ? pluralTarget ? 'those creatures' : 'that creature' : autoBoundTarget ? 'it' : targetPhrase(target);
-        return `${subject} get${pluralTarget ? '' : 's'} ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+        return keywordOnly ? `${subject} ${gain(!!pluralTarget)}` : `${subject} get${pluralTarget ? '' : 's'} ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
       }
       const subject = op.scope === 'all'
         ? 'all creatures'
@@ -216,7 +223,7 @@ function opText(
           : op.scope === 'theirMarked'
             ? 'Marked creatures your opponent controls'
             : 'creatures you control';
-      return `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
+      return keywordOnly ? `${subject} ${gain(true)}` : `${subject} get ${sign(op.p)}/${sign(op.t)}${kw} until Sunset`;
     }
     case 'addCounters': {
       if (op.to === 'self') return markVerbText('this', op.n);
@@ -234,7 +241,7 @@ function opText(
     case 'loseLifePerTheirMarked':
       return 'your opponent loses 1 life for each Marked creature they control';
     case 'fetchLand':
-      return 'put the first land from the top of your deck onto the battlefield tapped';
+      return 'put the first land of your Warchest onto the battlefield tapped (with no Warchest, the first land from the top of your deck)';
     case 'severSelf':
       return 'sever this';
     case 'ifTargetMarked':
@@ -283,12 +290,13 @@ function opText(
       const marks = op.marks !== undefined && op.marks > 0
         ? ` and put ${op.marks === 1 ? 'a Mark' : `${countWord(op.marks)} Marks`} on ${op.count === 1 ? 'it' : 'each of them'}`
         : '';
-      if (!tok) return `create ${countWord(op.count)} ${plural}${marks}`;
+      const creates = op.for === 'targetController' ? 'its controller creates' : 'create';
+      if (!tok) return `${creates} ${countWord(op.count)} ${plural}${marks}`;
       const stats = tok.attack !== undefined && tok.defense !== undefined ? `${tok.attack}/${tok.defense} ` : '';
       const kw = tok.keywords?.length
         ? ` with ${tok.keywords.map((k) => KEYWORD_NAMES[k]).join(', ')}`
         : '';
-      return `create ${countWord(op.count)} ${stats}${tok.name} ${plural}${kw}${marks}`;
+      return `${creates} ${countWord(op.count)} ${stats}${tok.name} ${plural}${kw}${marks}`;
     }
     case 'massDestroy':
       if (op.filter === 'allEnchantments') return 'destroy all enchantments';
@@ -313,6 +321,8 @@ function opText(
       return op.who === 'targetOwner' ? `its owner Foresees ${op.n}` : `Foresee ${op.n}`;
     case 'awaken':
       return op.scope === 'self' ? 'Awaken this' : 'Awaken all creatures you control';
+    case 'claimMandate':
+      return 'claim the Mandate';
     case 'hunt': {
       // Hunt is a bare verb keyword, like Mark (ruled 2026-09-28): a
       // source-bound Hunt prints its opener, then "Hunt." ("When this arrives,
@@ -409,7 +419,8 @@ export function riteText(d: CardDef): string | undefined {
 
 export function titheText(d: CardDef): string | undefined {
   if (!d.tithe) return undefined;
-  return 'Tithe.';
+  if (d.tithe.marks === undefined) return 'Tithe.';
+  return `Tithe. This arrives with a Mark for each {1} Tithe saved (at most ${d.tithe.marks}).`;
 }
 
 export function nineLivesText(d: CardDef): string | undefined {
@@ -423,6 +434,16 @@ export function preserveText(d: CardDef): string | undefined {
   return `Preserve ${cost}.`;
 }
 
+/** A modal spell (2.0): "Choose up to two —", then one bulleted line per mode. */
+export function modalText(d: CardDef): string | undefined {
+  if (!d.modal) return undefined;
+  const { upTo, modes } = d.modal;
+  const head = upTo === 1 ? 'Choose one —'
+    : upTo === modes.length ? modes.length === 2 ? 'Choose one or both —' : 'Choose one or more —'
+    : `Choose up to ${countWord(upTo)} —`;
+  return [head, ...modes.map((mode) => `• ${abilityText({ when: 'spell', ops: mode.ops, targets: mode.targets }, d)}`)].join('\n');
+}
+
 export function skimText(d: CardDef): string | undefined {
   if (!d.skim) return undefined;
   return `Skim ${manaCostText(d.skim.cost)}`;
@@ -434,8 +455,10 @@ export function activatedText(d: CardDef): string | undefined {
   if (abilities.length === 0) return undefined;
   return abilities.map((ability) => {
     const mana = ability.cost.mana ? manaCostText(ability.cost.mana) : undefined;
-    // Mana first, then the tap: `{2}, {T}:`, the order card players already read.
-    const cost = mana && mana !== '{0}' ? `${mana}, {T}` : '{T}';
+    const marks = markCostOf(ability);
+    // Mana first, then the tap or the marks: `{2}, {T}:`, the order card players already read.
+    const spend = marks === 0 ? '{T}' : marks === 1 ? 'remove a Mark from this' : `remove ${marks} Marks from this`;
+    const cost = mana && mana !== '{0}' ? `${mana}, ${spend}` : marks === 0 ? spend : capitalizeFirst(spend);
     const effect = abilityText({ when: 'spell', ops: ability.ops, targets: ability.targets }, d);
     return `${cost}: ${effect}`;
   }).join('\n');
@@ -488,6 +511,10 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
   const condition = ab.condition ?? ab.static?.condition;
   if (condition === undefined) return undefined;
   if (condition === 'questActive') return 'While a Quest is active';
+  if (condition === 'swornActive') return 'Sworn';
+  if (condition === 'youHoldMandate') return ab.when === 'static' ? 'While you hold the Mandate' : 'If you hold the Mandate';
+  if (condition === 'youDontHoldMandate') return "If you don't hold the Mandate";
+  if (condition === 'youGainedLifeThisTurn') return 'If you gained life this turn';
   if (condition === 'creatureDiedThisTurn') return 'If a creature died this turn';
   const also = additionalDawn ? 'also ' : '';
   if (condition === 'controlMarked') {
@@ -498,6 +525,15 @@ function conditionPhrase(ab: AbilityDef, additionalDawn = false): string | undef
 }
 
 function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string {
+  // Sworn is a condition word, not a clause: "Sworn: this gets +1/+1."
+  if ((ab.condition ?? ab.static?.condition) === 'swornActive') {
+    const bare = abilityText({
+      ...ab,
+      condition: undefined,
+      ...(ab.static ? { static: { ...ab.static, condition: undefined } } : {}),
+    }, d, additionalDawn);
+    return bare ? `Sworn: ${lowerFirst(bare)}` : '';
+  }
   const questCondition = (ab.condition ?? ab.static?.condition) === 'questActive';
   const conditionalArrival = questCondition && ab.when === 'arrives';
   const condition = conditionalArrival ? undefined : conditionPhrase(ab, additionalDawn);
@@ -511,7 +547,8 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     // to 0 below, so twelve cards printed a literal "+0/+0" clause that Magic
     // never prints (Galahad, Silver Oath among them, live at deck_count 2).
     // Omit the stat clause instead of rendering a no-op modifier.
-    const hasStats = st.p !== undefined || st.t !== undefined;
+    // A keyword-only grant may carry explicit zero stats: it reads "gains", never "+0/+0".
+    const hasStats = (st.p ?? 0) !== 0 || (st.t ?? 0) !== 0;
     const keywordNames = st.grantKeywords?.length
       ? st.grantKeywords.map((k) => KEYWORD_NAMES[k]).join(', ')
       : '';
@@ -555,7 +592,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       ab.targets?.[targetIndex],
       namedTargets.has(targetIndex),
       ab.when === 'dies',
-      ab.when === 'allyCreatureArrives',
+      ab.when === 'allyCreatureArrives' || (MARK_SUBJECT_WHENS.has(ab.when) && !ab.targets?.length),
       ab.targets,
     );
     if (referencesAbilityTarget(op)) namedTargets.add(targetIndex);
@@ -589,6 +626,9 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
     case 'youCastCharm':
       sentence = `Whenever you cast a Charm, ${body}.`;
       break;
+    case 'youClaimMandate':
+      sentence = `Whenever you claim the Mandate, ${body}.`;
+      break;
     case 'entersGraveyard':
       sentence = `When this enters your graveyard, ${body}.`;
       break;
@@ -606,7 +646,7 @@ function abilityText(ab: AbilityDef, d: CardDef, additionalDawn = false): string
       sentence = `Whenever this attacks, ${body}.`;
       break;
     case 'allyCreatureArrives':
-      sentence = `Whenever another creature arrives under your control, ${body}.`;
+      sentence = `Whenever another ${ab.filter?.subtype ?? 'creature'} arrives under your control, ${body}.`;
       break;
     case 'allyAttacks':
       sentence = `Whenever a creature you control attacks, ${body}.`;
@@ -726,6 +766,8 @@ export function rulesText(d: CardDef, opts?: { reminders?: boolean }): string {
     lines.push(sentence + limit);
     hasDawnAbility ||= ab.when === 'dawn';
   }
+  const modal = modalText(d);
+  if (modal) lines.push(modal);
   const empower = empowerText(d);
   if (empower) lines.push(empower);
   const preserve = preserveText(d);

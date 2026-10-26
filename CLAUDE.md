@@ -45,14 +45,16 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | --- | --- |
 | `npm run dev` / `npm run build` | dev server (:5173) / typecheck + production build |
 | `npm run forge` | the Forge card designer's dev server (:5176, page at `/forge/`); `npm run build` builds it into `dist/forge/` (web only). See [docs/forge.md](docs/forge.md) |
-| `npx vitest run` | full suite (~16 min at 5,644 tests on 4 workers, measured 2026-10-08; win-rate gates included; run on an idle machine, not during sweeps) |
+| `npx vitest run` | full suite (~21 min at 6,241 tests in 402 files on CI, measured 2026-10-25; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
+| `npm run check-story` / `npx tsx scripts/balance-matrix.ts --story --seeds 200` | Story Mode content check (script, art, cards, avatars) / seeded Act 1 runs per heroine |
 | `npx tsx scripts/balance-matrix.ts --avatars --seeds 40` | balance matrices (call tsx directly — PowerShell eats `--` via npm run) |
 | `npm run sweep-dash` | live metagame-sweep dashboard (:5185; pairs with craft.ts --status-file) |
 | `npm run signals-dash` | local viewer for the anonymous play-stats daily totals (:5186; reads the `signals-data` branch's `rollups/`, set `SIGNALS_ROLLUP_DIR`) |
 | `.\scripts\run-sweep.ps1` | launch the metagame sweep as a Windows Scheduled Task so it outlives the shell (`-Status`, `-Resume`, `-Stop`) |
 | `npm run app:build` / `npm run app:dev` | Tauri desktop app — NSIS installer / dev window (needs Rust + MSVC; see [docs/desktop-build.md](docs/desktop-build.md)) |
+| `npx tsx scripts/showcase-match.ts` / `node scripts/showcase-capture.mjs` | trailer footage: pick a seeded AI-vs-AI showcase duel, then film it frame by frame from the dev server (`?showcase=<name>`); trailers are cut in `trailer/` with HyperFrames. See [docs/trailers.md](docs/trailers.md) |
 
 ## Iron invariants
 

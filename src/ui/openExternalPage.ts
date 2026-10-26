@@ -47,3 +47,18 @@ export function markOpenedByGame(href: string): string {
   if (new RegExp(`[?&]${pair}(&|$)`).test(base)) return href;
   return `${base}${base.includes('?') ? '&' : '?'}${pair}${hash}`;
 }
+
+/**
+ * Open a page on another site (the community Discord) in a new tab, or, in
+ * the desktop app, in the system browser: the Tauri shell hands exactly the
+ * addresses it allows to the browser and refuses the rest (src-tauri/src/lib.rs).
+ * The same guard as `openExternalPage`: a refused window leaves the game as it was.
+ */
+export function openOffsitePage(href: string): void {
+  try {
+    if (typeof window === 'undefined' || typeof window.open !== 'function') return;
+    window.open(href, '_blank', 'noopener,noreferrer');
+  } catch {
+    /* no second window available: the game stays where it is */
+  }
+}

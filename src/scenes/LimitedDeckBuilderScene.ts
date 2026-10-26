@@ -43,7 +43,17 @@ import { awaitArt, gateOnArt, PagedArt } from '../ui/artGate';
 import { SCENE_TITLE } from '../ui/layout';
 import { bakeManaSymbols } from '../ui/ManaSymbols';
 import { drawPipBeadRow } from '../ui/pipBeadRow';
-import { applyBackdrop } from '../ui/SceneBackdrop';
+import { applyBackdrop, sceneStage } from '../ui/SceneBackdrop';
+import { CARD_H, CARD_W } from '../ui/CardView';
+import { COMPACT } from '../ui/compactLayout';
+import { COMPACT_DRAG_SLOP, compactButton, compactDialog, compactHeader, compactSegments } from '../ui/compactWidgets';
+import { curveLayout } from '../ui/deckBuilderCompact';
+import { deckPipCounts } from '../ui/deckStats';
+import { limitedBuilderLayout, limitedTileGrid, type LimitedBuilderLayout } from '../ui/limitedBuilderCompact';
+import { bindMenuScroll } from '../ui/menuScroll';
+import { PackTile } from '../ui/PackTile';
+import { bakeUiIcon } from '../ui/uiIcons';
+import type { Rect } from '../ui/layout';
 import { sceneSubtitle, sceneTitle } from '../ui/sceneTitle';
 import { ellipsizeText } from '../ui/textFit';
 import { colorInt, theme } from '../ui/theme';
@@ -100,6 +110,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   private fixture: LimitedBuilderA11yFixture | null = null;
   private fixtureSave: SaveData | null = null;
   private fixtureVisited = false;
+  /** The compact composition's open tab, and where each tab's grid was scrolled (kept across redraws). */
+  private compactTab: 'pool' | 'deck' = 'pool';
+  private compactScroll = { pool: 0, deck: 0 };
+  private compactScrollOffset: (() => number) | null = null;
   private get saveData(): SaveData {
     return this.fixtureSave ?? Services.save.data;
   }
@@ -156,6 +170,8 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     this.poolArt = new PagedArt(this, 'limited-pool', { tier: 'primary' });
     this.deckArt = new PagedArt(this, 'limited-deck', { tier: 'primary' });
     const f = this.fixture;
+    this.compactTab = 'pool';
+    this.compactScroll = { pool: 0, deck: 0 };
     if (f || this.fixtureVisited) {
       // A fixture's pages and selection must not leak into a real visit.
       this.selectedId = f?.selectedId ?? null;
@@ -195,6 +211,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
         g.fillRect(0, 0, 1280, 720);
       },
     });
+    if (sceneStage(this).compact) {
+      this.drawCompact(run);
+      return;
+    }
     // Part of every frame: a back control built once in build() was the first
     // thing the first redraw destroyed.
     backButton(this, 'Draft', () => this.leaveDraft());
@@ -510,6 +530,20 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
       return;
     }
     if (this.leavePrompt) return;
+    if (sceneStage(this).compact) {
+      const dialog = compactDialog(this, {
+        title: 'Leave Draft?',
+        message: 'Your draft run is saved and can be resumed from the Draft hub. Leave now?',
+        secondary: { label: 'Keep building', onTap: (close) => close() },
+        primary: { label: 'Leave', onTap: (close) => { close(); this.scene.start('Limited'); } },
+        dismissal: 'dismissible',
+        onClose: () => {
+          if (this.leavePrompt === dialog) this.leavePrompt = null;
+        },
+      });
+      this.leavePrompt = dialog;
+      return;
+    }
     const shell = leaveDraftPrompt(this, {
       stayLabel: 'Keep Building',
       onLeave: () => this.scene.start('Limited'),
@@ -567,6 +601,10 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
   }
   private showCardInspect(id: string): void {
     this.closeCardInspect();
+    if (sceneStage(this).compact) {
+      this.showCompactInspect(id);
+      return;
+    }
     const card = def(CARD_DB, id);
     const shell = modalShell(this, {
       width: 940,
@@ -615,6 +653,291 @@ export class LimitedDeckBuilderScene extends Phaser.Scene {
     );
     this.cardInspect = c;
   }
+  // ------------------------------------------------------------------ compact (phone and desktop)
+
+  /** The compact composition (S-Limited-Builder, S-Limited-BuilderDeck): tabs over a tile grid, Details in the column. */
+  private drawCompact(run: LimitedRun): void {
+    const stage = sceneStage(this);
+    const layout = limitedBuilderLayout(stage.content);
+    const type = theme.compactType;
+    const header = compactHeader(this, layout.shell, {
+      title: 'Limited Deck Builder',
+      subtitle: `Exactly ${LIMITED_DECK_SIZE} spells, no lands · Warchest provided · pool ${run.pool.length} · record ${run.wins}-${run.losses}`,
+      onBack: () => this.leaveDraft(),
+    });
+    // The right slot holds the two resets, so the title's lines stop short of them.
+    const titleRight = layout.clearDeck.x - COMPACT.gap;
+    ellipsizeText(header.title, titleRight - header.title.x);
+    if (header.subtitle) ellipsizeText(header.subtitle, titleRight - header.subtitle.x);
+    compactButton(this, layout.clearDeck, 'Clear deck', { fontSize: type.label, onTap: () => {
+      this.deck = [];
+      this.persistAndRedraw(run);
+    } });
+    compactButton(this, layout.clearWarchest, 'Clear Warchest', { fontSize: type.label, onTap: () => {
+      this.selectedDuals = [];
+      this.persistAndRedraw(run);
+    } });
+    compactSegments(this, layout.tabs, ['Pool', `Deck ${this.deck.length}/${LIMITED_DECK_SIZE}`], this.compactTab === 'pool' ? 0 : 1, (i) => {
+      this.rememberCompactScroll();
+      this.compactTab = i === 0 ? 'pool' : 'deck';
+      this.draw(run);
+    });
+    this.drawCompactGrid(run, layout);
+    this.drawCompactDetails(run, layout);
+    compactButton(this, layout.auto, 'Auto build', { onTap: () => {
+      this.deck = buildLimitedDeck(CARD_DB, run.pool);
+      this.selectedDuals = limitedDraftDuals(CARD_DB, run.pool).slice(0, MAX_DUAL_LANDS);
+      this.selectedId = this.deck[0] ?? null;
+      this.persistAndRedraw(run);
+    } });
+    const start = compactButton(this, layout.start, 'Start match', { variant: 'primary', onTap: () => this.startMatch(run) });
+    start.setEnabled(!validateLimitedDeck(CARD_DB, run.pool, this.deck).some((issue) => issue.kind === 'error'));
+  }
+
+  private rememberCompactScroll(): void {
+    if (this.compactScrollOffset) this.compactScroll[this.compactTab] = this.compactScrollOffset();
+  }
+
+  /**
+   * The open tab's tiles. Pool: each card with its count in the deck over the
+   * copies drafted and a check once any are in; a tap adds one, or takes them
+   * all out once every copy is in. Deck: each card once, its copies counted; a
+   * tap takes one out. A hold (or a right-click) opens the card.
+   */
+  private drawCompactGrid(run: LimitedRun, layout: LimitedBuilderLayout): void {
+    const type = theme.compactType;
+    const poolCounts = countCards(run.pool);
+    const deckCounts = countCards(this.deck);
+    const reserveCounts = countCards(this.selectedDuals);
+    const pool = this.compactTab === 'pool';
+    const ids = pool
+      ? [...poolCounts.keys()].filter((id) => !isBasic(CARD_DB, id)).sort(sortCards)
+      : [...deckCounts.keys()].sort(sortCards);
+    const area = layout.grid;
+    this.compactScrollOffset = null;
+    if (ids.length === 0) {
+      this.add.text(area.x + area.width / 2, area.y + area.height / 3, pool ? 'Your pool is empty.' : 'No cards in the deck yet: tap cards in the Pool to add them, or Auto build.', {
+        fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.muted, align: 'center',
+        wordWrap: { width: area.width * 0.8, useAdvancedWrap: true },
+      }).setOrigin(0.5);
+      return;
+    }
+    const grid = limitedTileGrid(area, ids.length, layout.k);
+    const list = this.add.container(0, area.y);
+    (pool ? this.poolArt : this.deckArt)?.show([], ids);
+    ids.forEach((id, i) => {
+      const card = def(CARD_DB, id);
+      const dual = isDualLand(card);
+      const owned = poolCounts.get(id) ?? 0;
+      const used = dual ? reserveCounts.get(id) ?? 0 : deckCounts.get(id) ?? 0;
+      const tile = new PackTile(this, grid.cells[i]).showFace(card, 'white', pool
+        ? { chip: `${used}/${owned}`, check: used > 0 }
+        : { chip: used > 1 ? `${used}×` : undefined });
+      // A land that cannot join the deck (a kept utility land) reads as unavailable.
+      if (pool && isType(card, 'land') && !dual) tile.setAlpha(0.45);
+      list.add(tile);
+    });
+    const scroll = bindMenuScroll(this, list, area, grid.contentH, () => this.cardInspect !== null || this.leavePrompt !== null,
+      [], 0, undefined, this.compactScroll[this.compactTab]);
+    this.compactScrollOffset = () => scroll.offset();
+    const indexAt = (p: Phaser.Input.Pointer): number => {
+      const y = p.worldY - area.y + scroll.offset();
+      return grid.cells.findIndex((c) => p.worldX >= c.x && p.worldX <= c.x + c.width && y >= c.y && y <= c.y + c.height);
+    };
+    const zone = this.add.zone(area.x + area.width / 2, area.y + area.height / 2, area.width, area.height).setInteractive({ useHandCursor: true });
+    let hold: Phaser.Time.TimerEvent | null = null;
+    let held = false;
+    zone.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      held = false;
+      hold?.remove(false);
+      if (p.rightButtonDown()) return;
+      const index = indexAt(p);
+      if (index < 0) return;
+      hold = this.time.delayedCall(450, () => {
+        hold = null;
+        if (Math.abs(p.y - p.downY) > COMPACT_DRAG_SLOP) return;
+        held = true;
+        this.rememberCompactScroll();
+        this.selectedId = ids[index];
+        this.showCardInspect(ids[index]);
+      });
+    });
+    zone.on('pointerup', (p: Phaser.Input.Pointer) => {
+      hold?.remove(false);
+      hold = null;
+      if (held || Math.abs(p.upY - p.downY) > COMPACT_DRAG_SLOP) return;
+      const index = indexAt(p);
+      if (index < 0) return;
+      this.rememberCompactScroll();
+      if (p.rightButtonReleased()) {
+        this.selectedId = ids[index];
+        this.showCardInspect(ids[index]);
+        return;
+      }
+      this.compactTap(run, ids[index]);
+    });
+    zone.on('pointerout', () => {
+      hold?.remove(false);
+      hold = null;
+    });
+  }
+
+  /** A tile's tap: in the Pool, add one (or take every copy out once all are in); in the Deck, take one out. */
+  private compactTap(run: LimitedRun, id: string): void {
+    const card = def(CARD_DB, id);
+    if (this.compactTab === 'deck') {
+      this.removeOne(id);
+      this.selectedId = id;
+      this.persistAndRedraw(run);
+      return;
+    }
+    const owned = countCards(run.pool).get(id) ?? 0;
+    if (isDualLand(card)) {
+      if (this.selectedDuals.includes(id)) this.selectedDuals = this.selectedDuals.filter((d) => d !== id);
+      else if (this.selectedDuals.length < MAX_DUAL_LANDS) this.selectedDuals.push(id);
+      else return;
+      this.persistAndRedraw(run);
+      return;
+    }
+    if (isType(card, 'land')) return;
+    const used = this.deck.filter((d) => d === id).length;
+    if (used < owned && this.deck.length < LIMITED_DECK_SIZE) this.deck.push(id);
+    else if (used >= owned) this.deck = this.deck.filter((d) => d !== id);
+    else return;
+    this.selectedId = id;
+    this.persistAndRedraw(run);
+  }
+
+  /** Details: the mana curve and colour pips, the deck's shape, the Warchest, then the first issue (or that the deck is legal). */
+  private drawCompactDetails(run: LimitedRun, layout: LimitedBuilderLayout): void {
+    const type = theme.compactType;
+    const box = layout.details;
+    const issues = validateLimitedDeck(CARD_DB, run.pool, this.deck);
+    const errors = issues.filter((issue) => issue.kind === 'error');
+    const stats = computeDeckStats(this.deck, CARD_DB);
+    let y = box.y;
+    const heading = this.add.text(box.x, y, 'Details', {
+      fontFamily: theme.fonts.display, fontSize: `${type.h2}px`, fontStyle: theme.weight.w700, color: theme.colors.heading,
+    });
+    y += heading.height + 2;
+    const curveTitle = this.add.text(box.x, y, 'Mana curve', {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+    });
+    y += curveTitle.height + 2;
+    const small = { fontFamily: theme.fonts.ui, fontSize: `${type.caption}px` };
+    const probe = this.add.text(0, 0, '0', small);
+    const capH = probe.height;
+    probe.destroy();
+    const curveH = capH * 2 + Math.round(22 * layout.k);
+    const curve = curveLayout({ x: box.x, y, width: box.width, height: curveH }, capH, capH);
+    for (const bar of curveBars(stats.curve, { firstX: curve.xs[0], pitch: curve.xs[1] - curve.xs[0], maxHeight: curve.maxBarH })) {
+      this.add.rectangle(bar.x, curve.baseY, curve.barW, bar.height, bar.count > 0 ? colorInt(theme.colors.gold) : theme.graphics.rowFill).setOrigin(0.5, 1);
+      if (bar.count > 0) this.add.text(bar.x, curve.baseY - bar.height - 1, `${bar.count}`, { ...small, color: theme.colors.body }).setOrigin(0.5, 1);
+      this.add.text(bar.x, curve.baseY + 2, bar.label, { ...small, color: theme.colors.muted }).setOrigin(0.5, 0);
+    }
+    const pip = Math.round(type.label * 1.3);
+    const pitch = pip + 4;
+    deckPipCounts(stats).slice(0, Math.max(1, Math.floor(curve.pips.height / pitch))).forEach((bead, i) => {
+      const cy = curve.pips.y + i * pitch + pip / 2;
+      const key = `pip-${bead.color}`;
+      if (this.textures.exists(key)) this.add.image(curve.pips.x + pip / 2, cy, key).setDisplaySize(pip, pip);
+      this.add.text(curve.pips.x + curve.pips.width, cy, `${bead.count}`, {
+        fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, fontStyle: theme.weight.w600, color: theme.colors.body,
+      }).setOrigin(1, 0.5);
+    });
+    y += curveH + 6;
+    const reserve = limitedLandReserve(CARD_DB, this.deck, run.pool, this.selectedDuals);
+    const reserveDuals = reserve.filter((id) => isDualLand(CARD_DB[id]));
+    const lines: { text: string; color: string; size: number; bold?: boolean; wrap?: number }[] = [
+      { text: deckCountsLine(stats, { kind: 'provided' }), color: theme.colors.body, size: type.label },
+      { text: `Warchest ${reserve.length}/${LAND_RESERVE_SIZE} · ${reserveDuals.length}/${MAX_DUAL_LANDS} duals`, color: theme.colors.gold, size: type.label, bold: true },
+      { text: describeReserve(reserve, reserveDuals), color: theme.colors.muted, size: type.caption, wrap: 2 },
+    ];
+    const premiumGrant = this.premiumGrant ?? storedPremiumGrant(this.saveData.limited);
+    for (const line of lines) {
+      const text = this.add.text(box.x, y, line.text, {
+        fontFamily: theme.fonts.ui, fontSize: `${line.size}px`, fontStyle: line.bold ? theme.weight.w700 : undefined, color: line.color,
+        ...(line.wrap ? { wordWrap: { width: box.width, useAdvancedWrap: true }, maxLines: line.wrap } : {}),
+      });
+      if (!line.wrap) ellipsizeText(text, box.width);
+      y += text.height + 4;
+    }
+    // The first issue (or that the deck is legal), with its mark.
+    y += 4;
+    const legal = issues.length === 0;
+    const icon = Math.round(type.label * 1.3);
+    const color = errors.length ? theme.colors.danger : legal ? theme.colors.success : theme.colors.gold;
+    const issueText = this.add.text(box.x + icon + 6, y, legal ? 'Deck is legal.' : issues[0].message, {
+      fontFamily: theme.fonts.ui, fontSize: `${type.label}px`, color, wordWrap: { width: box.width - icon - 6, useAdvancedWrap: true }, maxLines: 3,
+    });
+    this.add.image(box.x + icon / 2, y + Math.min(issueText.height, icon) / 2 + 1, bakeUiIcon(this, legal ? 'check' : 'info'))
+      .setDisplaySize(icon, icon).setTint(colorInt(color));
+    issueText.setData('a11yFullText', issues.length ? issues.map((issue) => issue.message).join('\n') : 'Deck is legal.');
+    y += issueText.height + 6;
+    if (run.premium && premiumGrant && y < box.y + box.height) {
+      const note = this.add.text(box.x, y, premiumGrantNote(premiumGrant), {
+        fontFamily: theme.fonts.ui, fontSize: `${type.caption}px`, color: theme.colors.gold,
+        wordWrap: { width: box.width, useAdvancedWrap: true },
+      });
+      // What does not fit above the foot is cut to the lines that do.
+      const room = box.y + box.height - y;
+      if (note.height > room) note.setMaxLines(Math.max(1, Math.floor(room / (note.height / Math.max(1, note.getWrappedText().length)))));
+    }
+  }
+
+  /** A card opened from the grid: the card over the main pane, its name and line in the column, its action and Close in the foot. */
+  private showCompactInspect(id: string): void {
+    const stage = sceneStage(this);
+    const layout = limitedBuilderLayout(stage.content);
+    const type = theme.compactType;
+    const card = def(CARD_DB, id);
+    const run = this.saveData.limited.activeRun;
+    const shell = modalShell(this, {
+      width: stage.width, height: stage.height, x: stage.width / 2, y: stage.height / 2,
+      dimAlpha: 0.84, depth: theme.depth.inspect, dismissal: 'esc-only',
+      onClose: () => {
+        this.cardInspect = null;
+      },
+    });
+    shell.panel.clear();
+    const c = shell.container;
+    c.setData('a11ySurface', { x: 0, y: 0, width: stage.width, height: stage.height }).setData('a11yPanel', stage.content);
+    awaitArt(c, [id], { onReady: () => undefined });
+    const main: Rect = { x: layout.grid.x, y: stage.content.y, width: layout.grid.width, height: stage.content.height };
+    const scale = Math.min(main.height / CARD_H, main.width / CARD_W);
+    c.add(new CardView(this, main.x + main.width / 2, main.y + main.height / 2).setScale(scale).setCard(card, { fx: 'full', artTier: 'primary' }));
+    const col = layout.details;
+    const name = this.add.text(col.x, stage.content.y, card.name, {
+      fontFamily: theme.fonts.display, fontSize: `${type.h1}px`, fontStyle: theme.weight.w700, color: theme.colors.gold,
+      wordWrap: { width: col.width, useAdvancedWrap: true },
+    });
+    c.add(name);
+    c.add(this.add.text(col.x, name.y + name.height + 6, detailLine(card), {
+      fontFamily: theme.fonts.ui, fontSize: `${type.body}px`, color: theme.colors.heading, wordWrap: { width: col.width, useAdvancedWrap: true },
+    }));
+    const foot = { x: layout.auto.x, y: layout.auto.y, width: layout.start.x + layout.start.width - layout.auto.x, height: layout.auto.height };
+    const half = Math.floor((foot.width - COMPACT.gap) / 2);
+    const close = (): void => shell.close();
+    const inDeck = this.deck.includes(id) || this.selectedDuals.includes(id);
+    if (run && !(isType(card, 'land') && !isDualLand(card))) {
+      const action = compactButton(this, { ...foot, width: half }, inDeck && this.compactTab === 'deck' ? 'Remove one' : inDeck ? 'Take out' : 'Add to deck', {
+        onTap: () => {
+          close();
+          if (inDeck && this.compactTab === 'pool' && !isDualLand(card)) this.deck = this.deck.filter((d) => d !== id);
+          else if (inDeck && isDualLand(card)) this.selectedDuals = this.selectedDuals.filter((d) => d !== id);
+          else this.compactTap(run, id);
+          if (inDeck && this.compactTab === 'pool') this.persistAndRedraw(run);
+        },
+      });
+      c.add(action.container);
+      const shut = compactButton(this, { ...foot, x: foot.x + half + COMPACT.gap, width: foot.width - half - COMPACT.gap }, 'Close', { onTap: close });
+      c.add(shut.container);
+    } else {
+      c.add(compactButton(this, foot, 'Close', { onTap: close }).container);
+    }
+    this.cardInspect = c;
+  }
+
   private closeCardInspect(): void {
     this.cardInspect?.destroy();
     this.cardInspect = null;

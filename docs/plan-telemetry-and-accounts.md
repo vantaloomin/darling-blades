@@ -171,7 +171,7 @@ rotating daily hash does the once-a-day de-duplication instead.
 
 | Field | Shape | Note |
 | --- | --- | --- |
-| `format` | warchest \| darlings \| limited \| gauntlet | `warchest` since the owner ruling of 2026-09-17: classic is retired, so the old `constructed` value meant Warchest anyway. The save still spells a deck's format `constructed` or `warchest`; the scene maps both to `warchest` |
+| `format` | warchest \| darlings \| limited \| gauntlet \| story | `warchest` since the owner ruling of 2026-09-17: classic is retired, so the old `constructed` value meant Warchest anyway. The save still spells a deck's format `constructed` or `warchest`; the scene maps both to `warchest`. `story` (owner ruling 2026-10-13) is a Story Mode duel, reported with its run deck |
 | `deckColours` | colour identity string | e.g. `WU` |
 | `deckArchetype` | enum from our own labels | **never the player's deck name** |
 | `curveBucket`, `deckSource` | bucket, precon/custom/drafted | |

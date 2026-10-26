@@ -84,10 +84,11 @@ export function zonePanelHeaderFindings(title: { y: number; height: number }, su
 }
 
 /** Content-grown coaching card, keeping the release single-line centre/anchors. */
-export function coachInfoLayout(bodyHeight: number, lineHeight: number, hintHeight: number) {
+export function coachInfoLayout(bodyHeight: number, lineHeight: number, hintHeight: number,
+  frame: { centerY: number; maxHeight: number } = { centerY: 365, maxHeight: 630 }) {
   const naturalHeight = 130 + Math.max(0, bodyHeight - lineHeight) + Math.max(0, hintHeight - 16);
-  const height = Math.min(630, naturalHeight);
-  const top = 365 - height / 2;
+  const height = Math.min(frame.maxHeight, naturalHeight);
+  const top = frame.centerY - height / 2;
   const bodyTop = top + 48 - lineHeight / 2;
   const hintY = top + height - 28;
   const available = hintY - hintHeight / 2 - 16 - bodyTop;

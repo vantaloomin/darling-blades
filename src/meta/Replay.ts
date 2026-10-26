@@ -2,7 +2,7 @@ import type { Action } from '../engine/actions';
 import type { GameEvent } from '../engine/events';
 import { Game } from '../engine/Game';
 import type { CardDb, PlayerId } from '../engine/types';
-import type { GameFormat, ReserveFormat } from '../config/rules';
+import { RULES, type GameFormat, type ReserveFormat } from '../config/rules';
 
 /**
  * Deterministic replays (1.2, plan-road-to-1.0 Feature 4's deferred slice).
@@ -37,13 +37,37 @@ import type { GameFormat, ReserveFormat } from '../config/rules';
 // differently wherever that happened. `tokenRefused` is derived into the
 // returned eventLog like every engine event; ReplayLog remains action-only and
 // its format is unchanged. v11 through v16 all map to rules revision 4.
-export const REPLAY_LOG_VERSION = 16 as const;
+// v17 (2.0, the train's one bump, plan-2.0 P16) records each game's starting
+// life (`startingLife`), since 2.0 raises it from 20; a log without the field
+// was recorded at 20 and replays at 20. v17 also marks the Mandate (Core Set
+// II): only cards that claim it change play, and the db stamp already refuses
+// a log recorded against other cards, so v17 still maps to rules revision 4.
+// Story Mode duels (2.0) record `context.mode: 'story'` with `context.story`
+// inside v17: the context is metadata the replayer never reads, so it needs no
+// bump of its own. Story Mode's endless claimants (2.0, still inside v17,
+// which has not shipped) may start with extra life (`lifeBonus`) or holding
+// the Mandate (`mandateHolder`); both are game setup the replayer passes back
+// to `new Game`, and a log without them is an ordinary game.
+export const REPLAY_LOG_VERSION = 17 as const;
+/** Every log before v17 was recorded at this starting life. */
+const LEGACY_REPLAY_STARTING_LIFE = 20;
 /** Newest-first FIFO cap for SaveData.replays (mirrors limited.history's 20). */
 export const REPLAY_CAP = 10;
 const LEGACY_WARCHEST_FORMATS = new Set(['battle' + 'box', 'battle' + 'Box']);
 
+/** Which Story Mode run and node a story duel was (labels only; the replayer ignores them). */
+export interface StoryReplayContext {
+  runId: string;
+  characterId: string;
+  act: number;
+  nodeId: string;
+  nodeKind: 'fight' | 'elite' | 'boss';
+  /** Endless loop (0 inside an act). */
+  endlessLoop: number;
+}
+
 export interface ReplayContext {
-  mode: 'practice' | 'gauntlet' | 'limited';
+  mode: 'practice' | 'gauntlet' | 'limited' | 'story';
   /** Tower logs store the floor tier's base brain, not the avatar's old band. */
   difficulty: 'easy' | 'medium' | 'hard';
   /** Avatar id for gauntlet/practice-vs-avatar duels; null for plain AI. */
@@ -51,6 +75,8 @@ export interface ReplayContext {
   /** Display name at record time (persona/avatar names survive roster edits). */
   opponentName: string;
   gauntletRung: number | null;
+  /** Present exactly on story duels (`mode: 'story'`). */
+  story?: StoryReplayContext;
 }
 
 export interface ReplayLog {
@@ -63,6 +89,12 @@ export interface ReplayLog {
   decks: [string[], string[]];
   /** Optional simulation override; absent logs reconstruct the shipped seven-card deal. */
   startingHandSize?: number;
+  /** Each player's starting life. Always recorded from v17; absent means 20. */
+  startingLife?: number;
+  /** Extra starting life per seat (Story endless claimants); absent means none. */
+  lifeBonus?: [number, number];
+  /** The seat that began holding the Mandate (Story endless claimants); absent means unclaimed. */
+  mandateHolder?: PlayerId;
   /** Present only for reserve-format logs. Classic logs retain their old shape. */
   format?: ReserveFormat;
   /** Ordered reserve payload reconstructed before replaying reserve choices. */
@@ -101,6 +133,10 @@ export function startReplayDraft(init: {
   seed: number;
   decks: [string[], string[]];
   startingHandSize?: number;
+  /** Defaults to the current `RULES.startingLife`, the total `new Game` uses. */
+  startingLife?: number;
+  lifeBonus?: [number, number];
+  mandateHolder?: PlayerId;
   context: ReplayContext;
   format?: GameFormat;
   landReserves?: [string[], string[]];
@@ -111,10 +147,15 @@ export function startReplayDraft(init: {
     dbStamp: init.dbStamp,
     seed: init.seed,
     decks: [init.decks[0].slice(), init.decks[1].slice()],
+    startingLife: init.startingLife ?? RULES.startingLife,
     context: { ...init.context },
     actions: [],
   };
   if (init.startingHandSize !== undefined) draft.startingHandSize = init.startingHandSize;
+  if (init.lifeBonus !== undefined && (init.lifeBonus[0] !== 0 || init.lifeBonus[1] !== 0)) {
+    draft.lifeBonus = [init.lifeBonus[0], init.lifeBonus[1]];
+  }
+  if (init.mandateHolder !== undefined) draft.mandateHolder = init.mandateHolder;
   if (init.format === 'warchest') {
     if (!init.landReserves) throw new Error('Reserve replay drafts require landReserves.');
     draft.format = 'warchest';
@@ -127,6 +168,21 @@ export function startReplayDraft(init: {
     draft.darlings = [init.darlings[0], init.darlings[1]];
   }
   return draft;
+}
+
+/** The starting life a log's game was played at (20 for every log before v17). */
+export function replayStartingLife(log: Pick<ReplayLog, 'startingLife'>): number {
+  return log.startingLife ?? LEGACY_REPLAY_STARTING_LIFE;
+}
+
+/**
+ * Whether a log's game opened with the coin-flip winner's play/draw choice.
+ * The duel screen records that choice as its first action; the headless
+ * runners deal straight to the mulligan. The choice draws no randomness, so
+ * the log itself says which opening to build.
+ */
+export function replayPlayDrawChoice(log: Pick<ReplayLog, 'actions'>): boolean {
+  return log.actions[0]?.a.type === 'choosePlayDraw';
 }
 
 /** Record one successful submit. The action is deep-copied so later mutation
@@ -205,6 +261,10 @@ export function replayGame(log: ReplayLog, db: CardDb): { game: Game; eventLog: 
       ? 2
       : log.v >= 11 ? 4 : log.v >= 8 ? 3 : log.v >= 7 ? 2 : 1,
     ...(log.startingHandSize === undefined ? {} : { startingHandSize: log.startingHandSize }),
+    startingLife: replayStartingLife(log),
+    ...(log.lifeBonus === undefined ? {} : { lifeBonus: [log.lifeBonus[0], log.lifeBonus[1]] as [number, number] }),
+    ...(log.mandateHolder === undefined ? {} : { startingMandateHolder: log.mandateHolder }),
+    playDrawChoice: replayPlayDrawChoice(log),
     ...(format === 'warchest'
       ? {
           format,
@@ -241,6 +301,13 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     log.darlings.every((id) => id === null || typeof id === 'string');
   const startingHandSizeShape = log.startingHandSize === undefined ||
     (Number.isSafeInteger(log.startingHandSize) && log.startingHandSize > 0);
+  const startingLifeShape = log.startingLife === undefined ||
+    (Number.isSafeInteger(log.startingLife) && log.startingLife > 0);
+  const lifeBonusShape = log.lifeBonus === undefined || (
+    Array.isArray(log.lifeBonus) && log.lifeBonus.length === 2 &&
+    log.lifeBonus.every((n) => Number.isSafeInteger(n) && n >= 0)
+  );
+  const mandateHolderShape = log.mandateHolder === undefined || log.mandateHolder === 0 || log.mandateHolder === 1;
   // v5 added the Darlings command-zone payload. Keep old blobs structurally
   // valid for save preservation and revision-specific replay.
   const currentPayloadShape = rawFormat === undefined
@@ -263,11 +330,15 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     typeof log.dbStamp === 'string' &&
     typeof log.seed === 'number' &&
     startingHandSizeShape &&
+    startingLifeShape &&
+    lifeBonusShape &&
+    mandateHolderShape &&
     Array.isArray(log.decks) &&
     log.decks.length === 2 &&
     log.decks.every((d) => Array.isArray(d) && d.every((id) => typeof id === 'string')) &&
     !!log.context &&
     typeof log.context === 'object' &&
+    storyContextShape(log.context) &&
     Array.isArray(log.actions) &&
     log.actions.every(
       (s) => !!s && typeof s === 'object' && (s.p === 0 || s.p === 1) && !!s.a && typeof s.a.type === 'string',
@@ -278,6 +349,20 @@ export function isReplayLog(value: unknown): value is ReplayLog {
     && payloadShape;
   if (valid && format && rawFormat !== format) (log as { format?: ReserveFormat }).format = format;
   return valid;
+}
+
+/** A story duel carries well-formed story labels; no other mode carries any. */
+function storyContextShape(context: ReplayContext): boolean {
+  const story = (context as { story?: unknown }).story;
+  if (context.mode !== 'story') return story === undefined;
+  if (!story || typeof story !== 'object') return false;
+  const s = story as Partial<StoryReplayContext>;
+  return typeof s.runId === 'string' && s.runId.length > 0
+    && typeof s.characterId === 'string' && s.characterId.length > 0
+    && Number.isSafeInteger(s.act) && (s.act as number) >= 1
+    && typeof s.nodeId === 'string' && s.nodeId.length > 0
+    && (s.nodeKind === 'fight' || s.nodeKind === 'elite' || s.nodeKind === 'boss')
+    && Number.isSafeInteger(s.endlessLoop) && (s.endlessLoop as number) >= 0;
 }
 
 function normalizeReplayFormat(value: unknown): ReserveFormat | undefined {

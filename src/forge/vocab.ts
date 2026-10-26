@@ -16,6 +16,7 @@ import {
   type ScorableEffectOp,
   type ScorableTriggerWhen,
 } from '../power/scoreCore';
+import { isLiveSet } from '../data/liveness';
 import { SET_IDS, SET_TITLES, type SetId } from '../data/setTitles';
 
 export const CARD_TYPES = [
@@ -47,6 +48,14 @@ export const HOLO_CHOICES = ['default', 'none', 'shiny', 'rainbow', 'pearlescent
 export const SETS = SET_IDS;
 export const SET_LABELS: Readonly<Record<SetId, string>> = SET_TITLES;
 
+/**
+ * What the Forge shows: sets and cards behind a liveness flag (none since
+ * Core Set II went live with 2.0.0) stay out of its pickers, card list and art library.
+ * SETS stays whole so validation still accepts every set id.
+ */
+export const LIVE_SETS = SET_IDS.filter(isLiveSet);
+export const LIVE_CARDS = ALL_CARDS.filter((card) => isLiveSet(card.set ?? 'base'));
+
 export const TRIGGERS = [
   'spell',
   'arrives',
@@ -67,6 +76,7 @@ export const TRIGGERS = [
   'allyAttacks',
   'youGainLife',
   'youCastCharm',
+  'youClaimMandate',
   'sunset',
   'provoked',
   'static',
@@ -97,6 +107,7 @@ export const TRIGGER_OPENINGS: Record<Exclude<ScorableTriggerWhen, 'spell' | 'st
   allyAttacks: 'Whenever a creature you control attacks',
   youGainLife: 'Whenever you gain life',
   youCastCharm: 'Whenever you cast a Charm',
+  youClaimMandate: 'Whenever you claim the Mandate',
   sunset: 'At Sunset',
   provoked: MECHANIC_NAMES.provoked,
 };
@@ -196,6 +207,11 @@ export const COLOR_PIE_KEYWORDS: Record<Color, readonly Keyword[]> = {
 
 export type OpKind = ScorableEffectOp['op'];
 
+/** The Mandate's glossary name mid-sentence ("the Mandate"), so a rename there reaches the palette. */
+function theMandate(): string {
+  return MECHANIC_NAMES.mandate.replace(/^The\b/, 'the');
+}
+
 export interface OpOption {
   kind: OpKind;
   label: string;
@@ -230,6 +246,11 @@ export const OP_OPTIONS: readonly OpOption[] = [
   { kind: 'markAll', label: 'Mark All', description: 'Add one mark to each creature you control.' },
   { kind: 'moveMark', label: 'Move Mark', description: 'Move one mark between your permanents.' },
   { kind: 'hunt', label: MECHANIC_NAMES.hunt, description: MECHANIC_DEFINITIONS.hunt },
+  {
+    kind: 'claimMandate',
+    label: `Claim ${theMandate()}`,
+    description: `You take ${theMandate()} for yourself. While you hold it, you draw a card at your Dawn.`,
+  },
   { kind: 'removeMarks', label: 'Remove Marks', description: 'Remove all marks from the target.' },
   { kind: 'severSelf', label: 'Sever Self', description: 'Sever the source as an ability cost.' },
   { kind: 'loseLifePerTheirMarked', label: 'Marked Life Loss', description: 'Opponent loses life for each marked creature they control.' },
@@ -253,7 +274,7 @@ export const OP_OPTIONS: readonly OpOption[] = [
   { kind: 'raise', label: 'Raise', description: 'Return a creature from graveyard to play.' },
 ];
 
-export const TOKEN_OPTIONS = ALL_CARDS.filter((card) => card.token)
+export const TOKEN_OPTIONS = LIVE_CARDS.filter((card) => card.token)
   .map((card) => ({ id: card.id, name: card.name, attack: card.attack ?? 0, defense: card.defense ?? 0 }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -282,6 +303,7 @@ export function defaultOp(kind: OpKind): ScorableEffectOp {
     case 'markAll': return { op: 'markAll' };
     case 'moveMark': return { op: 'moveMark' };
     case 'hunt': return { op: 'hunt', hunter: 'self' };
+    case 'claimMandate': return { op: 'claimMandate' };
     case 'removeMarks': return { op: 'removeMarks' };
     case 'severSelf': return { op: 'severSelf' };
     case 'loseLifePerTheirMarked': return { op: 'loseLifePerTheirMarked' };

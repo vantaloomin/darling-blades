@@ -3,6 +3,7 @@ import {
   DARLING_PAYDOWN_COST,
   DARLING_PAYDOWN_REDUCTION,
   DARLING_TAX_STEP,
+  RULES,
 } from '../../src/config/rules';
 import { runOps } from '../../src/engine/effects/EffectInterpreter';
 import { Game } from '../../src/engine/Game';
@@ -136,7 +137,7 @@ describe('Darlings command zone engine', () => {
     const afterFirstDeath = structuredClone(scripted.instanceState);
     const deathEvents = destroyDarling(afterFirstDeath, player);
     expect(deathEvents.some((event) => event.e === 'died' && event.cardId === 'darling')).toBe(true);
-    expect(afterFirstDeath.players[player].life).toBe(23);
+    expect(afterFirstDeath.players[player].life).toBe(RULES.startingLife + 3);
     expect(afterFirstDeath.players[player].darlingTax).toBe(DARLING_TAX_STEP);
     expect(afterFirstDeath.players[player].darlingZone).not.toBeNull();
     for (const permanent of afterFirstDeath.battlefield) {

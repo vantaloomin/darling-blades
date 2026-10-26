@@ -1,15 +1,26 @@
 import Phaser from 'phaser';
-import { TAP_SLOP_PX } from '../platform/gestureCore';
+import { tapSlopWorldPx } from '../platform/renderScale';
 import { isRectContained, type Rect } from './layout';
 import { menuScrollOffset } from './menuText';
 import { theme } from './theme';
 import { sceneHasOpenModal, type ModalShell, type ThemedButton } from './themeWidgets';
 
+/** What a caller can do with a bound column after it is built. */
+export interface MenuScrollHandle {
+  /** Scroll to `offset` (clamped), as a jump list does; `onScroll` is not told. */
+  scrollTo(offset: number): void;
+  offset(): number;
+  maxScroll: number;
+  /** Told the new offset whenever the player scrolls (drag or wheel). */
+  onScroll: ((offset: number) => void) | null;
+}
+
 /** A measured menu column. Its content uses world x and local y; no scaled input. */
 export function bindMenuScroll(
   scene: Phaser.Scene, content: Phaser.GameObjects.Container, viewport: Rect, contentHeight: number,
   blocked: () => boolean = () => false, buttons: readonly ThemedButton[] = [], step = 0, modal?: ModalShell,
-): void {
+  initialOffset = 0,
+): MenuScrollHandle {
   const maxScroll = Math.max(0, contentHeight - viewport.height);
   const mask = scene.add.graphics().fillStyle(theme.graphics.panelFill, 1)
     .fillRect(viewport.x, viewport.y, viewport.width, viewport.height).setVisible(false);
@@ -39,20 +50,25 @@ export function bindMenuScroll(
         theme.space(1), height, theme.space(0.5));
     }
   };
-  place(0);
+  place(initialOffset);
+  const handle: MenuScrollHandle = { scrollTo: place, offset: () => offset, maxScroll, onScroll: null };
   if (maxScroll <= 0) {
     content.once('destroy', () => { mask.destroy(); thumb.destroy(); });
-    return;
+    return handle;
   }
+  const scrolled = (next: number): void => {
+    place(next);
+    handle.onScroll?.(offset);
+  };
   const wheel = (p: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number): void => {
-    if (!unavailable() && contains(p)) place(requested + dy);
+    if (!unavailable() && contains(p)) scrolled(requested + dy);
   };
   const down = (p: Phaser.Input.Pointer): void => {
     if (!unavailable() && contains(p)) drag = { id: p.id, y: p.worldY, offset };
   };
   const move = (p: Phaser.Input.Pointer): void => {
     if (unavailable()) { drag = null; return; }
-    if (drag?.id === p.id && Math.abs(p.worldY - drag.y) > TAP_SLOP_PX) place(drag.offset + drag.y - p.worldY);
+    if (drag?.id === p.id && Math.abs(p.worldY - drag.y) > tapSlopWorldPx()) scrolled(drag.offset + drag.y - p.worldY);
   };
   const up = (p: Phaser.Input.Pointer): void => { if (drag?.id === p.id) drag = null; };
   let disposed = false;
@@ -68,4 +84,5 @@ export function bindMenuScroll(
   scene.input.on('pointerup', up); scene.input.on('pointerupoutside', up);
   content.once('destroy', cleanup);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+  return handle;
 }

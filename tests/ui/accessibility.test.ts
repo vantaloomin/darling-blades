@@ -77,6 +77,17 @@ describe('the role policy (Q3)', () => {
     }
   });
 
+  it('the compact ramp (C3) keeps the 11 px floor and the heading order at every text size', () => {
+    for (const cell of A11Y_CELLS) {
+      const type = resolveTokens(cell).compactType;
+      for (const role of Object.keys(TYPE_BASE) as TypeRole[]) expect(type[role], `${role}, ${cell.name}`).toBeGreaterThanOrEqual(11);
+      expect(type.h2).toBeGreaterThan(type.body);
+      expect(type.h1).toBeGreaterThan(type.h2);
+    }
+    // At 100% it is the Version C mocks' ramp: titles 20, sheet titles 18, body 14, labels 12, metadata 11.
+    expect(resolveTokens({ textScale: 1 }).compactType).toMatchObject({ h1: 20, h2: 18, body: 14, label: 12, caption: 11, micro: 11 });
+  });
+
   it('does not scale by contrast', () => {
     expect(resolveTokens({ textScale: 1.3, highContrast: true }).type).toEqual(resolveTokens({ textScale: 1.3 }).type);
   });

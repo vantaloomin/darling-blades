@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { AVATARS } from '../../src/data/opponents';
+import { STORY_OPPONENTS } from '../../src/data/story/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../../src/data/starterDecks';
 import { DARLINGS_PRECONS } from '../../src/data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../../src/data/draftPersonas';
@@ -653,6 +654,10 @@ describe('playSignals deck identity', () => {
     expect(buildDuelDigest({ ...RESULT, opponentId: AVATARS[0].id }, DECK, save).opponentId).toBe(AVATARS[0].id);
     const persona = DRAFT_PERSONAS[0].id;
     expect(buildDuelDigest({ ...RESULT, opponentId: persona }, DECK, save).opponentId).toBe(persona);
+    // Story Mode's own elites are ours too, though they are not Tower avatars.
+    for (const opponent of STORY_OPPONENTS) {
+      expect(buildDuelDigest({ ...RESULT, opponentId: opponent.id }, DECK, save).opponentId).toBe(opponent.id);
+    }
   });
 
   it('out-of-vocabulary enums fall back rather than forwarding the value', () => {
@@ -672,7 +677,7 @@ describe('playSignals deck identity', () => {
 
   it('there is no `constructed` format left anywhere: the reserve format is `warchest`', () => {
     const save = richSave();
-    for (const format of ['warchest', 'darlings', 'limited', 'gauntlet'] as const) {
+    for (const format of ['warchest', 'darlings', 'limited', 'gauntlet', 'story'] as const) {
       expect(buildDuelDigest({ ...RESULT, format }, DECK, save).format).toBe(format);
     }
     const legacy = { ...RESULT, format: 'constructed' as unknown as DuelResultInput['format'] };

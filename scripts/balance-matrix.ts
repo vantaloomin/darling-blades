@@ -44,6 +44,19 @@
  *                        (Wild Communion / Grave Harvest / Glimmer Bargain).
  *   --ac-bosses          Morgan and Artoria vs Low/Mid/High AC references
  *                        (Crimson Muster / Shadow Mandate / Questing Table).
+ *   --story              Story Mode Act 1: --seeds headless runs per
+ *                        character (seeds 1..n, src/meta/story/storyMatrix.ts),
+ *                        reporting clears, survival by floor, duel W-L by node
+ *                        kind, boss win rate, mean turns, deck-outs vs life
+ *                        losses and impossible seeds. Not a gate.
+ *   --character <id>     With --story: one story character only.
+ *   --endless <start>    With --story: endless runs instead (start act1: play
+ *                        Act 1 first, only clears reach endless; start menu:
+ *                        loop 1 with the menu head start), reporting loops
+ *                        cleared and W-L per loop (src/meta/story/
+ *                        endlessMatrix.ts). Not a gate.
+ *   --max-loops <n>      With --endless: stop a run after n cleared loops
+ *                        (default 15).
  *   --seeds <n>          Games per cell (default 20).
  *   --telemetry          Collect read-only per-game Warchest diagnostic data.
  *   --telemetry-out <p>  Also write full per-deck/per-cell telemetry JSON.
@@ -80,6 +93,8 @@ import { fileURLToPath } from 'node:url';
 import type { AIPlayer } from '../src/ai/AIPlayer';
 import { MediumAI } from '../src/ai/MediumAI';
 import { buildAI, DEFAULT_PERSONALITY } from '../src/ai/personality';
+import type { HardSearchOptions } from '../src/ai/HardAI';
+import { LADDER_SEARCH } from '../src/ai/ladder';
 import { buildDialAI, buildTierAI, floorTier, TIER_DEFS, type TowerTier } from '../src/ai/tiers';
 import { CARD_DB } from '../src/data/catalog';
 import { DARLINGS_PRECON_MATRIX_FLEET } from '../src/data/darlingsPrecons';
@@ -106,6 +121,17 @@ import {
   type WarchestTuningField,
 } from './reserveMatrixDecks';
 import { MechanicUsageCollector, type UsageBossInfo } from './mechanicUsageCollector';
+import { STORY_CHARACTERS } from '../src/data/story/characters';
+import { ACT1 } from '../src/data/story/act1';
+import { foldStoryMatrix, playStoryMatrixRun, renderStoryMatrix, type StoryMatrixRun } from '../src/meta/story/storyMatrix';
+import {
+  ENDLESS_MATRIX_MAX_LOOPS,
+  foldEndlessMatrix,
+  playEndlessMatrixRun,
+  renderEndlessMatrix,
+  type EndlessMatrixRun,
+  type EndlessStart,
+} from '../src/meta/story/endlessMatrix';
 
 // ---------------------------------------------------------------------------
 // Core sim
@@ -459,14 +485,23 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // R5 and R8 are unchanged; the other seven go UP. Superseded 2026-09-21
   // values, for the record: R4 .22 · R6 .155 · R7 .695 · R9 .61 · R10 .69 ·
   // R11 .365 · R12 .52 · R13 .43. These are harness bands, not CI floors.
-  4: { minAvg: 0.315, maxAvg: 0.62 },
-  5: { minAvg: 0.37, maxAvg: 0.67 },
-  6: { minAvg: 0.355, maxAvg: 0.72 },
-  7: { minAvg: 0.705 },
-  8: { minAvg: 0.565 },
-  9: { minAvg: 0.625 },
-  10: { minAvg: 0.655 },
-  11: { minAvg: 0.58 },
+  // 4-14 RE-CENTRED 2026-10-16 (2.0 P8 reset at 25 life,
+  // docs/plan-2.0-floor-reset.md), `--avatars --seeds 200` at 25 life, same
+  // method, downs allowed, the 1-6 ceilings kept. Measured: R4 34.2 ·
+  // R5 40.8 · R6 46.1 · R7 76.3 · R8 70.4 · R9 67.6 · R10 79.5 · R11 71.2 ·
+  // R12 66.1 · R13 56.8 · R14 73.2. Four come DOWN, the low aggro rungs the
+  // starters now survive and Hel: R4 .315 -> .275, R5 .37 -> .34, R7 .705 ->
+  // .695, R9 .625 -> .61. The other seven go UP. Superseded 2026-10-05
+  // values: R6 .355 · R8 .565 · R10 .655 · R11 .58 · R12 .565 · R13 .475 ·
+  // R14 .565.
+  4: { minAvg: 0.275, maxAvg: 0.62 },
+  5: { minAvg: 0.34, maxAvg: 0.67 },
+  6: { minAvg: 0.395, maxAvg: 0.72 },
+  7: { minAvg: 0.695 },
+  8: { minAvg: 0.635 },
+  9: { minAvg: 0.61 },
+  10: { minAvg: 0.73 },
+  11: { minAvg: 0.645 },
   // 12-20 re-centred 2026-07-31 from the W7 combined re-baseline (200
   // seeds/cell on the post-balance-pass field): each min is the 200-seed
   // average minus a 6.5pp 40-seed noise band, rounded down to the half
@@ -504,7 +539,7 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   //     cheap removal to offset four taplands she cannot change.
   // The ladder still dips at R19 (61) and R21 (57) relative to R18/R20; that
   // shape is the accepted, documented non-monotonic summit, not a regression.
-  12: { minAvg: 0.565 },
+  12: { minAvg: 0.595 },
   // 13-14 calibrated 2026-07-16 from fresh 40-seed tower measurements (66%/66%
   // after two card-buff rounds + six deck iterations; CI margin ~4pp at 40
   // seeds). The AC rungs are quest/attrition gates, not stat walls; Brunhild's
@@ -512,9 +547,9 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // measured 76%), so a non-monotonic summit continues the accepted pattern.
   // Closing the residual 10pp vs R11/12 needs in-color W/U removal (a future
   // set) or heavier cross-set splash - recorded in opponents.ts's baseline.
-  // (13's value is the 2026-10-05 re-centre above; 14 keeps its own.)
-  13: { minAvg: 0.475 },
-  14: { minAvg: 0.565 },
+  // (13 and 14 carry the 2026-10-16 re-centre above.)
+  13: { minAvg: 0.5 },
+  14: { minAvg: 0.665 },
   // 15-22 carry the 2026-08-23 reserve-native re-centre described above.
   // Superseded classic values, for the record: R15 .675 R16 .605 R17 .705
   // R18 .775 R19 .555 R20 .645 R21 .445 R22 .705.
@@ -532,20 +567,22 @@ export const RUNG_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // gate floors and not these bands, so R16-R20, R23 and R25 had fallen
   // behind; the wave-4 ratchet then raised R19 and R24, and R27-R28 got their
   // first floors. Every value below now equals its gate floor (all up).
-  15: { minAvg: 0.655 },
-  16: { minAvg: 0.645 },
-  17: { minAvg: 0.715 },
-  18: { minAvg: 0.825 },
-  19: { minAvg: 0.68 },
+  // SYNCED 2026-10-16 to the 2.0 P8 reset at 25 life (the gate's table in
+  // tests/ai/winrate.test.ts); all up or unchanged (R20).
+  15: { minAvg: 0.71 },
+  16: { minAvg: 0.705 },
+  17: { minAvg: 0.775 },
+  18: { minAvg: 0.84 },
+  19: { minAvg: 0.71 },
   20: { minAvg: 0.835 },
-  21: { minAvg: 0.585 },
-  22: { minAvg: 0.685 },
-  23: { minAvg: 0.675 },
-  24: { minAvg: 0.66 },
-  25: { minAvg: 0.605 },
-  26: { minAvg: 0.685 },
-  27: { minAvg: 0.62 },
-  28: { minAvg: 0.695 },
+  21: { minAvg: 0.605 },
+  22: { minAvg: 0.72 },
+  23: { minAvg: 0.74 },
+  24: { minAvg: 0.7 },
+  25: { minAvg: 0.615 },
+  26: { minAvg: 0.695 },
+  27: { minAvg: 0.645 },
+  28: { minAvg: 0.745 },
 });
 
 // ---------------------------------------------------------------------------
@@ -1537,11 +1574,12 @@ function runDialRow(
   label: string,
   telemetry: BalanceTelemetryCollector | undefined,
   telemetryMatrix: string,
+  search?: HardSearchOptions,
 ): CellResult[] {
   return tierMirrorColumns().map((starter, starterIndex) =>
     runCell(
       {
-        rowAI: (seed) => buildDialAI(brain, noise, CARD_DB, seed, DEFAULT_PERSONALITY),
+        rowAI: (seed) => buildDialAI(brain, noise, CARD_DB, seed, DEFAULT_PERSONALITY, search),
         colAI: () => new MediumAI(CARD_DB, DEFAULT_PERSONALITY),
         decks: () => [starter.cards, starter.cards],
         format: 'warchest',
@@ -1570,6 +1608,7 @@ export function runTierMatrix(
       `Tier ${tier}`,
       telemetry,
       'tiers',
+      def.search,
     );
     return { tier, cells, avg: mean(cells.map((cell) => cell.rate)) };
   });
@@ -1581,7 +1620,7 @@ export function runTierMatrix(
       '    each tier and proxy pilot the same named starter; decided games (+draws)',
     rows.map((row) => {
       const def = TIER_DEFS[row.tier];
-      return `T${row.tier} [${def.brain}, noise ${def.noise}]`;
+      return `T${row.tier} [${def.brain}${def.search ? ' +search' : ''}, noise ${def.noise}]`;
     }),
     STARTER_DECKS.map((starter) => shortName(starter.name)),
     rows.map((row) => row.cells),
@@ -1599,7 +1638,13 @@ export function runTierMatrix(
  * one. Findings graduate into `src/ai/tiers.ts`; this list is expected to be
  * rewritten for whatever question is open.
  *
- * ANSWERED (2026-08-10). The dials below were the last question: after the T3
+ * ANSWERED (2026-10-23, the 2.0 retune at 25 life). The dials below priced
+ * T5 below its 0.12 (which read under T4 on the floors) and the Duel any Deck
+ * search levels as a harder T6: hard/0.06 66.3, expert/0 80.8, expert/0.12
+ * 65.5, master/0 86.8. T5 took 0.06; T6 took expert/0 after the owner's
+ * human check (top floors too easy). src/ai/tiers.ts.
+ *
+ * ANSWERED (2026-08-10). The earlier dials were the last question: after the T3
  * retune the widest floor gap was T2 -> T3, and T2 is `easy/0.10`. Result:
  * easy/0 26.3, easy/0.05 26.7, medium/0.25 25.3. The easy brain's whole top
  * end spans 0.4pp, so T2 has NO headroom, and noising medium drops it below
@@ -1611,11 +1656,17 @@ export function runTierMatrix(
  * inversion from sampling noise. Do not pick between dials on a sub-3pp
  * difference; ~2.4pp per-row SE at 80 seeds means a 3pp split is one sigma.
  */
-const TIER_PROBE_DIALS: readonly { label: string; brain: Difficulty; noise: number }[] = [
-  { label: 'easy/0', brain: 'easy', noise: 0 },
-  { label: 'easy/0.05', brain: 'easy', noise: 0.05 },
-  { label: 'medium/0.25', brain: 'medium', noise: 0.25 },
-];
+const TIER_PROBE_DIALS: readonly {
+  label: string;
+  brain: Difficulty;
+  noise: number;
+  search?: HardSearchOptions;
+}[] = [
+  { label: 'hard/0.06', brain: 'hard', noise: 0.06 },
+  { label: 'expert/0', brain: 'hard', noise: 0, search: LADDER_SEARCH.expert },
+  { label: 'expert/0.12', brain: 'hard', noise: 0.12, search: LADDER_SEARCH.expert },
+  { label: 'master/0', brain: 'hard', noise: 0, search: LADDER_SEARCH.master },
+]
 
 export interface TierProbeReport {
   rows: { label: string; cells: CellResult[]; avg: number }[];
@@ -1640,6 +1691,7 @@ export function runTierProbeMatrix(
       dial.label,
       telemetry,
       'tier-probe',
+      dial.search,
     );
     return { label: dial.label, cells, avg: mean(cells.map((cell) => cell.rate)) };
   });
@@ -1799,6 +1851,19 @@ export interface FloorMatrixReport {
  * against a human. T1-T5 rows are untouched: all hold with margin (closest:
  * F5 at 20.3 against .2).
  *
+ * RE-MEASURED 2026-10-23 AT 25 LIFE (the 2.0 P14 retune, release/2.0
+ * 1e91e50), `--floors --seeds 80`, 11,200 games, 4 draws, no flags:
+ *   T1 19.3 · T2 27.1 · T3 44.0 · T4 58.3 · T5 56.7 · T6 71.2
+ * T5 read UNDER T4, so T5 went hard/0.12 -> hard/0.06 (src/ai/tiers.ts) and
+ * re-read F13 65.3 / F14 66.9 / F15 64.3 (avg 65.5), every other row
+ * byte-identical. The T6 plateau on plain hard/0 read F16-28: 70.0 / 70.0 /
+ * 74.0 / 72.2 / 70.0 / 67.0 / 74.8 / 69.0 / 69.0 / 71.0 / 72.2 / 73.8 / 72.3
+ * (avg 71.2); the owner found the top floors too easy, so T6 took the Expert
+ * search and re-read 78.0 / 77.3 / 79.5 / 82.3 / 80.3 / 77.5 / 81.8 / 81.8 /
+ * 79.0 / 79.0 / 81.0 / 81.0 / 80.0 (avg 79.9), floors 1-15 byte-identical.
+ * Both bands RATCHET UP by the mean - 6.5 rule: T5 .50 -> .59, T6 .585 ->
+ * .73 (F17, the low row, keeps 4.3pp).
+ *
  * RUN THIS AT EVERY CUT. Nothing in CI does (the vitest wrapper is
  * describe.skip), which is how a six-point drop went unmeasured through a
  * whole release. docs/git-workflow.md carries it on the cut checklist now.
@@ -1821,19 +1886,19 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   10: { minAvg: 0.4, maxAvg: 0.62 },
   11: { minAvg: 0.4, maxAvg: 0.62 },
   12: { minAvg: 0.4, maxAvg: 0.62 },
-  13: { minAvg: 0.5, maxAvg: 0.72 },
-  14: { minAvg: 0.5, maxAvg: 0.72 },
-  15: { minAvg: 0.5, maxAvg: 0.72 },
-  16: { minAvg: 0.585 },
+  13: { minAvg: 0.59, maxAvg: 0.72 },
+  14: { minAvg: 0.59, maxAvg: 0.72 },
+  15: { minAvg: 0.59, maxAvg: 0.72 },
+  16: { minAvg: 0.73 },
   // Measured 2026-07-24 at 80 seeds: F17 73.1 / F18 72.5 - the T6 plateau
   // holds across the Dark Tales summit floors with 4.5pp+ margin over 68.
-  17: { minAvg: 0.585 },
-  18: { minAvg: 0.585 },
+  17: { minAvg: 0.73 },
+  18: { minAvg: 0.73 },
   // Floors 19-20 were ungated until 2026-08-10 simply because the roster grew
   // to 20 after these bands were written. Reserve-native measurement at 80
   // seeds: F19 73.8 / F20 71.0, so the same T6 floor keeps 3.0pp+ margin.
-  19: { minAvg: 0.585 },
-  20: { minAvg: 0.585 },
+  19: { minAvg: 0.73 },
+  20: { minAvg: 0.73 },
   // Floors 21-22 RE-BASELINED 2026-08-23, `--floors --seeds 80` (22 floors x
   // 5 starters, 8,800 games, 917s). This retires a PROVISIONAL pair that was
   // a category error: 0.445/0.705 were carried over from ANUBIS's and
@@ -1845,8 +1910,8 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // F20 70.8 · F21 74.0 · F22 70.5. Floors 21-22 are tier 6 like 16-20, so
   // they take the same plateau band, which keeps 2.5pp of margin at the
   // weakest row against a ~2.4pp per-row SE at 80 seeds.
-  21: { minAvg: 0.585 },
-  22: { minAvg: 0.585 },
+  21: { minAvg: 0.73 },
+  22: { minAvg: 0.73 },
   // Floors 23-26 gated for the first time 2026-09-21 (the roster reached 26
   // on 2026-09-15 and these rows were never written). Same T6 plateau band.
   // Re-measured 2026-09-25 on the 1.8.1 release tip (the paid-Duty AI, the
@@ -1854,10 +1919,10 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // T1-T3 14.5-40.5, T4 49.3-49.7, T5 51.5-57.5, and the T6 plateau F16 64.3
   // · F17 64.8 · F18 63.0 · F19 65.8 · F20 66.1 · F21 67.3 · F22 64.3 · F23
   // 63.7 · F24 65.5 · F25 63.5 · F26 67.0, all above 0.585.
-  23: { minAvg: 0.585 },
-  24: { minAvg: 0.585 },
-  25: { minAvg: 0.585 },
-  26: { minAvg: 0.585 },
+  23: { minAvg: 0.73 },
+  24: { minAvg: 0.73 },
+  25: { minAvg: 0.73 },
+  26: { minAvg: 0.73 },
   // Floors 27-28 gated 2026-10-05 (1.9 wave 4; the roster reached 28 with
   // First Dawn). Same T6 plateau band. Measured at the wave-4 end-of-wave tip
   // (cb335b10), `--floors --seeds 80`, 11,200 games, 0 draws, no flags:
@@ -1867,8 +1932,8 @@ export const FLOOR_BANDS: Readonly<Record<number, RungBand>> = Object.freeze({
   // the low row (58.8 at 80 seeds in the wave-4 baseline), re-read 67.0 at
   // 200 seeds. The top tier sits near 66-68 against .585 (owner, Q4: accept;
   // a tier-dial retune is for 1.9.x or 2.0).
-  27: { minAvg: 0.585 },
-  28: { minAvg: 0.585 },
+  27: { minAvg: 0.73 },
+  28: { minAvg: 0.73 },
 });
 
 /**
@@ -1952,6 +2017,28 @@ export function runFloorMatrix(
 // CLI
 // ---------------------------------------------------------------------------
 
+/** --story: seeded headless Act 1 runs per character (src/meta/story/storyMatrix.ts). */
+function runStoryMatrix(seeds: number, characterIds: readonly string[]): { table: string } {
+  const runs: StoryMatrixRun[] = [];
+  for (const characterId of characterIds) {
+    const started = Date.now();
+    for (let seed = 1; seed <= seeds; seed++) runs.push(playStoryMatrixRun(characterId, seed, CARD_DB));
+    process.stderr.write(`  story ${characterId}: ${seeds} runs in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  }
+  return { table: renderStoryMatrix(foldStoryMatrix(runs, ACT1.mapTemplate.floors.length), seeds) };
+}
+
+/** --story --endless: seeded headless endless runs per character (src/meta/story/endlessMatrix.ts). */
+function runEndlessMatrix(seeds: number, characterIds: readonly string[], start: EndlessStart, maxLoops: number): { table: string } {
+  const runs: EndlessMatrixRun[] = [];
+  for (const characterId of characterIds) {
+    const started = Date.now();
+    for (let seed = 1; seed <= seeds; seed++) runs.push(playEndlessMatrixRun(characterId, seed, start, maxLoops, CARD_DB));
+    process.stderr.write(`  endless ${characterId}: ${seeds} runs in ${((Date.now() - started) / 1000).toFixed(1)}s\n`);
+  }
+  return { table: renderEndlessMatrix(foldEndlessMatrix(runs), seeds, start, maxLoops) };
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   const flag = (name: string): boolean => argv.includes(`--${name}`);
@@ -1998,6 +2085,7 @@ function main(): void {
   const wantDarlings = flag('darlings');
   const wantDarlingsPrecons = flag('darlings-precons');
   const wantPlayerDecks = flag('player-decks');
+  const wantStory = flag('story');
   // Reserve avatar ladders (migration stage 2): --avatars-reserve (or the
   // spelled-out --avatars --reserve) and --avatars-darlings.
   const wantAvatarsReserve = flag('avatars-reserve') || (flag('avatars') && flag('reserve'));
@@ -2017,6 +2105,7 @@ function main(): void {
       !wantDarlings &&
       !wantDarlingsPrecons &&
       !wantPlayerDecks &&
+      !wantStory &&
       !wantAvatarsReserve &&
       !wantAvatarsDarlings);
   const ai = (opt('ai') ?? 'hard') as Difficulty;
@@ -2100,6 +2189,38 @@ function main(): void {
   if (wantDarlings) reports.push(runDarlingsMatrix(seeds, ai, telemetry, handSize ?? WARCHEST_HAND_SIZE));
   if (wantDarlingsPrecons) reports.push(runDarlingsPreconMatrix(seeds, ai, telemetry));
   if (wantPlayerDecks) reports.push(runPlayerDeckMatrix(seeds, ai, telemetry));
+  if (wantStory) {
+    const characterId = opt('character');
+    if (flag('character') && characterId === undefined) {
+      console.error('--character requires a story character id');
+      process.exitCode = 1;
+      return;
+    }
+    const ids = STORY_CHARACTERS.map((character) => character.id);
+    if (characterId !== undefined && !ids.includes(characterId)) {
+      console.error(`--character must be one of ${ids.join(' | ')} (got ${characterId})`);
+      process.exitCode = 1;
+      return;
+    }
+    const chosen = characterId === undefined ? ids : [characterId];
+    if (flag('endless')) {
+      const start = opt('endless');
+      if (start !== 'act1' && start !== 'menu') {
+        console.error(`--endless must be act1 | menu (got ${start})`);
+        process.exitCode = 1;
+        return;
+      }
+      const maxLoops = Number(opt('max-loops') ?? ENDLESS_MATRIX_MAX_LOOPS);
+      if (!Number.isInteger(maxLoops) || maxLoops <= 0) {
+        console.error(`--max-loops must be a positive integer (got ${opt('max-loops')})`);
+        process.exitCode = 1;
+        return;
+      }
+      reports.push(runEndlessMatrix(seeds, chosen, start, maxLoops));
+    } else {
+      reports.push(runStoryMatrix(seeds, chosen));
+    }
+  }
 
   for (const r of reports) {
     console.log('\n' + r.table);

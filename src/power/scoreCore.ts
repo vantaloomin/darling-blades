@@ -89,6 +89,10 @@ export const STARBORNE_TRIGGERS = [
 export type ScorableTriggerWhen = TriggerWhen | (typeof STARBORNE_TRIGGERS)[number];
 export type ScorableCondition =
   | 'questActive'
+  | 'swornActive'
+  | 'youHoldMandate'
+  | 'youDontHoldMandate'
+  | 'youGainedLifeThisTurn'
   | 'controlMarked'
   | 'creatureDiedThisTurn'
   | { kind: 'controlsOther'; subtype: string }
@@ -138,7 +142,7 @@ export function dutiesOf(card: Pick<ScorableCardDef, 'activated'>): readonly Sco
 export type ScorableWhispers = { cost: ManaCost };
 /** Tithe (1.8, Drowned Deep; renamed from Dread 2026-09-11): any-number sacrifice, one generic per two
  * points of combined Defense. `per` is fixed at 2 by the ruling. */
-export type ScorableTithe = { per: 2 };
+export type ScorableTithe = { per: 2; marks?: number };
 
 export type ScorableCardDef = Omit<
   CardDef,
@@ -639,6 +643,12 @@ export const TRIGGER_MULT: Record<Exclude<ScorableTriggerWhen, CarrierTriggerWhe
   combatDamageToPlayer: 0.7,
   spell: 1.0,
   static: 1.0,
+  // 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots): a deck with four
+  // claimers takes the Mandate about twice a game when the opponent contests
+  // it (1.08 claims by a card, 0.93 steals in combat), once with no rival
+  // claimer (1.03 and 0.42). A permanent sees roughly half of those, so it
+  // fires about as often as an attack trigger.
+  youClaimMandate: 0.8,
   entersGraveyard: 0.5, // v2 — a "when this creature would die" rider; narrower than `dies` (fires on card-leaves-battlefield-to-grave specifically, not e.g. a bounced/severed exit that dies also would not cover), and it stacks with the death itself, so it is priced BELOW `dies` (0.6).
 
   // ── §4m Starborne mark observers (2026-08-29) ─────────────────────────────
@@ -767,6 +777,22 @@ function isCarrierWhen(w: ScorableTriggerWhen): w is CarrierTriggerWhen {
 export const DAWN_MULT_NONCREATURE = 3.0; // artifacts/enchantments — scarce removal here, at the fair-fit rate
 export const DAWN_MULT_CREATURE = 2.0; // creatures — dies more, already has a priced body
 
+// 2.0 (the rate lab's dawn sets, runs on study-data dawn-lab/ and
+// dawnArt-lab/, 25 life, 32,480 paired slots each): a life line at each of
+// its controller's dawns measured well under the dawn multiplier. On a 3/3
+// for three, gain 1, gain 2 and drain 1 at dawn read 0.48, 0.78 and 0.65
+// mana (the scorer paid 0.86, 1.46, 1.00); on a colourless artifact for two,
+// 0.69, 1.34 and 1.22 (it paid 1.29, 2.19, 1.50). Gain 1 on arrival read
+// 0.31 against the scorer's 0.32, so the per-firing rates hold and it is the
+// recurrence that is over-paid: life gained at dawn takes 0.55 of the
+// multiplier, life lost or face damage 0.7.
+export const DAWN_GAIN_SCALE = 0.55;
+export const DAWN_DRAIN_SCALE = 0.7;
+const dawnLifeScale = (op: ScorableEffectOp): number =>
+  op.op === 'gainLife' ? DAWN_GAIN_SCALE
+    : op.op === 'loseLife' || (op.op === 'damage' && op.to === 'opponent') ? DAWN_DRAIN_SCALE
+      : 1;
+
 export function dawnMult(card: ScorableCardDef): number {
   return card.types.includes('creature') ? DAWN_MULT_CREATURE : DAWN_MULT_NONCREATURE;
 }
@@ -866,6 +892,19 @@ export const FILTER_SACRIFICE_MULT = 0.5;
 //     carrier is a 7-drop checking at Dawn in a tribal deck.
 export const COND_CREATURE_DIED = 0.4;
 export const COND_CONTROLS_OTHER = 0.6;
+// 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots):
+//   swornActive x0.5: the share of a deck's dawns with a legendary creature
+//     in play is 27% over the Warchest field, but 45-52% in the five
+//     legend-rich decks a Sworn card is built for (Wild Communion 52%).
+//   youHoldMandate x0.45: a claiming deck holds it on 47% of its dawns after
+//     its first claim when the opponent contests it (63% when it can't),
+//     23% of all its dawns.
+//   youDontHoldMandate x0.75: the complement of that 23-27% overall hold share.
+export const COND_SWORN = 0.5;
+const isLegendaryCreature = (card: ScorableCardDef): boolean =>
+  card.types.includes('creature') && (card.supertypes ?? []).includes('legendary');
+export const COND_HOLD_MANDATE = 0.45;
+export const COND_DONT_HOLD_MANDATE = 0.75;
 // 1.9 (A1.4b, in-engine): the CONDITIONAL ARRIVAL HUNT ("If you control another
 // Dinokin, when this arrives, Hunt."; the condition is checked at cast, A1.1c).
 // Measured by the A1.1c re-run (balance/study/lab/fd/first-dawn-findings-a11c.md,
@@ -1005,6 +1044,19 @@ const isPermanentCard = (card: ScorableCardDef): boolean => !card.types.includes
  * face ties a 2/2 in the lab; Magic reads about 0.8 a point. */
 function faceRate(n: number, when: ScorableTriggerWhen, card: ScorableCardDef): number {
   return (when === 'spell' && !isPermanentCard(card) ? 0.7 : 0) + 0.5 * n;
+}
+
+/**
+ * Life gain by the amount (2.0, the rate lab's gain set, run 38032348013 on
+ * study-data, 25 life, 32,480 paired slots): a colourless 3/3 for three
+ * that gains 2, 4 or 8 life on arrival measured 0.55, 1.00 and 1.64 mana,
+ * 0.73, 1.33 and 2.19 before the arrival rate. Each point is worth 0.3 up
+ * to 4 and 0.215 past it; gain 1 (0.43) is the line extended, not measured. It holds at 20 life too (the life set, run
+ * 38025775738: gain 4 read 0.92 mana at 20, 1.00 at 25). Magic's 0.2 a
+ * point, used until then, priced gain 4 at 0.6 mana.
+ */
+export function gainLifeRate(n: number): number {
+  return n <= 0 ? 0 : 0.13 + 0.3 * Math.min(n, 4) + 0.215 * Math.max(0, n - 4);
 }
 
 /** Skim's option value by the card's mana value (§4u): 0.35 at 4 and below,
@@ -1171,9 +1223,7 @@ export function valueOp(
       }
     }
     case 'gainLife':
-      // The v4 audit's proposed intercept was noise on the wider window
-      // (0.05-0.10); the 0.2 slope is confirmed. Unchanged.
-      return { label: `gain ${op.n}`, v: 0.2 * op.n };
+      return { label: `gain ${op.n}`, v: gainLifeRate(op.n) };
     case 'loseLife':
       // v4 (D6, in-engine): drain rides the face-damage curve.
       return { label: `drain ${op.n}`, v: faceRate(op.n, when, card) };
@@ -1432,7 +1482,12 @@ export function valueOp(
       // 1/1 token at 1.12 (Hordeling Outburst, Captain's Call, Krenko's
       // Command). A token's starting Marks were unpriced; D6 prices them like
       // a counter, 0.7 each (Net Full of Stars' one Mark measured +0.47).
-      return { label: `token ×${op.count}`, v: op.count * (tokenBody(op.token, unknowns) + TOKEN_FLOOR + 0.7 * (op.marks ?? 0)) };
+      {
+        const v = op.count * (tokenBody(op.token, unknowns) + TOKEN_FLOOR + 0.7 * (op.marks ?? 0));
+        // 2.0 (Circe): a token for the target's controller is the opponent's
+        // body, priced as its negation.
+        return op.for === 'targetController' ? { label: `their token ×${op.count}`, v: -v } : { label: `token ×${op.count}`, v };
+      }
     case 'destroyNewestOpponentArtifactOrEnchantment':
       // v2 — trigger-safe sibling of `destroyArtifactOrSeverEnchantment`: no
       // target choice (always the newest), so priced below the targeted
@@ -1502,6 +1557,13 @@ export function valueOp(
       // Unconditional reanimation-to-battlefield of any grave creature is strong
       // (Codex: Call the Einherjar {2}{B} beats Zombify {3}{B}). 2.2 undervalued it.
       return { label: 'reanimate', v: 3.5 };
+    case 'claimMandate':
+      // 2.0 B5, the Mandate lab (2.0 B5, run 38020450249 on study-data, 25 life, Hard on both seats, 32,480 paired slots):
+      // "When this arrives, claim the Mandate" on a 3/3 is worth 0.52 mana
+      // when the opponent claims too (2.83 +/- 0.21 pts against a mana's
+      // 5.49) and 0.57 when it can't. The set contests it, so 0.52 at the
+      // arrival rate (0.75) puts the op at 0.7.
+      return { label: 'claim the Mandate', v: 0.7 };
     case 'hunt':
       // 1.9 (A1.4): see the Hunt block above. The spell form is priced here
       // with no pump; scoreCard folds a pump on the hunter in (huntSpellValue).
@@ -1723,7 +1785,19 @@ function spellHuntPump(ab: ScorableAbilityDef): { defense: number; folded: Set<S
 }
 
 /** One Duty at the §4q rate (see the `activated` block in scoreCard). */
+/** Nüwa's marks and stones over her chassis (nuwa-lab 2026-10-10-38078530028). */
+const MARK_STONES_LAB = 0.58;
+
 function valueDuty(ability: ScorableActivated, card: ScorableCardDef, unknowns: UnknownCollector): Part {
+  // 2.0 (Nüwa): an ability paid by removing marks spends a +1/+1 for good and
+  // never taps. Core Set II's final costing (2026-10-10, nuwa-lab after the
+  // AI's Tithe fix) read Nüwa's marks and stones together at +0.58 mana over
+  // her chassis, the marks alone at zero within noise, so the stones carry
+  // the 0.58, shared evenly. NEEDS MATH: one carrier, one reading.
+  if ('removeMarks' in ability.cost) {
+    const stones = dutiesOf(card).filter((a) => 'removeMarks' in a.cost).length;
+    return { label: 'mark-cost ability (Nüwa lab, shared)', v: MARK_STONES_LAB / Math.max(1, stones) };
+  }
   const face = (ability.targets ?? []).some((t) => t.what === 'any');
   const fan = targetFan(ability.targets);
   let perTrigger = 0;
@@ -1800,11 +1874,24 @@ export function scoreCard(card: ScorableCardDef): Score {
     //     NEEDS MATH: no clean MTG analog for counter-count thresholds,
     //     re-check against seeded win rates when the mark decks land.
     let condMult = 1.0;
-    if (ab.condition !== undefined) {
-      const cond = ab.condition;
+    // A static's gate sits on the static itself (StaticDef.condition: a Sworn
+    // or Mandate-hold anthem), so it is read there too.
+    const gate = ab.condition ?? (ab.when === 'static' ? ab.static?.condition : undefined);
+    if (gate !== undefined) {
+      const cond = gate;
       if (cond === 'questActive') condMult = 0.7;
       else if (cond === 'controlMarked') condMult = 0.85;
       else if (cond === 'creatureDiedThisTurn') condMult = COND_CREATURE_DIED;
+      // A legendary creature's own Sworn line is always on: it is the legend
+      // the line asks for whenever the ability can matter.
+      else if (cond === 'swornActive') condMult = isLegendaryCreature(card) ? 1 : COND_SWORN;
+      else if (cond === 'youHoldMandate') condMult = COND_HOLD_MANDATE;
+      else if (cond === 'youDontHoldMandate') condMult = COND_DONT_HOLD_MANDATE;
+      // The same kind of turn-history gate as "a creature died this turn";
+      // a life-gain deck meets it most turns. Core Set II's final costing
+      // (2026-10-10) rates it at the morbid multiplier. NEEDS MATH: re-measure
+      // once a life-gain shell is labbed.
+      else if (cond === 'youGainedLifeThisTurn') condMult = COND_CREATURE_DIED;
       else if (typeof cond === 'object' && cond.kind === 'controlsOther') condMult = COND_CONTROLS_OTHER;
       else if (typeof cond === 'object' && cond.kind === 'markedThreshold') {
         condMult = cond.n >= 4 ? 0.55 : cond.n === 3 ? 0.65 : 0.75;
@@ -1814,7 +1901,7 @@ export function scoreCard(card: ScorableCardDef): Score {
     }
     // §4t — observer filters narrow which deaths/attacks fire the trigger.
     if (ab.filter) {
-      if (ab.when !== 'allyDies' && ab.when !== 'allyAttacks') unknowns.add(`filter on when:${ab.when} (engine ignores it)`);
+      if (ab.when !== 'allyDies' && ab.when !== 'allyAttacks' && ab.when !== 'allyCreatureArrives') unknowns.add(`filter on when:${ab.when} (engine ignores it)`);
       for (const [key, set] of Object.entries(ab.filter)) {
         if (!set) continue; // an unset key (the builder's cleared checkbox) narrows nothing
         if (key === 'subtype') mult *= FILTER_SUBTYPE_MULT;
@@ -1838,9 +1925,14 @@ export function scoreCard(card: ScorableCardDef): Score {
     // all (fixing an ordering bug that discarded Umbral Antenna's gate).
     mult *= condMult;
     if (ab.when === 'static' && ab.static) {
+      // A 2.0 gated static (a Sworn or Mandate-hold line) is on only part of
+      // the time, so it takes its gate like any other ability. The older gates
+      // on statics (a quest, another of a tribe) have always scored at full;
+      // they keep that until the owner rules on moving the six shipped cards.
       const p = valueStatic(ab.static, card, unknowns);
-      parts.push({ label: p.label, v: p.v });
-      if (!isCreature) spellEffect += p.v;
+      const v = p.v * (gate === 'swornActive' || gate === 'youHoldMandate' || gate === 'youDontHoldMandate' ? condMult : 1);
+      parts.push({ label: v === p.v ? p.label : `${p.label} (gated x${condMult})`, v });
+      if (!isCreature) spellEffect += v;
       continue;
     }
     const face = canFaceOf(ab);
@@ -1869,6 +1961,7 @@ export function scoreCard(card: ScorableCardDef): Score {
       }
       // 1.9 (A1.4b): a gated Hunt takes its own factor in place of the ability's gate.
       let opMult = mult;
+      if (ab.when === 'dawn') opMult *= dawnLifeScale(op);
       if (op.op === 'hunt' && huntGate) {
         p = { ...p, label: `${p.label}, ${huntGate.label}` };
         if (huntGate.factor !== undefined) opMult = mult * (huntGate.factor / condMult);
@@ -2103,6 +2196,14 @@ export function scoreCard(card: ScorableCardDef): Score {
     }
   }
 
+  if (card.modal) {
+    // 2.0: a modal spell ("Choose up to N —"). Magic prices its Commands at
+    // more than one effect and less than the sum; there is no rate here yet,
+    // so it scores 0 and waits on the lab (NEEDS MATH).
+    unknowns.add('modal');
+    parts.push({ label: `modal (choose up to ${card.modal.upTo} of ${card.modal.modes.length}, NEEDS MATH)`, v: 0 });
+  }
+
   if (card.tithe) {
     // Tithe (≈ the Kamigawa Offering cycle, n=5; Emerge creep-flagged, n=10;
     // Devour, n=12) — §4s. The Patrons price the offering option at 0.4 /
@@ -2120,6 +2221,10 @@ export function scoreCard(card: ScorableCardDef): Score {
     // the builder warns; the scorer does not police it.
     mechanics.push('tithe');
     parts.push({ label: 'tithe option (any-number sacrifice, 1 per 2 Defense)', v: 0.5 });
+    // 2.0 (Nüwa): marks for the mana saved. The final costing's lab read them
+    // at -0.07 ± 0.12 mana, zero within noise (field decks rarely spare
+    // bodies for a ten-drop), so they add nothing on top.
+    if (card.tithe.marks !== undefined) parts.push({ label: 'tithe marks (lab: zero within noise)', v: 0 });
   }
 
   if (card.chapters) {

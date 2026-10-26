@@ -25,6 +25,8 @@ import { IridescencePostFX } from './fx/IridescencePostFX';
 import { manaPipPadding, renderManaText, type ManaTextRender } from './ManaText';
 import { ensureNumeralPip, pipsFor } from './ManaSymbols';
 import { rulesText, typeLine } from './rulesText';
+import { TEXT_BOTTOM_ROOM } from './textRaster';
+import { showsLegendaryCrown } from './legendaryCrown';
 
 export const CARD_W = CARD_FACE_W;
 export const CARD_H = CARD_FACE_H;
@@ -63,7 +65,8 @@ function fitWrappedText(obj: Phaser.GameObjects.Text, boxH: number): void {
   // iterating (which parks a step too small when a rewrap drops a line).
   const fitsAt = (s: number): boolean => {
     obj.setWordWrapWidth(TEXT_WIDTH / s);
-    return obj.height * s <= boxH + 0.5;
+    // The bottom descender room (textRaster.ts) is not part of the line box.
+    return (obj.height - TEXT_BOTTOM_ROOM) * s <= boxH + 0.5;
   };
   obj.setScale(1);
   if (fitsAt(1)) {
@@ -569,7 +572,7 @@ export class CardView extends Phaser.GameObjects.Container {
     // treatment (plain look) unless a non-white variant frame claims it
     // for Axis B.
     this.gem.setTexture(`seticon-${card.set ?? 'base'}-${card.rarity}`);
-    this.crown.setVisible(!!card.supertypes?.includes('legendary'));
+    this.crown.setVisible(showsLegendaryCrown(card));
 
     const variant = opts.variant;
     if (variant && variant.frame !== 'white') {

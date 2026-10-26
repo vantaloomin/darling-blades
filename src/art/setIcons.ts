@@ -11,7 +11,7 @@
  * four-point star ("The Silver Veil"); arthurian-court = a five-point royal
  * crown. Tuned to read at ~21px on the card face and ~40px in the glossary.
  */
-export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn';
+export type CardSetId = 'base' | 'ragnarok' | 'celtic-fae' | 'arthurian-court' | 'gothic-monsters' | 'dark-tales' | 'yokai-nights' | 'sands-of-the-duat' | 'starborne' | 'drowned-deep' | 'first-dawn' | 'core-set-2';
 
 export const SET_ICON_PATHS: Record<CardSetId, string> = {
   // Heart pierced by a blade: grip + crossguard above the cleft, a tapered
@@ -89,4 +89,13 @@ export const SET_ICON_PATHS: Record<CardSetId, string> = {
     'C42 88 35 76 35 62 Z M25 23 C26 34 34 44 42 50 L45 46 C36 37 31 29 30 23 ' +
     'Z M75 23 C74 34 66 44 58 50 L55 46 C64 37 69 29 70 23 Z M36.5 60 A4.5 4.5 0 1 1 45.5 60 A4.5 4.5 0 1 1 ' +
     '36.5 60 Z M54.5 60 A4.5 4.5 0 1 1 63.5 60 A4.5 4.5 0 1 1 54.5 60 Z',
+  // The fallen Mandate (Core Set II, owner-picked 2026-10-12): the Mandate's
+  // jade bi disc, split top to bottom by one jagged crack. Ring with a punched
+  // centre; the crack is two punched zigzags, one above and one below the
+  // hole, each kept inside the ring so evenodd never re-fills.
+  'core-set-2':
+    'M10 54 A40 40 0 1 1 90 54 A40 40 0 1 1 10 54 Z ' +
+    'M37 54 A13 13 0 1 1 63 54 A13 13 0 1 1 37 54 Z ' +
+    'M44 15 L56 15 L52 25 L59 30 L55 40 L44 40 L47 30 L40 25 Z ' +
+    'M46 68 L57 68 L54 78 L60 84 L56 93 L44 93 L48 84 L41 78 Z',
 };

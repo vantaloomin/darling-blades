@@ -2,6 +2,7 @@ import { RULES } from '../config/rules';
 import { hasCastableInstant } from './actions';
 import type { Emit } from './battlefield';
 import { fireTriggers } from './effects/EffectInterpreter';
+import { mandateHolderOf } from './mandate';
 import { checkStateBased } from './sba';
 import type { CardDb, GameState, PlayerId, Step } from './types';
 import { cardIdOf, def, isCardInstance, opponentOf } from './types';
@@ -71,11 +72,19 @@ export function startTurn(state: GameState, db: CardDb, emit: Emit): void {
   // Chapter ops are trigger-safe and can queue FIFO pending decisions.
   setStep(state, 'dawn', emit);
   delete state.creatureDiedThisTurn;
+  delete state.gainedLifeThisTurn;
   // Expire both graveyards before this player's Dawn triggers can add new tags.
   for (const player of state.players) {
     for (const card of player.graveyard) {
       if (isCardInstance(card) && card.whispersUntilDawnOf === active) delete card.whispersUntilDawnOf;
     }
+  }
+  // The Mandate's dawn draw comes before every permanent's dawn trigger, so
+  // no global trigger has to resume. Deck-out can end the game here.
+  if (mandateHolderOf(state) === active) {
+    emit({ e: 'mandateDraw', player: active });
+    drawCards(state, emit, active, 1);
+    if (state.winner !== null) return;
   }
   for (const perm of [...state.battlefield]) {
     if (perm.controller !== active) continue;

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   classifyFormFactor,
   formFactor,
-  FORM_FACTOR_MOBILE_MAX_WIDTH,
+  FORM_FACTOR_MOBILE_MAX_SHORT_SIDE,
   FORM_FACTOR_TABLET_MAX_WIDTH,
   prefersReducedMotion,
   uiLanguage,
@@ -13,36 +13,49 @@ afterEach(() => {
 });
 
 describe('classifyFormFactor', () => {
-  it('a pointer device is a computer at every width', () => {
-    for (const viewportWidth of [320, 767, 768, 1279, 1280, 3840]) {
-      expect(classifyFormFactor({ touch: false, viewportWidth })).toBe('desktop');
+  const touch = (viewportWidth: number, viewportHeight: number) => classifyFormFactor({ touch: true, viewportWidth, viewportHeight });
+
+  it('a pointer device is a computer at every size', () => {
+    for (const [w, h] of [[320, 568], [844, 390], [1180, 820], [3840, 2160]]) {
+      expect(classifyFormFactor({ touch: false, viewportWidth: w, viewportHeight: h })).toBe('desktop');
     }
   });
 
-  it('splits touch devices either side of the mobile threshold', () => {
-    expect(classifyFormFactor({ touch: true, viewportWidth: FORM_FACTOR_MOBILE_MAX_WIDTH })).toBe('mobile');
-    expect(classifyFormFactor({ touch: true, viewportWidth: FORM_FACTOR_MOBILE_MAX_WIDTH + 1 })).toBe('tablet');
+  it('a phone is a phone held either way', () => {
+    // The bug the shorter side fixes: landscape phones are 780 to 956 px wide.
+    for (const [w, h] of [[390, 844], [844, 390], [360, 780], [780, 360], [956, 440]]) {
+      expect(touch(w, h)).toBe('mobile');
+    }
   });
 
-  it('splits touch devices either side of the tablet threshold', () => {
-    expect(classifyFormFactor({ touch: true, viewportWidth: FORM_FACTOR_TABLET_MAX_WIDTH })).toBe('tablet');
-    expect(classifyFormFactor({ touch: true, viewportWidth: FORM_FACTOR_TABLET_MAX_WIDTH + 1 })).toBe('desktop');
+  it('splits phones from tablets on the shorter side', () => {
+    const line = FORM_FACTOR_MOBILE_MAX_SHORT_SIDE;
+    expect(touch(1000, line)).toBe('mobile');
+    expect(touch(1000, line + 1)).toBe('tablet');
+    // The smallest iPad held upright is a tablet, not a phone.
+    expect(touch(744, 1133)).toBe('tablet');
   });
 
-  it('degenerate widths land in a defined bucket rather than escaping', () => {
-    expect(classifyFormFactor({ touch: true, viewportWidth: 0 })).toBe('mobile');
-    expect(classifyFormFactor({ touch: true, viewportWidth: -1 })).toBe('mobile');
-    expect(classifyFormFactor({ touch: true, viewportWidth: Number.NaN })).toBe('mobile');
-    expect(classifyFormFactor({ touch: true, viewportWidth: Number.POSITIVE_INFINITY })).toBe('mobile');
+  it('splits touch devices either side of the tablet threshold by width', () => {
+    expect(touch(FORM_FACTOR_TABLET_MAX_WIDTH, 800)).toBe('tablet');
+    expect(touch(FORM_FACTOR_TABLET_MAX_WIDTH + 1, 800)).toBe('desktop');
+  });
+
+  it('degenerate sizes land in a defined bucket rather than escaping', () => {
+    expect(touch(0, 0)).toBe('mobile');
+    expect(touch(-1, Number.NaN)).toBe('mobile');
+    expect(touch(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)).toBe('mobile');
+    // One readable side stands in for the shorter one.
+    expect(touch(1024, 0)).toBe('tablet');
   });
 
   it('emits a label and never a dimension', () => {
-    // The whole privacy claim of section 3.3: the width is compared inside the
+    // The whole privacy claim of section 3.3: the size is compared inside the
     // function and has nowhere to go afterwards.
-    for (const viewportWidth of [375, 834, 1512]) {
-      const out = classifyFormFactor({ touch: true, viewportWidth });
+    for (const [w, h] of [[375, 667], [834, 1194], [1512, 982]]) {
+      const out = touch(w, h);
       expect(['mobile', 'tablet', 'desktop']).toContain(out);
-      expect(JSON.stringify(out)).not.toContain(String(viewportWidth));
+      expect(JSON.stringify(out)).not.toContain(String(w));
     }
   });
 });

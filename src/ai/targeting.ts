@@ -57,7 +57,7 @@ const NEW_TARGET_DATABASES = new WeakMap<CardDb, boolean>();
 // legacy menu, where Medium's removal-on-an-attacker rule (removalWorth) picks
 // the attacker and Hard searches the variants from there.
 const hasTargetQualifier = (spec: TargetSpec): boolean => spec.exactly !== undefined ||
-  spec.what === 'opponentCreature' || spec.maxCost !== undefined || spec.minAttack !== undefined;
+  spec.what === 'opponentCreature' || spec.maxCost !== undefined || spec.minAttack !== undefined || spec.maxAttack !== undefined;
 const hasTargetBinding = (items: readonly EffectOp[]): boolean => items.some((op) =>
   'targetIndex' in op && op.targetIndex !== undefined || op.op === 'preventCombatTo' ||
   isTargetBranchOp(op) && (hasTargetBinding(op.then) || hasTargetBinding(op.else ?? [])));

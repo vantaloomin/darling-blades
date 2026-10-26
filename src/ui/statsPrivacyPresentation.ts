@@ -185,14 +185,23 @@ export const STATS_NOTICE_COPY = {
   toggleLabel: STATS_ROW_LABEL,
   toggleOn: 'On',
   toggleOff: 'Off',
+  /** Shown instead of "On" while Do Not Track or GPC stops every send anyway. */
+  toggleBlocked: 'Blocked by browser',
   /** Opens the existing "What is sent" panel. */
   secondaryLabel: STATS_PANEL_BUTTON_LABEL,
   primaryLabel: STATS_NOTICE_CONTINUE_LABEL,
 } as const;
 
-/** The toggle's label for a state, in the Settings row's own two words. */
-export function statsToggleLabel(on: boolean): string {
-  return on ? STATS_NOTICE_COPY.toggleOn : STATS_NOTICE_COPY.toggleOff;
+/**
+ * The toggle's label for a state, in the Settings row's own words. A saved "on"
+ * reads "Blocked by browser" while the browser's Do Not Track or GPC signal is
+ * what stops the sends (`StatsRowNoteState.browserSignal`), because "On" would
+ * claim stats are shared when the gate sends nothing. The switch still shows
+ * and edits the saved choice; "Off" stays "Off".
+ */
+export function statsToggleLabel(on: boolean, browserBlocks = false): string {
+  if (!on) return STATS_NOTICE_COPY.toggleOff;
+  return browserBlocks ? STATS_NOTICE_COPY.toggleBlocked : STATS_NOTICE_COPY.toggleOn;
 }
 
 // ---------------------------------------------------------------------------
@@ -322,7 +331,7 @@ export function statsNoticeOwed(input: StatsNoticeOwedInput): boolean {
 // ---------------------------------------------------------------------------
 
 /** One thing the main menu does on arrival, before the player touches it. */
-export type MenuArrivalStep = 'statsNotice' | 'deckRepair' | 'tutorialPrompt';
+export type MenuArrivalStep = 'saveUnreadable' | 'statsNotice' | 'saveOver' | 'deckRepair' | 'tutorialPrompt';
 
 export interface MenuArrivalInput {
   /** `statsNoticeOwed(...)`. */
@@ -331,6 +340,10 @@ export interface MenuArrivalInput {
   deckRepairOwed: boolean;
   /** `save.tutorialDone`. */
   tutorialDone: boolean;
+  /** The home-screen "bring your save over" message is owed (src/platform/homeScreen.ts). */
+  saveOverOwed?: boolean;
+  /** This launch set an unreadable save aside and started fresh (SaveManager `recovered`). */
+  saveUnreadableOwed?: boolean;
 }
 
 /**
@@ -344,10 +357,22 @@ export interface MenuArrivalInput {
  * After it, the rule that was already in the scene is unchanged: a deck-repair
  * notice wins over the tutorial prompt, and a player who sees the repair notice
  * is not also asked about the tutorial on the same visit.
+ *
+ * The home-screen save message (M9) comes straight after the stats notice and
+ * before the tutorial prompt: a player about to import their save has no need
+ * of the tutorial, and one who picks Not now carries on down the chain.
+ *
+ * One thing goes before the stats notice: the message that this launch could
+ * not read the save and started a new one (owner ruling 2026-10-25, "show it
+ * first"). A returning player who has just lost their progress should hear
+ * that before being greeted as a new player. It sends nothing, so the stats
+ * notice still comes before anything is sent.
  */
 export function menuArrivalSteps(input: MenuArrivalInput): readonly MenuArrivalStep[] {
   const steps: MenuArrivalStep[] = [];
+  if (input.saveUnreadableOwed) steps.push('saveUnreadable');
   if (input.noticeOwed) steps.push('statsNotice');
+  if (input.saveOverOwed) steps.push('saveOver');
   if (input.deckRepairOwed) steps.push('deckRepair');
   else if (!input.tutorialDone) steps.push('tutorialPrompt');
   return steps;
@@ -540,8 +565,8 @@ export function statsNoticeBodyStack(measured: StatsNoticeMeasuredBody): StatsNo
  * Read off the shared layout rather than restated, so a change to the shell's
  * tracks moves this dialog with it.
  */
-function statsNoticeShellProbe(): { chrome: number; contentWidth: number } {
-  const probe = modalShellLayout({ width: STATS_NOTICE_LAYOUT.width, height: STATS_NOTICE_LAYOUT.maxHeight });
+function statsNoticeShellProbe(width: number = STATS_NOTICE_LAYOUT.width): { chrome: number; contentWidth: number } {
+  const probe = modalShellLayout({ width, height: STATS_NOTICE_LAYOUT.maxHeight });
   return {
     chrome: probe.panel.height - probe.contentBounds.height,
     contentWidth: probe.contentBounds.width,
@@ -552,18 +577,28 @@ function statsNoticeShellProbe(): { chrome: number; contentWidth: number } {
  * The wrap width of the dialog's body. It depends on the width alone, so the
  * body can be measured BEFORE the shell exists and the shell then sized to it.
  */
-export function statsNoticeContentWidth(): number {
-  return statsNoticeShellProbe().contentWidth;
+export function statsNoticeContentWidth(width: number = STATS_NOTICE_LAYOUT.width): number {
+  return statsNoticeShellProbe(width).contentWidth;
 }
 
 /**
  * The dialog's height for a measured body stack: the stack, the footer gap and
  * the shell's chrome, whole pixels, never taller than the title-safe frame.
  */
-export function statsNoticeShellHeight(stackHeight: number): number {
-  const wanted = Math.ceil(stackHeight + STATS_NOTICE_LAYOUT.footerGap + statsNoticeShellProbe().chrome);
-  return Math.min(STATS_NOTICE_LAYOUT.maxHeight, wanted);
+export function statsNoticeShellHeight(
+  stackHeight: number,
+  width: number = STATS_NOTICE_LAYOUT.width,
+  maxHeight: number = STATS_NOTICE_LAYOUT.maxHeight,
+): number {
+  const wanted = Math.ceil(stackHeight + STATS_NOTICE_LAYOUT.footerGap + statsNoticeShellProbe(width).chrome);
+  return Math.min(maxHeight, wanted);
 }
+
+/**
+ * The dialog on a phone (mock M-StatsNotice): narrower than the desktop's
+ * 760, and never taller than the phone's content box.
+ */
+export const STATS_NOTICE_COMPACT_WIDTH = 540;
 
 /** The On/Off control, right-aligned to the content rect's right edge. */
 export function statsNoticeToggleCenterX(contentRight: number, hitWidth: number): number {

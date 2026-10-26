@@ -11,8 +11,9 @@ import {
   COIN_FLIP_FACE_TEXTURES,
   COIN_FLIP_SIDES,
 } from '../ui/coinFlipLayout';
-import { applySceneSettings, sceneTextureKey } from '../ui/SceneBackdrop';
+import { applySceneSettings, sceneStage, sceneTextureKey } from '../ui/SceneBackdrop';
 import { theme } from '../ui/theme';
+import { compactProgressBar } from '../ui/compactWidgets';
 
 /** `theme.fonts.display` without Cinzel, which has not loaded yet. */
 const PRELOAD_LABEL_FONT = 'Georgia, serif';
@@ -45,11 +46,15 @@ export class PreloadScene extends Phaser.Scene {
     // shows the whole 1280k×720k canvas and the design-space label below
     // would sit in the top-left quadrant.
     applySceneSettings(this);
-    // Design-space constants, NOT this.scale (= game size = 1280k×720k under
-    // render scale; the camera shows the 1280×720 design window — see
+    // Design-space sizes, NOT this.scale (= game size = 1280k×720k under
+    // render scale; the camera shows the design window — see
     // src/platform/renderScale.ts). Identical at k=1.
-    const width = 1280;
-    const height = 720;
+    // The design space: the 1280x720 window, or on a phone its own design
+    // space (mock M-Loading), where the line sits in the content box's middle
+    // with a thin progress bar under it.
+    const stage = sceneStage(this);
+    const { width, height } = stage;
+    const middle = { x: stage.content.x + stage.content.width / 2, y: stage.content.y + stage.content.height / 2 };
 
     // Boot-loading backdrop (docs/scene-art.md `scene-preload`): BootScene
     // queued it, so if it's on disk the texture is ready here. Added before the
@@ -61,19 +66,21 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     const label = this.add
-      .text(width / 2, height / 2, 'Unsheathing Blades…', {
+      .text(middle.x, middle.y, 'Unsheathing Blades…', {
         // The webfonts load in create(), after this label is drawn, so it is
         // set in the display stack's own fallback rather than in Cinzel.
         fontFamily: PRELOAD_LABEL_FONT,
         // The release 22px is the h2 heading role plus 2; it follows h2's
         // half step at larger text (24, 25) under the saved text size, which
         // the boot path applies before this scene builds.
-        fontSize: `${theme.type.h2 + 2}px`,
+        fontSize: `${(stage.compact ? theme.compactType.h2 : theme.type.h2) + 2}px`,
         color: theme.colors.muted,
       })
       .setOrigin(0.5);
+    const bar = stage.compact ? compactProgressBar(this, middle.x, label.y + label.height / 2 + 14) : null;
     this.load.on('progress', (v: number) => {
       label.setText(`Unsheathing Blades… ${Math.round(v * 100)}%`);
+      bar?.set(v);
     });
 
     // Card art is NOT queued here — ArtLoaderScene owns it (see the class

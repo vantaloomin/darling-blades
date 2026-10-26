@@ -5,14 +5,30 @@ import { Services } from './meta/services';
 import { applyBrowserOptOutDefault } from './meta/statsNotice';
 import { signals } from './net/signals';
 import { browserOptsOutOfTracking } from './net/signalsGate';
-import { applyDesktopWindowSize } from './platform/desktopWindow';
+import { showBlockingNotice } from './platform/blockingNotice';
+import { applyDesktopWindowSize, isTauri } from './platform/desktopWindow';
 import { IS_DEV } from './platform/env';
+import { requestPersistentStorage } from './platform/persistentStorage';
 import { qualityTier } from './platform/quality';
 import {
   RENDER_SCALE_UNLOCKED,
   resolveRenderScale,
+  type RenderK,
   setActiveRenderScale,
+  setActiveSceneZoom,
+  textRasterResolution,
 } from './platform/renderScale';
+import { designOutgrown, enableDevCompactScene, disableDesktopCompactScenes, RELAYOUT_SCENES, setActiveCompactMetrics } from './platform/compactScenes';
+import { onFullScreenChange } from './platform/fullscreen';
+import {
+  compactFit,
+  compactLayoutAllowed,
+  compactLayoutRequested,
+  resolveScreenMetrics,
+  type ScreenMetrics,
+} from './platform/screenMetrics';
+import { screenFixtureNamed } from './platform/screenFixtures';
+import { applySceneSettings, CANVAS_CLEAR, sceneStage } from './ui/SceneBackdrop';
 import { BootScene } from './scenes/BootScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
 import { ArtLoaderScene } from './scenes/ArtLoaderScene';
@@ -28,12 +44,17 @@ import { LimitedScene } from './scenes/LimitedScene';
 import { PackOpeningScene } from './scenes/PackOpeningScene';
 import { PlayScene } from './scenes/PlayScene';
 import { PracticePickerScene } from './scenes/PracticePickerScene';
+import { DeckCodeScene } from './scenes/DeckCodeScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { ProfileScene } from './scenes/ProfileScene';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
+import { StoryScene } from './scenes/StoryScene';
+import { newerSaveCopy, saveWriteFailedNotice } from './ui/saveNoticeCopy';
 import { applySavedAccessibility } from './ui/settingsPresentation';
+import { installTextRasterGuards } from './ui/textRaster';
+import { queueToast } from './ui/Toast';
 
 declare global {
   interface Window {
@@ -44,6 +65,23 @@ declare global {
 /** Boots the original Phaser application only after the tab session is held. */
 export function bootGame(): void {
 
+// A save written by a newer build than this one: this build would replace it
+// with a fresh save, so the manager refuses every write and the game does not
+// start (src/meta/SaveManager.ts `SaveLoadStatus`).
+if (Services.save.readOnly) {
+  const copy = newerSaveCopy(isTauri());
+  showBlockingNotice({
+    id: 'darlingblades-newer-save',
+    ...copy,
+    onAction: () => window.location.reload(),
+  });
+  return;
+}
+// An unreadable save (loadStatus 'recovered') is reported by the main menu's
+// arrival chain, ahead of the first-run dialogs.
+Services.save.onWriteFailure = () => queueToast(saveWriteFailedNotice());
+requestPersistentStorage({ desktop: isTauri() });
+
 // Render scale (settings.renderScale): resolved synchronously pre-boot —
 // Services is Phaser-free and localStorage-backed, so the save is already
 // loaded. The canvas is built at 1280·k × 720·k (Scale.FIT keeps the CSS
@@ -52,10 +90,79 @@ export function bootGame(): void {
 // Changing the setting persists + reloads (SettingsScene owns that flow).
 // RENDER_SCALE_UNLOCKED is the kill-switch that re-clamps k to 1 — live
 // (true) since the scene-layout migration; see src/platform/renderScale.ts.
-const k = RENDER_SCALE_UNLOCKED
+// Dev-only showcase mode (src/dev/showcase.ts) films at a fixed scale,
+// `&scale=` 1, 1.5 or 2, default 1.5 (1920x1080), whatever the save says.
+const showcaseScale = import.meta.env.DEV && new URLSearchParams(window.location.search).has('showcase')
+  ? ([1, 1.5, 2] as const satisfies readonly RenderK[])
+    .find((s) => s === Number(new URLSearchParams(window.location.search).get('scale') ?? 1.5)) ?? 1.5
+  : null;
+// The compact profile (docs/plan-mobile-overhaul.md C1, C2), on for every
+// phone and tablet; `?layout=desktop` keeps the desktop profile for a load. On
+// a touch screen it sizes the canvas to the screen at the device's own pixel
+// ratio (capped at 2); a scene with a compact composition draws in the
+// content box, and any other fits its 1280×720 design window by camera zoom. The `layout-compact` class
+// drops index.html's browser-bar reserve first (the 100dvh page already
+// leaves out a visible bar), so the #app box read here is the screen less
+// only its safe areas, and the insets read as zero. The profile is worked out
+// once per load and never saved.
+// Dev only: `&viewport=<fixture>` stands the page in for a fixture screen from
+// the support matrix (src/platform/screenFixtures.ts) on any browser, the a11y
+// probe's viewport axis: #app is sized to the fixture and its pixel ratio and
+// safe areas are the fixture's.
+// Read the real screen (not a fixture) as compact metrics, or null when it is
+// not a compact screen.
+function readCompactScreen(): ScreenMetrics | null {
+  const app = document.getElementById('app');
+  const m = resolveScreenMetrics({
+    viewportWidth: app?.clientWidth || window.innerWidth,
+    viewportHeight: app?.clientHeight || window.innerHeight,
+    coarsePointer: true,
+    devicePixelRatio: window.devicePixelRatio,
+  });
+  return m.profile === 'compact' ? m : null;
+}
+// Dev only: `?phone=Draft,Story` lays scenes out in the compact space while
+// their phone layouts are still being built (docs/plan-mobile-overhaul.md C4).
+if (import.meta.env.DEV) for (const key of (new URLSearchParams(window.location.search).get('phone') ?? '').split(',')) if (key) enableDevCompactScene(key);
+// Dev only: `?desktop=classic` keeps the old desktop menu layouts, for before shots.
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('desktop') === 'classic') disableDesktopCompactScenes();
+const compactFixture = import.meta.env.DEV && compactLayoutRequested(window.location.search)
+  ? screenFixtureNamed(window.location.search) : null;
+const compact: ScreenMetrics | null = (() => {
+  if (showcaseScale !== null || !compactLayoutAllowed(window.location.search)) return null;
+  const app = document.getElementById('app');
+  const fixture = compactFixture;
+  if (fixture) {
+    document.documentElement.classList.add('layout-compact');
+    if (app) Object.assign(app.style, { inset: 'auto', left: '0', top: '0', width: `${fixture.viewportWidth}px`, height: `${fixture.viewportHeight}px` });
+    return resolveScreenMetrics(fixture);
+  }
+  if (window.matchMedia?.('(pointer: coarse)').matches !== true) return null;
+  document.documentElement.classList.add('layout-compact');
+  const m = readCompactScreen();
+  if (!m) document.documentElement.classList.remove('layout-compact');
+  return m;
+})();
+const k = compact?.renderK ?? showcaseScale ?? (RENDER_SCALE_UNLOCKED
   ? resolveRenderScale(Services.save.data.settings.renderScale, qualityTier())
-  : 1;
+  : 1);
 setActiveRenderScale(k);
+// An upright tablet letterboxes the window at 96% of its width (M11), with
+// the page's scene image in the bands: the game clears to transparent there.
+const fit = compact ? compactFit(compact) : null;
+const canvas = fit?.canvas ?? { width: 1280 * k, height: 720 * k };
+const letterbox = fit?.letterbox ?? false;
+document.documentElement.classList.toggle('layout-letterbox', letterbox);
+const sceneZoom = fit?.zoom ?? k;
+setActiveSceneZoom(fit ? sceneZoom : null, fit?.widthShare ?? 1);
+// Text rasterizes at the scene's zoom (canvas px per design px), never below
+// 1: on desktop that is k, as before. Under the compact profile a text drawn
+// at k and then shrunk by a fractional zoom smeared, measured on the Android
+// emulator 2026-10-10; at the zoom it lands on the canvas about 1:1. A scene
+// with its own compact composition has its own zoom (src/platform/
+// compactScenes.ts), which SceneBackdrop records as the scene starts, so
+// `textRasterResolution` follows whichever scene is building its Texts.
+setActiveCompactMetrics(compact);
 
 // Desktop (Tauri) only: make the chosen resolution the actual OS window size
 // (1280·k × 720·k, clamped to the screen). Fire-and-forget and a hard no-op in
@@ -73,7 +180,7 @@ void applyDesktopWindowSize(k);
 // per-Text resolutions (none in this repo today) are respected. Object
 // width/height stay in logical units (Text.js divides by resolution), so
 // layout and inflated hit areas are unaffected.
-if (k > 1) {
+if (textRasterResolution() > 1 || compact) {
   type TextStyleLike = { resolution: number };
   type SetStyleFn = (
     this: TextStyleLike,
@@ -87,10 +194,13 @@ if (k > 1) {
     const explicit =
       !!style && ((style as { resolution?: number }).resolution ?? 0) > 0;
     const out = origSetStyle.call(this, style, updateText, setDefaults);
-    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = k;
+    if (!explicit && (!this.resolution || this.resolution <= 1)) this.resolution = textRasterResolution();
     return out;
   };
 }
+
+// Descender room for every Text (src/ui/textRaster.ts), before any is built.
+installTextRasterGuards();
 
 // Accessibility (settings.textScale, settings.highContrast): the loaded save's
 // text size and contrast go in force before the first scene builds, through
@@ -109,9 +219,10 @@ if (applyBrowserOptOutDefault(Services.save.data.settings, browserOptsOutOfTrack
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
-  width: 1280 * k,
-  height: 720 * k,
-  backgroundColor: '#0d0a14',
+  width: canvas.width,
+  height: canvas.height,
+  backgroundColor: CANVAS_CLEAR,
+  transparent: letterbox,
   // Snap every draw to whole pixels: kills the sub-pixel sampling that softens
   // text glyphs and sprite edges (compounds with the Scale.FIT CSS upscale).
   // Trade-off: tweened motion quantises to integer pixels, so slow drifts can
@@ -143,6 +254,7 @@ const game = new Phaser.Game({
     MainMenuScene,
     PlayScene,
     PracticePickerScene,
+    DeckCodeScene,
     SettingsScene,
     GlossaryScene,
     // Card Showcase (variant QA) registers only on dev/local builds — see
@@ -152,6 +264,8 @@ const game = new Phaser.Game({
     LimitedScene,
     LimitedDraftScene,
     LimitedDeckBuilderScene,
+    // Story Mode (2.0): reached only from Play's Story row, behind FEATURES.storyLive.
+    StoryScene,
     ProfileScene,
     AchievementsScene,
     DuelScene,
@@ -194,6 +308,59 @@ document.addEventListener('visibilitychange', () => {
 if (syncAchievements(Services.save.data, CARD_DB).length > 0) Services.save.flush();
 signals.start();
 
+// The compact canvas follows the screen when it changes size after load:
+// entering or leaving full screen (M8; the 2026-10-12 emulator recheck found
+// the canvas stayed at its load size), turning the device, or a browser bar
+// coming or going. Each running scene re-fits its camera to the new window;
+// texts drawn from then on rasterize at the new zoom.
+// A phone held upright shows the rotate screen over the game, so a refit to an
+// upright screen is skipped: the scenes keep the landscape layout they will be
+// seen in. A compact scene lays itself out once, in the content box it was
+// built for, so a scene built for a different screen is restarted: every
+// compact scene after a page loaded upright, and a menu scene whose design
+// space changed by more than a few percent (the owner's iPhone, 2026-10-14,
+// kept a narrow main menu after turning, and again after a landscape refresh,
+// where Safari can report the old size while the page loads). Scenes holding
+// a game in progress keep their layout and only re-fit the camera.
+if (compact && !compactFixture) {
+  let pending: number | undefined;
+  let builtUpright = compact.presentation === 'rotate';
+  const refit = (): void => {
+    pending = undefined;
+    const m = readCompactScreen();
+    if (!m || m.presentation === 'rotate') return;
+    const next = compactFit(m);
+    const restartAll = builtUpright;
+    const outgrown = game.scene.getScenes(true).filter((scene) => {
+      const stage = sceneStage(scene);
+      return stage.compact && (restartAll || (RELAYOUT_SCENES.has(scene.sys.settings.key) && designOutgrown(stage, m)));
+    });
+    if (outgrown.length === 0 && next.canvas.width === game.scale.width && next.canvas.height === game.scale.height
+      && next.letterbox === document.documentElement.classList.contains('layout-letterbox')) return;
+    document.documentElement.classList.toggle('layout-letterbox', next.letterbox);
+    setActiveSceneZoom(next.zoom, next.widthShare);
+    setActiveCompactMetrics(m);
+    // setGameSize, not resize: under FIT, resize keeps the load's aspect ratio, so
+    // a turn from upright drew the canvas at portrait width in a landscape window.
+    game.scale.setGameSize(next.canvas.width, next.canvas.height);
+    builtUpright = false;
+    for (const scene of game.scene.getScenes(true)) {
+      if (outgrown.includes(scene)) scene.scene.restart();
+      else applySceneSettings(scene, { refit: true });
+    }
+  };
+  const schedule = (): void => {
+    if (pending !== undefined) window.clearTimeout(pending);
+    pending = window.setTimeout(refit, 150);
+  };
+  window.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
+  window.visualViewport?.addEventListener('resize', schedule);
+  onFullScreenChange(schedule);
+  // Safari can settle the window's size after load without a resize event.
+  for (const ms of [500, 1500]) window.setTimeout(schedule, ms);
+}
+
 // Dev-tool access (scene jumps, state inspection from the console).
 window.__game = game;
 
@@ -208,6 +375,11 @@ if (import.meta.env.DEV) {
   for (const loadDevModule of Object.values(import.meta.glob('./dev/*.local.ts'))) {
     void loadDevModule();
   }
+  // `?showcase=<name>`: play a recorded showcase duel for trailer footage.
+  void import('./dev/showcase').then(({ showcaseParams, startShowcase }) => {
+    const params = showcaseParams(window.location.search);
+    if (params) void startShowcase(game, params);
+  });
 }
 
 }

@@ -44,7 +44,13 @@ _Dated 2026-09-28, at the 1.8.5 cut. Review monthly._
   (`src/audio/`, 18 recipes) wired into every scene with persisted volume +
   SFX toggle, plus **generative ambient music** (`src/audio/musicPatterns.ts`
   + `src/audio/music.ts`, four moods, a persisted toggle) — all driven from
-  the `SettingsScene`. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
+  the `SettingsScene`. **2.0 adds a Classic / New "Sound style" setting**
+  (`settings.soundStyle`, riding the v38 bump): New plays recorded CC0
+  placeholder samples and one music loop per mood (`src/audio/soundSet.ts`,
+  built into `public/assets/audio/` by `scripts/build-sound-set.ts` from the
+  Kenney and Not Jam packs), falls back to Classic for anything not loaded,
+  and adds card shuffle, draw and pack-tear sounds Classic has no recipe for.
+  Classic stays the default and fetches nothing. `SaveData` is **v26** (v7→v8 keyword-reminders, v8→v9 shop
   restructure, v9→v10 tutorial-done, v10→v11 achievements, v11→v12 gauntlet
   clear-style counters, v12→v13 daily quests/streaks, v13→v14 Limited,
   v14→v15 per-deck hero images, v15→v16 draft personas, v16→v17 persona
@@ -1738,6 +1744,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
+- **The 2.0 train (STAGED as 2.0.0 on 2026-10-25 on `release/2.0`).** [plan-2.0.md](plan-2.0.md) is the program plan. Release notes: [release-notes/v2.0.0.md](release-notes/v2.0.0.md). In: **Core Set II** (250 cards, the Mandate and Sworn), **Story Mode** Act 1 and endless, **starting life 25** with the one-time floor reset and the tower retune, the **mobile overhaul** and the desktop menus on its layouts, **Duel any Deck** with Expert and Master, and the **Sound style** setting. Staging flips `FEATURES.coreSet2Live` and `FEATURES.storyLive` on in every build. Next: the itch.io launch as a 2.0.x, then Story Mode's next acts.
 - **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
   shipped; STAGED as 1.9.0 on 2026-10-08 on `release/1.9`).**
   [plan-1.9.md](plan-1.9.md) is the program plan. Release notes:
@@ -2186,8 +2193,9 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
   (`selectedDuals` on `completeDraftRun`, `run.landReserve`); the work is the
   build-step UI plus persistence. Owner ruling 2026-09-25: after 2.0
   (it had been deferred to 1.9 by the 1.8 ruling D7).
+- **Duel Deck Codes, in 2.0 (owner, 2026-10-16).** The async PvP proposal below moved into 2.0: paste a deck code, someone else's or your own, and duel it with the AI piloting it, at three levels: Hard (today's), Expert and Master. Built: the "Duel any Deck" Play tile and screen, the code check, picking one of your own decks, and the duel at the chosen level. Expert (58.6% vs Hard) and Master (58.3% vs Expert) are built for this mode only; code duels pay no gold. Status in [plan-async-pvp.md](plan-async-pvp.md).
 - **Async PvP: challenge codes piloted by the Hard AI (proposal,
-  2026-09-29; past 2.0, not scheduled).** The owner's request: share a deck
+  2026-09-29; moved into 2.0 as Duel Deck Codes above).** The owner's request: share a deck
   code, and a Hard AI pilots that deck against whoever pastes it, "a
   semblance of PvP without making any P2P connections". No network, server
   or accounts, so it stands with the ruling that multiplayer is cancelled.

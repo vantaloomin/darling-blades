@@ -1103,7 +1103,10 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
     expect(migrated).toStrictEqual({
       ...GOLDEN_V35_BLOB,
       version: CURRENT_SAVE_VERSION,
-      settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false },
+      // v38's sound style arrives as Classic on any older save.
+      settings: { ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false, soundStyle: 'classic' },
+      // v38's Story Mode record arrives fresh on any older save.
+      story: freshSave(0).story,
     });
   });
 
@@ -1220,7 +1223,7 @@ describe('SaveData v36 migration (text size, high contrast, stored Premium note)
       const imported = decodedSave(codeForRawPayload(goldenV35()));
 
       expect(imported.version).toBe(CURRENT_SAVE_VERSION);
-      expect(imported.settings).toEqual({ ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false });
+      expect(imported.settings).toEqual({ ...GOLDEN_V35_BLOB.settings, textScale: 1, highContrast: false, soundStyle: 'classic' });
     });
 
     it('snaps garbage in an imported v36 code instead of refusing it', () => {
@@ -1490,5 +1493,177 @@ describe('SaveData v37 migration (Hooves and Fire 1.9.1 back-grant)', () => {
       expect(save.collection[id]).toBeUndefined();
       expect(migrated.collection[id]).toBeUndefined();
     }
+  });
+});
+
+/**
+ * v38 adds the optional open-duel mark (unfinished Tower/Limited duels count
+ * as a loss on the next launch). A save from before v38 cannot hold a real
+ * mark, so the update never charges a loss for a duel it could not see.
+ */
+describe('SaveData v38 migration (open-duel mark)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+
+  it('brings a v37 save mid-climb forward with its run and no mark', () => {
+    const save = freshSave(1);
+    save.gauntlet.run = { rung: 12, startedAt: 1, seed: 77, rosterDay: 0, rosterSeed: 0 };
+    const blob = { ...JSON.parse(JSON.stringify(save)), version: 37, openDuel: { mode: 'gauntlet', rung: 12, difficulty: 'hard' } };
+
+    const migrated = load(blob);
+
+    expect(migrated.version).toBe(38);
+    expect(migrated.gauntlet.run?.rung).toBe(12);
+    expect(migrated).not.toHaveProperty('openDuel');
+  });
+
+  it('keeps a well-formed v38 mark and drops a malformed one', () => {
+    const save = freshSave(1);
+    const good = { mode: 'limited', runId: 'run-1', matchIndex: 2, difficulty: 'hard', deckStyle: 'mono' };
+    expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: good }).openDuel).toEqual(good);
+    expect(load({ ...JSON.parse(JSON.stringify(save)), openDuel: { mode: 'gauntlet', rung: 0, difficulty: 'hard' } }))
+      .not.toHaveProperty('openDuel');
+  });
+});
+
+/**
+ * Story Mode shares the v37 -> v38 step (one bump for the 2.0 train, plan-2.0
+ * P10). Older saves start with the fresh record; a v38 save keeps its own,
+ * normalized, and a v38 dev save from before the field existed gets the fresh
+ * record rather than failing to load.
+ */
+describe('SaveData v38 migration (Story Mode record)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+
+  function v38Blob(): Record<string, unknown> {
+    const save = freshSave(1);
+    save.gold = 321;
+    save.collection = { 'bk-wolfqueen': 2 };
+    save.collectionVariants = { 'bk-wolfqueen': { [variantKey(PLAIN_VARIANT)]: 2 } };
+    return JSON.parse(JSON.stringify(save)) as Record<string, unknown>;
+  }
+
+  it('gives a v37 save the fresh record: only Guan Yu, no counts, no run, and nothing else changes', () => {
+    const blob = v38Blob();
+    delete blob.story;
+    const migrated = load({ ...blob, version: 37 });
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.story).toEqual(freshSave(0).story);
+    expect(migrated.story.unlockedCharacterIds).toEqual(['guan-yu']);
+    expect(migrated.gold).toBe(321);
+    expect(migrated.collection).toEqual({ 'bk-wolfqueen': 2 });
+  });
+
+  it('ignores a story record on a pre-v38 save, since none could have been earned', () => {
+    const blob = v38Blob();
+    const migrated = load({
+      ...blob,
+      version: 37,
+      story: { ...(blob.story as object), wins: { 'guan-yu': 5 }, claimedRewardKeys: ['x:act1:keep'] },
+    });
+    expect(migrated.story).toEqual(freshSave(0).story);
+  });
+
+  it('walks an ancient save all the way to the fresh record', () => {
+    const migrated = load({ version: 1, createdAt: 5, gold: 9, collection: {}, decks: [], stats: {} });
+    expect(migrated.version).toBe(CURRENT_SAVE_VERSION);
+    expect(migrated.story).toEqual(freshSave(0).story);
+  });
+
+  it('normalizes a v38 save with no story record, or a malformed one, to the fresh record', () => {
+    const missing = v38Blob();
+    delete missing.story;
+    expect(load(missing).story).toEqual(freshSave(0).story);
+    expect(load({ ...v38Blob(), story: 'corrupt' }).story).toEqual(freshSave(0).story);
+    expect(load({ ...v38Blob(), story: { activeRun: { runId: 7 } } }).story).toEqual(freshSave(0).story);
+  });
+
+  it('keeps a v38 story record across save and reload, normalized', () => {
+    const blob = v38Blob();
+    const story = {
+      contentVersion: 1,
+      activeRun: null,
+      unlockedCharacterIds: ['guan-yu', 'persephone', 'persephone', 'not-a-heroine'],
+      countedRuns: { 'guan-yu': 3 },
+      wins: { 'guan-yu': 1 },
+      claimedRewardKeys: ['run-a:act1:keep', 'run-a:act1:keep'],
+      seenSceneIds: [],
+      endless: { bestLoop: {}, daily: null },
+    };
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify({ ...blob, story }));
+    const first = new SaveManager(storage, 456);
+    expect(first.data.story.unlockedCharacterIds).toEqual(['guan-yu', 'persephone']);
+    expect(first.data.story.claimedRewardKeys).toEqual(['run-a:act1:keep']);
+    expect(first.data.story.countedRuns).toEqual({ 'guan-yu': 3 });
+    // A v38 record from before the map key flag reads as unseen: the key opens once.
+    expect(first.data.story.seenMapKey).toBe(false);
+    first.flush();
+    expect(new SaveManager(storage, 789).data.story).toEqual(first.data.story);
+  });
+
+  it('keeps the map key seen across save and reload, in the same v38 record', () => {
+    const storage = fakeStorage();
+    const first = new SaveManager(storage, 456);
+    expect(first.data.story.seenMapKey).toBe(false);
+    first.data.story.seenMapKey = true;
+    first.flush();
+    const again = new SaveManager(storage, 789);
+    expect(again.data.version).toBe(CURRENT_SAVE_VERSION);
+    expect(again.data.story.seenMapKey).toBe(true);
+  });
+
+  it('carries the story record through a save code', () => {
+    const save = freshSave(1);
+    save.story.wins = { 'guan-yu': 2 };
+    save.story.unlockedCharacterIds = ['guan-yu', 'persephone'];
+    save.story.claimedRewardKeys = ['run-a:act1:keep'];
+    const decoded = decode(encode(save));
+    if (!decoded.ok) throw new Error(decoded.error.message);
+    expect(decoded.save.story).toEqual(save.story);
+    expect(decoded.preview.storySummary).toEqual({ charactersUnlocked: 2, actClears: 2, runInProgress: false });
+  });
+});
+
+/**
+ * The Classic / New sound style shares the v37 -> v38 step. Older saves keep
+ * the sound they were hearing (Classic); a v38 save keeps its choice, and
+ * anything else stored there reads as Classic rather than failing the load.
+ */
+describe('SaveData v38 migration (sound style)', () => {
+  function load(blob: Record<string, unknown>): SaveData {
+    const storage = fakeStorage();
+    storage.raw.set('darlingblades.save.v1', JSON.stringify(blob));
+    return new SaveManager(storage, 456).data;
+  }
+  function blobWith(version: number, soundStyle: unknown): Record<string, unknown> {
+    const raw = JSON.parse(JSON.stringify(freshSave(1))) as Record<string, unknown> & { settings: Record<string, unknown> };
+    raw.settings.soundStyle = soundStyle;
+    return { ...raw, version };
+  }
+
+  it('starts a v37 save on Classic, whatever its blob carries', () => {
+    expect(load(blobWith(37, 'new')).settings.soundStyle).toBe('classic');
+  });
+
+  it('keeps a v38 choice and reads garbage or a missing field as Classic', () => {
+    expect(load(blobWith(38, 'new')).settings.soundStyle).toBe('new');
+    expect(load(blobWith(38, 'loud')).settings.soundStyle).toBe('classic');
+    expect(load(blobWith(38, undefined)).settings.soundStyle).toBe('classic');
+  });
+
+  it('survives a reload', () => {
+    const storage = fakeStorage();
+    const first = new SaveManager(storage, 456);
+    first.data.settings.soundStyle = 'new';
+    first.flush();
+    expect(new SaveManager(storage, 456).data.settings.soundStyle).toBe('new');
   });
 });

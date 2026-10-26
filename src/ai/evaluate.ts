@@ -1,17 +1,44 @@
 import { getEffectiveStats } from '../engine/statics';
 import type { CardDb, GameState, PlayerId } from '../engine/types';
 import { cardIdOf, def, isType, opponentOf } from '../engine/types';
-import { createPermanentValuer, dawnSelfBleed, markedBoardValue, questBoardValue } from './value';
+import { createPermanentValuer, dawnSelfBleed, MANDATE_HOLD_VALUE, markedBoardValue, questBoardValue } from './value';
 
 /** Life below this scale is increasingly expensive on the evaluation curve. */
 export const LIFE_CURVE_KNEE = 9;
+
+/**
+ * The evaluation's weights. DEFAULT_EVAL_WEIGHTS is Hard as it ships; Duel any
+ * Deck's higher levels may carry their own, tuned offline by self-play.
+ */
+export interface EvalWeights {
+  /** Height of the convex life curve per side. */
+  life: number;
+  /** Life below this is increasingly expensive. */
+  lifeKnee: number;
+  /** Board value kept by a tapped permanent. */
+  tapped: number;
+  /** Board value kept by a permanent that arrived this turn. */
+  fresh: number;
+  /** Per card of hand-size lead. */
+  card: number;
+  /** Per land of mana lead. */
+  land: number;
+  /** My clock: power beyond half their life. */
+  myClock: number;
+  /** Their clock: power beyond my life. */
+  theirClock: number;
+}
+
+export const DEFAULT_EVAL_WEIGHTS: Readonly<EvalWeights> = Object.freeze({
+  life: 14, lifeKnee: LIFE_CURVE_KNEE, tapped: 0.85, fresh: 0.92, card: 1.2, land: 0.4, myClock: 0.6, theirClock: 1.5,
+});
 
 /**
  * Hard's evaluation function: life differential (nonlinear), board material
  * with tapped/sick discounts, card advantage, mana development, and a clock
  * term. Terminal states dominate everything.
  */
-export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
+export function evaluate(state: GameState, db: CardDb, me: PlayerId, w: Readonly<EvalWeights> = DEFAULT_EVAL_WEIGHTS): number {
   const opp = opponentOf(me);
   if (state.winner === me) return 1e6;
   if (state.winner === opp) return -1e6;
@@ -22,7 +49,7 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
 
   // Life is a resource: nearly worthless at 20, precious near 0. Convex per
   // side, so chip damage at high life never outbids real board material.
-  const lifeWorth = (l: number): number => 14 * Math.tanh(l / LIFE_CURVE_KNEE);
+  const lifeWorth = (l: number): number => w.life * Math.tanh(l / w.lifeKnee);
   let score = lifeWorth(my.life) - lifeWorth(their.life);
 
   // Until-EOT buffs are gone by the time this position matters — a pumped
@@ -45,8 +72,8 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
       continue;
     }
     let v = valueOfPermanent(perm.iid);
-    if (perm.tapped) v *= 0.85;
-    if (perm.enteredThisTurn) v *= 0.92;
+    if (perm.tapped) v *= w.tapped;
+    if (perm.enteredThisTurn) v *= w.fresh;
     score += mineSide ? v : -v;
     if (isType(d, 'creature')) {
       const p = getEffectiveStats(stripped, db, perm.iid).attack;
@@ -63,14 +90,24 @@ export function evaluate(state: GameState, db: CardDb, me: PlayerId): number {
   score += questBoardValue(stripped, db, me) - questBoardValue(stripped, db, opp);
   // Card advantage — stand-in cards count like real ones (they represent
   // real hidden cards in Hard's determinized simulations).
-  score += 1.2 * (my.hand.length - their.hand.length);
+  score += w.card * (my.hand.length - their.hand.length);
 
   // Mana development.
-  score += 0.4 * (myLands - theirLands);
+  score += w.land * (myLands - theirLands);
+
+  // The Mandate (2.0 B3): its holder draws an extra card each dawn until it
+  // is taken. Read from the public holder and deck size only, never the
+  // order; the edge fades as the deck runs low, and turns against the holder
+  // at an empty deck, where the extra draw hastens the loss.
+  if (state.mandateHolder !== undefined) {
+    const deck = state.players[state.mandateHolder].deck.length;
+    const hold = MANDATE_HOLD_VALUE * Math.min(1, (deck - 1) / 2);
+    score += state.mandateHolder === me ? hold : -hold;
+  }
 
   // Clock: who is winning the race?
-  score += 0.6 * Math.max(0, myPower - their.life * 0.5);
-  score -= 1.5 * Math.max(0, theirPower - my.life);
+  score += w.myClock * Math.max(0, myPower - their.life * 0.5);
+  score -= w.theirClock * Math.max(0, theirPower - my.life);
 
   // Recurring self-damage ("At the start of your turn, this deals N damage
   // to you") is a forced clock the shallow lookahead can't see. Price ~3

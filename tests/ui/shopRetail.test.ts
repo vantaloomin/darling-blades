@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm';
 import * as ts from 'typescript';
 import { describe, expect, it, vi } from 'vitest';
 import { BOOSTER_SKUS, packPriceForSku } from '../../src/meta/boosterSkus';
+import { isLiveSet } from '../../src/data/liveness';
 import { SET_BLURBS, SET_TITLES } from '../../src/data/setTitles';
 import manifest from '../../src/data/art-manifest.json';
 import { CARD_DB } from '../../src/data/catalog';
@@ -20,7 +21,7 @@ import { shopPackLayout } from '../../src/ui/shopPresentation';
 
 const SKU_ORDER = [
   'base', 'ragnarok', 'celtic-fae', 'arthurian-court', 'gothic-monsters',
-  'dark-tales', 'yokai-nights', 'sands-of-the-duat', 'starborne', 'drowned-deep', 'first-dawn',
+  'dark-tales', 'yokai-nights', 'sands-of-the-duat', 'starborne', 'drowned-deep', 'first-dawn', 'core-set-2',
 ] as const;
 type Sku = typeof SKU_ORDER[number];
 type RetailRow = { label: string; textureKey: string; sku: Sku };
@@ -83,7 +84,7 @@ function retail(duatLive = false): RetailDeclarations {
   return isolatedDeclarations<RetailDeclarations>(shopSource, [
     'FIRST_DAWN_PACK_TINT', 'FIRST_DAWN_PACK_ART', 'NEWEST_SKU',
     'packTextureForSku', 'packSetForSku', 'visibleBoosterSkus',
-  ], { BOOSTER_SKUS, SET_TITLES, isLiveSet: (sku: string) => sku !== 'sands-of-the-duat' || duatLive });
+  ], { BOOSTER_SKUS, SET_TITLES, isLiveSet: (sku: string) => (sku === 'sands-of-the-duat' ? duatLive : isLiveSet(sku)) });
 }
 
 /** Execute scene methods with a small display adapter, never importing Phaser. */
@@ -159,17 +160,19 @@ describe('Expansion shop retail', () => {
         save.gold = qty * price;
         const restart = vi.fn();
         const buildCtaRail = vi.fn<(label: string, enabled: boolean, buy: () => void) => void>();
+        const deps = {
+          packPriceForSku, packSetForSku: retail().packSetForSku,
+          Services: { save: { data: save, flush: vi.fn() } },
+          spendGold, openPack, openPacks, CARD_DB, createRngState, goldPrice, formatGold,
+          Sfx: { play: vi.fn() }, Date: { now: () => 12345 },
+        };
         const buildButtons = sceneMethod<(qty?: number) => void>(
-          qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', {
-            packPriceForSku, packSetForSku: retail().packSetForSku,
-            Services: { save: { data: save, flush: vi.fn() } },
-            spendGold, openPack, openPacks, CARD_DB, createRngState, goldPrice, formatGold,
-            Sfx: { play: vi.fn() }, Date: { now: () => 12345 },
-          }, source, 'PackOpeningScene',
+          qty === 1 ? 'checkAllRevealed' : 'buildBatchButtons', deps, source, 'PackOpeningScene',
         );
         const scene = {
           sku, saveData: save, specials: [], buttons: [], finishAchievementCheckpoint: vi.fn(),
-          buildCtaRail, tweens: { timeScale: 1 },
+          buildCtaRail, tweens: { timeScale: 1 }, compactUi: null,
+          batchRebuy: sceneMethod('batchRebuy', deps, source, 'PackOpeningScene'),
           scene: { restart },
         };
         buildButtons.call(scene, qty);
@@ -185,11 +188,11 @@ describe('Expansion shop retail', () => {
     },
   );
 
-  it('leads the visible strip with First Dawn and gives only that tile the New chip', () => {
+  it('leads the visible strip with Core Set II and gives only that tile the New chip', () => {
     for (const duatLive of [false, true]) {
       const shop = retail(duatLive);
       const visible = shop.visibleBoosterSkus();
-      expect(visible[0]?.sku).toBe('first-dawn');
+      expect(visible[0]?.sku).toBe('core-set-2');
       const releaseRank = visible.map(({ sku }) => SKU_ORDER.indexOf(sku));
       expect(releaseRank).toEqual([...releaseRank].sort((a, b) => b - a));
       expect(visible.some(({ sku }) => sku === 'sands-of-the-duat')).toBe(duatLive);
@@ -216,7 +219,7 @@ describe('Expansion shop retail', () => {
         tile.call(scene, { add: vi.fn() }, 0, row.label, row.textureKey,
           packPriceForSku(row.sku), row.sku, vi.fn());
         expect(text.mock.calls.filter(([, , label]) => label === 'New')).toHaveLength(
-          row.sku === 'first-dawn' ? 1 : 0,
+          row.sku === 'core-set-2' ? 1 : 0,
         );
       }
     }

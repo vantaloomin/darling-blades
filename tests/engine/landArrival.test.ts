@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RULES } from '../../src/config/rules';
 import { Game } from '../../src/engine/Game';
 import type { CardDb } from '../../src/engine/types';
 import { makeTestState } from '../helpers';
@@ -80,7 +81,7 @@ describe('land arrival triggers', () => {
     const events = game.submit(player, { type: 'playLand', handIndex: -1, reserveIndex: 0 });
 
     expect(game.state.players[player].landReserve).toHaveLength(9);
-    expect(game.state.players[player].life).toBe(22);
+    expect(game.state.players[player].life).toBe(RULES.startingLife + 2);
     const kinds = events.map((event) => event.e);
     for (const kind of ['landPlayed', 'triggerFired', 'effectApplied', 'lifeChanged']) {
       expect(kinds, kind).toContain(kind);

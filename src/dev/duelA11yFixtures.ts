@@ -17,7 +17,8 @@ export type DuelA11yFixtureName =
   | 'full-board' | 'sick-blocker' | 'attackers-targeting' | 'one-target-pick'
   | 'portrait-pick' | 'two-target-picks' | 'graveyard-pick' | 'marks-boost-damage'
   | 'picked-attacker' | 'history' | 'stack' | 'graveyard' | 'darling' | 'duty'
-  | 'coach-cue' | 'coach-info' | 'lethal-target-pick' | 'single-grave-pick' | 'repeated-target-picks';
+  | 'coach-cue' | 'coach-info' | 'lethal-target-pick' | 'single-grave-pick' | 'repeated-target-picks'
+  | 'mandate-yours' | 'mandate-theirs';
 
 export interface DuelA11yFixture {
   state: GameState;
@@ -221,6 +222,9 @@ export function wave2DDuelFixture(name: DuelA11yFixtureName): DuelA11yFixture {
     perm(1).plusOneCounters = 2;
     perm(2).plusOneCounters = 2;
   }
+  // The Mandate's seal beside each holder's life (2.0 lane B4).
+  if (name === 'mandate-yours') state.mandateHolder = 0;
+  if (name === 'mandate-theirs') state.mandateHolder = 1;
   if (name === 'coach-cue' || name === 'coach-info') {
     fixture.panel = name;
     fixture.coachText = name === 'coach-cue' ? WAVE_2D_COACH_CUE : WAVE_2D_COACH_INFO;

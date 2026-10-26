@@ -11,6 +11,7 @@ import {
   achievementCascadeDuration,
   achievementClaimMotion,
   achievementClaimPitch,
+  closestToUnlock,
   HALL_BUCKETS,
   hallWingFrames,
   togglePin,
@@ -54,6 +55,17 @@ describe('wingSummaries', () => {
       status('theme', 't3', true, true),
     ]).find((wing) => wing.bucket === 'theme');
     expect(claimedOnly?.featuredId).toBe('t3');
+  });
+});
+
+describe('closestToUnlock', () => {
+  const s = (id: string, current: number, target: number, unlocked = false) => ({
+    def: { id }, unlocked, current, target, percent: current / target,
+  });
+
+  it('keeps locked achievements with progress, nearest first, ties to fewer steps left', () => {
+    const picks = closestToUnlock([s('none', 0, 5), s('done', 5, 5, true), s('half', 5, 10), s('half-small', 1, 2), s('most', 9, 10), s('some', 1, 10)]);
+    expect(picks.map((p) => p.def.id)).toEqual(['most', 'half-small', 'half']);
   });
 });
 

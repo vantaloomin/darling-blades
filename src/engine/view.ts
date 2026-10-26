@@ -79,6 +79,9 @@ export interface PlayerView {
   combat: CombatState | null;
   fogThisTurn: boolean;
   creatureDiedThisTurn?: true;
+  gainedLifeThisTurn?: PlayerId[];
+  /** Public Mandate holder; absent while unclaimed. */
+  mandateHolder?: PlayerId;
   sunsetPendingWindow?: true;
   decisionResume?: GameState['decisionResume'];
   pendingDecisions?: PendingDecision[];
@@ -176,6 +179,8 @@ export function viewFor(
     combat: copyData(state.combat),
     fogThisTurn: state.fogThisTurn,
     ...(state.creatureDiedThisTurn ? { creatureDiedThisTurn: true as const } : {}),
+    ...(state.gainedLifeThisTurn ? { gainedLifeThisTurn: state.gainedLifeThisTurn.slice() } : {}),
+    ...(state.mandateHolder === undefined ? {} : { mandateHolder: state.mandateHolder }),
     ...(state.sunsetPendingWindow ? { sunsetPendingWindow: true as const } : {}),
     ...(state.decisionResume ? { decisionResume: copyData(state.decisionResume) } : {}),
     ...(publicQueue ? { pendingDecisions: copyData(state.pendingDecisions), stackClosed: state.stackClosed } : {}),

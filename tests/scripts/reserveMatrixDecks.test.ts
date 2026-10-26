@@ -25,12 +25,13 @@ describe('reserve matrix deck derivation', () => {
     ]);
     // 2026-08-28: the live Starborne pool re-derives the third Darling.
     // 2026-09-15: the live Drowned Deep pool re-derives the fifth Darling.
+    // 2026-10-25: Core Set II going live re-derives the first and fifth.
     expect(first.darlings.map((deck) => deck.darlingId)).toEqual([
-      'gk-athena',
+      'cs2-antiope',
       'sd-anuket-who-runs-the-cataracts',
       'sb-abyssal-iris-regent',
       'gk-ares',
-      'dd-reef-warden',
+      'cs2-atalanta',
       'gk-aphrodite',
     ]);
 

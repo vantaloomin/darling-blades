@@ -9,11 +9,12 @@ import {
 } from '../battlefield';
 import { applyCreatureDamage, markStruck, type CreatureDamageHit } from '../creatureDamage';
 import { anyPayableHauntlink } from '../hauntlinkWindow';
+import { claimMandate, mandateHolderOf } from '../mandate';
 import { refuseTokenAtCap } from '../overcharge';
 import { drawCards } from '../phases';
 import { freshGraveyardCard, graveRefIndex } from '../graveyard';
 import { rngInt } from '../rng';
-import { getEffectiveStats, isQuestActive } from '../statics';
+import { getEffectiveStats, isQuestActive, isSwornActive } from '../statics';
 import { enumerateTargets, isLegalTarget } from './targeting';
 import type {
   AbilityDef,
@@ -191,7 +192,9 @@ function fireMarkTriggers(
           controller: source.controller,
           sourceCardId: source.cardId,
           sourceIid: source.iid,
-          targets: [],
+          // The marked creature is the observer subject, as the arriving one
+          // is for allyCreatureArrives: "it gets +1/+0" (Peach Garden Oath).
+          targets: marked !== undefined && event !== 'propagated' ? [{ kind: 'permanent', iid: marked.iid }] : [],
           markTriggerDepth: depth + 1,
         },
         ab.ops,
@@ -247,6 +250,10 @@ export function conditionSatisfied(
     p.controller === controller && p.iid !== sourceIid && isType(def(db, p.cardId), 'creature') &&
     def(db, p.cardId).subtypes.includes(condition.subtype));
   if (condition === 'questActive') return isQuestActive(state.battlefield, db, controller);
+  if (condition === 'swornActive') return isSwornActive(state.battlefield, db, controller);
+  if (condition === 'youHoldMandate') return mandateHolderOf(state) === controller;
+  if (condition === 'youDontHoldMandate') return mandateHolderOf(state) !== controller;
+  if (condition === 'youGainedLifeThisTurn') return state.gainedLifeThisTurn?.includes(controller) ?? false;
   if (condition === 'controlMarked') {
     // The condition name is retained for replay compatibility, but Marks are
     // now creature-scoped throughout the engine.
@@ -373,7 +380,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         delta: op.n,
         now: state.players[ctx.controller].life,
       });
-      if (op.n > 0) firePlayerObservers(state, db, emit, 'youGainLife', ctx.controller, ctx.markTriggerDepth);
+      if (op.n > 0) {
+        noteLifeGained(state, ctx.controller);
+        firePlayerObservers(state, db, emit, 'youGainLife', ctx.controller, ctx.markTriggerDepth);
+      }
       return;
     }
     case 'loseLife':
@@ -610,10 +620,10 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         !hunter || !prey || hunter.iid === prey.iid ||
         !isType(def(db, hunter.cardId), 'creature') || !isType(def(db, prey.cardId), 'creature')
       ) return;
-      const hunterStats = getEffectiveStats(state.battlefield, db, hunter.iid);
+      const hunterStats = getEffectiveStats(state, db, hunter.iid);
       if (hunterStats.keywords.has('bulwark')) return;
       // Both amounts are read before either is dealt: the exchange is simultaneous.
-      const preyAttack = getEffectiveStats(state.battlefield, db, prey.iid).attack;
+      const preyAttack = getEffectiveStats(state, db, prey.iid).attack;
       const hits: CreatureDamageHit[] = [];
       if (hunterStats.attack > 0) {
         hits.push({ source: hunter.iid, sourceController: hunter.controller, target: { kind: 'permanent', iid: prey.iid }, amount: hunterStats.attack });
@@ -662,6 +672,17 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
       return;
     }
     case 'fetchLand': {
+      // A reserve format (Warchest) keeps its lands out of the deck: take the
+      // first land of the reserve (2.0, Core Set II's ramp). No card printed
+      // fetchLand before 2.0, so the deck path below is unchanged for replays.
+      const reserve = state.players[ctx.controller].landReserve;
+      if (reserve !== undefined) {
+        if (reserve.length === 0) return;
+        const [card] = reserve.splice(0, 1);
+        const perm = enterBattlefield(state, db, card, ctx.controller, emit, { tapped: true });
+        fireTriggers(state, db, emit, 'arrives', perm, { markTriggerDepth: ctx.markTriggerDepth });
+        return;
+      }
       const deck = state.players[ctx.controller].deck;
       let index = -1;
       for (let i = deck.length - 1; i >= 0; i--) {
@@ -746,18 +767,26 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
     case 'extraLandDrop':
       state.players[ctx.controller].extraLandDrops += op.n ?? 1;
       return;
+    case 'claimMandate':
+      claimMandate(state, db, emit, ctx.controller, 'effect');
+      return;
     case 'createToken': {
+      // "Its controller creates": the first target's, captured before the
+      // effect moved it. Nothing control-changing exists, so its owner is its
+      // controller. With no target left, nobody creates anything.
+      const maker = op.for === 'targetController' ? ctx.targetOwners?.[0] : ctx.controller;
+      if (maker === undefined) return;
       for (let i = 0; i < op.count; i++) {
         const count = state.battlefield.filter(
-          (p) => p.controller === ctx.controller && isType(def(db, p.cardId), 'creature'),
+          (p) => p.controller === maker && isType(def(db, p.cardId), 'creature'),
         ).length;
         // At the cap a token is not created. Each refused token in turn gives
         // a same-name token an Overcharge instead, if one is eligible (A1.7).
         if (count >= RULES.maxCreatures) {
-          refuseTokenAtCap(state, db, emit, ctx.controller, op.token);
+          refuseTokenAtCap(state, db, emit, maker, op.token);
           continue;
         }
-        const perm = enterBattlefield(state, db, op.token, ctx.controller, emit, {
+        const perm = enterBattlefield(state, db, op.token, maker, emit, {
           asToken: true,
           ...(op.marks === undefined ? {} : { plusOneCounters: op.marks }),
         });
@@ -793,7 +822,7 @@ function runOp(state: GameState, db: CardDb, emit: Emit, ctx: EffectContext, op:
         if (op.filter === 'allEnchantments') return isType(d, 'enchantment');
         if (!isType(d, 'creature')) return false;
         if (op.filter === 'allFliers') {
-          return getEffectiveStats(state.battlefield, db, p.iid).keywords.has('skyborne');
+          return getEffectiveStats(state, db, p.iid).keywords.has('skyborne');
         }
         return true;
       });
@@ -978,7 +1007,7 @@ export function runOps(
     }
     runOp(state, db, emit, bound, op);
     if (state.pendingDecisions.length === pendingCount) continue;
-    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount);
+    deferRemainingOps(state, ctx, ops.slice(index + 1), pendingCount, op.op !== 'foresee');
     return;
   }
 }
@@ -988,13 +1017,15 @@ export function runOps(
  * newest decision (`raisedFrom` is the queue length before the op ran). Also
  * used when a held dies trigger resolves late and raises a decision: the rest
  * of the effect it paused then waits exactly where it would have waited had
- * the trigger resolved inline.
+ * the trigger resolved inline. `raisedByTrigger` marks a decision that a
+ * trigger the op set off raised, rather than the op itself.
  */
 export function deferRemainingOps(
   state: GameState,
   ctx: EffectContext,
   thenOps: readonly EffectOp[],
   raisedFrom: number,
+  raisedByTrigger = false,
 ): void {
   const pending = state.pendingDecisions[state.pendingDecisions.length - 1];
   const frame = (): EffectContinuation => ({ context: structuredClone(ctx), ops: [...thenOps] });
@@ -1020,6 +1051,15 @@ export function deferRemainingOps(
   // trigger it raises resolves through the same queue.
   if (pending?.kind === 'foresee') {
     if (thenOps.length > 0) {
+      // A Foresee a trigger raised mid-effect (Deepfield Array moves a mark,
+      // Static Reef foresees, then the second mark moves) leaves the effect's
+      // targeted tail its own targets: it resumes as a continuation after the
+      // Foresee settles, the way a targeted arrival's effect does below.
+      if (raisedByTrigger && thenOps.some(effectOpUsesTarget)) {
+        pending.continuations ??= [];
+        pending.continuations.push(frame());
+        return;
+      }
       for (const thenOp of thenOps) assertTargetFreeForeseeContinuation(thenOp);
       const thenContext = {
         controller: ctx.controller,
@@ -1127,6 +1167,8 @@ function fireAllyCreatureArrivesTriggers(
     ) continue;
     for (const [abilityIndex, ability] of (def(db, holder.cardId).abilities ?? []).entries()) {
       if (ability.when !== 'allyCreatureArrives' || !ability.ops) continue;
+      // "Whenever another Beastkin arrives under your control" (2.0).
+      if (ability.filter?.subtype && !arrivingDef.subtypes.includes(ability.filter.subtype)) continue;
       if (
         ability.condition !== undefined &&
         !conditionSatisfied(state, db, holder.controller, ability.condition, holder.iid)
@@ -1340,8 +1382,14 @@ export function fireMarkedAllyAttackTriggers(
 }
 
 /** Public player events and battlefield-ordered creature observers. */
+/** Record a positive life gain for "if you gained life this turn" (2.0). */
+export function noteLifeGained(state: GameState, player: PlayerId): void {
+  if (state.gainedLifeThisTurn?.includes(player)) return;
+  state.gainedLifeThisTurn = [...(state.gainedLifeThisTurn ?? []), player];
+}
+
 export function firePlayerObservers(state: GameState, db: CardDb, emit: Emit,
-  when: 'youGainLife' | 'youCastCharm', player: PlayerId, markTriggerDepth = 0): void {
+  when: 'youGainLife' | 'youCastCharm' | 'youClaimMandate', player: PlayerId, markTriggerDepth = 0): void {
   if (when === 'youGainLife' && markTriggerDepth > MAX_MARK_TRIGGER_DEPTH) return;
   for (const source of [...state.battlefield]) {
     if (source.controller === player) fireTriggers(state, db, emit, when, source, { markTriggerDepth });

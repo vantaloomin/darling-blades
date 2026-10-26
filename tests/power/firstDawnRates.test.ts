@@ -190,11 +190,11 @@ describe('the conditional arrival Hunt, gated on the hunter\'s own tribe (A1.1c 
   });
 
   it('leaves the standing gate on a tribal ability that does not hunt', () => {
-    // The shared controlsOther gate prices shipped cards; only the Hunt was measured.
+    // The shared controlsOther gate prices shipped cards; only the Hunt was measured. Parts are rounded to the cent.
     const gain = (condition?: AbilityDef['condition']): ScorableCardDef =>
       dinokin(3, 4, [{ when: 'arrives', ops: [{ op: 'gainLife', n: 3 }], ...(condition ? { condition } : {}) }]);
     const gainPart = (card: ScorableCardDef) => scoreCard(card).parts.find((part) => part.label.startsWith('arrives:gain'))?.v ?? NaN;
-    expect(gainPart(gain({ kind: 'controlsOther', subtype: 'Dinokin' }))).toBeCloseTo(0.6 * gainPart(gain()), 6);
+    expect(gainPart(gain({ kind: 'controlsOther', subtype: 'Dinokin' }))).toBeCloseTo(0.6 * gainPart(gain()), 2);
   });
 });
 

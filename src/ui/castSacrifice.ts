@@ -47,7 +47,7 @@ export function sacrificeSelection(state: GameState, db: CardDb, player: PlayerI
   const candidates = sacrificeCandidates(state, db, player);
   const validSelection = new Set(selected).size === selected.length && selected.every((iid) => candidates.includes(iid));
   return {
-    defense: validSelection ? selected.reduce((sum, iid) => sum + getEffectiveStats(state.battlefield, db, iid).defense, 0) : 0,
+    defense: validSelection ? selected.reduce((sum, iid) => sum + getEffectiveStats(state, db, iid).defense, 0) : 0,
     cost: validSelection && actions[0] ? castActionCost(state, db, player, actions[0]) : undefined,
     actions: validSelection ? actions.filter((action) => validateAction(state, db, player, action) === null) : [],
   };

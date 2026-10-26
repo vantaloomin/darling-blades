@@ -1,4 +1,6 @@
+import { FEATURES } from '../config/features';
 import { DROPS, ECONOMY, RULES } from '../config/rules';
+import type { StoryNodeKind } from './story/types';
 import type {
   AbilityDef,
   CardDef,
@@ -10,7 +12,7 @@ import type {
   TargetSpec,
   TriggerWhen,
 } from '../engine/types';
-import { activatedAbilitiesOf, isTargetBranchOp } from '../engine/types';
+import { activatedAbilitiesOf, isTargetBranchOp, markCostOf } from '../engine/types';
 
 /**
  * The rules vocabulary, as pure data. This lives in `src/data` — not in the
@@ -76,7 +78,9 @@ export type MechanicId =
   | 'tithe'
   | 'nineLives'
   | 'preserve'
-  | 'duty';
+  | 'duty'
+  | 'mandate'
+  | 'sworn';
 
 export const MECHANIC_NAMES: Record<MechanicId, string> = {
   sever: 'Sever',
@@ -97,6 +101,8 @@ export const MECHANIC_NAMES: Record<MechanicId, string> = {
   nineLives: 'Nine Lives',
   preserve: 'Preserve',
   duty: 'Duty',
+  mandate: 'The Mandate',
+  sworn: 'Sworn',
 };
 
 /**
@@ -129,6 +135,8 @@ export const MECHANIC_DEFINITIONS: Record<MechanicId, string> = {
   nineLives: 'when this dies with no +1/+1 marks on it, it returns to the battlefield with a +1/+1 mark on it',
   preserve: 'pay the listed cost and Sever this card from your graveyard to create a token copy of it; only during Morning or Afternoon',
   duty: 'tap this permanent, and pay any listed cost, during your Morning or Afternoon to perform its Duty; a permanent cannot tap the turn it arrives unless it has Warcry',
+  mandate: 'a seal no one holds until a card claims it; at your Dawn, if you hold it, draw a card; when your creatures deal combat damage to the player who holds it, you claim it',
+  sworn: 'active while you control a legendary creature; a Sworn ability works only while it is active',
 };
 
 /** Mechanic definitions the owner ruled as full sentences rather than the fragment house style. */
@@ -195,6 +203,7 @@ function cardOps(d: CardDef): EffectOp[] {
     ...flatten(d.empower?.ops ?? []),
     ...flatten(d.retell?.ops ?? []),
     ...activatedAbilitiesOf(d).flatMap((ability) => flatten(ability.ops)),
+    ...(d.modal?.modes ?? []).flatMap((mode) => flatten(mode.ops)),
   ];
 }
 
@@ -205,6 +214,7 @@ function cardTargetSpecs(d: CardDef): TargetSpec[] {
     ...activatedAbilitiesOf(d).flatMap((ability) => ability.targets ?? []),
     ...(d.empower?.targets ?? []),
     ...(d.retell?.targets ?? []),
+    ...(d.modal?.modes ?? []).flatMap((mode) => mode.targets ?? []),
   ];
 }
 
@@ -214,7 +224,7 @@ function cardTargetSpecs(d: CardDef): TargetSpec[] {
  * mark-event triggers shipped without teaching Mark because nothing forced the
  * question, so a new trigger now fails the typecheck until it is answered.
  */
-const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | null> = {
+const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | 'mandate' | null> = {
   spell: null,
   provoked: 'provoked',
   arrives: null,
@@ -234,6 +244,7 @@ const TRIGGER_MECHANIC: Record<TriggerWhen, 'mark' | 'propagate' | 'provoked' | 
   allyDies: null,
   youGainLife: null,
   youCastCharm: null,
+  youClaimMandate: 'mandate',
   allyAttacks: null,
   sunset: null,
   static: null,
@@ -306,6 +317,8 @@ export function cardMechanics(d: CardDef): MechanicId[] {
     teachesPropagate ||
     d.nineLives ||
     ops.some(opNamesMark) ||
+    activatedAbilitiesOf(d).some((ability) => markCostOf(ability) > 0) ||
+    (d.tithe?.marks ?? 0) > 0 ||
     cardTargetSpecs(d).some((spec) => spec.marked === true) ||
     abilities.some(abilityNamesMark)
   ) {
@@ -333,7 +346,20 @@ export function cardMechanics(d: CardDef): MechanicId[] {
   if (d.tithe) present.push('tithe');
   if (d.nineLives) present.push('nineLives');
   if (d.preserve) present.push('preserve');
-  if (d.activated) present.push('duty');
+  // A Duty taps; an ability paid by removing marks never does, so it teaches
+  // Mark (above) and not Duty.
+  if (activatedAbilitiesOf(d).some((ability) => markCostOf(ability) === 0)) present.push('duty');
+  // The Mandate is named by a claim, a "whenever you claim" opener, or a
+  // hold/don't-hold condition; Sworn by its condition word.
+  const conditions = abilities.map((ab) => ab.condition ?? ab.static?.condition);
+  if (
+    ops.some((op) => op.op === 'claimMandate') ||
+    abilities.some((ab) => TRIGGER_MECHANIC[ab.when] === 'mandate') ||
+    conditions.some((c) => c === 'youHoldMandate' || c === 'youDontHoldMandate')
+  ) {
+    present.push('mandate');
+  }
+  if (conditions.includes('swornActive')) present.push('sworn');
   return present;
 }
 
@@ -364,7 +390,7 @@ export function cardTermNames(d: CardDef): string[] {
 // Glossary sections
 // ---------------------------------------------------------------------------
 
-export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity';
+export type GlossarySectionId = 'combat' | 'mechanics' | 'phases' | 'types' | 'mana' | 'rarity' | 'storyMap';
 
 /**
  * Everything the icon bake draws a mechanic chip for: the named mechanics plus
@@ -384,6 +410,7 @@ export type GlossaryIcon =
   | { kind: 'type'; key: CardType }
   | { kind: 'mana'; key: Color }
   | { kind: 'rarity'; key: Rarity }
+  | { kind: 'storyStop'; key: StoryNodeKind }
   | { kind: 'none' };
 
 export interface GlossaryTerm {
@@ -405,6 +432,32 @@ export interface GlossarySection {
 }
 
 const KEYWORD_ORDER = Object.keys(KEYWORD_NAMES) as Keyword[];
+
+/**
+ * Story Mode's map stops: each kind's name and what it offers, in one line.
+ * The one source for the map's side panel, the map key and the Glossary's
+ * Story Map tab (house copy rules in src/ui/storyPresentation.ts).
+ */
+export const STORY_STOP_NAMES: Readonly<Record<StoryNodeKind, string>> = {
+  fight: 'Fight',
+  elite: 'Elite',
+  event: 'Event',
+  shop: 'Shop',
+  rest: 'Rest',
+  boss: 'Boss',
+};
+
+export const STORY_STOP_SUMMARY: Readonly<Record<StoryNodeKind, string>> = {
+  fight: 'Win for run gold and a card reward.',
+  elite: 'A harder duel. Win for more run gold and a card reward.',
+  event: 'A stop on the road, and a choice to make.',
+  shop: 'Buy cards for this run with run gold.',
+  rest: 'Rest, and remove a card from your run deck if you like.',
+  boss: 'The last duel of the act. Win it to clear Act 1.',
+};
+
+/** The map key's and the Glossary's reading order. */
+export const STORY_STOP_ORDER: readonly StoryNodeKind[] = ['fight', 'elite', 'event', 'shop', 'rest', 'boss'];
 
 /**
  * Zone and format vocabulary that has no card field behind it. These are looked
@@ -461,6 +514,8 @@ const MECHANIC_ORDER: MechanicId[] = [
   'nineLives',
   'preserve',
   'duty',
+  'mandate',
+  'sworn',
 ];
 
 export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
@@ -542,7 +597,23 @@ export const GLOSSARY_SECTIONS: readonly GlossarySection[] = [
       icon: { kind: 'rarity', key } as GlossaryIcon,
     })),
   },
+  {
+    // Shown only while Story Mode is live (`glossarySections`).
+    id: 'storyMap',
+    title: 'Story Map',
+    note: 'The stops on a Story run’s map.',
+    terms: STORY_STOP_ORDER.map((kind) => ({
+      name: STORY_STOP_NAMES[kind],
+      description: STORY_STOP_SUMMARY[kind],
+      icon: { kind: 'storyStop', key: kind } as GlossaryIcon,
+    })),
+  },
 ];
+
+/** The sections the Glossary shows: the Story Map tab only while Story Mode is live (read per call: dev boot flips the switch). */
+export function glossarySections(): readonly GlossarySection[] {
+  return FEATURES.storyLive ? GLOSSARY_SECTIONS : GLOSSARY_SECTIONS.filter((section) => section.id !== 'storyMap');
+}
 
 export function glossarySection(id: GlossarySectionId): GlossarySection {
   const found = GLOSSARY_SECTIONS.find((candidate) => candidate.id === id);
@@ -559,7 +630,7 @@ export function termMatchesQuery(term: GlossaryTerm, query: string): boolean {
 
 /** The section a term name lives in, for the Deck Builder's focus deep links. */
 export function sectionOfTerm(name: string): GlossarySectionId | null {
-  for (const section of GLOSSARY_SECTIONS) {
+  for (const section of glossarySections()) {
     if (section.terms.some((term) => term.name === name)) return section.id;
   }
   return null;

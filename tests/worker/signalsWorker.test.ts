@@ -10,7 +10,7 @@ import {
   type SignalEnv,
 } from '../../src/meta/playSignals';
 import type { DataPoint, Env, KvLike } from '../../worker/src/index';
-import worker, { resetSaltCacheForTests } from '../../worker/src/index';
+import worker, { addressForHash, resetSaltCacheForTests } from '../../worker/src/index';
 import { MAX_BODY_BYTES, MAX_CARD_ROWS, WIRE_VERSION, type EventType } from '../../worker/src/schema';
 import { TINY_DB, richSave } from '../meta/playSignals.fixtures';
 
@@ -104,21 +104,24 @@ interface Rig {
   kv: FakeKv;
   sink: FakeSink;
   limiter: FakeLimiter;
+  cardsLimiter: FakeLimiter;
 }
 
 function rig(overrides: Partial<Env> = {}, shared: Partial<Rig> = {}): Rig {
   const kv = shared.kv ?? new FakeKv();
   const sink = shared.sink ?? new FakeSink();
   const limiter = shared.limiter ?? new FakeLimiter();
+  const cardsLimiter = shared.cardsLimiter ?? new FakeLimiter();
   const env: Env = {
     SIGNALS: sink,
     SALT_KV: kv,
     SIGNALS_RATE_LIMIT: limiter,
+    SIGNALS_CARDS_RATE_LIMIT: cardsLimiter,
     SALT_SECRET: 'a-test-secret-that-is-not-the-real-one',
     BUILD_LABEL: 't2',
     ...overrides,
   };
-  return { env, kv, sink, limiter };
+  return { env, kv, sink, limiter, cardsLimiter };
 }
 
 // ---------------------------------------------------------------------------
@@ -338,6 +341,16 @@ describe('refusals', () => {
     expect(limiter.keys).toHaveLength(1);
     expect(limiter.keys[0]).toMatch(/^[0-9a-f]{16}$/);
     expect(limiter.keys[0]).toBe(sink.points[0].indexes[0]);
+  });
+
+  it('holds cards batches to their own tighter limit, and leaves the other events alone', async () => {
+    const { env, sink, limiter, cardsLimiter } = rig();
+    cardsLimiter.allow = false;
+    expect((await worker.fetch(postCards(), env)).status).toBe(429);
+    expect(sink.points).toHaveLength(0);
+    expect((await worker.fetch(postHeartbeat(), env)).status).toBe(204);
+    expect(cardsLimiter.keys).toHaveLength(1);
+    expect(cardsLimiter.keys[0]).toBe(limiter.keys[0]);
   });
 
   it('refuses a cards batch one row over the cap, and takes one at the cap', async () => {
@@ -600,6 +613,25 @@ describe('the daily salt', () => {
     await worker.fetch(postHeartbeat({ ip: '203.0.113.1' }), env);
     await worker.fetch(postHeartbeat({ ip: '203.0.113.2' }), env);
     expect(sink.points[0].indexes[0]).not.toBe(sink.points[1].indexes[0]);
+  });
+
+  it('counts one IPv6 /64 as one install, however the address inside it rotates', async () => {
+    const { env, sink } = rig();
+    await worker.fetch(postHeartbeat({ ip: '2001:db8:aa:1::1' }), env);
+    await worker.fetch(postHeartbeat({ ip: '2001:0db8:00aa:0001:9f3c:2e1:77:abcd' }), env);
+    await worker.fetch(postHeartbeat({ ip: '2001:db8:aa:2::1' }), env);
+    expect(sink.points[0].indexes[0]).toBe(sink.points[1].indexes[0]);
+    expect(sink.points[0].indexes[0]).not.toBe(sink.points[2].indexes[0]);
+  });
+
+  it('cuts only IPv6 to its /64, and passes anything it cannot parse through whole', () => {
+    expect(addressForHash('203.0.113.77')).toBe('203.0.113.77');
+    expect(addressForHash('2001:db8::')).toBe('2001:db8:0:0::/64');
+    expect(addressForHash('::1')).toBe('0:0:0:0::/64');
+    expect(addressForHash('2001:DB8:A:B:C:D:E:F')).toBe('2001:db8:a:b::/64');
+    expect(addressForHash('2001::db8::1')).toBe('2001::db8::1');
+    expect(addressForHash('1:2:3')).toBe('1:2:3');
+    expect(addressForHash('')).toBe('');
   });
 
   it('gives one install the same hash across requests in a day', async () => {

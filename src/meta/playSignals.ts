@@ -41,6 +41,7 @@
 import { DARLINGS_PRECONS } from '../data/darlingsPrecons';
 import { DRAFT_PERSONAS } from '../data/draftPersonas';
 import { AVATARS } from '../data/opponents';
+import { STORY_OPPONENTS } from '../data/story/opponents';
 import { STARTER_DECKS, THEME_DECKS } from '../data/starterDecks';
 import type { CardDb, CardDef } from '../engine/types';
 import { isType, manaValue } from '../engine/types';
@@ -120,9 +121,11 @@ export type SignalRenderScale = '720p' | '1080p' | '1440p' | 'other';
  * `warchest` is the reserve-native constructed format, which since the 1.6
  * classic retirement is what every granted non-Darlings deck actually is
  * (`grantedDeckBuild`, src/meta/Economy.ts). There is deliberately no
- * `constructed` value.
+ * `constructed` value. `story` is a Story Mode duel (owner ruling M3,
+ * 2026-10-13): its run deck is neither a saved deck nor a draft, so it is a
+ * format of its own rather than skewing the Darlings numbers.
  */
-export type SignalDuelFormat = 'warchest' | 'darlings' | 'limited' | 'gauntlet';
+export type SignalDuelFormat = 'warchest' | 'darlings' | 'limited' | 'gauntlet' | 'story';
 export type SignalDeckSource = 'precon' | 'custom' | 'drafted';
 export type SignalDifficulty = 'easy' | 'medium' | 'hard';
 /** A concede is its own outcome. It is never also reported as a loss. */
@@ -143,6 +146,7 @@ const DUEL_FORMAT_VALUES = [
   'darlings',
   'limited',
   'gauntlet',
+  'story',
 ] as const satisfies readonly SignalDuelFormat[];
 const DECK_SOURCE_VALUES = ['precon', 'custom', 'drafted'] as const satisfies readonly SignalDeckSource[];
 const DIFFICULTY_VALUES = ['easy', 'medium', 'hard'] as const satisfies readonly SignalDifficulty[];
@@ -591,12 +595,14 @@ const ACHIEVEMENT_IDS: ReadonlySet<string> = new Set(ACHIEVEMENTS.map((def) => d
 const BASIC_LAND_ID_SET: ReadonlySet<string> = new Set<string>(BASIC_LAND_IDS);
 
 /**
- * Our own opponents: the avatar roster the Tower and Practice seat, and the
- * draft personas Limited seats. An id outside this set is never one of ours, so
- * it is replaced rather than forwarded.
+ * Our own opponents: the avatar roster the Tower and Practice seat, Story
+ * Mode's own opponents (its elites), and the draft personas Limited seats. An
+ * id outside this set is never one of ours, so it is replaced rather than
+ * forwarded.
  */
 const KNOWN_OPPONENT_IDS: ReadonlySet<string> = new Set<string>([
   ...AVATARS.map((avatar) => avatar.id),
+  ...STORY_OPPONENTS.map((opponent) => opponent.id),
   ...DRAFT_PERSONAS.map((persona) => persona.id),
 ]);
 

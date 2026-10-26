@@ -267,6 +267,20 @@ describe("the menu's arrival order", () => {
     }
   });
 
+  it('puts the unreadable-save message before everything, the stats notice included', () => {
+    expect(menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true, saveUnreadableOwed: true }))
+      .toEqual(['saveUnreadable', 'statsNotice', 'saveOver', 'tutorialPrompt']);
+    expect(menuArrivalSteps({ noticeOwed: false, deckRepairOwed: true, tutorialDone: true, saveUnreadableOwed: true }))
+      .toEqual(['saveUnreadable', 'deckRepair']);
+  });
+
+  it('puts the home-screen save message after the stats notice and before the tutorial prompt', () => {
+    expect(menuArrivalSteps({ noticeOwed: true, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true }))
+      .toEqual(['statsNotice', 'saveOver', 'tutorialPrompt']);
+    expect(menuArrivalSteps({ noticeOwed: false, deckRepairOwed: false, tutorialDone: false, saveOverOwed: true }))
+      .toEqual(['saveOver', 'tutorialPrompt']);
+  });
+
   it('keeps the old rule that a repair notice replaces the tutorial prompt', () => {
     for (const noticeOwed of [false, true]) {
       const steps = menuArrivalSteps({ noticeOwed, deckRepairOwed: true, tutorialDone: false });
@@ -326,6 +340,12 @@ describe('the first-run notice copy', () => {
     // The same two words SettingsScene's refreshToggles() writes.
     const scene = readFileSync(resolve(ROOT, 'src/scenes/SettingsScene.ts'), 'utf8');
     expect(scene).toContain(`'${STATS_NOTICE_COPY.toggleOn}' : '${STATS_NOTICE_COPY.toggleOff}'`);
+  });
+
+  it('reads "Blocked by browser" instead of "On" only while a browser signal stops the sends', () => {
+    expect(statsToggleLabel(true, true)).toBe(STATS_NOTICE_COPY.toggleBlocked);
+    expect(statsToggleLabel(false, true)).toBe(STATS_NOTICE_COPY.toggleOff);
+    expect(statsToggleLabel(true, false)).toBe(STATS_NOTICE_COPY.toggleOn);
   });
 
   it('is spelled out nowhere in the dialog itself', () => {

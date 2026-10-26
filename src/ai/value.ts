@@ -4,9 +4,9 @@ import { cardHasProvoked } from '../engine/creatureDamage';
 import { arrivalHuntIndex } from '../engine/effects/EffectInterpreter';
 import { combineManaCosts, solveMana } from '../engine/mana';
 import { castTargetSpecsFor } from '../engine/resolve';
-import { getEffectiveStats, isQuestActive } from '../engine/statics';
+import { getEffectiveStats, isQuestActive, isSwornActive } from '../engine/statics';
 import type { AbilityDef, ActivatedDef, CardDb, EffectOp, Keyword, ManaCost, Permanent, PlayerId, TargetRef, TargetSpec } from '../engine/types';
-import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, opponentOf } from '../engine/types';
+import { activatedAbilitiesOf, def, effectOpUsesTarget, isTargetBranchOp, isType, manaValue, markCostOf, opponentOf } from '../engine/types';
 import type { PlayerView } from '../engine/view';
 import { extraManaByTurn, RAMP_ANCHOR, RAMP_DAWN_SHARE, RAMP_STACK, RAMP_TURN_DECAY } from '../power/scoreCore';
 import { determinize } from './determinize';
@@ -31,7 +31,7 @@ export function actionManaCost(view: PlayerView, db: CardDb, action: ManaSpendAc
   const cost = castCost(d, !!action.empowered, !!action.retell, !!action.hauntlinked, { whispers: action.whispers });
   if (!cost) return undefined;
   const discount = action.tithe ? Math.floor((action.sacrifices ?? []).reduce((sum, iid) =>
-    sum + getEffectiveStats(view.battlefield, db, iid).defense, 0) / 2) : 0;
+    sum + getEffectiveStats(view, db, iid).defense, 0) / 2) : 0;
   return { generic: Math.max(0, cost.generic - discount) + (action.x ?? 0), pips: cost.pips };
 }
 
@@ -269,6 +269,12 @@ export function abilityConditionMultiplier(condition: AbilityDef['condition'], q
   // No public context preserves the legacy shared-policy estimate (Easy).
   if (condition === 'questActive' && questActive !== undefined) return questActive ? 1 : 0.55;
   if (condition === 'creatureDiedThisTurn') return 0.6;
+  // 2.0 B5, the Mandate lab: the scorer's measured gates (COND_SWORN and the
+  // hold rates in src/power/scoreCore.ts), for a card with no board to read.
+  if (condition === 'swornActive') return 0.5;
+  if (condition === 'youHoldMandate') return 0.45;
+  if (condition === 'youDontHoldMandate') return 0.75;
+  if (condition === 'youGainedLifeThisTurn') return 0.6;
   if (typeof condition === 'object' && condition.kind === 'controlsOther') return 0.65;
   if (condition === 'controlMarked') return 0.55;
   if (typeof condition === 'object' && condition.kind === 'markedThreshold') return 0.5;
@@ -328,7 +334,7 @@ function damageTargetValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'dama
   if (!perm) return op.n * 0.9 * harmSign(ctx, ref);
   const d = def(ctx.db, perm.cardId);
   if (!isType(d, 'creature')) return 0;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const lethal = op.n >= stats.defense - perm.damage;
   // Damage a survivor keeps wears off at cleanup. In an end step nothing is
   // left before then for it to add to, so its residual is worth nothing there
@@ -705,7 +711,7 @@ function boostTargetValue(
   if (op.scope !== 'target') return 0;
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const printedDelta = (op.p + op.t) / 2 + boostKeywordValue(op, [stats]);
   // A positive boost helps our body and hurts theirs; a negative boost has the
   // opposite sign. The 0.75 factor keeps a one-turn trick below removal.
@@ -724,7 +730,7 @@ function markCounterValue(ctx: TargetContext, op: Extract<EffectOp, { op: 'addCo
   const perm = permanentFor(ctx, ref);
   if (!perm || !isType(def(ctx.db, perm.cardId), 'creature')) return 0;
   if (perm.controller !== ctx.view.myId) return -op.n * 1.2;
-  const stats = getEffectiveStats(ctx.view.battlefield, ctx.db, perm.iid);
+  const stats = getEffectiveStats(ctx.view, ctx.db, perm.iid);
   const toughnessAfter = stats.defense + op.n - perm.damage;
   let value = op.n * 1.2;
   if (toughnessAfter >= 4) value += 0.4;
@@ -916,7 +922,7 @@ export function expectsTargetSurvives(
   const mods = new Map<number, { p: number; t: number; keywords: Keyword[] }>();
   const dealt = new Map<number, { damage: number; deathblade: boolean }>();
   const statsOf = (id: number) => {
-    const stats = getEffectiveStats(view.battlefield, db, id);
+    const stats = getEffectiveStats(view, db, id);
     const mod = mods.get(id);
     return {
       attack: Math.max(0, stats.attack + (mod?.p ?? 0)), defense: stats.defense + (mod?.t ?? 0),
@@ -997,6 +1003,24 @@ interface ActivatedImpactContext {
 /** A Hunt's card-shaped floor (`opImpactValue`, `empowerValue`): half a destroy. */
 export const HUNT_CARD_FLOOR = 1.5;
 
+/**
+ * What holding the Mandate is worth (2.0 B3), in the same card-shaped units:
+ * about two of its dawn draws (a draw is 1.25) before someone takes it back.
+ * A claim prices this much, and Hard's evaluation (where a card in hand is
+ * 1.2) the same. The Mandate lab (B5) agrees: a claiming deck facing another
+ * holds it on 2.5 of its 11 dawns a game, so a claim mid-game buys about two.
+ */
+export const MANDATE_HOLD_VALUE = 2.5;
+
+/**
+ * The Mandate in combat's units, where a creature is priced by `permValue`
+ * (a vanilla 2/2 is about 4, a 1/1 about 3): about one cheap creature, so
+ * Medium trades a 2-drop to steal it and chumps with a small one to keep it,
+ * but never a real threat. Provisional: the lab (B5) prices the claim in
+ * mana, not this combat swing, so it stays a judgement on the hold value.
+ */
+export const MANDATE_COMBAT_VALUE = 4.5;
+
 interface RampImpactContext {
   view: PlayerView;
   db: CardDb;
@@ -1061,7 +1085,8 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
     case 'discardRandom':
       return op.n * 1;
     case 'createToken':
-      return op.count * (1.5 + (op.marks ?? 0) * 1.2);
+      // A token made for the target's controller is theirs, a cost to us.
+      return (op.for === 'targetController' ? -1 : 1) * op.count * (1.5 + (op.marks ?? 0) * 1.2);
     case 'addCounters':
       return op.n * (op.to === 'self' ? 1.5 : 1.2);
     case 'propagate':
@@ -1124,6 +1149,9 @@ export function opImpactValue(op: EffectOp, activated?: ActivatedImpactContext, 
       return op.filter === 'allEnchantments' ? 2.5 : 2;
     case 'destroyNewestOpponentArtifactOrEnchantment':
       return 3;
+    case 'claimMandate':
+      // Nothing to gain when we already hold it; card-shaped, assume we don't.
+      return ramp && ramp.view.mandateHolder === ramp.view.myId ? 0 : MANDATE_HOLD_VALUE;
     case 'hunt':
       // Card-shaped: the creatures are unknown, so a Hunt is priced at a
       // conditional removal floor, half of Empower's destroy. Its board value
@@ -1145,7 +1173,7 @@ function activatedTargetImpact(op: EffectOp, ctx: ActivatedImpactContext, ref: T
     return removalTargetValue(view.battlefield, db, target, false) * factor * (target.controller === view.myId ? -1 : 1);
   }
   if (target && op.op === 'boost' && isType(def(db, target.cardId), 'creature') &&
-    getEffectiveStats(view.battlefield, db, target.iid).defense + op.t <= target.damage) {
+    getEffectiveStats(view, db, target.iid).defense + op.t <= target.damage) {
     return removalTargetValue(view.battlefield, db, target, false) * (target.controller === view.myId ? -1 : 1);
   }
   if (op.op === 'tap' && ctx.live && (target?.tapped ||
@@ -1213,7 +1241,7 @@ function activatedOpImpact(op: EffectOp, ctx: ActivatedImpactContext): number {
       const card = def(db, perm.cardId);
       const affected = op.filter === 'allEnchantments' ? isType(card, 'enchantment') :
         isType(card, 'creature') && (op.filter !== 'allFliers' ||
-          getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('skyborne'));
+          getEffectiveStats(view, db, perm.iid).keywords.has('skyborne'));
       return sum + (affected ? material(perm) * (perm.controller === view.myId ? -1 : 1) : 0);
     }, 0);
   }
@@ -1329,8 +1357,14 @@ function activatedActionImpact(
     targets: action.targets ?? [],
     targetBatch: ability.targets?.length === 1 && (ability.targets[0].upTo !== undefined || ability.targets[0].exactly !== undefined),
   };
-  return activatedOpsImpact(ability.ops, ctx);
+  return activatedOpsImpact(ability.ops, ctx) - markCostOf(ability) * MARK_SPENT_VALUE;
 }
+
+/**
+ * A mark spent as an activation cost (2.0, Nüwa's stones) is a +1/+1 the
+ * source loses for good, priced as the mark a targeted `addCounters` gives.
+ */
+const MARK_SPENT_VALUE = 1.2;
 
 /** Potential targets from public battlefield data; no GameState or hidden zones. */
 function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permanent, spec: TargetSpec): TargetRef[] {
@@ -1341,17 +1375,18 @@ function activatedPotentialTargets(view: PlayerView, db: CardDb, source: Permane
     const creature = isType(card, 'creature');
     if (spec.marked && (!creature || perm.plusOneCounters <= 0)) continue;
     if (spec.maxCost !== undefined && manaValue(card.cost) > spec.maxCost) continue;
-    if (spec.minAttack !== undefined && (!creature || getEffectiveStats(view.battlefield, db, perm.iid).attack < spec.minAttack)) continue;
+    if (spec.minAttack !== undefined && (!creature || getEffectiveStats(view, db, perm.iid).attack < spec.minAttack)) continue;
+    if (spec.maxAttack !== undefined && (!creature || getEffectiveStats(view, db, perm.iid).attack > spec.maxAttack)) continue;
     const mine = perm.controller === source.controller;
     const creatureTarget = spec.what === 'creature' || spec.what === 'any' || spec.what === 'opponentCreature';
-    if (creatureTarget && !mine && getEffectiveStats(view.battlefield, db, perm.iid).keywords.has('untouchable')) continue;
+    if (creatureTarget && !mine && getEffectiveStats(view, db, perm.iid).keywords.has('untouchable')) continue;
     const matches = spec.what === 'opponentCreature' ? creature && !mine : creatureTarget ? creature : spec.what === 'yourCreature' ? mine && creature :
       spec.what === 'yourPermanent' ? mine : spec.what === 'artifactOrEnchantment' ?
         isType(card, 'artifact') || isType(card, 'enchantment') :
         (spec.what === 'artifact' || spec.what === 'enchantment') && isType(card, spec.what);
     if (matches) refs.push({ kind: 'permanent', iid: perm.iid });
   }
-  if ((spec.what === 'any' || spec.what === 'player') && !spec.marked && !spec.tapped && spec.maxCost === undefined && spec.minAttack === undefined) {
+  if ((spec.what === 'any' || spec.what === 'player') && !spec.marked && !spec.tapped && spec.maxCost === undefined && spec.minAttack === undefined && spec.maxAttack === undefined) {
     refs.push({ kind: 'player', player: source.controller }, { kind: 'player', player: opponentOf(source.controller) });
   }
   return refs;
@@ -1463,12 +1498,38 @@ export type RemovalKind =
 
 /** Explicit cast context opts the stronger brains into spell-body decisions. */
 export type SpellMode = Pick<Extract<Action, { type: 'castSpell' }>,
-  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked'>;
+  'targets' | 'x' | 'retell' | 'whispers' | 'empowered' | 'hauntlinked' | 'modes'>;
+
+/**
+ * A modal spell's chosen modes (2.0): each mode's target-free ops at their
+ * printed rates, plus its targeted ops on the target the cast names for it.
+ * 0 for a card that is not modal or a cast that names no modes.
+ */
+export function modalCastValue(view: PlayerView, db: CardDb, cardId: string, mode: SpellMode): number {
+  const modal = def(db, cardId).modal;
+  if (!modal || !mode.modes) return 0;
+  let slot = 0;
+  let value = 0;
+  for (const index of mode.modes) {
+    const chosen = modal.modes[index];
+    if (!chosen) continue;
+    const width = chosen.targets?.length ?? 0;
+    const targets = (mode.targets ?? []).slice(slot, slot + width);
+    slot += width;
+    value += spellAbilityImpact(view, db, cardId, { ops: chosen.ops }, {}, (op) => !effectOpUsesTarget(op)) +
+      spellTargetsValue(view, db, chosen.ops, targets);
+  }
+  return value;
+}
 
 function publicCondition(view: PlayerView, db: CardDb, condition: AbilityDef['condition']): boolean {
   if (condition === undefined) return true;
   if (condition === 'questActive') return isQuestActive(view.battlefield, db, view.myId);
   if (condition === 'creatureDiedThisTurn') return view.creatureDiedThisTurn === true;
+  if (condition === 'swornActive') return isSwornActive(view.battlefield, db, view.myId);
+  if (condition === 'youHoldMandate') return view.mandateHolder === view.myId;
+  if (condition === 'youDontHoldMandate') return view.mandateHolder !== view.myId;
+  if (condition === 'youGainedLifeThisTurn') return view.gainedLifeThisTurn?.includes(view.myId) ?? false;
   const mine = view.battlefield.filter((p) => p.controller === view.myId && isType(def(db, p.cardId), 'creature'));
   if (condition === 'controlMarked') return mine.some((p) => p.plusOneCounters > 0);
   if (condition.kind === 'controlsOther') return mine.some((p) => def(db, p.cardId).subtypes.includes(condition.subtype));
@@ -1773,8 +1834,9 @@ export function conditionalAbilityValue(db: CardDb, cardId: string, view?: Playe
     const markedCondition =
       ab.condition === 'controlMarked' ||
       (typeof ab.condition === 'object' && ab.condition.kind === 'markedThreshold');
-    const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'allyAttacks', 'sunset'].includes(ab.when);
-    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' ||
+    const vocabularyTrigger = ['allyDies', 'youGainLife', 'youCastCharm', 'youClaimMandate', 'allyAttacks', 'sunset'].includes(ab.when);
+    const vocabularyCondition = ab.condition === 'creatureDiedThisTurn' || ab.condition === 'swornActive' ||
+      ab.condition === 'youHoldMandate' || ab.condition === 'youDontHoldMandate' || ab.condition === 'youGainedLifeThisTurn' ||
       typeof ab.condition === 'object' && ab.condition.kind === 'controlsOther';
     if (!markedOps && !markedCondition && !vocabularyTrigger && !vocabularyCondition &&
       !(view && ab.condition === 'questActive')) continue;
@@ -1849,6 +1911,7 @@ export function cardValue(db: CardDb, cardId: string, view?: PlayerView, mode: S
   v += conditionalAbilityValue(db, cardId, view);
   // Explicit public context keeps Easy and the shared discard/fodder policies
   // byte-identical. Medium/Hard can price a spell's actual body and target.
+  if (view && d.modal) v += modalCastValue(view, db, cardId, mode);
   if (view && !isType(d, 'creature') && (isType(d, 'charm') || isType(d, 'ritual'))) {
     const abilities = mode.retell && d.retell?.ops
       ? [{ when: 'spell' as const, ops: d.retell.ops }] : d.abilities ?? [];
@@ -1914,7 +1977,7 @@ export function empowerValue(
         // pricing here is limited to the granted-keyword change (U2).
         return 1.5;
       case 'createToken':
-        return op.count * 2;
+        return (op.for === 'targetController' ? -1 : 1) * op.count * 2;
       case 'raise':
         return op.to === 'target' ? 0 : 3;
       case 'foresee':

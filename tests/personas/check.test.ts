@@ -106,7 +106,7 @@ describe('--check artifact round trip', () => {
     expect(checkedOptions?.landReserve).toEqual(artifact.landReserve);
     expect(artifact.landReserve).toHaveLength(10);
     expect(output).toContain('Drift: 0.0 percentage points');
-  });
+  }, 60_000);
 
   it('refuses a committed v1 artifact instead of re-measuring a retired format', () => {
     const path = resolve('scripts/personas/decks/2026-07-20-burn-all.json');

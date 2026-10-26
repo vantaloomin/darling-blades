@@ -31,6 +31,8 @@
  * construction); the Settings UI persists + flushes + reloads.
  */
 
+import { TAP_SLOP_PX } from './gestureCore';
+
 /**
  * LIVE (unlocked 2026-07-04) — the render-scale pipeline runs end-to-end:
  * setting → resolution → canvas sizing (1280k × 720k) → per-scene camera zoom
@@ -121,4 +123,81 @@ export function setActiveRenderScale(k: RenderK): void {
 /** The factor the running game was constructed with (1 in headless/tests). */
 export function activeRenderScale(): RenderK {
   return active;
+}
+
+// ---------------------------------------------------------------------------
+// The base camera zoom every 1280×720 scene gets. On desktop it is the render
+// factor (the canvas is exactly 1280·k × 720·k). Under the compact profile
+// (docs/plan-mobile-overhaul.md C2) the canvas follows the screen instead, so
+// the zoom is whatever fits the 1280×720 design window inside it, and the
+// background colour letterboxes the rest. Unset, it reads the render factor,
+// so headless runs and desktop behave exactly as before.
+// ---------------------------------------------------------------------------
+
+let sceneZoom: number | null = null;
+let sceneWidthShare = 1;
+
+/**
+ * Set by src/gameBoot.ts once, before the Phaser.Game is constructed.
+ * `widthShare` is the share of the canvas width the window may fill: below 1
+ * on an upright tablet, letterboxed at 96% of its width (M11).
+ */
+export function setActiveSceneZoom(zoom: number | null, widthShare = 1): void {
+  sceneZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+  sceneWidthShare = sceneZoom !== null && widthShare > 0 && widthShare <= 1 ? widthShare : 1;
+}
+
+/** The share of the canvas width the fitted window may fill (1 except on an upright tablet). */
+export function activeSceneWidthShare(): number {
+  return sceneWidthShare;
+}
+
+/** True under the compact profile, where scenes fit 1280×720 into a screen-shaped canvas. */
+export function sceneFitActive(): boolean {
+  return sceneZoom !== null;
+}
+
+/** The base camera zoom for a scene laid out in the 1280×720 design window. */
+export function activeSceneZoom(): number {
+  return sceneZoom ?? active;
+}
+
+// ---------------------------------------------------------------------------
+// The running scene's own zoom. A scene with a compact composition
+// (src/platform/compactScenes.ts) draws in the phone's design space, not the
+// fitted 1280×720 window, so its camera zoom differs from activeSceneZoom.
+// SceneBackdrop.applySceneSettings records whichever zoom it applied last; the
+// tap slop and the text raster follow it. Null means the fitted zoom.
+// ---------------------------------------------------------------------------
+
+let currentZoom: number | null = null;
+
+/** Recorded by SceneBackdrop.applySceneSettings for the scene it just set up. */
+export function setCurrentSceneZoom(zoom: number | null): void {
+  currentZoom = zoom !== null && Number.isFinite(zoom) && zoom > 0 ? zoom : null;
+}
+
+/** The camera zoom of the scene set up last: canvas px per world px. */
+export function currentSceneZoom(): number {
+  return currentZoom ?? activeSceneZoom();
+}
+
+/**
+ * The resolution Texts rasterize at (src/gameBoot.ts's TextStyle hook): the
+ * running scene's zoom, never below 1, so a glyph lands on the canvas about
+ * 1:1. On desktop that is k, as before.
+ */
+export function textRasterResolution(): number {
+  return Math.max(1, currentSceneZoom());
+}
+
+/**
+ * The tap slop (gestureCore.ts) in world px. Under the compact profile the
+ * slop means TAP_SLOP_PX CSS px (docs/plan-mobile-overhaul.md, wave 1): the
+ * canvas is the screen times k, so one CSS px is k / zoom world px, and a
+ * 1280x720 scene shrunk onto a phone no longer cancels a tap after a 4 px
+ * wobble. On desktop it stays TAP_SLOP_PX world px, as before.
+ */
+export function tapSlopWorldPx(): number {
+  return sceneZoom === null ? TAP_SLOP_PX : (TAP_SLOP_PX * active) / currentSceneZoom();
 }
