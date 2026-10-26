@@ -45,7 +45,7 @@ branch / commit / PR / merge flow: [docs/git-workflow.md](docs/git-workflow.md).
 | --- | --- |
 | `npm run dev` / `npm run build` | dev server (:5173) / typecheck + production build |
 | `npm run forge` | the Forge card designer's dev server (:5176, page at `/forge/`); `npm run build` builds it into `dist/forge/` (web only). See [docs/forge.md](docs/forge.md) |
-| `npx vitest run` | full suite (~16 min at 5,644 tests on 4 workers, measured 2026-10-08; win-rate gates included; run on an idle machine, not during sweeps) |
+| `npx vitest run` | full suite (~21 min at 6,241 tests in 402 files on CI, measured 2026-10-25; win-rate gates included; run on an idle machine, not during sweeps) |
 | `npm run lint` | ESLint over src, tests, scripts (enforces layer purity) |
 | `npm run check-docs` / `check-art-bible` / `gen-docs-tables -- --check` | doc anti-rot checkers (must be green, zero warnings) |
 | `npm run check-story` / `npx tsx scripts/balance-matrix.ts --story --seeds 200` | Story Mode content check (script, art, cards, avatars) / seeded Act 1 runs per heroine |

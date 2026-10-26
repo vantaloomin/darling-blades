@@ -49,8 +49,8 @@ export const SETS = SET_IDS;
 export const SET_LABELS: Readonly<Record<SetId, string>> = SET_TITLES;
 
 /**
- * What the Forge shows: sets and cards behind a liveness flag (Core Set II
- * until the 2.0 cut) stay out of its pickers, card list and art library.
+ * What the Forge shows: sets and cards behind a liveness flag (none since
+ * Core Set II went live with 2.0.0) stay out of its pickers, card list and art library.
  * SETS stays whole so validation still accepts every set id.
  */
 export const LIVE_SETS = SET_IDS.filter(isLiveSet);

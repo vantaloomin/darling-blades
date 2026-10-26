@@ -1744,6 +1744,7 @@ invalidate its field). Warchest and Darlings ship **revealed** in 1.5.5
 
 ## Planned
 
+- **The 2.0 train (STAGED as 2.0.0 on 2026-10-25 on `release/2.0`).** [plan-2.0.md](plan-2.0.md) is the program plan. Release notes: [release-notes/v2.0.0.md](release-notes/v2.0.0.md). In: **Core Set II** (250 cards, the Mandate and Sworn), **Story Mode** Act 1 and endless, **starting life 25** with the one-time floor reset and the tower retune, the **mobile overhaul** and the desktop menus on its layouts, **Duel any Deck** with Expert and Master, and the **Sound style** setting. Staging flips `FEATURES.coreSet2Live` and `FEATURES.storyLive` on in every build. Next: the itch.io launch as a 2.0.x, then Story Mode's next acts.
 - **The 1.9 train (every decision ruled 2026-09-25; 1.8.1 and 1.8.5 have
   shipped; STAGED as 1.9.0 on 2026-10-08 on `release/1.9`).**
   [plan-1.9.md](plan-1.9.md) is the program plan. Release notes:

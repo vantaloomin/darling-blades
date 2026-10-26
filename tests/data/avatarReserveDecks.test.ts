@@ -24,8 +24,13 @@ import { cardHasHunt } from '../../src/ai/value';
 import { runAvatarReserveMatrix } from '../../scripts/balance-matrix';
 
 const save = buildReserveMatrixFullOwnershipSave(CARD_DB);
+// Every committed tower list was authored before Core Set II went live in
+// 2.0.0, so the converter and builder are pinned to the pool they ran over.
+const PRE_CORE_SET_2_DB: CardDb = Object.fromEntries(
+  Object.entries(CARD_DB).filter(([id]) => !id.startsWith('cs2-')),
+) as CardDb;
 const PRE_STARBORNE_DB: CardDb = Object.fromEntries(
-  Object.entries(CARD_DB).filter(([id]) => !id.startsWith('sb-')),
+  Object.entries(PRE_CORE_SET_2_DB).filter(([id]) => !id.startsWith('sb-')),
 ) as CardDb;
 
 describe('Duty target supply', () => {
@@ -520,11 +525,11 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
     const sorted = (cards: readonly string[]): string[] => [...cards].sort();
     for (const avatar of AVATARS) {
       // The historical pre-Starborne fixture intentionally excludes sb-*;
-      // Starborne, Drowned Deep and First Dawn converter surfaces use the live catalog.
+      // Starborne, Drowned Deep and First Dawn converter surfaces use the catalog as it stood before Core Set II.
       const isDrownedDeep = avatar.id === 'the-drowned-deacon' || avatar.id === 'the-marsh-mother';
       const isFirstDawn = avatar.id === 'the-shepherdess-of-giants' || avatar.id === 'the-tyrant-queen';
       const sourceDb = isDrownedDeep || isFirstDawn || avatar.id === 'chrome-broodmother' || avatar.id === 'the-violet-signal-queen'
-        ? CARD_DB
+        ? PRE_CORE_SET_2_DB
         : PRE_STARBORNE_DB;
       const first = convertAvatarReserveDecks(avatar, sourceDb);
       const second = convertAvatarReserveDecks(avatar, sourceDb);
@@ -537,7 +542,7 @@ describe('avatar reserve-native deck data (1.6 migration stage 2)', () => {
       // (rungs 23-26 from 10-30 to 55-59) and ended rung 27's turn-limit stall.
       // A list in HAND_TUNED_DARLINGS is a measured tune on top of the builder.
       const expectSummitDarlings = (): void => {
-        const built = buildDarlingsDeck(avatar, CARD_DB);
+        const built = buildDarlingsDeck(avatar, PRE_CORE_SET_2_DB);
         if (HAND_TUNED_DARLINGS.has(avatar.id)) {
           expect(sorted(built.cards), `${avatar.id} is listed as hand-tuned Darlings but matches the builder`)
             .not.toEqual(sorted(avatar.darlingsDeck));

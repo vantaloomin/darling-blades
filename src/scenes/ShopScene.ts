@@ -220,7 +220,7 @@ const FIRST_DAWN_PACK_TINT: PackTint = {
   mist: '#ffc7a0',
 };
 
-// Core Set II (dev only until the 2.0 cut): jade, lacquer red and river-gold,
+// Core Set II: jade, lacquer red and river-gold,
 // the Mandate's colours. Procedural until the set's pack art lands.
 const CORE_SET_2_PACK_TINT: PackTint = {
   start: '#8fd3b0',
@@ -466,7 +466,7 @@ export function visibleBoosterSkus(): ReadonlyArray<{ label: string; textureKey:
 }
 
 /** Only the newest SKU gets launch emphasis. */
-export const NEWEST_SKU: BoosterSku = 'first-dawn';
+export const NEWEST_SKU: BoosterSku = 'core-set-2';
 
 /**
  * Bake a booster-pack texture once (shared with PackOpeningScene). Real front
