@@ -3567,6 +3567,12 @@ export class DuelScene extends Phaser.Scene {
     this.aiTimer = this.time.delayedCall(400, () => {
       this.aiTimer = null;
       if (this.ended || this.animatingCombat) return;
+      // The Mandate's seal lands before the AI acts again (owner, 2.0.1), so
+      // a claim isn't lost under the next spell. Check again shortly.
+      if (this.mandateSeal?.flying) {
+        this.maybeRunAI();
+        return;
+      }
       const aw = this.duel.awaiting;
       if (!('player' in aw) || aw.player !== AI) return;
       const action = this.ai.chooseAction(this.duel.viewFor(AI), this.duel.legalActions(AI));
