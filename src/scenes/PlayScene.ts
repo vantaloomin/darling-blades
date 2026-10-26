@@ -22,7 +22,7 @@ import { applyBackdrop, sceneStage, sceneTextureKey } from '../ui/SceneBackdrop'
 import { AVATARS } from '../data/opponents';
 import { compactSceneMetrics } from '../platform/compactScenes';
 import { COMPACT } from '../ui/compactLayout';
-import { compactButton, compactDialog, compactHeader, compactScrim, coverFitImage } from '../ui/compactWidgets';
+import { clipToRoundedRect, compactButton, compactDialog, compactHeader, compactScrim, coverFitImage } from '../ui/compactWidgets';
 import { bindMenuScroll } from '../ui/menuScroll';
 import { compactDeckRows, compactPlayLayout, PLAY_COMPACT } from '../ui/playCompact';
 import { addPortraitArt } from '../ui/portraitArt';
@@ -251,14 +251,16 @@ export class PlayScene extends Phaser.Scene {
         if (!plate.active || !this.textures.exists(storyTextureKey(STORY_TILE_ART))) return;
         const image = this.add.image(0, 0, storyTextureKey(STORY_TILE_ART));
         coverFitImage(image, rect, 0);
+        clipToRoundedRect(this, rect, theme.radius.panel, [image]);
         // Straight above the plate, under the scrim and the words (moveAbove keeps an object already above).
         this.children.moveTo(image, this.children.getIndex(plate) + 1);
       });
     } else {
       const art = this.compactTileArt(entry.scene, rect);
       if (art && blocked) art.setAlpha(0.3);
+      if (art) clipToRoundedRect(this, rect, theme.radius.panel, [art]);
     }
-    compactScrim(this, rect, 0.45);
+    clipToRoundedRect(this, rect, theme.radius.panel, [compactScrim(this, rect, 0.45)]);
     this.add.graphics()
       .lineStyle(theme.control.borderWidth, blocked ? theme.graphics.panelStroke : colorInt(theme.colors.gold), blocked ? theme.alpha.chrome : 0.55)
       .strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);

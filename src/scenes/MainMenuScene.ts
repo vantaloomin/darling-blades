@@ -37,7 +37,7 @@ import { COMPACT, isDesktopStage } from '../ui/compactLayout';
 import { createStatsNoticeDialog } from '../ui/StatsNoticeDialog';
 import { mainMenuDailyLayout, mainMenuHeaderRow, MAIN_MENU_HEADER_GAP, mainMenuNavRows, menuNoticeLayout, MAIN_MENU_DAILY, MAIN_MENU_ITEMS, MAIN_MENU_VERSION } from '../ui/mainMenuPresentation';
 import { menuNavButton } from '../ui/MenuNavButton';
-import { compactButton, compactDialog, compactGoldPill, compactIconButton, compactScrim, coverFitImage, type CompactButton, type CompactDialogAction } from '../ui/compactWidgets';
+import { clipToRoundedRect, compactButton, compactDialog, compactGoldPill, compactIconButton, compactScrim, coverFitImage, type CompactButton, type CompactDialogAction } from '../ui/compactWidgets';
 import { COMMUNITY_LINK, communityLinkLabel } from '../ui/communityLink';
 import { openOffsitePage } from '../ui/openExternalPage';
 import { compactDailyPage, compactMainMenuLayout, MAIN_MENU_COMPACT, type CompactMainMenuLayout } from '../ui/mainMenuCompact';
@@ -382,7 +382,7 @@ export class MainMenuScene extends Phaser.Scene {
       fit(art);
     }
     // A scrim from the middle down, so the record and the label read over any art.
-    compactScrim(this, rect);
+    clipToRoundedRect(this, rect, theme.radius.panel, art ? [art, compactScrim(this, rect)] : [compactScrim(this, rect)]);
     this.add.graphics()
       .lineStyle(theme.control.borderWidth, theme.graphics.panelStroke, theme.alpha.chrome)
       .strokeRoundedRect(rect.x, rect.y, rect.width, rect.height, theme.radius.panel);
