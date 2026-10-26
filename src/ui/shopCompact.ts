@@ -101,6 +101,25 @@ export function packStripScrollFor(strip: PackStrip, paneW: number, selected: nu
   return Math.min(packStripMaxScroll(strip, paneW), Math.max(0, item.art.x - SHOP_COMPACT.packInset));
 }
 
+/**
+ * The scroll after choosing a pack: the chosen pack's centre stays where it
+ * was on screen (`anchor`, pane-local x) so a tap doesn't throw the strip
+ * sideways, then nudges just enough to show the whole (now larger) pack.
+ */
+export function packStripScrollKeeping(strip: PackStrip, paneW: number, selected: number, anchor: number): number {
+  const item = strip.items[selected];
+  if (!item) return 0;
+  const inset = SHOP_COMPACT.packInset;
+  const keep = item.art.x + item.art.width / 2 - anchor;
+  const shown = Math.min(Math.max(keep, item.art.x + item.art.width + inset - paneW), item.art.x - inset);
+  return Math.min(packStripMaxScroll(strip, paneW), Math.max(0, shown));
+}
+
+/** How far the paging arrows move the strip: most of a pane, so one pack stays in view for context. */
+export function packStripPage(paneW: number): number {
+  return Math.round(paneW * 0.75);
+}
+
 /** The pack under a strip-local x (its art or its name's span), or null over a gap. */
 export function packAt(strip: PackStrip, x: number): number | null {
   const index = strip.items.findIndex((item) => x >= item.art.x && x <= item.art.x + item.art.width);

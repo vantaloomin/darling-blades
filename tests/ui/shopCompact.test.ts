@@ -8,6 +8,7 @@ import {
   packStrip,
   packStripMaxScroll,
   packStripScrollFor,
+  packStripScrollKeeping,
   SHOP_COMPACT,
   shopSheet,
 } from '../../src/ui/shopCompact';
@@ -55,6 +56,23 @@ describe('the compact Shop (mocks S-Shop-Packs, S-Shop-Decks, S-Shop-DeckConfirm
     expect(max).toBe(strip.width - main.width);
     expect(packAt(strip, strip.items[3].art.x + 1)).toBe(3);
     expect(packAt(strip, strip.items[3].art.x - SHOP_COMPACT.packGap / 2)).toBeNull();
+  });
+
+  it('keeps a tapped pack where it was on screen, nudged only enough to show it whole', () => {
+    const main = { x: 0, y: 0, width: 900, height: 400 };
+    const before = packStrip(main, 6, 0, 18, { desktop: true });
+    // Tap the fourth pack while the strip sits at its start.
+    const tapped = before.items[3].art;
+    const anchor = tapped.x + tapped.width / 2;
+    const after = packStrip(main, 6, 3, 18, { desktop: true });
+    const offset = packStripScrollKeeping(after, main.width, 3, anchor);
+    const chosen = after.items[3].art;
+    // Whole on screen, and not thrown to the left edge.
+    expect(chosen.x - offset).toBeGreaterThanOrEqual(0);
+    expect(chosen.x + chosen.width - offset).toBeLessThanOrEqual(main.width);
+    expect(chosen.x - offset).toBeGreaterThan(SHOP_COMPACT.packInset);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    expect(offset).toBeLessThanOrEqual(packStripMaxScroll(after, main.width));
   });
 
   it('fits deck tiles no narrower than the floor, drops a column at the largest text, and maps taps to tiles', () => {
