@@ -49,6 +49,12 @@ describe('Duel HUD: title-safe frame', () => {
     expect(isInsideTitleSafe(lifeBadgeBounds(L.myLife))).toBe(true);
     expect(isInsideTitleSafe(lifeBadgeBounds(L.oppLife))).toBe(true);
   });
+
+  it('sits both life badges at the same offset from their portrait\'s outer top corner', () => {
+    const mine = { x: L.myLife.x - L.portrait.x, y: L.myLife.y - L.portrait.y };
+    const foe = { x: L.oppPortrait.x + L.oppPortrait.w - L.oppLife.x, y: L.oppLife.y - L.oppPortrait.y };
+    expect(mine).toEqual(foe);
+  });
 });
 
 describe('Duel HUD: isolation from the board and the smart button', () => {
