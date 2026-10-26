@@ -31,8 +31,6 @@ export const SETTINGS_COMPACT = {
   navColumns: 2,
   /** Desktop: the list sits on a panel, its rows this far inside the panel's edge. */
   desktopPanelPad: 14,
-  /** Desktop: rows stop at this width (about 640 px at a 1280 window) so a label stays near its control. */
-  desktopRowMaxW: 530,
 } as const;
 
 export type SettingsCompactSectionKey = 'audio' | 'yourTurn' | 'gameplay' | 'accessibility' | 'privacy' | 'saveData';
@@ -159,7 +157,8 @@ export function compactSettingsLayout(
   }
   if (!opts.desktop) return { shell, list: main, listPanel: null, rowW: Math.max(0, main.width - C.thumbLane), nav, versionY, legal, update };
   const pad = C.desktopPanelPad;
-  const panelW = Math.min(main.width, C.desktopRowMaxW + C.thumbLane + 2 * pad);
+  // The panel fills the pane, across to the screen's right edge (owner, 2.0.1).
+  const panelW = main.width;
   const listPanel = { x: main.x, y: main.y, width: panelW, height: main.height };
   const list = { x: listPanel.x + pad, y: main.y + pad, width: Math.max(0, panelW - 2 * pad), height: Math.max(0, main.height - 2 * pad) };
   return { shell: { ...shell, main, column, primary: null }, list, listPanel, rowW: Math.max(0, list.width - C.thumbLane), nav, versionY, legal, update };
